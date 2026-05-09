@@ -11,8 +11,9 @@ final class AuthViewModelTests: XCTestCase {
     override func setUp() {
         super.setUp()
         mockClient = MockAuthClient()
-        appState = AppState(keychain: KeychainService(service: "com.hermesvault.vmtest"))
-        appState.keychain.clearAll()
+        let keychain = KeychainService(service: "com.hermesvault.vmtest")
+        keychain.clearAll()
+        appState = AppState(keychain: keychain)
         sut = AuthViewModel(authClient: mockClient, appState: appState)
     }
 
