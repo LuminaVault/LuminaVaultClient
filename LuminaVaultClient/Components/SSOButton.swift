@@ -21,10 +21,10 @@ struct SSOButton: View {
         Button(action: action) {
             providerIcon
                 .frame(width: 72, height: 44)
-                .background(Color.white.opacity(0.06))
+                .background(Color.lvGlass)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        .stroke(Color.lvBorder, lineWidth: 1)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
@@ -38,16 +38,16 @@ struct SSOButton: View {
         case .apple:
             Image(systemName: "apple.logo")
                 .font(.system(size: 18))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.lvTextPrimary)
         case .google:
             // Replace with Image("google_logo") once asset added to Assets.xcassets
             Text("G")
                 .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.lvTextPrimary)
         case .x:
             Text("𝕏")
                 .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.lvTextPrimary)
         }
     }
 }

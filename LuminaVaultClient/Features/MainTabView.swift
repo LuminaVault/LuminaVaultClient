@@ -1,29 +1,31 @@
+// LuminaVaultClient/LuminaVaultClient/Features/MainTabView.swift
 import SwiftUI
 
 struct MainTabView: View {
     var body: some View {
         ZStack {
             Color.lvNavy.ignoresSafeArea()
-            // Subtle glow
-            RadialGradient(colors: [Color.lvCyan.opacity(0.06), .clear],
-                           center: .center, startRadius: 0, endRadius: 300)
-            VStack(spacing: 16) {
-                Image(systemName: "brain.head.profile")
-                    .font(.system(size: 52))
-                    .foregroundStyle(LinearGradient(
-                        colors: [.lvCyan, .lvAmber],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ))
-                    .shadow(color: Color.lvCyan.opacity(0.4), radius: 20)
+
+            VStack(spacing: 20) {
+                Image("OnboardingMascot")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 220)
+                    .shadow(color: Color.lvCyan.opacity(0.45), radius: 30)
+                    .shadow(color: Color.lvAmber.opacity(0.20), radius: 50)
+
                 Text("LuminaVault")
-                    .font(.system(size: 22, weight: .heavy))
+                    .font(.system(size: 26, weight: .heavy))
                     .foregroundStyle(LinearGradient(
-                        colors: [.lvCyan, .lvAmber],
+                        colors: [.lvAmber, .lvCyan],
                         startPoint: .leading, endPoint: .trailing
                     ))
+
                 Text("Your memories, illuminated.")
-                    .font(.system(size: 12)).foregroundStyle(Color.lvTextSub)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.lvTextSub)
             }
         }
+        .lvBackground()
     }
 }

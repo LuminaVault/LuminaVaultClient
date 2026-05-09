@@ -1,0 +1,99 @@
+// LuminaVaultClient/LuminaVaultClient/Features/LVSplashView.swift
+import SwiftUI
+
+struct LVSplashView: View {
+    @State private var pulseScale1: CGFloat = 0.5
+    @State private var pulseScale2: CGFloat = 0.5
+    @State private var pulseScale3: CGFloat = 0.5
+    @State private var pulseOpacity1: Double = 0.5
+    @State private var pulseOpacity2: Double = 0.5
+    @State private var pulseOpacity3: Double = 0.5
+    @State private var logoOpacity: Double = 0
+    @State private var wordmarkOpacity: Double = 0
+    @State private var taglineOpacity: Double = 0
+    @State private var logoScale: CGFloat = 0.85
+
+    var body: some View {
+        ZStack {
+            // Neural pulse rings
+            Circle()
+                .stroke(Color.lvCyan.opacity(0.18), lineWidth: 1.5)
+                .scaleEffect(pulseScale1)
+                .opacity(pulseOpacity1)
+                .frame(width: 280, height: 280)
+            Circle()
+                .stroke(Color.lvCyan.opacity(0.12), lineWidth: 1)
+                .scaleEffect(pulseScale2)
+                .opacity(pulseOpacity2)
+                .frame(width: 280, height: 280)
+            Circle()
+                .stroke(Color.lvAmber.opacity(0.10), lineWidth: 1)
+                .scaleEffect(pulseScale3)
+                .opacity(pulseOpacity3)
+                .frame(width: 280, height: 280)
+
+            VStack(spacing: 12) {
+                Image("OnboardingLogo1")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: 220)
+                    .shadow(color: Color.lvCyan.opacity(0.45), radius: 40)
+                    .shadow(color: Color.lvAmber.opacity(0.20), radius: 60)
+                    .opacity(logoOpacity)
+                    .scaleEffect(logoScale)
+
+                Text("LUMINAVAULT")
+                    .font(.system(size: 13, weight: .bold))
+                    .tracking(4.0)
+                    .foregroundStyle(LinearGradient(
+                        colors: [.lvAmber, .lvCyan],
+                        startPoint: .leading, endPoint: .trailing
+                    ))
+                    .opacity(wordmarkOpacity)
+
+                Text("Your memories, illuminated.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.lvTextSub)
+                    .opacity(taglineOpacity)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .lvBackground()
+        .onAppear { startAnimations() }
+    }
+
+    private func startAnimations() {
+        // Pulse ring 1
+        withAnimation(.easeOut(duration: 1.8).repeatForever(autoreverses: false)) {
+            pulseScale1 = 2.2; pulseOpacity1 = 0
+        }
+        // Pulse ring 2 — delayed
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.easeOut(duration: 1.8).repeatForever(autoreverses: false)) {
+                pulseScale2 = 2.2; pulseOpacity2 = 0
+            }
+        }
+        // Pulse ring 3 — further delayed
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            withAnimation(.easeOut(duration: 1.8).repeatForever(autoreverses: false)) {
+                pulseScale3 = 2.2; pulseOpacity3 = 0
+            }
+        }
+        // Logo appears
+        withAnimation(.easeOut(duration: 0.7)) {
+            logoOpacity = 1; logoScale = 1.0
+        }
+        // Wordmark
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            withAnimation(.easeIn(duration: 0.5)) { wordmarkOpacity = 1 }
+        }
+        // Tagline
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            withAnimation(.easeIn(duration: 0.5)) { taglineOpacity = 1 }
+        }
+    }
+}
+
+#Preview {
+    LVSplashView()
+}
