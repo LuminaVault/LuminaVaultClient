@@ -4,11 +4,9 @@ import OSLog
 
 private let log = Logger(subsystem: "com.luminavault", category: "http")
 
-private extension Encodable {
-    func encoded() throws -> Data {
-        try JSONEncoder().encode(self)
-    }
-}
+// (Per-endpoint encoders live on `Endpoint.encoder`. We intentionally do
+// NOT use a shared `Encodable.encoded()` helper here so each call site
+// can pick snake_case + ISO-8601 vs camelCase as it needs.)
 
 final class BaseHTTPClient: Sendable {
     private let session: URLSession
@@ -37,7 +35,7 @@ final class BaseHTTPClient: Sendable {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let body = endpoint.body {
-            do { req.httpBody = try body.encoded() }
+            do { req.httpBody = try endpoint.encoder.encode(AnyEncodable(body)) }
             catch { throw APIError.encodingFailed(error) }
         }
 
