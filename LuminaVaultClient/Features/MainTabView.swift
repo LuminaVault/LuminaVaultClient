@@ -7,12 +7,7 @@ struct MainTabView: View {
             Color.lvNavy.ignoresSafeArea()
 
             VStack(spacing: 20) {
-                Image("OnboardingMascot")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 220)
-                    .shadow(color: Color.lvCyan.opacity(0.45), radius: 30)
-                    .shadow(color: Color.lvAmber.opacity(0.20), radius: 50)
+                HermieMascotView(state: .idle, size: 220, fallbackImageName: "OnboardingMascot")
 
                 Text("LuminaVault")
                     .font(.system(size: 26, weight: .heavy))
