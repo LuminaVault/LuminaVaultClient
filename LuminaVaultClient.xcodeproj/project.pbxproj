@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		60HER40012FAE1200006F894F /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 60HER40022FAE1200006F894F /* RiveRuntime */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		6088C5012FAE1186006F894F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -32,22 +36,16 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6088C4F52FAE1184006F894F /* LuminaVaultClient */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = LuminaVaultClient;
 			sourceTree = "<group>";
 		};
 		6088C5032FAE1186006F894F /* LuminaVaultClientTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = LuminaVaultClientTests;
 			sourceTree = "<group>";
 		};
 		6088C50D2FAE1186006F894F /* LuminaVaultClientUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = LuminaVaultClientUITests;
 			sourceTree = "<group>";
 		};
@@ -58,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				60HER40012FAE1200006F894F /* RiveRuntime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -117,6 +116,9 @@
 				6088C4F52FAE1184006F894F /* LuminaVaultClient */,
 			);
 			name = LuminaVaultClient;
+			packageProductDependencies = (
+				60HER40022FAE1200006F894F /* RiveRuntime */,
+			);
 			productName = LuminaVaultClient;
 			productReference = 6088C4F32FAE1184006F894F /* LuminaVaultClient.app */;
 			productType = "com.apple.product-type.application";
@@ -195,6 +197,9 @@
 			);
 			mainGroup = 6088C4EA2FAE1184006F894F;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				60HER40032FAE1200006F894F /* XCRemoteSwiftPackageReference "rive-ios" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6088C4F42FAE1184006F894F /* Products */;
 			projectDirPath = "";
@@ -329,7 +334,9 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
 			};
 			name = Debug;
 		};
@@ -386,6 +393,8 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -416,6 +425,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -448,6 +458,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -578,6 +589,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		60HER40032FAE1200006F894F /* XCRemoteSwiftPackageReference "rive-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/rive-app/rive-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		60HER40022FAE1200006F894F /* RiveRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 60HER40032FAE1200006F894F /* XCRemoteSwiftPackageReference "rive-ios" */;
+			productName = RiveRuntime;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6088C4EB2FAE1184006F894F /* Project object */;
 }
