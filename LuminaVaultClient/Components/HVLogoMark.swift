@@ -1,10 +1,14 @@
 // LuminaVaultClient/LuminaVaultClient/Components/HVLogoMark.swift
 //
-// PATH B (when a transparent OnboardingLogo1Mark asset lands):
-//   1. Swap `assetName` to the transparent version.
-//   2. Delete the `.mask(...)` modifier on the logo Image in `logoLayer`.
-//   3. Delete the `.overlay(...multiply)` modifier on the logo Image in `logoLayer`.
-//   4. Bump Size diameters ×1.08 (transparent assets typically have less internal padding).
+// Renders the LuminaVault winged-scroll brand mark with a layered cosmic
+// halo, optional sparkle particles, and a Rive-backed wing animation
+// (falls back to a static PNG with a subtle scale breathing).
+//
+// Asset state today:
+//   - Bundle asset: "WingedScroll" — placeholder JPG, swap to transparent
+//     PNG when the designer delivers (see Resources/WingedScroll/README.md).
+//   - Rive file: "winged_scroll.riv" — absent. Runtime auto-uses fallback
+//     until this lands.
 import SwiftUI
 
 struct LVLogoMark: View {
@@ -30,13 +34,12 @@ struct LVLogoMark: View {
     @State private var amberDriftX: CGFloat = 0
     @State private var amberDriftY: CGFloat = 0
 
-    private let assetName = "OnboardingLogo1"
-
     var body: some View {
         ZStack {
             orbLayer
             amberHaloLayer
-            logoLayer
+            sparkleLayer
+            scrollLayer
             rimLayer
         }
         .frame(width: resolvedSize * orbScale, height: resolvedSize * orbScale)
@@ -68,14 +71,17 @@ struct LVLogoMark: View {
             .offset(x: amberDriftX, y: amberDriftY)
     }
 
-    private var logoLayer: some View {
-        let d = resolvedSize
-        return Image(assetName)
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .frame(width: d, height: d)
-            .mask(logoMask(diameter: d))
-            .overlay(logoTone(diameter: d))
+    @ViewBuilder
+    private var sparkleLayer: some View {
+        if showSparkle {
+            let orb = resolvedSize * orbScale
+            SparkleField(density: sparkleDensity)
+                .frame(width: orb, height: orb)
+        }
+    }
+
+    private var scrollLayer: some View {
+        WingedScrollRiveView(size: resolvedSize)
             .shadow(color: Color.lvCyan.opacity(glowCyanAlpha), radius: glowCyanRadius)
             .shadow(color: Color.lvAmber.opacity(glowAmberAlpha), radius: glowAmberRadius)
     }
@@ -88,7 +94,7 @@ struct LVLogoMark: View {
                 .stroke(rimGradient, lineWidth: 1)
                 .frame(width: d * 0.96, height: d * 0.96)
                 .blur(radius: 0.6)
-                .opacity(0.85)
+                .opacity(0.35)
         }
     }
 
@@ -118,32 +124,6 @@ struct LVLogoMark: View {
             startRadius: 0,
             endRadius: orbRadius * 0.425
         )
-    }
-
-    private func logoMask(diameter d: CGFloat) -> RadialGradient {
-        RadialGradient(
-            colors: [
-                Color.black,
-                Color.black.opacity(0.92),
-                Color.clear
-            ],
-            center: .center,
-            startRadius: d * 0.38,
-            endRadius: d * 0.52
-        )
-    }
-
-    private func logoTone(diameter d: CGFloat) -> some View {
-        RadialGradient(
-            colors: [
-                Color.clear,
-                Color.lvBlue.opacity(0.18 * alphaScale)
-            ],
-            center: .center,
-            startRadius: d * 0.20,
-            endRadius: d * 0.55
-        )
-        .blendMode(.multiply)
     }
 
     private var rimGradient: LinearGradient {
@@ -208,6 +188,14 @@ struct LVLogoMark: View {
         }
     }
 
+    private var sparkleDensity: Int {
+        switch intensity {
+        case .subtle: return 8
+        case .standard: return 12
+        case .hero: return 16
+        }
+    }
+
     private var alphaScale: Double {
         colorScheme == .dark ? 1.0 : 0.55
     }
@@ -234,22 +222,22 @@ struct LVLogoMark: View {
     }
 }
 
-#Preview("Auth · Standard · Dark") {
-    LVLogoMark(size: .auth, intensity: .standard)
+#Preview("Auth · Standard · Sparkles · Dark") {
+    LVLogoMark(size: .auth, intensity: .standard, showSparkle: true)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .lvBackground()
         .preferredColorScheme(.dark)
 }
 
-#Preview("Splash · Hero · Dark") {
-    LVLogoMark(size: .splash, intensity: .hero)
+#Preview("Splash · Hero · Sparkles · Dark") {
+    LVLogoMark(size: .splash, intensity: .hero, showSparkle: true)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .lvBackground()
         .preferredColorScheme(.dark)
 }
 
-#Preview("Auth · Subtle · Light") {
-    LVLogoMark(size: .auth, intensity: .subtle)
+#Preview("Auth · Subtle · NoSparkle · Light") {
+    LVLogoMark(size: .auth, intensity: .subtle, showSparkle: false)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .lvBackground()
         .preferredColorScheme(.light)

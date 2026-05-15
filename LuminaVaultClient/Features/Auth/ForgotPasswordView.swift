@@ -6,8 +6,21 @@ struct ForgotPasswordView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                LVLogoMark(size: .auth, intensity: .standard)
-                    .padding(.bottom, 28)
+                LVLogoMark(size: .auth, intensity: .standard, showSparkle: true)
+                    .padding(.bottom, 18)
+
+                ZStack {
+                    Circle()
+                        .fill(Color.lvCyan.opacity(0.10))
+                        .frame(width: 44, height: 44)
+                        .overlay(Circle().stroke(Color.lvCyan.opacity(0.40), lineWidth: 1.5))
+                        .shadow(color: Color.lvCyan.opacity(0.35), radius: 14)
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(Color.lvCyan)
+                }
+                .padding(.bottom, 14)
+
                 switch vm.forgotStep {
                 case 1:  ForgotPasswordEmailView(vm: vm)
                 case 2:  ForgotPasswordOTPView(vm: vm)

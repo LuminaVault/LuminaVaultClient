@@ -33,7 +33,7 @@ struct LVSplashView: View {
                 .frame(width: 280, height: 280)
 
             VStack(spacing: 12) {
-                LVLogoMark(size: .splash, intensity: .hero)
+                LVLogoMark(size: .splash, intensity: .hero, showSparkle: true)
                     .opacity(logoOpacity)
                     .scaleEffect(logoScale)
 

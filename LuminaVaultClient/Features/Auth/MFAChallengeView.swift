@@ -7,7 +7,7 @@ struct MFAChallengeView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                LVLogoMark(size: .auth, intensity: .subtle)
+                LVLogoMark(size: .auth, intensity: .subtle, showSparkle: false)
                     .padding(.bottom, 28)
 
                 ZStack {

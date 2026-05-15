@@ -7,7 +7,7 @@ struct SignInView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                LVLogoMark(size: .auth, intensity: .standard)
+                LVLogoMark(size: .auth, intensity: .standard, showSparkle: true)
                     .padding(.bottom, 24)
 
                 Text("Welcome back")
