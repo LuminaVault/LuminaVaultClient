@@ -6,7 +6,8 @@ struct ForgotPasswordView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                LVLogoMark().padding(.bottom, 32)
+                LVLogoMark(size: .auth, intensity: .standard)
+                    .padding(.bottom, 28)
                 switch vm.forgotStep {
                 case 1:  ForgotPasswordEmailView(vm: vm)
                 case 2:  ForgotPasswordOTPView(vm: vm)

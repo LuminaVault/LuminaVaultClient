@@ -33,12 +33,7 @@ struct LVSplashView: View {
                 .frame(width: 280, height: 280)
 
             VStack(spacing: 12) {
-                Image("OnboardingLogo1")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(height: 220)
-                    .shadow(color: Color.lvCyan.opacity(0.45), radius: 40)
-                    .shadow(color: Color.lvAmber.opacity(0.20), radius: 60)
+                LVLogoMark(size: .splash, intensity: .hero)
                     .opacity(logoOpacity)
                     .scaleEffect(logoScale)
 

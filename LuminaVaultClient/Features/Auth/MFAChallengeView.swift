@@ -7,7 +7,8 @@ struct MFAChallengeView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                LVLogoMark().padding(.bottom, 32)
+                LVLogoMark(size: .auth, intensity: .subtle)
+                    .padding(.bottom, 28)
 
                 ZStack {
                     RoundedRectangle(cornerRadius: 18)

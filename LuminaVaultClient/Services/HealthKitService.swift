@@ -218,9 +218,7 @@ actor HealthKitService {
         meta["uuid"] = sample.uuid.uuidString
         meta["ended_at"] = ISO8601DateFormatter().string(from: sample.endDate)
         if let device = sample.device?.name { meta["device"] = device }
-        if let bundle = sample.sourceRevision.source.bundleIdentifier {
-            meta["bundle_id"] = bundle
-        }
+        meta["bundle_id"] = sample.sourceRevision.source.bundleIdentifier
         return meta.isEmpty ? nil : meta
     }
 }

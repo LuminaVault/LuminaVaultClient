@@ -8,7 +8,8 @@ struct SignUpView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                LVLogoMark().padding(.bottom, 20)
+                LVLogoMark(size: .auth, intensity: .standard)
+                    .padding(.bottom, 24)
 
                 Text("Create account")
                     .font(.system(size: 20, weight: .heavy)).foregroundStyle(Color.lvTextPrimary)
@@ -50,7 +51,7 @@ struct SignUpView: View {
                         .font(.system(size: 11, weight: .bold)).foregroundStyle(Color.lvCyan)
                 }
             }
-            .padding(.horizontal, 24).padding(.top, 48).padding(.bottom, 40)
+            .padding(.horizontal, 24).padding(.top, 32).padding(.bottom, 40)
         }
         .lvBackground()
         .navigationBarBackButtonHidden(true)
