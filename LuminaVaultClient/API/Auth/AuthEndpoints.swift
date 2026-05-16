@@ -91,4 +91,23 @@ enum AuthEndpoints {
         var requiresAuth: Bool { false }
         var body: (any Encodable)? { PhoneVerifyRequest(phone: phone, code: code) }
     }
+    struct EmailMagicStart: Endpoint {
+        typealias Response = EmailMagicStartResponse
+        let email: String
+        var path: String { "/v1/auth/email/start" }
+        var method: HTTPMethod { .post }
+        var requiresAuth: Bool { false }
+        var body: (any Encodable)? { EmailMagicStartRequestDTO(email: email) }
+    }
+    struct EmailMagicVerify: Endpoint {
+        typealias Response = AuthResponse
+        let email: String
+        let code: String
+        var path: String { "/v1/auth/email/verify" }
+        var method: HTTPMethod { .post }
+        var requiresAuth: Bool { false }
+        var body: (any Encodable)? {
+            EmailMagicVerifyRequestDTO(email: email, code: code)
+        }
+    }
 }

@@ -11,4 +11,6 @@ protocol AuthClientProtocol {
     func refreshToken(_ token: String) async throws -> AuthResponse
     func phoneStart(phone: String) async throws -> PhoneStartResponse
     func phoneVerify(phone: String, code: String) async throws -> AuthResponse
+    func emailMagicStart(email: String) async throws -> EmailMagicStartResponse
+    func emailMagicVerify(email: String, code: String) async throws -> AuthResponse
 }

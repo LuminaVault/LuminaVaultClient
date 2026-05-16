@@ -25,4 +25,8 @@ final class PreviewAuthClient: AuthClientProtocol {
         PhoneStartResponse(challengeId: UUID(), expiresAt: Date().addingTimeInterval(300))
     }
     func phoneVerify(phone: String, code: String) async throws -> AuthResponse { stub() }
+    func emailMagicStart(email: String) async throws -> EmailMagicStartResponse {
+        EmailMagicStartResponse(challengeId: UUID(), expiresAt: Date(timeIntervalSinceNow: 600))
+    }
+    func emailMagicVerify(email: String, code: String) async throws -> AuthResponse { stub() }
 }

@@ -33,4 +33,10 @@ final class AuthHTTPClient: AuthClientProtocol {
     func phoneVerify(phone: String, code: String) async throws -> AuthResponse {
         try await client.execute(AuthEndpoints.PhoneVerify(phone: phone, code: code))
     }
+    func emailMagicStart(email: String) async throws -> EmailMagicStartResponse {
+        try await client.execute(AuthEndpoints.EmailMagicStart(email: email))
+    }
+    func emailMagicVerify(email: String, code: String) async throws -> AuthResponse {
+        try await client.execute(AuthEndpoints.EmailMagicVerify(email: email, code: code))
+    }
 }
