@@ -10,11 +10,15 @@ final class MockAuthClient: AuthClientProtocol {
     var verifyMFAResult: Result<AuthResponse, Error> = .success(.stub)
     var exchangeOAuthResult: Result<AuthResponse, Error> = .success(.stub)
     var refreshResult: Result<AuthResponse, Error> = .success(.stub)
+    var phoneStartResult: Result<PhoneStartResponse, Error> = .success(.stub)
+    var phoneVerifyResult: Result<AuthResponse, Error> = .success(.stub)
 
     // Invocation recorders
     private(set) var loginCalls: [(email: String, password: String, mfaCode: String?)] = []
     private(set) var exchangeOAuthCalls: [(provider: String, idToken: String)] = []
     private(set) var verifyMFACalls: [(challengeId: UUID, code: String)] = []
+    private(set) var phoneStartCalls: [String] = []
+    private(set) var phoneVerifyCalls: [(phone: String, code: String)] = []
 
     func login(email: String, password: String, mfaCode: String?) async throws -> AuthResponse {
         loginCalls.append((email, password, mfaCode))
@@ -40,6 +44,21 @@ final class MockAuthClient: AuthClientProtocol {
     func refreshToken(_ token: String) async throws -> AuthResponse {
         try refreshResult.get()
     }
+    func phoneStart(phone: String) async throws -> PhoneStartResponse {
+        phoneStartCalls.append(phone)
+        return try phoneStartResult.get()
+    }
+    func phoneVerify(phone: String, code: String) async throws -> AuthResponse {
+        phoneVerifyCalls.append((phone, code))
+        return try phoneVerifyResult.get()
+    }
+}
+
+extension PhoneStartResponse {
+    static let stub = PhoneStartResponse(
+        challengeId: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+        expiresAt: Date().addingTimeInterval(300)
+    )
 }
 
 extension AuthResponse {

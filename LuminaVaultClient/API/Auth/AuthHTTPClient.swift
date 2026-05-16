@@ -27,4 +27,10 @@ final class AuthHTTPClient: AuthClientProtocol {
     func refreshToken(_ token: String) async throws -> AuthResponse {
         try await client.execute(AuthEndpoints.RefreshToken(token: token))
     }
+    func phoneStart(phone: String) async throws -> PhoneStartResponse {
+        try await client.execute(AuthEndpoints.PhoneStart(phone: phone))
+    }
+    func phoneVerify(phone: String, code: String) async throws -> AuthResponse {
+        try await client.execute(AuthEndpoints.PhoneVerify(phone: phone, code: code))
+    }
 }

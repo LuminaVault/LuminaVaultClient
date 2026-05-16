@@ -3,6 +3,12 @@ import SwiftUI
 import Foundation
 import AuthenticationServices
 import UIKit
+import PhoneNumberKit
+
+enum PhoneAuthStep {
+    case entry
+    case code
+}
 
 @Observable
 @MainActor
@@ -22,10 +28,24 @@ final class AuthViewModel {
     // MFA
     var mfaCode = ""
     var mfaChallengeId: UUID? = nil
+    // Phone OTP (HER-141)
+    var phoneCountry: Country = Countries.default
+    var phoneInput: String = ""
+    var phoneE164: String = ""
+    var phoneOtpCode: String = ""
+    var phoneStep: PhoneAuthStep = .entry
+    var phoneChallengeExpiresAt: Date? = nil
+    var phoneResendSecondsLeft: Int = 0
     // Shared
     var isLoading = false
     var error: String? = nil
     var mfaRequired = false
+
+    // Heavyweight metadata loader — share one instance across the VM.
+    private let phoneNumberKit = PhoneNumberKit()
+    // Cancellation on VM dealloc is handled by `weak self` inside the Task —
+    // we deliberately don't touch this from `deinit` (MainActor isolation).
+    private var phoneResendTask: Task<Void, Never>? = nil
 
     private let authClient: any AuthClientProtocol
     private let appState: AppState
@@ -166,5 +186,118 @@ final class AuthViewModel {
             .flatMap { $0.windows }
             .first(where: { $0.isKeyWindow })
             ?? ASPresentationAnchor()
+    }
+
+    // MARK: - Phone OTP (HER-141)
+
+    /// Live-format raw digits using PhoneNumberKit's PartialFormatter scoped to
+    /// the currently selected country.
+    func formatPhoneAsTyped(_ raw: String) -> String {
+        let formatter = PartialFormatter(
+            phoneNumberKit: phoneNumberKit,
+            defaultRegion: phoneCountry.isoCode,
+            withPrefix: false
+        )
+        return formatter.formatPartial(raw)
+    }
+
+    /// Validate input then POST `/v1/auth/phone/start`. On success, advance
+    /// the step machine to `.code` and arm the 60s resend cooldown.
+    func startPhoneOTP() async {
+        error = nil
+        // Validate & normalise to E.164 via PhoneNumberKit so the server's
+        // regex check matches whatever the user typed in local format.
+        let raw = phoneInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else {
+            error = "Enter a valid phone number"
+            return
+        }
+        let parsed: PhoneNumber
+        do {
+            parsed = try phoneNumberKit.parse(raw, withRegion: phoneCountry.isoCode)
+        } catch {
+            self.error = "Enter a valid phone number"
+            return
+        }
+        let e164 = phoneNumberKit.format(parsed, toType: .e164)
+        phoneE164 = e164
+
+        isLoading = true; defer { isLoading = false }
+        do {
+            let r = try await authClient.phoneStart(phone: e164)
+            phoneChallengeExpiresAt = r.expiresAt
+            phoneOtpCode = ""
+            phoneStep = .code
+            startResendCooldown()
+        } catch {
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    /// POST `/v1/auth/phone/verify`. Translates the server's 410/401/429 codes
+    /// into the inline copy required by HER-141 acceptance.
+    func verifyPhoneOTP() async {
+        guard !phoneE164.isEmpty else {
+            error = "Send a code first"
+            return
+        }
+        isLoading = true; error = nil; defer { isLoading = false }
+        do {
+            let r = try await authClient.phoneVerify(phone: phoneE164, code: phoneOtpCode)
+            appState.handleAuthSuccess(r)
+            resetPhoneState()
+        } catch let apiError as APIError {
+            self.error = Self.phoneError(for: apiError)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    /// Re-issue OTP. Guarded by the cooldown so users can't spam start while a
+    /// previous code is still valid; the server has a stricter IP-level limit
+    /// (3/min, 10/day) that this UI cooldown front-loads.
+    func resendPhoneOTP() async {
+        guard phoneResendSecondsLeft == 0 else { return }
+        await startPhoneOTP()
+    }
+
+    /// Maps APIError → user-facing phone OTP copy. Falls through to the
+    /// generic description so unhandled codes still surface something.
+    static func phoneError(for apiError: APIError) -> String {
+        switch apiError {
+        case .unauthorized:
+            return "Invalid code. Try again."
+        case .httpError(let code, _) where code == 410:
+            return "Code expired — request a new one."
+        case .httpError(let code, _) where code == 429:
+            return "Too many attempts — try again later."
+        case .httpError(let code, _) where code == 400:
+            return "Enter a valid phone number"
+        default:
+            return apiError.errorDescription ?? "Something went wrong."
+        }
+    }
+
+    private func startResendCooldown() {
+        phoneResendTask?.cancel()
+        phoneResendSecondsLeft = 60
+        phoneResendTask = Task { @MainActor [weak self] in
+            while let self, self.phoneResendSecondsLeft > 0 {
+                try? await Task.sleep(for: .seconds(1))
+                if Task.isCancelled { return }
+                self.phoneResendSecondsLeft -= 1
+            }
+        }
+    }
+
+    private func resetPhoneState() {
+        phoneResendTask?.cancel()
+        phoneResendTask = nil
+        phoneInput = ""
+        phoneE164 = ""
+        phoneOtpCode = ""
+        phoneStep = .entry
+        phoneChallengeExpiresAt = nil
+        phoneResendSecondsLeft = 0
     }
 }

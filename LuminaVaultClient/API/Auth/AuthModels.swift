@@ -48,4 +48,18 @@ struct AuthResponse: Decodable {
     let mfaChallengeId: UUID?
 }
 
+struct PhoneStartRequest: Encodable {
+    let phone: String
+}
+
+struct PhoneStartResponse: Decodable {
+    let challengeId: UUID
+    let expiresAt: Date
+}
+
+struct PhoneVerifyRequest: Encodable {
+    let phone: String
+    let code: String
+}
+
 struct EmptyResponse: Decodable {}

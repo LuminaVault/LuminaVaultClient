@@ -74,4 +74,21 @@ enum AuthEndpoints {
         var requiresAuth: Bool { false }
         var body: (any Encodable)? { RefreshRequest(refreshToken: token) }
     }
+    struct PhoneStart: Endpoint {
+        typealias Response = PhoneStartResponse
+        let phone: String
+        var path: String { "/v1/auth/phone/start" }
+        var method: HTTPMethod { .post }
+        var requiresAuth: Bool { false }
+        var body: (any Encodable)? { PhoneStartRequest(phone: phone) }
+    }
+    struct PhoneVerify: Endpoint {
+        typealias Response = AuthResponse
+        let phone: String
+        let code: String
+        var path: String { "/v1/auth/phone/verify" }
+        var method: HTTPMethod { .post }
+        var requiresAuth: Bool { false }
+        var body: (any Encodable)? { PhoneVerifyRequest(phone: phone, code: code) }
+    }
 }
