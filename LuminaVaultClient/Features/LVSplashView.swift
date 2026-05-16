@@ -8,14 +8,13 @@ struct LVSplashView: View {
     @State private var pulseOpacity1: Double = 0.5
     @State private var pulseOpacity2: Double = 0.5
     @State private var pulseOpacity3: Double = 0.5
-    @State private var logoOpacity: Double = 0
+    @State private var heroOpacity: Double = 0
     @State private var wordmarkOpacity: Double = 0
     @State private var taglineOpacity: Double = 0
-    @State private var logoScale: CGFloat = 0.85
+    @State private var heroScale: CGFloat = 0.85
 
     var body: some View {
         ZStack {
-            // Neural pulse rings
             Circle()
                 .stroke(Color.lvCyan.opacity(0.18), lineWidth: 1.5)
                 .scaleEffect(pulseScale1)
@@ -32,10 +31,10 @@ struct LVSplashView: View {
                 .opacity(pulseOpacity3)
                 .frame(width: 280, height: 280)
 
-            VStack(spacing: 12) {
-                LVLogoMark(size: .splash, intensity: .hero, showSparkle: true)
-                    .opacity(logoOpacity)
-                    .scaleEffect(logoScale)
+            VStack(spacing: 16) {
+                SplashHeroRiveView(size: 220)
+                    .opacity(heroOpacity)
+                    .scaleEffect(heroScale)
 
                 Text("LUMINAVAULT")
                     .font(.system(size: 13, weight: .bold))
@@ -58,31 +57,25 @@ struct LVSplashView: View {
     }
 
     private func startAnimations() {
-        // Pulse ring 1
         withAnimation(.easeOut(duration: 1.8).repeatForever(autoreverses: false)) {
             pulseScale1 = 2.2; pulseOpacity1 = 0
         }
-        // Pulse ring 2 — delayed
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             withAnimation(.easeOut(duration: 1.8).repeatForever(autoreverses: false)) {
                 pulseScale2 = 2.2; pulseOpacity2 = 0
             }
         }
-        // Pulse ring 3 — further delayed
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             withAnimation(.easeOut(duration: 1.8).repeatForever(autoreverses: false)) {
                 pulseScale3 = 2.2; pulseOpacity3 = 0
             }
         }
-        // Logo appears
         withAnimation(.easeOut(duration: 0.7)) {
-            logoOpacity = 1; logoScale = 1.0
+            heroOpacity = 1; heroScale = 1.0
         }
-        // Wordmark
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             withAnimation(.easeIn(duration: 0.5)) { wordmarkOpacity = 1 }
         }
-        // Tagline
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
             withAnimation(.easeIn(duration: 0.5)) { taglineOpacity = 1 }
         }
