@@ -11,6 +11,7 @@
 		60GSI00012FAE1200006F894F /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 60GSI00022FAE1200006F894F /* GoogleSignIn */; };
 		60HER40012FAE1200006F894F /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 60HER40022FAE1200006F894F /* RiveRuntime */; };
 		60PNK00012FAE1200006F894F /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = 60PNK00022FAE1200006F894F /* PhoneNumberKit */; };
+		60SNP00012FAE1200006F894F /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 60SNP00022FAE1200006F894F /* SnapshotTesting */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +71,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				60SNP00012FAE1200006F894F /* SnapshotTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -149,6 +151,9 @@
 				6088C5032FAE1186006F894F /* LuminaVaultClientTests */,
 			);
 			name = LuminaVaultClientTests;
+			packageProductDependencies = (
+				60SNP00022FAE1200006F894F /* SnapshotTesting */,
+			);
 			productName = LuminaVaultClientTests;
 			productReference = 6088C5002FAE1186006F894F /* LuminaVaultClientTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -211,6 +216,7 @@
 				60HER40032FAE1200006F894F /* XCRemoteSwiftPackageReference "rive-ios" */,
 				60PNK00032FAE1200006F894F /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
 				609817382FB8BE2500414C79 /* XCRemoteSwiftPackageReference "LuminaVaultShared" */,
+				60SNP00032FAE1200006F894F /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6088C4F42FAE1184006F894F /* Products */;
@@ -794,6 +800,14 @@
 				minimumVersion = 3.7.0;
 			};
 		};
+		60SNP00032FAE1200006F894F /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-snapshot-testing";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.17.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -816,6 +830,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 60PNK00032FAE1200006F894F /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
 			productName = PhoneNumberKit;
+		};
+		60SNP00022FAE1200006F894F /* SnapshotTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 60SNP00032FAE1200006F894F /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */;
+			productName = SnapshotTesting;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
