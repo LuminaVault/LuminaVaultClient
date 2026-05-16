@@ -1,5 +1,6 @@
 // LuminaVaultClient/LuminaVaultClientTests/AuthViewModelTests.swift
 import XCTest
+import Foundation
 @testable import LuminaVaultClient
 
 @MainActor
@@ -33,16 +34,17 @@ final class AuthViewModelTests: XCTestCase {
         XCTAssertNotNil(sut.error)
     }
 
-    func testSignInWithMFASetsMFARequired() async {
+    func testSignInWithMFASetsMFARequiredAndCapturesChallenge() async {
         mockClient.loginResult = .success(.stubMFA)
         sut.email = "a@b.com"; sut.password = "pass"
         await sut.signIn()
         XCTAssertTrue(sut.mfaRequired)
+        XCTAssertEqual(sut.mfaChallengeId, UUID(uuidString: "11111111-1111-1111-1111-111111111111"))
         XCTAssertFalse(appState.isAuthenticated)
     }
 
     func testSignUpMismatchedPasswordsSetsError() async {
-        sut.name = "Alice"; sut.email = "a@b.com"
+        sut.username = "alice"; sut.email = "a@b.com"
         sut.password = "abc"; sut.confirmPassword = "xyz"
         await sut.signUp()
         XCTAssertEqual(sut.error, "Passwords do not match")
@@ -56,10 +58,33 @@ final class AuthViewModelTests: XCTestCase {
         XCTAssertEqual(sut.forgotStep, 2)
     }
 
+    func testVerifyResetCodeLocallyAdvances() async {
+        sut.otpCode = "123456"
+        await sut.verifyResetCode()
+        XCTAssertEqual(sut.forgotStep, 3)
+        XCTAssertNil(sut.error)
+    }
+
+    func testVerifyResetCodeRejectsEmpty() async {
+        sut.otpCode = ""
+        await sut.verifyResetCode()
+        XCTAssertEqual(sut.forgotStep, 1)
+        XCTAssertNotNil(sut.error)
+    }
+
     func testVerifyMFAAuthenticates() async {
         mockClient.verifyMFAResult = .success(.stub)
+        sut.mfaChallengeId = UUID()
         sut.mfaCode = "123456"
         await sut.verifyMFA()
         XCTAssertTrue(appState.isAuthenticated)
+    }
+
+    func testVerifyMFAWithoutChallengeIdSetsError() async {
+        sut.mfaChallengeId = nil
+        sut.mfaCode = "123456"
+        await sut.verifyMFA()
+        XCTAssertFalse(appState.isAuthenticated)
+        XCTAssertNotNil(sut.error)
     }
 }

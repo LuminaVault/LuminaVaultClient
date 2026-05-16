@@ -1,36 +1,41 @@
 // LuminaVaultClient/LuminaVaultClientTests/Mocks/MockAuthClient.swift
+import Foundation
 @testable import LuminaVaultClient
 
 final class MockAuthClient: AuthClientProtocol {
     var loginResult: Result<AuthResponse, Error> = .success(.stub)
     var registerResult: Result<AuthResponse, Error> = .success(.stub)
     var forgotPasswordError: Error? = nil
-    var verifyOTPError: Error? = nil
     var resetPasswordError: Error? = nil
     var verifyMFAResult: Result<AuthResponse, Error> = .success(.stub)
-    var ssoResult: Result<AuthResponse, Error> = .success(.stub)
+    var exchangeOAuthResult: Result<AuthResponse, Error> = .success(.stub)
     var refreshResult: Result<AuthResponse, Error> = .success(.stub)
 
-    func login(email: String, password: String) async throws -> AuthResponse {
-        try loginResult.get()
+    // Invocation recorders
+    private(set) var loginCalls: [(email: String, password: String, mfaCode: String?)] = []
+    private(set) var exchangeOAuthCalls: [(provider: String, idToken: String)] = []
+    private(set) var verifyMFACalls: [(challengeId: UUID, code: String)] = []
+
+    func login(email: String, password: String, mfaCode: String?) async throws -> AuthResponse {
+        loginCalls.append((email, password, mfaCode))
+        return try loginResult.get()
     }
-    func register(name: String, email: String, password: String) async throws -> AuthResponse {
+    func register(email: String, username: String, password: String) async throws -> AuthResponse {
         try registerResult.get()
     }
     func forgotPassword(email: String) async throws {
         if let e = forgotPasswordError { throw e }
     }
-    func verifyOTP(email: String, code: String) async throws {
-        if let e = verifyOTPError { throw e }
-    }
-    func resetPassword(token: String, newPassword: String) async throws {
+    func resetPassword(email: String, code: String, newPassword: String) async throws {
         if let e = resetPasswordError { throw e }
     }
-    func verifyMFA(code: String, mfaMethod: MFAMethod) async throws -> AuthResponse {
-        try verifyMFAResult.get()
+    func verifyMFA(challengeId: UUID, code: String) async throws -> AuthResponse {
+        verifyMFACalls.append((challengeId, code))
+        return try verifyMFAResult.get()
     }
-    func ssoLogin(provider: String, identityToken: String) async throws -> AuthResponse {
-        try ssoResult.get()
+    func exchangeOAuth(provider: String, idToken: String) async throws -> AuthResponse {
+        exchangeOAuthCalls.append((provider, idToken))
+        return try exchangeOAuthResult.get()
     }
     func refreshToken(_ token: String) async throws -> AuthResponse {
         try refreshResult.get()
@@ -39,13 +44,21 @@ final class MockAuthClient: AuthClientProtocol {
 
 extension AuthResponse {
     static let stub = AuthResponse(
+        userId: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+        email: "test@example.com",
         accessToken: "access-token-stub",
         refreshToken: "refresh-token-stub",
-        user: UserDTO(id: "1", name: "Test User", email: "test@example.com", mfaEnabled: false)
+        expiresIn: 3600,
+        mfaRequired: nil,
+        mfaChallengeId: nil
     )
     static let stubMFA = AuthResponse(
-        accessToken: "access-token-stub",
-        refreshToken: "refresh-token-stub",
-        user: UserDTO(id: "1", name: "Test User", email: "test@example.com", mfaEnabled: true)
+        userId: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+        email: "test@example.com",
+        accessToken: "",
+        refreshToken: "",
+        expiresIn: 0,
+        mfaRequired: true,
+        mfaChallengeId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
     )
 }

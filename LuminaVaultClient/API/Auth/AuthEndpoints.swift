@@ -4,64 +4,72 @@ import Foundation
 enum AuthEndpoints {
     struct Login: Endpoint {
         typealias Response = AuthResponse
-        let email: String; let password: String
-        var path: String { "/auth/login" }
+        let email: String
+        let password: String
+        let mfaCode: String?
+        var path: String { "/v1/auth/login" }
         var method: HTTPMethod { .post }
         var requiresAuth: Bool { false }
-        var body: (any Encodable)? { LoginRequest(email: email, password: password) }
+        var body: (any Encodable)? {
+            LoginRequest(email: email, password: password, mfaCode: mfaCode)
+        }
     }
     struct Register: Endpoint {
         typealias Response = AuthResponse
-        let name: String; let email: String; let password: String
-        var path: String { "/auth/register" }
+        let email: String
+        let username: String
+        let password: String
+        var path: String { "/v1/auth/register" }
         var method: HTTPMethod { .post }
         var requiresAuth: Bool { false }
-        var body: (any Encodable)? { RegisterRequest(name: name, email: email, password: password) }
+        var body: (any Encodable)? {
+            RegisterRequest(email: email, username: username, password: password)
+        }
     }
     struct ForgotPassword: Endpoint {
         typealias Response = EmptyResponse
         let email: String
-        var path: String { "/auth/forgot-password" }
+        var path: String { "/v1/auth/forgot-password" }
         var method: HTTPMethod { .post }
         var requiresAuth: Bool { false }
         var body: (any Encodable)? { ForgotPasswordRequest(email: email) }
     }
-    struct VerifyOTP: Endpoint {
-        typealias Response = EmptyResponse
-        let email: String; let code: String
-        var path: String { "/auth/verify-otp" }
-        var method: HTTPMethod { .post }
-        var requiresAuth: Bool { false }
-        var body: (any Encodable)? { VerifyOTPRequest(email: email, code: code) }
-    }
     struct ResetPassword: Endpoint {
         typealias Response = EmptyResponse
-        let token: String; let newPassword: String
-        var path: String { "/auth/reset-password" }
+        let email: String
+        let code: String
+        let newPassword: String
+        var path: String { "/v1/auth/reset-password" }
         var method: HTTPMethod { .post }
         var requiresAuth: Bool { false }
-        var body: (any Encodable)? { ResetPasswordRequest(token: token, newPassword: newPassword) }
+        var body: (any Encodable)? {
+            ResetPasswordRequest(email: email, code: code, newPassword: newPassword)
+        }
     }
     struct VerifyMFA: Endpoint {
         typealias Response = AuthResponse
-        let code: String; let mfaMethod: MFAMethod
-        var path: String { "/auth/mfa/verify" }
+        let challengeId: UUID
+        let code: String
+        var path: String { "/v1/auth/mfa/verify" }
         var method: HTTPMethod { .post }
         var requiresAuth: Bool { false }
-        var body: (any Encodable)? { MFAVerifyRequest(code: code, mfaMethod: mfaMethod) }
+        var body: (any Encodable)? {
+            MFAVerifyRequest(challengeId: challengeId, code: code)
+        }
     }
-    struct SSOLogin: Endpoint {
+    struct OAuthExchange: Endpoint {
         typealias Response = AuthResponse
-        let provider: String; let identityToken: String
-        var path: String { "/auth/sso/\(provider)" }
+        let provider: String
+        let idToken: String
+        var path: String { "/v1/auth/oauth/\(provider)/exchange" }
         var method: HTTPMethod { .post }
         var requiresAuth: Bool { false }
-        var body: (any Encodable)? { SSORequest(identityToken: identityToken, provider: provider) }
+        var body: (any Encodable)? { OAuthExchangeRequest(idToken: idToken) }
     }
     struct RefreshToken: Endpoint {
         typealias Response = AuthResponse
         let token: String
-        var path: String { "/auth/refresh" }
+        var path: String { "/v1/auth/refresh" }
         var method: HTTPMethod { .post }
         var requiresAuth: Bool { false }
         var body: (any Encodable)? { RefreshRequest(refreshToken: token) }
