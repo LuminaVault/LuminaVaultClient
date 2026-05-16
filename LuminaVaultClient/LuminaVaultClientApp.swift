@@ -51,7 +51,7 @@ struct LuminaVaultClientApp: App {
                             }
                         } else {
                             NavigationStack {
-                                SignInView(vm: makeAuthViewModel())
+                                AuthLandingView(vm: makeAuthViewModel())
                             }
                         }
                     }
