@@ -21,4 +21,8 @@ final class PreviewAuthClient: AuthClientProtocol {
     func verifyMFA(challengeId: UUID, code: String) async throws -> AuthResponse { stub() }
     func exchangeOAuth(provider: String, idToken: String) async throws -> AuthResponse { stub() }
     func refreshToken(_ token: String) async throws -> AuthResponse { stub() }
+    func phoneStart(phone: String) async throws -> PhoneStartResponse {
+        PhoneStartResponse(challengeId: UUID(), expiresAt: Date().addingTimeInterval(300))
+    }
+    func phoneVerify(phone: String, code: String) async throws -> AuthResponse { stub() }
 }

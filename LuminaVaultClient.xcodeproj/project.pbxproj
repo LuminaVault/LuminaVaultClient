@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		60GSI00012FAE1200006F894F /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 60GSI00022FAE1200006F894F /* GoogleSignIn */; };
 		60HER40012FAE1200006F894F /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 60HER40022FAE1200006F894F /* RiveRuntime */; };
+		60PNK00012FAE1200006F894F /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = 60PNK00022FAE1200006F894F /* PhoneNumberKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,6 +60,7 @@
 			files = (
 				60GSI00012FAE1200006F894F /* GoogleSignIn in Frameworks */,
 				60HER40012FAE1200006F894F /* RiveRuntime in Frameworks */,
+				60PNK00012FAE1200006F894F /* PhoneNumberKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -121,6 +123,7 @@
 			packageProductDependencies = (
 				60GSI00022FAE1200006F894F /* GoogleSignIn */,
 				60HER40022FAE1200006F894F /* RiveRuntime */,
+				60PNK00022FAE1200006F894F /* PhoneNumberKit */,
 			);
 			productName = LuminaVaultClient;
 			productReference = 6088C4F32FAE1184006F894F /* LuminaVaultClient.app */;
@@ -203,6 +206,7 @@
 			packageReferences = (
 				60GSI00032FAE1200006F894F /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				60HER40032FAE1200006F894F /* XCRemoteSwiftPackageReference "rive-ios" */,
+				60PNK00032FAE1200006F894F /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6088C4F42FAE1184006F894F /* Products */;
@@ -770,6 +774,14 @@
 				minimumVersion = 6.0.0;
 			};
 		};
+		60PNK00032FAE1200006F894F /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/marmelroy/PhoneNumberKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.7.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -782,6 +794,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 60HER40032FAE1200006F894F /* XCRemoteSwiftPackageReference "rive-ios" */;
 			productName = RiveRuntime;
+		};
+		60PNK00022FAE1200006F894F /* PhoneNumberKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 60PNK00032FAE1200006F894F /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
+			productName = PhoneNumberKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

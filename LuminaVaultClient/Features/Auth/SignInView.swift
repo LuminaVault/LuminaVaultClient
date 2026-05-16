@@ -50,6 +50,25 @@ struct SignInView: View {
                 SSORow(dividerLabel: "or continue with") { provider in
                     Task { await vm.handleSSOTap(provider: provider) }
                 }
+                .padding(.bottom, 14)
+
+                // HER-141: phone OTP entry point. Tertiary CTA so Apple Sign-In
+                // remains the primary §4.8-compliant button.
+                NavigationLink {
+                    PhoneEntryView(vm: vm)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "phone.fill").font(.system(size: 12, weight: .semibold))
+                        Text("Continue with phone")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundStyle(Color.lvCyan)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.lvGlass)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.lvBorder, lineWidth: 1))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
                 .padding(.bottom, 18)
 
                 HStack(spacing: 4) {

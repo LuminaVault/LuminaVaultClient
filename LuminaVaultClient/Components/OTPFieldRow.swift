@@ -5,6 +5,9 @@ struct OTPFieldRow: View {
     @Binding var code: String
     var length: Int = 6
     var accentColor: Color = .lvCyan
+    /// HER-141: pass `.oneTimeCode` for SMS-autofill; default `nil` preserves
+    /// the existing MFA behaviour where the code is typed manually.
+    var textContentType: UITextContentType? = nil
 
     @FocusState private var focused: Bool
 
@@ -36,6 +39,7 @@ struct OTPFieldRow: View {
         .overlay(
             TextField("", text: $code)
                 .keyboardType(.numberPad)
+                .textContentType(textContentType)
                 .focused($focused)
                 .opacity(0.01)
                 .onChange(of: code) { _, new in

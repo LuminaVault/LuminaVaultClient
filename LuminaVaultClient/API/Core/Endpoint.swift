@@ -35,6 +35,8 @@ extension JSONDecoder {
     static let hvDefault: JSONDecoder = {
         let d = JSONDecoder()
         d.keyDecodingStrategy = .convertFromSnakeCase
+        // HER-141: server emits ISO8601 dates (e.g. PhoneStartResponse.expiresAt).
+        d.dateDecodingStrategy = .iso8601
         return d
     }()
 }
