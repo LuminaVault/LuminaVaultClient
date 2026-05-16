@@ -10,6 +10,12 @@ enum PhoneAuthStep {
     case code
 }
 
+// HER-142: email magic-link step machine.
+enum EmailMagicStep {
+    case email
+    case verify
+}
+
 @Observable
 @MainActor
 final class AuthViewModel {
@@ -36,6 +42,13 @@ final class AuthViewModel {
     var phoneStep: PhoneAuthStep = .entry
     var phoneChallengeExpiresAt: Date? = nil
     var phoneResendSecondsLeft: Int = 0
+    // Email magic link (HER-142)
+    var emailMagicStep: EmailMagicStep = .email
+    var emailMagicEmail: String = ""
+    var emailMagicCode: String = ""
+    var emailMagicChallengeId: UUID? = nil
+    var emailMagicExpiresAt: Date? = nil
+    var emailMagicResendSecondsLeft: Int = 0
     // Shared
     var isLoading = false
     var error: String? = nil
@@ -46,6 +59,7 @@ final class AuthViewModel {
     // Cancellation on VM dealloc is handled by `weak self` inside the Task —
     // we deliberately don't touch this from `deinit` (MainActor isolation).
     private var phoneResendTask: Task<Void, Never>? = nil
+    private var emailMagicResendTask: Task<Void, Never>? = nil
 
     private let authClient: any AuthClientProtocol
     private let appState: AppState
@@ -299,5 +313,107 @@ final class AuthViewModel {
         phoneStep = .entry
         phoneChallengeExpiresAt = nil
         phoneResendSecondsLeft = 0
+    }
+
+    // MARK: - Email magic link (HER-142)
+
+    /// Validate email then POST `/v1/auth/email/start`. On success, stash the
+    /// challenge metadata, advance to `.verify`, and arm the 60 s resend cooldown.
+    func startEmailMagic() async {
+        let trimmed = emailMagicEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            error = "Enter your email"
+            return
+        }
+        emailMagicEmail = trimmed
+        isLoading = true; error = nil; defer { isLoading = false }
+        do {
+            let response = try await authClient.emailMagicStart(email: trimmed)
+            emailMagicChallengeId = response.challengeId
+            emailMagicExpiresAt = response.expiresAt
+            emailMagicCode = ""
+            emailMagicStep = .verify
+            startEmailMagicCooldown()
+        } catch {
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    /// POST `/v1/auth/email/verify`. On success route through the standard
+    /// `handleAuthSuccess` path (server's flat AuthResponse → MainTab).
+    func verifyEmailMagicCode() async {
+        guard !emailMagicCode.isEmpty else {
+            error = "Enter the code from your email"
+            return
+        }
+        let email = emailMagicEmail
+        guard !email.isEmpty else {
+            error = "Start the flow again"
+            return
+        }
+        isLoading = true; error = nil; defer { isLoading = false }
+        do {
+            let response = try await authClient.emailMagicVerify(email: email, code: emailMagicCode)
+            appState.handleAuthSuccess(response)
+            resetEmailMagicState()
+        } catch let apiError as APIError {
+            self.error = Self.emailMagicError(for: apiError)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    /// Re-issue the magic-link code. Guarded by the 60 s UI cooldown.
+    func resendEmailMagic() async {
+        guard emailMagicResendSecondsLeft == 0 else { return }
+        // Re-call start without flipping back to .email entry — the user is
+        // already on the verify screen and we just want a fresh code.
+        let savedStep = emailMagicStep
+        await startEmailMagic()
+        emailMagicStep = savedStep
+    }
+
+    /// Clears every magic-link field + cancels the cooldown. Call on view
+    /// disappear or before starting a different auth flow.
+    func resetEmailMagic() {
+        resetEmailMagicState()
+    }
+
+    static func emailMagicError(for apiError: APIError) -> String {
+        switch apiError {
+        case .unauthorized:
+            return "Invalid code. Try again."
+        case .httpError(let code, _) where code == 410:
+            return "Code expired — request a new one."
+        case .httpError(let code, _) where code == 429:
+            return "Too many attempts — try again later."
+        case .httpError(let code, _) where code == 400:
+            return "Enter a valid email"
+        default:
+            return apiError.errorDescription ?? "Something went wrong."
+        }
+    }
+
+    private func startEmailMagicCooldown() {
+        emailMagicResendTask?.cancel()
+        emailMagicResendSecondsLeft = 60
+        emailMagicResendTask = Task { @MainActor [weak self] in
+            while let self, self.emailMagicResendSecondsLeft > 0 {
+                try? await Task.sleep(for: .seconds(1))
+                if Task.isCancelled { return }
+                self.emailMagicResendSecondsLeft -= 1
+            }
+        }
+    }
+
+    private func resetEmailMagicState() {
+        emailMagicResendTask?.cancel()
+        emailMagicResendTask = nil
+        emailMagicStep = .email
+        emailMagicEmail = ""
+        emailMagicCode = ""
+        emailMagicChallengeId = nil
+        emailMagicExpiresAt = nil
+        emailMagicResendSecondsLeft = 0
     }
 }
