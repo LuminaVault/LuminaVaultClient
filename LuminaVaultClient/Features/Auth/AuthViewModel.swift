@@ -138,10 +138,25 @@ final class AuthViewModel {
             let credential = try await service.signIn(presentationAnchor: Self.currentPresentationAnchor())
             let response = try await authClient.exchangeOAuth(provider: provider, idToken: credential.idToken)
             appState.handleAuthSuccess(response)
+            persistAppleCredentialIfNeeded(provider: provider, credential: credential)
         } catch is SignInCancelled {
             // Silent — user cancelled the system sheet, no banner.
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    // HER-209: stash Apple's user ID (for credential-state polling) and the
+    // fullName Apple only returns on first sign-up. Subsequent Apple sign-ins
+    // surface a nil `fullName` — don't clobber what we captured the first time.
+    private func persistAppleCredentialIfNeeded(provider: String, credential: ProviderCredential) {
+        guard provider == "apple" else { return }
+        if let userID = credential.appleUserID, !userID.isEmpty {
+            appState.keychain.appleUserId = userID
+        }
+        if let fullName = credential.fullName,
+           appState.keychain.appleFullName == nil {
+            appState.keychain.appleFullName = fullName
         }
     }
 

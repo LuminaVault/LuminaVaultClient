@@ -1,5 +1,6 @@
 // LuminaVaultClient/LuminaVaultClient/LuminaVaultClientApp.swift
 import SwiftUI
+import AuthenticationServices
 import GoogleSignIn
 
 @main
@@ -9,6 +10,7 @@ struct LuminaVaultClientApp: App {
     @State private var showSplash = true
     @State private var biometricChecked = false
     @AppStorage("hasSeenGetStarted") private var hasSeenGetStarted = false
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         if let clientID = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String,
@@ -64,6 +66,22 @@ struct LuminaVaultClientApp: App {
             .onOpenURL { url in
                 _ = GIDSignIn.sharedInstance.handle(url)
             }
+            // HER-209: foreground transitions trigger a credential-state poll.
+            // `.active` fires on cold launch AND every return-to-foreground.
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active {
+                    Task { await checkAppleCredentialState() }
+                }
+            }
+            // HER-209: Apple emits this notification while the app is running
+            // (e.g., user revokes from Settings without backgrounding).
+            .task {
+                for await _ in NotificationCenter.default.notifications(
+                    named: ASAuthorizationAppleIDProvider.credentialRevokedNotification
+                ) {
+                    appState.signOut()
+                }
+            }
             .task {
                 guard !biometricChecked else { return }
                 biometricChecked = true
@@ -76,6 +94,25 @@ struct LuminaVaultClientApp: App {
                 try? await Task.sleep(for: .seconds(2.0))
                 withAnimation { showSplash = false }
             }
+        }
+    }
+
+    // HER-209 acceptance: "Revocation in iOS Settings logs the user out within
+    // 5 s of next app foreground." `credentialState(forUserID:)` returns
+    // sub-second on warm devices.
+    private func checkAppleCredentialState() async {
+        guard let userID = appState.keychain.appleUserId else { return }
+        do {
+            let state = try await ASAuthorizationAppleIDProvider()
+                .credentialState(forUserID: userID)
+            // `.notFound` mirrors `.revoked` for our purposes: the local Apple
+            // ID can no longer satisfy our session, so we tear it down.
+            if state == .revoked || state == .notFound {
+                appState.signOut()
+            }
+        } catch {
+            // Transient errors (e.g., no network at cold start) shouldn't sign
+            // the user out — we'll re-check on the next foreground.
         }
     }
 }
