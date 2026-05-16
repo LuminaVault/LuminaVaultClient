@@ -60,6 +60,62 @@ final class AuthViewModelOAuthTests: XCTestCase {
         XCTAssertNotNil(sut.error)
     }
 
+    // HER-209: Apple's user ID + first-time fullName must land in the Keychain
+    // for credential-state polling + display-name retention.
+    func testAppleSignInPersistsUserIDAndFullName() async {
+        mockClient.exchangeOAuthResult = .success(.stub)
+        var components = PersonNameComponents()
+        components.givenName = "Ada"
+        components.familyName = "Lovelace"
+        appleService.result = .success(ProviderCredential(
+            idToken: "apple-id-token",
+            rawNonce: "nonce",
+            appleUserID: "001234.abcdef.5678",
+            fullName: components
+        ))
+        await sut.signInWithApple()
+        XCTAssertEqual(appState.keychain.appleUserId, "001234.abcdef.5678")
+        let stored = appState.keychain.appleFullName
+        XCTAssertEqual(stored?.givenName, "Ada")
+        XCTAssertEqual(stored?.familyName, "Lovelace")
+    }
+
+    // HER-209: subsequent Apple sign-ins return fullName == nil. Don't clobber
+    // the value captured on first sign-up.
+    func testAppleSignInDoesNotOverwriteExistingFullName() async {
+        var initialComponents = PersonNameComponents()
+        initialComponents.givenName = "Grace"
+        initialComponents.familyName = "Hopper"
+        appState.keychain.appleFullName = initialComponents
+        appState.keychain.appleUserId = "001234.abcdef.5678"
+
+        mockClient.exchangeOAuthResult = .success(.stub)
+        appleService.result = .success(ProviderCredential(
+            idToken: "apple-id-token",
+            rawNonce: nil,
+            appleUserID: "001234.abcdef.5678",
+            fullName: nil
+        ))
+        await sut.signInWithApple()
+        let stored = appState.keychain.appleFullName
+        XCTAssertEqual(stored?.givenName, "Grace")
+        XCTAssertEqual(stored?.familyName, "Hopper")
+    }
+
+    // Sign-out clears the persisted Apple credentials so a different Apple
+    // account can sign in cleanly.
+    func testSignOutClearsAppleKeychainEntries() {
+        appState.keychain.appleUserId = "001234.abcdef.5678"
+        var components = PersonNameComponents()
+        components.givenName = "Ada"
+        appState.keychain.appleFullName = components
+
+        appState.signOut()
+
+        XCTAssertNil(appState.keychain.appleUserId)
+        XCTAssertNil(appState.keychain.appleFullName)
+    }
+
     // MARK: - Google
 
     func testGoogleSignInHappyPathCallsExchangeOAuth() async {
