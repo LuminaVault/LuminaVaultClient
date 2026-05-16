@@ -8,6 +8,7 @@ struct LuminaVaultClientApp: App {
     @State private var theme = LVThemeManager()
     @State private var showSplash = true
     @State private var biometricChecked = false
+    @AppStorage("hasSeenGetStarted") private var hasSeenGetStarted = false
 
     init() {
         if let clientID = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String,
@@ -42,6 +43,10 @@ struct LuminaVaultClientApp: App {
                     Group {
                         if appState.isAuthenticated {
                             MainTabView()
+                        } else if !hasSeenGetStarted {
+                            GetStartedView {
+                                withAnimation { hasSeenGetStarted = true }
+                            }
                         } else {
                             NavigationStack {
                                 SignInView(vm: makeAuthViewModel())
@@ -52,6 +57,7 @@ struct LuminaVaultClientApp: App {
                 }
             }
             .animation(.easeInOut(duration: 0.4), value: showSplash)
+            .animation(.easeInOut(duration: 0.4), value: hasSeenGetStarted)
             .preferredColorScheme(theme.appearance.colorSchemeOverride)
             .environment(appState)
             .environment(theme)
