@@ -1,25 +1,32 @@
 // LuminaVaultClient/LuminaVaultClient/API/Settings/SettingsModels.swift
-//
-// HER-218 — local mirrors of the BYO-Hermes DTOs published in
-// LuminaVaultShared (server tags v0.3.0+). Once HER-213 wires the
-// SPM dependency in, these can be replaced with `import LuminaVaultShared`
-// imports — the field shapes match 1:1, so the migration is mechanical.
-
+// HER-213: BYO-Hermes DTOs sourced from LuminaVaultShared. Retroactive
+// Equatable conformances added here for SwiftUI diffing.
+// HermesVerifyFailureReason is iOS-only display logic — stays local.
 import Foundation
+@_exported import LuminaVaultShared
 
-struct HermesConfigGetResponse: Codable, Sendable, Equatable {
-    let baseUrl: String
-    let hasAuthHeader: Bool
-    let verifiedAt: Date?
+typealias HermesConfigGetResponse = LuminaVaultShared.HermesConfigGetResponse
+typealias HermesConfigPutRequest = LuminaVaultShared.HermesConfigPutRequest
+typealias HermesConfigTestResponse = LuminaVaultShared.HermesConfigTestResponse
+
+extension LuminaVaultShared.HermesConfigGetResponse: @retroactive Equatable {
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.baseUrl == rhs.baseUrl
+            && lhs.hasAuthHeader == rhs.hasAuthHeader
+            && lhs.verifiedAt == rhs.verifiedAt
+    }
 }
 
-struct HermesConfigPutRequest: Codable, Sendable, Equatable {
-    let baseUrl: String
-    let authHeader: String?
+extension LuminaVaultShared.HermesConfigPutRequest: @retroactive Equatable {
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.baseUrl == rhs.baseUrl && lhs.authHeader == rhs.authHeader
+    }
 }
 
-struct HermesConfigTestResponse: Codable, Sendable, Equatable {
-    let verifiedAt: Date
+extension LuminaVaultShared.HermesConfigTestResponse: @retroactive Equatable {
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.verifiedAt == rhs.verifiedAt
+    }
 }
 
 /// Classified verify-failure body the server returns inside an `error`

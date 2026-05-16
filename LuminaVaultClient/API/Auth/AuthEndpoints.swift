@@ -97,7 +97,7 @@ enum AuthEndpoints {
         var path: String { "/v1/auth/email/start" }
         var method: HTTPMethod { .post }
         var requiresAuth: Bool { false }
-        var body: (any Encodable)? { EmailMagicStartRequestDTO(email: email) }
+        var body: (any Encodable)? { EmailMagicStartRequest(email: email) }
     }
     struct EmailMagicVerify: Endpoint {
         typealias Response = AuthResponse
@@ -107,7 +107,19 @@ enum AuthEndpoints {
         var method: HTTPMethod { .post }
         var requiresAuth: Bool { false }
         var body: (any Encodable)? {
-            EmailMagicVerifyRequestDTO(email: email, code: code)
+            EmailMagicVerifyRequest(email: email, code: code)
         }
+    }
+    struct GetMe: Endpoint {
+        typealias Response = MeResponse
+        var path: String { "/v1/auth/me" }
+        var method: HTTPMethod { .get }
+    }
+    struct Logout: Endpoint {
+        typealias Response = EmptyResponse
+        let refreshToken: String
+        var path: String { "/v1/auth/logout" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { RefreshRequest(refreshToken: refreshToken) }
     }
 }

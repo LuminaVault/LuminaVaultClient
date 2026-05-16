@@ -2,8 +2,6 @@
 import XCTest
 @testable import LuminaVaultClient
 
-struct EmptyResponse: Decodable {}
-
 final class BaseHTTPClientTests: XCTestCase {
     var client: BaseHTTPClient!
 

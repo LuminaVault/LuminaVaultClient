@@ -39,4 +39,10 @@ final class AuthHTTPClient: AuthClientProtocol {
     func emailMagicVerify(email: String, code: String) async throws -> AuthResponse {
         try await client.execute(AuthEndpoints.EmailMagicVerify(email: email, code: code))
     }
+    func getMe() async throws -> MeResponse {
+        try await client.execute(AuthEndpoints.GetMe())
+    }
+    func logout(refreshToken: String) async throws {
+        _ = try await client.execute(AuthEndpoints.Logout(refreshToken: refreshToken))
+    }
 }
