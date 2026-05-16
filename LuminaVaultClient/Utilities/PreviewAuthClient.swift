@@ -4,18 +4,21 @@ import Foundation
 final class PreviewAuthClient: AuthClientProtocol {
     private func stub() -> AuthResponse {
         AuthResponse(
+            userId: UUID(),
+            email: "preview@example.com",
             accessToken: "",
             refreshToken: "",
-            user: UserDTO(id: "", name: "Preview", email: "preview@example.com", mfaEnabled: false)
+            expiresIn: 3600,
+            mfaRequired: nil,
+            mfaChallengeId: nil
         )
     }
 
-    func login(email: String, password: String) async throws -> AuthResponse { stub() }
-    func register(name: String, email: String, password: String) async throws -> AuthResponse { stub() }
+    func login(email: String, password: String, mfaCode: String?) async throws -> AuthResponse { stub() }
+    func register(email: String, username: String, password: String) async throws -> AuthResponse { stub() }
     func forgotPassword(email: String) async throws {}
-    func verifyOTP(email: String, code: String) async throws {}
-    func resetPassword(token: String, newPassword: String) async throws {}
-    func verifyMFA(code: String, mfaMethod: MFAMethod) async throws -> AuthResponse { stub() }
-    func ssoLogin(provider: String, identityToken: String) async throws -> AuthResponse { stub() }
+    func resetPassword(email: String, code: String, newPassword: String) async throws {}
+    func verifyMFA(challengeId: UUID, code: String) async throws -> AuthResponse { stub() }
+    func exchangeOAuth(provider: String, idToken: String) async throws -> AuthResponse { stub() }
     func refreshToken(_ token: String) async throws -> AuthResponse { stub() }
 }

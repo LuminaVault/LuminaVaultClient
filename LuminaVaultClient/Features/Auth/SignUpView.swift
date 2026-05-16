@@ -18,8 +18,14 @@ struct SignUpView: View {
                     .padding(.top, 4).padding(.bottom, 22)
 
                 VStack(spacing: 10) {
-                    LVTextField(placeholder: "Full name", text: $vm.name,
-                                textContentType: .name)
+                    LVTextField(placeholder: "Username", text: $vm.username,
+                                textContentType: .username,
+                                autocapitalization: .never)
+                    Text("3–32 chars · lowercase · letters / digits / hyphens")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Color.lvTextMuted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 4)
                     LVTextField(placeholder: "Email", text: $vm.email,
                                 keyboardType: .emailAddress,
                                 textContentType: .emailAddress,

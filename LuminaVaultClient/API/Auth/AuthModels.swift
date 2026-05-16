@@ -1,26 +1,51 @@
 // LuminaVaultClient/LuminaVaultClient/API/Auth/AuthModels.swift
+// DTO shapes mirror LuminaVaultShared/APIDTOs.swift exactly so a future
+// `import LuminaVaultShared` (HER-213) is a literal find/replace.
 import Foundation
 
-struct LoginRequest: Encodable         { let email: String; let password: String }
-struct RegisterRequest: Encodable      { let name: String; let email: String; let password: String }
-struct ForgotPasswordRequest: Encodable { let email: String }
-struct VerifyOTPRequest: Encodable     { let email: String; let code: String }
-struct ResetPasswordRequest: Encodable { let token: String; let newPassword: String }
-struct SSORequest: Encodable           { let identityToken: String; let provider: String }
-struct RefreshRequest: Encodable       { let refreshToken: String }
+struct LoginRequest: Encodable {
+    let email: String
+    let password: String
+    let mfaCode: String?
+}
 
-enum MFAMethod: String, Encodable, CaseIterable { case totp, sms }
-struct MFAVerifyRequest: Encodable     { let code: String; let mfaMethod: MFAMethod }
+struct RegisterRequest: Encodable {
+    let email: String
+    let username: String
+    let password: String
+}
+
+struct ForgotPasswordRequest: Encodable {
+    let email: String
+}
+
+struct ResetPasswordRequest: Encodable {
+    let email: String
+    let code: String
+    let newPassword: String
+}
+
+struct MFAVerifyRequest: Encodable {
+    let challengeId: UUID
+    let code: String
+}
+
+struct OAuthExchangeRequest: Encodable {
+    let idToken: String
+}
+
+struct RefreshRequest: Encodable {
+    let refreshToken: String
+}
 
 struct AuthResponse: Decodable {
+    let userId: UUID
+    let email: String
     let accessToken: String
     let refreshToken: String
-    let user: UserDTO
+    let expiresIn: Int
+    let mfaRequired: Bool?
+    let mfaChallengeId: UUID?
 }
-struct UserDTO: Decodable {
-    let id: String
-    let name: String
-    let email: String
-    let mfaEnabled: Bool
-}
+
 struct EmptyResponse: Decodable {}

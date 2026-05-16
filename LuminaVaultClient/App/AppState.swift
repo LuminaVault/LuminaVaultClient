@@ -1,11 +1,13 @@
 // LuminaVaultClient/LuminaVaultClient/App/AppState.swift
 import SwiftUI
+import Foundation
 
 @Observable
 @MainActor
 final class AppState {
     var isAuthenticated = false
-    var currentUser: UserDTO? = nil
+    var currentUserId: UUID? = nil
+    var currentEmail: String? = nil
     let keychain: KeychainService
     let healthKit: HealthKitCoordinator?
 
@@ -17,7 +19,6 @@ final class AppState {
         self.healthKit = healthKit
         self.isAuthenticated = keychain.accessToken != nil
         if isAuthenticated {
-            // App relaunched with a valid token — restart background sync.
             Task { await healthKit?.start() }
         }
     }
@@ -25,7 +26,8 @@ final class AppState {
     func handleAuthSuccess(_ response: AuthResponse) {
         keychain.accessToken = response.accessToken
         keychain.refreshToken = response.refreshToken
-        currentUser = response.user
+        currentUserId = response.userId
+        currentEmail = response.email
         isAuthenticated = true
         Task { await healthKit?.start() }
     }
@@ -33,7 +35,8 @@ final class AppState {
     func signOut() {
         Task { await healthKit?.stop() }
         keychain.clearAll()
-        currentUser = nil
+        currentUserId = nil
+        currentEmail = nil
         isAuthenticated = false
     }
 }

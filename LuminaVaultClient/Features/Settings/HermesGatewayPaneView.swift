@@ -98,19 +98,23 @@ struct HermesGatewayPaneView: View {
 
     @ViewBuilder
     private func editingSection(prefilledBaseUrl: String?, prefilledHasAuthHeader: Bool) -> some View {
-        Section("Gateway URL") {
+        Section {
             TextField("https://hermes.example.com", text: $viewModel.baseUrlInput)
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+        } header: {
+            Text("Gateway URL")
         } footer: {
             Text("Must use https://. Self-signed certificates are not supported.")
         }
 
-        Section("Authorization") {
+        Section {
             SecureField(prefilledHasAuthHeader ? "Replace token (optional)" : "Bearer abc123 (optional)", text: $viewModel.authHeaderInput)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+        } header: {
+            Text("Authorization")
         } footer: {
             Text("Paste the full header value. Leave empty if your gateway is unauthenticated. Not returned in plaintext after save.")
         }

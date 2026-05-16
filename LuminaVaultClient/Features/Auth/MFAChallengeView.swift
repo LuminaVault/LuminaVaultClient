@@ -26,35 +26,9 @@ struct MFAChallengeView: View {
                 Text("Two-factor auth")
                     .font(.system(size: 20, weight: .heavy)).foregroundStyle(Color.lvTextPrimary)
                     .padding(.bottom, 4)
-                Text("Enter the code from your authenticator app")
+                Text("Enter the code we sent you")
                     .font(.system(size: 11)).foregroundStyle(Color.lvTextSub)
                     .multilineTextAlignment(.center).padding(.bottom, 20)
-
-                // Method toggle
-                HStack(spacing: 0) {
-                    ForEach(MFAMethod.allCases, id: \.self) { method in
-                        Button {
-                            vm.mfaMethod = method
-                            vm.mfaCode = ""
-                        } label: {
-                            Text(method == .totp ? "Authenticator" : "SMS")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(vm.mfaMethod == method ? Color.lvCyan : Color.lvTextMuted)
-                                .frame(maxWidth: .infinity).padding(.vertical, 8)
-                                .background(vm.mfaMethod == method ? Color.lvCyan.opacity(0.12) : Color.clear)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                .overlay(vm.mfaMethod == method
-                                    ? RoundedRectangle(cornerRadius: 8).stroke(Color.lvCyan.opacity(0.3), lineWidth: 1)
-                                    : nil)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(3)
-                .background(Color.lvGlass)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.lvBorder, lineWidth: 1))
-                .padding(.horizontal, 24).padding(.bottom, 20)
 
                 OTPFieldRow(code: $vm.mfaCode, accentColor: .lvAmber)
                     .padding(.horizontal, 24).padding(.bottom, 16)
