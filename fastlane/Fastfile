@@ -1,0 +1,73 @@
+default_platform(:ios)
+
+# HER-209: TestFlight + App Store release pipeline.
+#
+# Prereqs (one-time):
+# - `fastlane match init` against a PRIVATE git repo for certs.
+# - `bundle exec fastlane match appstore --app_identifier com.lumina.fernando.beta`
+#   to seed beta signing material into the match repo.
+# - GitHub repo secrets: MATCH_GIT_URL, MATCH_PASSWORD, APP_STORE_CONNECT_API_KEY_ID,
+#   APP_STORE_CONNECT_API_KEY_ISSUER_ID, APP_STORE_CONNECT_API_KEY_KEY (base64
+#   of .p8 file contents), FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD.
+#
+# Build numbers come from $BUILD_NUMBER (defaults to 1 in pbxproj; CI overrides
+# via the runner's run number).
+platform :ios do
+  before_all do
+    setup_ci if ENV["CI"]
+    if ENV["APP_STORE_CONNECT_API_KEY_KEY"]
+      app_store_connect_api_key(
+        key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
+        issuer_id: ENV["APP_STORE_CONNECT_API_KEY_ISSUER_ID"],
+        key_content: ENV["APP_STORE_CONNECT_API_KEY_KEY"],
+        is_key_content_base64: true
+      )
+    end
+  end
+
+  desc "Upload a Beta build to TestFlight"
+  lane :beta do
+    match(
+      type: "appstore",
+      app_identifier: "com.lumina.fernando.beta",
+      readonly: ENV["CI"] ? true : false
+    )
+    build_app(
+      project: "LuminaVaultClient.xcodeproj",
+      scheme: "LuminaVaultClient",
+      configuration: "Beta",
+      export_method: "app-store",
+      xcargs: "BUILD_NUMBER=#{ENV['BUILD_NUMBER'] || 1}",
+      clean: true
+    )
+    upload_to_testflight(
+      app_identifier: "com.lumina.fernando.beta",
+      skip_waiting_for_build_processing: true,
+      changelog: ENV["CHANGELOG"] || "Latest internal build."
+    )
+  end
+
+  desc "Ship to App Store (manual review submission)"
+  lane :release do
+    match(
+      type: "appstore",
+      app_identifier: "com.lumina.fernando",
+      readonly: ENV["CI"] ? true : false
+    )
+    build_app(
+      project: "LuminaVaultClient.xcodeproj",
+      scheme: "LuminaVaultClient",
+      configuration: "Release",
+      export_method: "app-store",
+      xcargs: "BUILD_NUMBER=#{ENV['BUILD_NUMBER'] || 1}",
+      clean: true
+    )
+    upload_to_app_store(
+      app_identifier: "com.lumina.fernando",
+      skip_metadata: true,
+      skip_screenshots: true,
+      precheck_include_in_app_purchases: false,
+      submit_for_review: false
+    )
+  end
+end
