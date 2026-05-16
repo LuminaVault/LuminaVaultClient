@@ -1,20 +1,24 @@
 // LuminaVaultClient/LuminaVaultClient/API/Memory/MemoryQueryModels.swift
-//
-// HER-157 — local Codable mirrors of LuminaVaultShared's QueryResponse +
-// QueryHitDTO (server v0.3.0+). HER-213 will swap these for
-// `import LuminaVaultShared` once the SPM dep is wired; field shapes match
-// 1:1 with `QueryController.swift:25` / `APIDTOs.swift:396-413`.
-
+// HER-213: DTOs sourced from LuminaVaultShared. Retroactive Equatable +
+// Identifiable conformances live here because Shared keeps its wire-types
+// free of SwiftUI-driven protocols.
 import Foundation
+@_exported import LuminaVaultShared
 
-struct QueryHitDTO: Codable, Sendable, Equatable, Identifiable {
-    let id: UUID
-    let content: String
-    let distance: Float
-    let createdAt: Date?
+typealias QueryHitDTO = LuminaVaultShared.QueryHitDTO
+typealias QueryResponse = LuminaVaultShared.QueryResponse
+
+extension LuminaVaultShared.QueryHitDTO: @retroactive Equatable, @retroactive Identifiable {
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.id == rhs.id
+            && lhs.content == rhs.content
+            && lhs.distance == rhs.distance
+            && lhs.createdAt == rhs.createdAt
+    }
 }
 
-struct QueryResponse: Codable, Sendable, Equatable {
-    let summary: String
-    let hits: [QueryHitDTO]
+extension LuminaVaultShared.QueryResponse: @retroactive Equatable {
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.summary == rhs.summary && lhs.hits == rhs.hits
+    }
 }

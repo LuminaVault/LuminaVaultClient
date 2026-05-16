@@ -29,4 +29,15 @@ final class PreviewAuthClient: AuthClientProtocol {
         EmailMagicStartResponse(challengeId: UUID(), expiresAt: Date(timeIntervalSinceNow: 600))
     }
     func emailMagicVerify(email: String, code: String) async throws -> AuthResponse { stub() }
+    func getMe() async throws -> MeResponse {
+        MeResponse(
+            userId: UUID(),
+            email: "preview@example.com",
+            username: "preview",
+            isVerified: true,
+            privacyNoCNOrigin: false,
+            contextRouting: true
+        )
+    }
+    func logout(refreshToken: String) async throws {}
 }

@@ -1,32 +1,16 @@
 // LuminaVaultClient/LuminaVaultClient/API/Health/HealthModels.swift
+// HER-213: HealthEventInput / HealthIngestedRef / HealthIngestResponse
+// come from LuminaVaultShared. HealthIngestRequest stays local for now
+// (not yet in Shared). JSON coders are client-only configuration.
 import Foundation
+@_exported import LuminaVaultShared
 
-/// One sample as POSTed to `/v1/health`. Matches server DTO. Use ISO-8601
-/// dates; the encoder configured below emits `Z`-suffixed fractional UTC.
-struct HealthEventInput: Codable, Sendable {
-    let type: String
-    let recordedAt: Date
-    let valueNumeric: Double?
-    let valueText: String?
-    let unit: String?
-    let source: String?
-    let metadata: [String: String]?
-}
+typealias HealthEventInput = LuminaVaultShared.HealthEventInput
+typealias HealthIngestedRef = LuminaVaultShared.HealthIngestedRef
+typealias HealthIngestResponse = LuminaVaultShared.HealthIngestResponse
 
 struct HealthIngestRequest: Codable, Sendable {
     let events: [HealthEventInput]
-}
-
-struct HealthIngestedRef: Codable, Sendable {
-    let id: UUID
-    let type: String
-    let recordedAt: Date
-}
-
-struct HealthIngestResponse: Codable, Sendable {
-    let inserted: Int
-    let skipped: Int
-    let events: [HealthIngestedRef]
 }
 
 extension JSONEncoder {

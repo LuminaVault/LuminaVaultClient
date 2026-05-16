@@ -14,6 +14,8 @@ final class MockAuthClient: AuthClientProtocol {
     var phoneVerifyResult: Result<AuthResponse, Error> = .success(.stub)
     var emailMagicStartResult: Result<EmailMagicStartResponse, Error> = .success(.stub)
     var emailMagicVerifyResult: Result<AuthResponse, Error> = .success(.stub)
+    var getMeResult: Result<MeResponse, Error> = .success(.stub)
+    var logoutError: Error? = nil
 
     // Invocation recorders
     private(set) var loginCalls: [(email: String, password: String, mfaCode: String?)] = []
@@ -23,6 +25,8 @@ final class MockAuthClient: AuthClientProtocol {
     private(set) var phoneVerifyCalls: [(phone: String, code: String)] = []
     private(set) var emailMagicStartCalls: [String] = []
     private(set) var emailMagicVerifyCalls: [(email: String, code: String)] = []
+    private(set) var getMeCallCount: Int = 0
+    private(set) var logoutCalls: [String] = []
 
     func login(email: String, password: String, mfaCode: String?) async throws -> AuthResponse {
         loginCalls.append((email, password, mfaCode))
@@ -64,6 +68,25 @@ final class MockAuthClient: AuthClientProtocol {
         emailMagicVerifyCalls.append((email, code))
         return try emailMagicVerifyResult.get()
     }
+    func getMe() async throws -> MeResponse {
+        getMeCallCount += 1
+        return try getMeResult.get()
+    }
+    func logout(refreshToken: String) async throws {
+        logoutCalls.append(refreshToken)
+        if let e = logoutError { throw e }
+    }
+}
+
+extension MeResponse {
+    static let stub = MeResponse(
+        userId: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+        email: "test@example.com",
+        username: "tester",
+        isVerified: true,
+        privacyNoCNOrigin: false,
+        contextRouting: true
+    )
 }
 
 extension EmailMagicStartResponse {
