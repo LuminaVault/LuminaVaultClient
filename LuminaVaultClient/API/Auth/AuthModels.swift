@@ -62,4 +62,21 @@ struct PhoneVerifyRequest: Encodable {
     let code: String
 }
 
+// HER-142: email magic-link.
+//   POST /v1/auth/email/start  { email } -> { challengeId, expiresAt }
+//   POST /v1/auth/email/verify { email, code } -> AuthResponse
+struct EmailMagicStartRequestDTO: Encodable {
+    let email: String
+}
+
+struct EmailMagicStartResponse: Decodable {
+    let challengeId: UUID
+    let expiresAt: Date
+}
+
+struct EmailMagicVerifyRequestDTO: Encodable {
+    let email: String
+    let code: String
+}
+
 struct EmptyResponse: Decodable {}
