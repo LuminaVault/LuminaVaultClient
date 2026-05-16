@@ -65,7 +65,12 @@ extension AppleSignInService: ASAuthorizationControllerDelegate {
                 continuation = nil
                 return
             }
-            continuation?.resume(returning: ProviderCredential(idToken: idToken, rawNonce: currentRawNonce))
+            continuation?.resume(returning: ProviderCredential(
+                idToken: idToken,
+                rawNonce: currentRawNonce,
+                appleUserID: credential.user,
+                fullName: credential.fullName
+            ))
             continuation = nil
             currentRawNonce = nil
         }

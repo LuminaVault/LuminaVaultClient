@@ -24,8 +24,45 @@ final class KeychainService: Sendable {
         set { write(key: "biometricsEnabled", value: newValue ? "1" : nil) }
     }
 
+    // HER-209: persist Apple's `user` identifier so we can poll
+    // `ASAuthorizationAppleIDProvider.getCredentialState(forUserID:)` on
+    // launch/foreground and sign out on `.revoked`.
+    var appleUserId: String? {
+        get { read(key: "appleUserId") }
+        set { write(key: "appleUserId", value: newValue) }
+    }
+
+    // Apple returns `fullName` only on the FIRST sign-up. Stash the JSON-
+    // encoded `PersonNameComponents` so subsequent sign-ins don't drop the
+    // user's display name.
+    var appleFullName: PersonNameComponents? {
+        get {
+            guard let raw = read(key: "appleFullName"),
+                  let data = raw.data(using: .utf8),
+                  let decoded = try? JSONDecoder().decode(PersonNameComponents.self, from: data) else {
+                return nil
+            }
+            return decoded
+        }
+        set {
+            guard let newValue,
+                  let data = try? JSONEncoder().encode(newValue),
+                  let string = String(data: data, encoding: .utf8) else {
+                write(key: "appleFullName", value: nil)
+                return
+            }
+            write(key: "appleFullName", value: string)
+        }
+    }
+
     func clearAll() {
-        ["accessToken", "refreshToken", "biometricsEnabled"].forEach { write(key: $0, value: nil) }
+        [
+            "accessToken",
+            "refreshToken",
+            "biometricsEnabled",
+            "appleUserId",
+            "appleFullName",
+        ].forEach { write(key: $0, value: nil) }
     }
 
     private func write(key: String, value: String?) {

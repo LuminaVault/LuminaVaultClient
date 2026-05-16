@@ -4,11 +4,28 @@ import AuthenticationServices
 
 /// Returned by every native SSO provider service. The server-side
 /// `/v1/auth/oauth/<provider>/exchange` route only consumes `idToken`;
-/// `rawNonce` is currently informational (server validates the nonce hash
-/// embedded in the Apple JWT itself).
+/// `rawNonce` is informational (server validates the nonce hash embedded in
+/// the Apple JWT itself in a future server ticket).
+///
+/// `appleUserID` and `fullName` are populated only by `AppleSignInService` —
+/// they back HER-209 credential-state polling and first-sign-up name capture.
 struct ProviderCredential: Sendable {
     let idToken: String
     let rawNonce: String?
+    let appleUserID: String?
+    let fullName: PersonNameComponents?
+
+    init(
+        idToken: String,
+        rawNonce: String? = nil,
+        appleUserID: String? = nil,
+        fullName: PersonNameComponents? = nil
+    ) {
+        self.idToken = idToken
+        self.rawNonce = rawNonce
+        self.appleUserID = appleUserID
+        self.fullName = fullName
+    }
 }
 
 @MainActor
