@@ -26,4 +26,9 @@ protocol VaultClientProtocol {
     func moveFile(from: String, to: String) async throws -> VaultFileDTO
 
     func deleteFile(relativePath: String) async throws
+
+    /// HER-212 — streams `GET /v1/vault/export` (tar.gz of the user's vault).
+    /// Returns the archive bytes plus the response `Content-Type`. Caller is
+    /// responsible for spilling to disk and surfacing the share sheet.
+    func exportVault() async throws -> (Data, String)
 }
