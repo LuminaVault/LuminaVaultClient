@@ -6,6 +6,7 @@
 // returns.
 import Foundation
 import SwiftUI
+import PostHog
 
 @Observable
 @MainActor
@@ -51,6 +52,11 @@ final class VaultSearchViewModel {
             self.memoryHits = memory?.hits ?? []
             self.memorySummary = memory?.summary
             self.fileHits = files?.files ?? []
+            // PostHog: capture search with result counts
+            PostHogSDK.shared.capture("vault_search_performed", properties: [
+                "memory_hits": (memory?.hits ?? []).count,
+                "file_hits": (files?.files ?? []).count,
+            ])
         }
         inflightTask = task
         await task.value

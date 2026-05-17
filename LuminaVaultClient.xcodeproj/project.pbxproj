@@ -12,6 +12,8 @@
 		60HER40012FAE1200006F894F /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 60HER40022FAE1200006F894F /* RiveRuntime */; };
 		60PNK00012FAE1200006F894F /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = 60PNK00022FAE1200006F894F /* PhoneNumberKit */; };
 		60SNP00012FAE1200006F894F /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 60SNP00022FAE1200006F894F /* SnapshotTesting */; };
+		60PHG00012FAE1200006F894F /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 60PHG00022FAE1200006F894F /* PostHog */; };
+		36898169B542419BA32DA510 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = F8D79674B58849A9A00C4538 /* Sentry */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,6 +66,8 @@
 				60HER40012FAE1200006F894F /* RiveRuntime in Frameworks */,
 				6098173A2FB8BE2500414C79 /* LuminaVaultShared in Frameworks */,
 				60PNK00012FAE1200006F894F /* PhoneNumberKit in Frameworks */,
+				60PHG00012FAE1200006F894F /* PostHog in Frameworks */,
+				36898169B542419BA32DA510 /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -72,6 +76,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				60SNP00012FAE1200006F894F /* SnapshotTesting in Frameworks */,
+				36898169B542419BA32DA510 /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -79,6 +84,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				36898169B542419BA32DA510 /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -115,6 +121,7 @@
 				6088C4EF2FAE1184006F894F /* Sources */,
 				6088C4F02FAE1184006F894F /* Frameworks */,
 				6088C4F12FAE1184006F894F /* Resources */,
+				A53E5752B5D24598A86BD3CA /* Upload Debug Symbols to Sentry */,
 			);
 			buildRules = (
 			);
@@ -129,6 +136,8 @@
 				60HER40022FAE1200006F894F /* RiveRuntime */,
 				60PNK00022FAE1200006F894F /* PhoneNumberKit */,
 				609817392FB8BE2500414C79 /* LuminaVaultShared */,
+				60PHG00022FAE1200006F894F /* PostHog */,
+				F8D79674B58849A9A00C4538 /* Sentry */,
 			);
 			productName = LuminaVaultClient;
 			productReference = 6088C4F32FAE1184006F894F /* LuminaVaultClient.app */;
@@ -217,6 +226,8 @@
 				60PNK00032FAE1200006F894F /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
 				609817382FB8BE2500414C79 /* XCRemoteSwiftPackageReference "LuminaVaultShared" */,
 				60SNP00032FAE1200006F894F /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
+				60PHG00032FAE1200006F894F /* XCRemoteSwiftPackageReference "posthog-ios" */,
+				63C9812D8F0349FC8A4481E2 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6088C4F42FAE1184006F894F /* Products */;
@@ -455,6 +466,8 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_USER_SCRIPT_SANDBOXING = "NO";
 			};
 			name = Debug;
 		};
@@ -496,6 +509,8 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_USER_SCRIPT_SANDBOXING = "NO";
 			};
 			name = Release;
 		};
@@ -680,6 +695,8 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_USER_SCRIPT_SANDBOXING = "NO";
 			};
 			name = Beta;
 		};
@@ -776,7 +793,7 @@
 			repositoryURL = "https://github.com/LuminaVault/LuminaVaultShared.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 0.14.0;
+				minimumVersion = 0.15.0;
 			};
 		};
 		60GSI00032FAE1200006F894F /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
@@ -811,6 +828,22 @@
 				minimumVersion = 1.17.0;
 			};
 		};
+		60PHG00032FAE1200006F894F /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.0;
+			};
+		};
+		63C9812D8F0349FC8A4481E2 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa/";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -839,7 +872,46 @@
 			package = 60SNP00032FAE1200006F894F /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */;
 			productName = SnapshotTesting;
 		};
+		60PHG00022FAE1200006F894F /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 60PHG00032FAE1200006F894F /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
+		};
+		F8D79674B58849A9A00C4538 /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 63C9812D8F0349FC8A4481E2 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
+		};
 /* End XCSwiftPackageProductDependency section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A53E5752B5D24598A86BD3CA /* Upload Debug Symbols to Sentry */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script is responsible for uploading debug symbols and source context for Sentry.
+if which sentry-cli >/dev/null; then
+  export SENTRY_ORG=fernando-lda
+  export SENTRY_PROJECT=luminavault
+  ERROR=$(sentry-cli debug-files upload --include-sources \"$DWARF_DSYM_FOLDER_PATH\" 2>&1 >/dev/null)
+  if [ ! $? -eq 0 ]; then
+    echo \"warning: sentry-cli - $ERROR\"
+  fi
+else
+  echo \"warning: sentry-cli not installed, download from https://github.com/getsentry/sentry-cli/releases\"
+fi
+";
+			name = "Upload Debug Symbols to Sentry";
+		};
+/* End PBXShellScriptBuildPhase section */
 	};
 	rootObject = 6088C4EB2FAE1184006F894F /* Project object */;
 }

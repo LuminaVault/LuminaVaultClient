@@ -1,5 +1,5 @@
 {
-  "originHash" : "c968f857246f44921668c57633078a834f8fed601188872cff10cba323dd1b59",
+  "originHash" : "3136faa7029fb6c9d5c8e049069005bb837fb1a4fcf5248b8fab1dde5aa08e92",
   "pins" : [
     {
       "identity" : "app-check",
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/LuminaVault/LuminaVaultShared.git",
       "state" : {
-        "revision" : "e6eae5f76c0030b9dca2ced437477bd7c3b5d812",
-        "version" : "0.14.0"
+        "revision" : "566a8642e968a1a7474c7971de5e21a284327844",
+        "version" : "0.15.0"
       }
     },
     {
@@ -71,6 +71,15 @@
       "state" : {
         "revision" : "c107075aa8d394be7aced273a46e944afe8b321b",
         "version" : "3.8.0"
+      }
+    },
+    {
+      "identity" : "posthog-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/PostHog/posthog-ios",
+      "state" : {
+        "revision" : "cf6155963a6532c7b88e0cfa2b1d07595d6b6db6",
+        "version" : "3.58.3"
       }
     },
     {

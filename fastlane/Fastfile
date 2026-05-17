@@ -69,5 +69,11 @@ platform :ios do
       precheck_include_in_app_purchases: false,
       submit_for_review: false
     )
+
+    sentry_debug_files_upload(
+      org_slug: 'fernando-lda',
+      project_slug: 'luminavault',
+      include_sources: true
+    )
   end
 end
