@@ -4,6 +4,7 @@ import Foundation
 import AuthenticationServices
 import UIKit
 import PhoneNumberKit
+import PostHog
 
 enum PhoneAuthStep {
     case entry
@@ -90,6 +91,8 @@ final class AuthViewModel {
                 mfaRequired = true
             } else {
                 appState.handleAuthSuccess(r)
+                // PostHog: capture email/password sign-in
+                PostHogSDK.shared.capture("auth_signed_in", properties: ["method": "email"])
             }
         } catch { self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription }
     }
@@ -100,6 +103,8 @@ final class AuthViewModel {
         do {
             let r = try await authClient.register(email: email, username: username, password: password)
             appState.handleAuthSuccess(r)
+            // PostHog: capture new account registration
+            PostHogSDK.shared.capture("auth_signed_up", properties: ["method": "email"])
         } catch { self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription }
     }
 
@@ -173,6 +178,8 @@ final class AuthViewModel {
             let response = try await authClient.exchangeOAuth(provider: provider, idToken: credential.idToken)
             appState.handleAuthSuccess(response)
             persistAppleCredentialIfNeeded(provider: provider, credential: credential)
+            // PostHog: capture SSO sign-in
+            PostHogSDK.shared.capture("auth_signed_in_sso", properties: ["provider": provider])
         } catch is SignInCancelled {
             // Silent — user cancelled the system sheet, no banner.
         } catch {
@@ -260,6 +267,8 @@ final class AuthViewModel {
             let r = try await authClient.phoneVerify(phone: phoneE164, code: phoneOtpCode)
             appState.handleAuthSuccess(r)
             resetPhoneState()
+            // PostHog: capture phone OTP sign-in
+            PostHogSDK.shared.capture("auth_signed_in_phone")
         } catch let apiError as APIError {
             self.error = Self.phoneError(for: apiError)
         } catch {
@@ -356,6 +365,8 @@ final class AuthViewModel {
             let response = try await authClient.emailMagicVerify(email: email, code: emailMagicCode)
             appState.handleAuthSuccess(response)
             resetEmailMagicState()
+            // PostHog: capture email magic-link sign-in
+            PostHogSDK.shared.capture("auth_signed_in_email_magic")
         } catch let apiError as APIError {
             self.error = Self.emailMagicError(for: apiError)
         } catch {

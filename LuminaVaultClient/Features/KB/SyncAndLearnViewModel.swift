@@ -5,6 +5,7 @@
 import Foundation
 import LuminaVaultShared
 import SwiftUI
+import PostHog
 
 @Observable
 @MainActor
@@ -49,6 +50,10 @@ final class SyncAndLearnViewModel {
         do {
             let response = try await client.compile(KBCompileRequest())
             phase = .done(memoriesIngested: response.memoriesIngested, durationMs: response.durationMs)
+            // PostHog: capture KB compile success with ingestion metrics
+            var props: [String: Any] = ["memories_ingested": response.memoriesIngested]
+            if let ms = response.durationMs { props["duration_ms"] = ms }
+            PostHogSDK.shared.capture("kb_compile_completed", properties: props)
             scheduleRevert()
         } catch {
             let message = (error as? APIError)?.errorDescription ?? error.localizedDescription
