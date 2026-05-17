@@ -60,4 +60,10 @@ final class MockVaultClient: VaultClientProtocol, @unchecked Sendable {
     func deleteFile(relativePath _: String) async throws {
         _ = try deleteFileResult.get()
     }
+
+    // HER-212 — scripted vault export bytes.
+    var exportVaultResult: Result<(Data, String), Error> = .success((Data("fake-tar".utf8), "application/gzip"))
+    func exportVault() async throws -> (Data, String) {
+        try exportVaultResult.get()
+    }
 }

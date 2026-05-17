@@ -40,4 +40,10 @@ final class VaultHTTPClient: VaultClientProtocol {
     func deleteFile(relativePath: String) async throws {
         _ = try await client.execute(VaultEndpoints.DeleteFile(relativePath: relativePath))
     }
+
+    // HER-212 — binary tar.gz response, so go through fetchBytes rather than
+    // the JSON Endpoint pipeline. Returns the raw archive + Content-Type.
+    func exportVault() async throws -> (Data, String) {
+        try await client.fetchBytes(path: "/v1/vault/export")
+    }
 }

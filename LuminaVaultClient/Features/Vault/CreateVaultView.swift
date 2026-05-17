@@ -99,4 +99,8 @@ private final class PreviewVaultClient: VaultClientProtocol {
     }
 
     func deleteFile(relativePath _: String) async throws {}
+
+    func exportVault() async throws -> (Data, String) {
+        (Data(), "application/gzip")
+    }
 }

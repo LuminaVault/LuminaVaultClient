@@ -24,6 +24,12 @@ struct MainTabView: View {
                 .tabItem {
                     Label("Home", systemImage: "sparkles")
                 }
+
+            // HER-212: Settings tab — Privacy & Data + Advanced (Hermes Gateway).
+            SettingsRootView()
+                .tabItem {
+                    Label("Settings", systemImage: "gear")
+                }
         }
         .tint(.lvCyan)
     }
