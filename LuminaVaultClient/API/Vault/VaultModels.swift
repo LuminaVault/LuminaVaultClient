@@ -7,6 +7,21 @@ import Foundation
 
 typealias VaultStatusResponse = LuminaVaultShared.VaultStatusResponse
 typealias VaultCreateRequest = LuminaVaultShared.VaultCreateRequest
+// HER-105 browser DTOs.
+typealias VaultFileDTO = LuminaVaultShared.VaultFileDTO
+typealias VaultFileListResponse = LuminaVaultShared.VaultFileListResponse
+typealias VaultMoveRequest = LuminaVaultShared.VaultMoveRequest
+
+extension LuminaVaultShared.VaultFileDTO: @retroactive Identifiable, @retroactive Equatable {
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.id == rhs.id
+            && lhs.path == rhs.path
+            && lhs.sizeBytes == rhs.sizeBytes
+            && lhs.sha256 == rhs.sha256
+            && lhs.spaceId == rhs.spaceId
+            && lhs.updatedAt == rhs.updatedAt
+    }
+}
 
 extension LuminaVaultShared.VaultStatusResponse: @retroactive Equatable {
     public static func == (lhs: Self, rhs: Self) -> Bool {

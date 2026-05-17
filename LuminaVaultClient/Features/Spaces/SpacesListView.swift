@@ -2,13 +2,29 @@
 // HER-35: home tab post-vault-create. Renders a search bar, segmented
 // category control, LazyVGrid of SpaceCardView, and a FAB to create new
 // Spaces. Long-press menus fire edit/delete via the shared editor sheet.
+// HER-105: each Space card is now a NavigationLink → `VaultFilesListView`
+// (three-pane browser); the magnifying-glass toolbar item opens the
+// universal search sheet (`VaultSearchView`).
 import SwiftUI
 
 struct SpacesListView: View {
     @Bindable var vm: SpacesViewModel
+    let vaultClient: VaultClientProtocol
+    let memoryClient: MemoryQueryClientProtocol
 
     @State private var presentingEditorFor: EditorPresentation?
     @State private var spaceToDelete: SpaceDTO?
+    @State private var presentingSearch = false
+    @State private var searchVM: VaultSearchViewModel
+
+    init(vm: SpacesViewModel, vaultClient: VaultClientProtocol, memoryClient: MemoryQueryClientProtocol) {
+        self._vm = Bindable(wrappedValue: vm)
+        self.vaultClient = vaultClient
+        self.memoryClient = memoryClient
+        self._searchVM = State(wrappedValue: VaultSearchViewModel(
+            memoryClient: memoryClient, vaultClient: vaultClient,
+        ))
+    }
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -23,6 +39,16 @@ struct SpacesListView: View {
             }
             .navigationTitle("Spaces")
             .lvBackground()
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        presentingSearch = true
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(Color.lvCyan)
+                    }
+                }
+            }
             .task { await vm.load() }
             .refreshable { await vm.load() }
             .alert("Delete space?",
@@ -70,6 +96,9 @@ struct SpacesListView: View {
                     },
                 )
             }
+            .sheet(isPresented: $presentingSearch) {
+                VaultSearchView(vm: searchVM, vaultClient: vaultClient)
+            }
         }
     }
 
@@ -92,11 +121,16 @@ struct SpacesListView: View {
                 } else {
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(vm.visibleSpaces) { space in
-                            SpaceCardView(
-                                space: space,
-                                onEdit: { presentingEditorFor = EditorPresentation(mode: .edit(space)) },
-                                onDelete: { spaceToDelete = space },
-                            )
+                            NavigationLink {
+                                VaultFilesListView(space: space, vaultClient: vaultClient)
+                            } label: {
+                                SpaceCardView(
+                                    space: space,
+                                    onEdit: { presentingEditorFor = EditorPresentation(mode: .edit(space)) },
+                                    onDelete: { spaceToDelete = space },
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding(.horizontal, 12)
