@@ -44,7 +44,22 @@ struct LuminaVaultClientApp: App {
                 } else {
                     Group {
                         if appState.isAuthenticated {
-                            MainTabView()
+                            // HER-35: gate the home tab behind the explicit
+                            // "Create My Vault" handshake. Legacy users
+                            // (M37 backfill) skip this branch because the
+                            // server starts them at vaultInitialized=true.
+                            if appState.vaultInitialized {
+                                MainTabView()
+                            } else {
+                                CreateVaultView(
+                                    vm: CreateVaultViewModel(
+                                        vaultClient: VaultHTTPClient(client: BaseHTTPClient(
+                                            tokenProvider: { [appState] in appState.keychain.accessToken }
+                                        )),
+                                        appState: appState
+                                    )
+                                )
+                            }
                         } else if !hasSeenGetStarted {
                             GetStartedView {
                                 withAnimation { hasSeenGetStarted = true }
