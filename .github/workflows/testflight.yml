@@ -50,17 +50,45 @@ jobs:
           key: spm-${{ runner.os }}-${{ hashFiles('LuminaVaultClient.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
           restore-keys: spm-${{ runner.os }}-
 
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: SwiftLint
+        run: swiftlint lint --reporter github-actions-logging
+
       - name: Resolve Swift packages
         run: xcodebuild -project LuminaVaultClient.xcodeproj -resolvePackageDependencies
 
-      - name: Run unit tests (Debug)
+      - name: Run unit tests (Debug, with coverage)
         run: |
           xcodebuild test \
             -project LuminaVaultClient.xcodeproj \
             -scheme LuminaVaultClient \
             -configuration Debug \
             -destination 'platform=iOS Simulator,name=iPhone 16' \
-            -only-testing:LuminaVaultClientTests
+            -only-testing:LuminaVaultClientTests \
+            -enableCodeCoverage YES \
+            -resultBundlePath TestResults.xcresult
+
+      - name: Export coverage JSON
+        # Best-effort; informational only until we wire a dashboard.
+        if: always()
+        run: |
+          set -euo pipefail
+          if [[ -d TestResults.xcresult ]]; then
+            xcrun xccov view --report --json TestResults.xcresult > coverage.json || true
+          else
+            echo "::notice::no xcresult bundle; skipping coverage export"
+            : > coverage.json
+          fi
+
+      - name: Upload coverage artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-json
+          path: coverage.json
+          if-no-files-found: ignore
 
       - name: Build + upload to TestFlight
         run: bundle exec fastlane beta
