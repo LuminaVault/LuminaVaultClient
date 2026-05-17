@@ -79,4 +79,24 @@ private final class PreviewVaultClient: VaultClientProtocol {
     func status() async throws -> VaultStatusResponse {
         VaultStatusResponse(initialized: false)
     }
+
+    func listFiles(
+        spaceSlug _: String?,
+        q _: String?,
+        before _: Date?,
+        after _: Date?,
+        limit _: Int?,
+    ) async throws -> VaultFileListResponse {
+        VaultFileListResponse(files: [], limit: 0, nextBefore: nil)
+    }
+
+    func readFile(relativePath _: String) async throws -> (Data, String) {
+        (Data(), "text/plain")
+    }
+
+    func moveFile(from _: String, to: String) async throws -> VaultFileDTO {
+        VaultFileDTO(id: UUID(), path: to, contentType: "text/markdown", sizeBytes: 0, sha256: "")
+    }
+
+    func deleteFile(relativePath _: String) async throws {}
 }

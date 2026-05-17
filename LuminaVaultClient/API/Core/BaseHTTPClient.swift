@@ -55,4 +55,38 @@ final class BaseHTTPClient: Sendable {
         do { return try endpoint.decoder.decode(E.Response.self, from: data) }
         catch { throw APIError.decodingFailed(error) }
     }
+
+    /// HER-105 — fetch raw bytes (vault file read). Bypasses the Endpoint
+    /// decoder pipeline because the response body is binary, not JSON.
+    /// Returns the raw `Data` plus the response's `Content-Type` so the
+    /// Markdown reader can short-circuit MIME sniffing.
+    func fetchBytes(path: String, method: HTTPMethod = .get, requiresAuth: Bool = true) async throws -> (Data, String) {
+        guard let url = URL(string: path, relativeTo: baseURL) else {
+            throw APIError.invalidURL
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = method.rawValue
+        if requiresAuth, let token = await tokenProvider() {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        log.debug("→ \(method.rawValue) \(path) [bytes]")
+        let data: Data
+        let response: URLResponse
+        do { (data, response) = try await session.data(for: req) }
+        catch { throw APIError.networkFailure(error) }
+
+        var contentType = "application/octet-stream"
+        if let http = response as? HTTPURLResponse {
+            log.debug("← \(http.statusCode) \(path) [bytes]")
+            if http.statusCode == 401 { throw APIError.unauthorized }
+            guard (200..<300).contains(http.statusCode) else {
+                throw APIError.httpError(statusCode: http.statusCode, data: data)
+            }
+            if let ct = http.value(forHTTPHeaderField: "Content-Type") {
+                contentType = ct
+            }
+        }
+        return (data, contentType)
+    }
 }
