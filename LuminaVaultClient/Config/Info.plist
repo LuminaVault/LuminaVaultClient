@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Google Sign-In: GIDClientID is read at runtime by GoogleSignInService.
+	     Value is substituted from GoogleAuth.xcconfig at build time. -->
+	<key>GIDClientID</key>
+	<string>$(GID_CLIENT_ID)</string>
+
+	<!-- URL scheme registered so the OAuth callback can return to the app.
+	     GoogleSignIn requires the reversed iOS client ID. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google.signin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(REVERSED_CLIENT_ID)</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Usage descriptions (migrated verbatim from pbxproj INFOPLIST_KEY_*). -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Use Face ID to unlock LuminaVault and your memories.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>LuminaVault reads your HealthKit data so Lumina can surface patterns and nudges from your activity, sleep, and workouts.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>LuminaVault writes mindfulness sessions and notes back to HealthKit when you ask Lumina to.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>LuminaVault tags captures with the place you saved them — only when you toggle Location on for that capture.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>LuminaVault reads photos you pick to save them to your vault. Selection is one-shot and limited to the photos you choose.</string>
+
+	<!-- Scene / orientation / launch flags. -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>processing</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>
