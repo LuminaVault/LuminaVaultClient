@@ -133,9 +133,14 @@ struct LuminaVaultClientApp: App {
             }
             // HER-209: foreground transitions trigger a credential-state poll.
             // `.active` fires on cold launch AND every return-to-foreground.
+            // HER-238: same hook refreshes the current user from /v1/auth/me
+            // (debounced) so server-side profile changes flow into AppState.
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
                     Task { await checkAppleCredentialState() }
+                    Task {
+                        await appState.refreshCurrentUserIfNeeded(authClient: authClient)
+                    }
                 }
             }
             // HER-209: Apple emits this notification while the app is running
