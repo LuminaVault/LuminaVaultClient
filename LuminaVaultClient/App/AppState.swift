@@ -41,9 +41,10 @@ final class AppState {
         isAuthenticated = true
         Task { await healthKit?.start() }
         // PostHog: identify user so all subsequent events are attributed to them
-        let distinctId = response.userId?.uuidString ?? response.email ?? "unknown"
+        // Prefer email if present; otherwise fall back to userId
+        let distinctId = response.email ?? response.userId.uuidString
         var userProps: [String: Any] = [:]
-        if let email = response.email { userProps["email"] = email }
+        userProps["email"] = response.email
         PostHogSDK.shared.identify(distinctId, userProperties: userProps)
     }
 
@@ -59,3 +60,4 @@ final class AppState {
         isAuthenticated = false
     }
 }
+
