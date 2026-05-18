@@ -6,19 +6,41 @@ import AuthenticationServices
 import GoogleSignIn
 import PostHog
 
-// PostHog: reads POSTHOG_PROJECT_TOKEN and POSTHOG_HOST from the Xcode scheme
-// Run environment variables. Set them under Product > Scheme > Edit Scheme >
-// Run > Arguments > Environment Variables.
+// PostHog: resolves POSTHOG_PROJECT_TOKEN / POSTHOG_HOST at runtime.
+//
+// HER-242 — production builds installed via TestFlight / Ad-Hoc don't see
+// the Xcode scheme env vars (those only flow when launched by the Xcode
+// debugger). The previous implementation fatalError'd on init and crashed
+// the app on every cold launch in production. Resolution order is now:
+//   1. `Bundle.main` Info.plist (set via `INFOPLIST_KEY_*` build settings
+//      or xcconfig — preferred path for prod).
+//   2. `ProcessInfo.environment` (scheme env vars — local dev keeps
+//      working unchanged).
+//   3. Compile-time defaults — the PostHog project token is a public
+//      identifier (used by every client; documented as embeddable), so
+//      shipping it in source is intentional and matches what was already
+//      committed to the scheme files.
+// If every source is empty, PostHog is left uninitialized rather than
+// crashing — Sentry still captures and the app boots.
 enum PostHogEnv: String {
     case projectToken = "POSTHOG_PROJECT_TOKEN"
     case host = "POSTHOG_HOST"
 
-    var value: String {
-        guard let value = ProcessInfo.processInfo.environment[rawValue] else {
-            fatalError("Set \(rawValue) in the Xcode scheme Run environment variables.")
+    var value: String? {
+        if let v = Bundle.main.object(forInfoDictionaryKey: rawValue) as? String,
+           !v.isEmpty {
+            return v
         }
-        return value
+        if let v = ProcessInfo.processInfo.environment[rawValue], !v.isEmpty {
+            return v
+        }
+        return Self.defaults[rawValue]
     }
+
+    private static let defaults: [String: String] = [
+        "POSTHOG_PROJECT_TOKEN": "phc_uJu7ZqyfuPpDAsWpyzNiPH2pow8kdUfNVQVM2PEUCFGU",
+        "POSTHOG_HOST": "https://us.i.posthog.com",
+    ]
 }
 
 @main
@@ -63,13 +85,17 @@ struct LuminaVaultClientApp: App {
            !clientID.isEmpty {
             GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
         }
-        // PostHog: initialize analytics SDK
-        let config = PostHogConfig(
-            apiKey: PostHogEnv.projectToken.value,
-            host: PostHogEnv.host.value
-        )
-        config.captureApplicationLifecycleEvents = true
-        PostHogSDK.shared.setup(config)
+        // PostHog: initialize analytics SDK only when both config values
+        // resolve. HER-242 — never crash on missing config in production;
+        // surface the gap to Sentry instead and continue booting.
+        if let token = PostHogEnv.projectToken.value,
+           let host = PostHogEnv.host.value {
+            let config = PostHogConfig(apiKey: token, host: host)
+            config.captureApplicationLifecycleEvents = true
+            PostHogSDK.shared.setup(config)
+        } else {
+            SentrySDK.capture(message: "PostHog config missing — analytics disabled for this launch")
+        }
     }
 
     private var authClient: AuthHTTPClient {
