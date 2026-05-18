@@ -14,6 +14,7 @@
 // disable all buttons during an in-flight network call.
 
 import Foundation
+import PostHog
 
 @Observable
 @MainActor
@@ -113,10 +114,20 @@ final class HermesGatewayViewModel {
                     verifiedAt: test.verifiedAt,
                 )
                 state = Self.makeConfiguredState(from: merged)
+                // PostHog: capture gateway configured and verified
+                PostHogSDK.shared.capture("hermes_gateway_configured", properties: [
+                    "has_auth_header": put.hasAuthHeader,
+                    "verified": true,
+                ])
             } catch {
                 verifyError = Self.classifyVerifyError(error)
                 // Keep the form populated; show config as unverified.
                 state = Self.makeConfiguredState(from: put)
+                // PostHog: capture gateway configured but unverified
+                PostHogSDK.shared.capture("hermes_gateway_configured", properties: [
+                    "has_auth_header": put.hasAuthHeader,
+                    "verified": false,
+                ])
             }
         } catch {
             lastError = errorMessage(error)
@@ -153,6 +164,8 @@ final class HermesGatewayViewModel {
         do {
             try await client.deleteHermesConfig()
             state = .empty
+            // PostHog: capture gateway disconnection
+            PostHogSDK.shared.capture("hermes_gateway_disconnected")
         } catch {
             lastError = errorMessage(error)
         }

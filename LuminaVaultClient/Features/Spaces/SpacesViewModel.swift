@@ -4,6 +4,7 @@
 // — the local model updates immediately and a server error rolls it back.
 import Foundation
 import SwiftUI
+import PostHog
 
 /// Pseudo-category used by the segmented control to mean "show every Space
 /// regardless of category". Not persisted — only ever a UI-state value.
@@ -62,6 +63,10 @@ final class SpacesViewModel {
             let created = try await spacesClient.create(request)
             spaces.append(created)
             spaces.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            // PostHog: capture space creation
+            var props: [String: Any] = ["space_slug": created.slug]
+            if let category = created.category { props["category"] = category }
+            PostHogSDK.shared.capture("space_created", properties: props)
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -84,6 +89,8 @@ final class SpacesViewModel {
         spaces.removeAll { $0.id == id }
         do {
             try await spacesClient.delete(id: id)
+            // PostHog: capture space deletion
+            PostHogSDK.shared.capture("space_deleted", properties: ["space_id": id.uuidString])
         } catch {
             // Roll back the optimistic removal.
             spaces = previous

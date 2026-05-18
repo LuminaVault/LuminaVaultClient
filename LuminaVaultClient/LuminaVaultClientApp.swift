@@ -1,7 +1,25 @@
 // LuminaVaultClient/LuminaVaultClient/LuminaVaultClientApp.swift
 import SwiftUI
+import Sentry
+
 import AuthenticationServices
 import GoogleSignIn
+import PostHog
+
+// PostHog: reads POSTHOG_PROJECT_TOKEN and POSTHOG_HOST from the Xcode scheme
+// Run environment variables. Set them under Product > Scheme > Edit Scheme >
+// Run > Arguments > Environment Variables.
+enum PostHogEnv: String {
+    case projectToken = "POSTHOG_PROJECT_TOKEN"
+    case host = "POSTHOG_HOST"
+
+    var value: String {
+        guard let value = ProcessInfo.processInfo.environment[rawValue] else {
+            fatalError("Set \(rawValue) in the Xcode scheme Run environment variables.")
+        }
+        return value
+    }
+}
 
 @main
 struct LuminaVaultClientApp: App {
@@ -14,10 +32,44 @@ struct LuminaVaultClientApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        SentrySDK.start { options in
+            options.dsn = "https://a3a94645381ee5af35e404c7299e019c@o4510766840872960.ingest.de.sentry.io/4511406692368464"
+
+            // Adds IP for users.
+            // For more information, visit: https://docs.sentry.io/platforms/apple/data-management/data-collected/
+            options.sendDefaultPii = true
+
+            // Set tracesSampleRate to 1.0 to capture 100% of transactions for performance monitoring.
+            // We recommend adjusting this value in production.
+            options.tracesSampleRate = 1.0
+
+            // Configure profiling. Visit https://docs.sentry.io/platforms/apple/profiling/ to learn more.
+            options.configureProfiling = {
+                $0.sessionSampleRate = 1.0 // We recommend adjusting this value in production.
+                $0.lifecycle = .trace
+            }
+
+            // Uncomment the following lines to add more data to your events
+            // options.attachScreenshot = true // This adds a screenshot to the error events
+            // options.attachViewHierarchy = true // This adds the view hierarchy to the error events
+            
+            // Enable experimental logging features
+            options.experimental.enableLogs = true
+        }
+        // Remove the next line after confirming that your Sentry integration is working.
+        SentrySDK.capture(message: "This app uses Sentry! :)")
+
         if let clientID = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String,
            !clientID.isEmpty {
             GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
         }
+        // PostHog: initialize analytics SDK
+        let config = PostHogConfig(
+            apiKey: PostHogEnv.projectToken.value,
+            host: PostHogEnv.host.value
+        )
+        config.captureApplicationLifecycleEvents = true
+        PostHogSDK.shared.setup(config)
     }
 
     private var authClient: AuthHTTPClient {

@@ -4,6 +4,7 @@
 // HER-105: pass vault + memory query clients into SpacesListView so the
 // three-pane browser (Spaces → Files → Reader) and the universal top
 // search bar share the same auth-aware HTTP layer.
+// HER-37: adds the 4th "Think" tab — natural-language query + memo flow.
 import SwiftUI
 
 struct MainTabView: View {
@@ -24,6 +25,18 @@ struct MainTabView: View {
                 home
                     .tabItem {
                         Label("Home", systemImage: "sparkles")
+                    }
+
+                // HER-37: Think tab — "Think with Lumina" + memo flow.
+                ThinkWithLuminaView(
+                    vm: ThinkWithLuminaViewModel(
+                        queryClient: memoryClient,
+                        suggestionsClient: suggestionsClient,
+                    ),
+                    memoClient: memoClient,
+                )
+                    .tabItem {
+                        Label("Think", systemImage: "bubble.left.and.text.bubble.right")
                     }
 
                 // HER-212: Settings tab — Privacy & Data + Advanced (Hermes Gateway).
@@ -62,6 +75,18 @@ struct MainTabView: View {
 
     private var kbCompileClient: KBCompileClientProtocol {
         KBCompileHTTPClient(client: BaseHTTPClient(
+            tokenProvider: { [appState] in appState.keychain.accessToken }
+        ))
+    }
+
+    private var memoClient: MemoClientProtocol {
+        MemoHTTPClient(client: BaseHTTPClient(
+            tokenProvider: { [appState] in appState.keychain.accessToken }
+        ))
+    }
+
+    private var suggestionsClient: SuggestionsClientProtocol {
+        SuggestionsHTTPClient(client: BaseHTTPClient(
             tokenProvider: { [appState] in appState.keychain.accessToken }
         ))
     }

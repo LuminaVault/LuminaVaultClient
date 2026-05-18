@@ -93,3 +93,5 @@ GoogleService-Info.plist.local
 
 # Logs
 *.log
+
+.sentryclirc

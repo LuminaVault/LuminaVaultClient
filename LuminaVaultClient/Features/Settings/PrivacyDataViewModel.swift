@@ -13,6 +13,7 @@
 
 import Foundation
 import SwiftUI
+import PostHog
 
 @Observable
 @MainActor
@@ -93,6 +94,8 @@ final class PrivacyDataViewModel {
             let url = try writeToTempFile(data: data, contentType: contentType)
             lastExportAtRaw = ISO8601DateFormatter().string(from: Date())
             exportPhase = .ready(url)
+            // PostHog: capture successful data export
+            PostHogSDK.shared.capture("account_data_exported", properties: ["size_bytes": data.count])
         } catch {
             exportPhase = .failed(error.localizedDescription)
         }
@@ -136,6 +139,8 @@ final class PrivacyDataViewModel {
         deletePhase = .deleting
         do {
             try await accountClient.deleteAccount()
+            // PostHog: capture account deletion before signOut resets the identity
+            PostHogSDK.shared.capture("account_deleted")
             appState.signOut()
         } catch {
             deletePhase = .failed(error.localizedDescription)
