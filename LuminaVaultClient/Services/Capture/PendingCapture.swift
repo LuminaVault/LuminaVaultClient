@@ -37,6 +37,12 @@ final class PendingCapture {
     var accuracyM: Double?
     var placeName: String?
 
+    /// HER-CaptureTab — optional Space association forwarded to
+    /// `POST /v1/vault/files?space_id=…`. Adding the field as optional
+    /// is safe under SwiftData lightweight migration: rows persisted
+    /// before this change deserialise with `nil` and land unfiled.
+    var spaceID: UUID?
+
     var attempts: Int
     var lastError: String?
     var stateRaw: String
@@ -57,6 +63,7 @@ final class PendingCapture {
         lng: Double? = nil,
         accuracyM: Double? = nil,
         placeName: String? = nil,
+        spaceID: UUID? = nil,
         attempts: Int = 0,
         lastError: String? = nil,
         state: PendingCaptureState = .pending
@@ -71,6 +78,7 @@ final class PendingCapture {
         self.lng = lng
         self.accuracyM = accuracyM
         self.placeName = placeName
+        self.spaceID = spaceID
         self.attempts = attempts
         self.lastError = lastError
         self.stateRaw = state.rawValue

@@ -30,6 +30,7 @@ struct CaptureSnapshot: Sendable {
     let lng: Double?
     let accuracyM: Double?
     let placeName: String?
+    let spaceID: UUID?
 
     init(
         id: UUID = UUID(),
@@ -41,7 +42,8 @@ struct CaptureSnapshot: Sendable {
         lat: Double? = nil,
         lng: Double? = nil,
         accuracyM: Double? = nil,
-        placeName: String? = nil
+        placeName: String? = nil,
+        spaceID: UUID? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -53,6 +55,7 @@ struct CaptureSnapshot: Sendable {
         self.lng = lng
         self.accuracyM = accuracyM
         self.placeName = placeName
+        self.spaceID = spaceID
     }
 }
 
@@ -69,6 +72,7 @@ struct CaptureRowSnapshot: Sendable, Identifiable {
     let lng: Double?
     let accuracyM: Double?
     let placeName: String?
+    let spaceID: UUID?
     let attempts: Int
 }
 
@@ -104,6 +108,7 @@ actor CaptureQueue: CaptureQueueProtocol {
             lng: snapshot.lng,
             accuracyM: snapshot.accuracyM,
             placeName: snapshot.placeName,
+            spaceID: snapshot.spaceID,
         )
         ctx.insert(row)
         try ctx.save()
@@ -129,6 +134,7 @@ actor CaptureQueue: CaptureQueueProtocol {
                 lng: row.lng,
                 accuracyM: row.accuracyM,
                 placeName: row.placeName,
+                spaceID: row.spaceID,
                 attempts: row.attempts,
             )
         }

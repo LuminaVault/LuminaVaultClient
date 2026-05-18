@@ -46,6 +46,7 @@ final class VaultUploadHTTPClientTests: XCTestCase {
             data: Data(repeating: 0xAA, count: 12),
             contentType: "image/heic",
             relativePath: "raw/captures/x.heic",
+            spaceID: nil,
         )
 
         XCTAssertEqual(resp.path, "raw/captures/x.heic")
@@ -73,10 +74,34 @@ final class VaultUploadHTTPClientTests: XCTestCase {
             data: Data([0xFF, 0xD8, 0xFF, 0xD9]),
             contentType: "image/jpeg",
             relativePath: "raw/captures/y.jpg",
+            spaceID: nil,
         )
         XCTAssertEqual(resp.path, "raw/captures/y.jpg")
         XCTAssertEqual(captured.contentType, "image/jpeg")
         XCTAssertEqual(captured.url?.query, "path=raw/captures/y.jpg")
+    }
+
+    /// HER-CaptureTab — `space_id` rides as a second URL query item.
+    func testUploadAssetSendsSpaceID() async throws {
+        let captured = CaptureBox()
+        let space = UUID()
+        MockURLProtocol.handler = { req in
+            captured.url = req.url
+            let body = #"{"path":"raw/captures/z.heic","size":4,"content_type":"image/heic","sha256":"ab"}"#
+            return (
+                HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                Data(body.utf8),
+            )
+        }
+        _ = try await client.uploadAsset(
+            data: Data([0x01, 0x02, 0x03, 0x04]),
+            contentType: "image/heic",
+            relativePath: "raw/captures/z.heic",
+            spaceID: space,
+        )
+        let query = captured.url?.query ?? ""
+        XCTAssertTrue(query.contains("path=raw/captures/z.heic"))
+        XCTAssertTrue(query.contains("space_id=\(space.uuidString)"))
     }
 }
 
