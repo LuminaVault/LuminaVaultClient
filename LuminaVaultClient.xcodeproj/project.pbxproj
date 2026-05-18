@@ -445,6 +445,8 @@
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock LuminaVault and your memories.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "LuminaVault reads your HealthKit data so Lumina can surface patterns and nudges from your activity, sleep, and workouts.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "LuminaVault writes mindfulness sessions and notes back to HealthKit when you ask Lumina to.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "LuminaVault tags captures with the place you saved them — only when you toggle Location on for that capture.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "LuminaVault reads photos you pick to save them to your vault. Selection is one-shot and limited to the photos you choose.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = processing;
@@ -488,6 +490,8 @@
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock LuminaVault and your memories.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "LuminaVault reads your HealthKit data so Lumina can surface patterns and nudges from your activity, sleep, and workouts.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "LuminaVault writes mindfulness sessions and notes back to HealthKit when you ask Lumina to.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "LuminaVault tags captures with the place you saved them — only when you toggle Location on for that capture.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "LuminaVault reads photos you pick to save them to your vault. Selection is one-shot and limited to the photos you choose.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = processing;
@@ -674,6 +678,8 @@
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock LuminaVault and your memories.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "LuminaVault reads your HealthKit data so Lumina can surface patterns and nudges from your activity, sleep, and workouts.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "LuminaVault writes mindfulness sessions and notes back to HealthKit when you ask Lumina to.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "LuminaVault tags captures with the place you saved them — only when you toggle Location on for that capture.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "LuminaVault reads photos you pick to save them to your vault. Selection is one-shot and limited to the photos you choose.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = processing;
