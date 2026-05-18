@@ -91,6 +91,9 @@ playground.xcworkspace
 *.cer
 GoogleService-Info.plist.local
 
+# OAuth client config (sample committed, real file gitignored)
+LuminaVaultClient/Config/GoogleAuth.xcconfig
+
 # Logs
 *.log
 

@@ -1,0 +1,17 @@
+// LuminaVaultClient/Config/GoogleAuth.xcconfig.sample
+//
+// Copy this file to `GoogleAuth.xcconfig` and fill in real values from the
+// Google Cloud Console. The real file is gitignored.
+//
+// GID_CLIENT_ID       — iOS OAuth 2.0 Client ID (NOT the web client).
+// REVERSED_CLIENT_ID  — same value with reversed-DNS prefix
+//                       (com.googleusercontent.apps.<numeric-suffix>).
+//
+// CROSS-REPO INVARIANT
+//   GID_CLIENT_ID MUST equal the LuminaVaultServer env var
+//   OAUTH_GOOGLE_CLIENTID (config key `oauth.google.clientId`).
+//   The server compares this string against the ID token's `aud` claim;
+//   mismatch returns 401 OAuthError.invalidToken.
+
+GID_CLIENT_ID = REPLACE_WITH_IOS_CLIENT_ID.apps.googleusercontent.com
+REVERSED_CLIENT_ID = com.googleusercontent.apps.REPLACE_WITH_IOS_CLIENT_ID
