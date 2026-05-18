@@ -1,6 +1,7 @@
 // LuminaVaultClient/LuminaVaultClient/API/Core/BaseHTTPClient.swift
 import Foundation
 import OSLog
+import PostHog
 
 private let log = Logger(subsystem: "com.luminavault", category: "http")
 
@@ -9,21 +10,49 @@ private let log = Logger(subsystem: "com.luminavault", category: "http")
 // can pick snake_case + ISO-8601 vs camelCase as it needs.)
 
 final class BaseHTTPClient: Sendable {
+    typealias TokenProvider = @Sendable () async -> String?
+    typealias RefreshHandler = @Sendable () async throws -> String
+    typealias AuthFailureHandler = @Sendable () async -> Void
+
     private let session: URLSession
     private let baseURL: URL
-    private let tokenProvider: @Sendable () async -> String?
+    private let tokenProvider: TokenProvider
+    private let refreshHandler: RefreshHandler?
+    private let onAuthFailure: AuthFailureHandler?
+    private let refreshCoordinator: TokenRefreshCoordinator?
 
     init(
         baseURL: URL = Config.apiBaseURL,
         session: URLSession = .shared,
-        tokenProvider: @escaping @Sendable () async -> String? = { nil }
+        tokenProvider: @escaping TokenProvider = { nil },
+        refreshHandler: RefreshHandler? = nil,
+        onAuthFailure: AuthFailureHandler? = nil,
+        refreshCoordinator: TokenRefreshCoordinator? = nil
     ) {
         self.baseURL = baseURL
         self.session = session
         self.tokenProvider = tokenProvider
+        self.refreshHandler = refreshHandler
+        self.onAuthFailure = onAuthFailure
+        // HER-237: a refresh handler without a coordinator would stampede
+        // the auth server on concurrent 401s. Always provide one when
+        // refresh is wired; share it across clients to keep single-flight
+        // semantics process-wide.
+        self.refreshCoordinator = refreshHandler != nil
+            ? (refreshCoordinator ?? TokenRefreshCoordinator())
+            : nil
     }
 
     func execute<E: Endpoint>(_ endpoint: E) async throws -> E.Response {
+        do {
+            return try await executeOnce(endpoint)
+        } catch APIError.unauthorized where shouldRetryAfterRefresh(endpoint: endpoint) {
+            try await performRefreshOrSignOut()
+            return try await executeOnce(endpoint)
+        }
+    }
+
+    private func executeOnce<E: Endpoint>(_ endpoint: E) async throws -> E.Response {
         guard let url = URL(string: endpoint.path, relativeTo: baseURL) else {
             throw APIError.invalidURL
         }
@@ -61,6 +90,15 @@ final class BaseHTTPClient: Sendable {
     /// Returns the raw `Data` plus the response's `Content-Type` so the
     /// Markdown reader can short-circuit MIME sniffing.
     func fetchBytes(path: String, method: HTTPMethod = .get, requiresAuth: Bool = true) async throws -> (Data, String) {
+        do {
+            return try await fetchBytesOnce(path: path, method: method, requiresAuth: requiresAuth)
+        } catch APIError.unauthorized where requiresAuth && refreshHandler != nil {
+            try await performRefreshOrSignOut()
+            return try await fetchBytesOnce(path: path, method: method, requiresAuth: requiresAuth)
+        }
+    }
+
+    private func fetchBytesOnce(path: String, method: HTTPMethod, requiresAuth: Bool) async throws -> (Data, String) {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw APIError.invalidURL
         }
@@ -88,5 +126,24 @@ final class BaseHTTPClient: Sendable {
             }
         }
         return (data, contentType)
+    }
+
+    private func shouldRetryAfterRefresh<E: Endpoint>(endpoint: E) -> Bool {
+        guard refreshHandler != nil, !endpoint.skipsAuthRefresh else { return false }
+        return true
+    }
+
+    private func performRefreshOrSignOut() async throws {
+        guard let coordinator = refreshCoordinator, let refreshHandler else {
+            throw APIError.unauthorized
+        }
+        do {
+            _ = try await coordinator.refresh(using: refreshHandler)
+            PostHogSDK.shared.capture("auth_token_refresh_success")
+        } catch {
+            PostHogSDK.shared.capture("auth_token_refresh_failure")
+            await onAuthFailure?()
+            throw APIError.unauthorized
+        }
     }
 }

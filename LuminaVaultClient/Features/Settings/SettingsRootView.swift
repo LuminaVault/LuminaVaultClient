@@ -40,20 +40,14 @@ struct SettingsRootView: View {
     // MARK: - Client wiring (mirrors MainTabView's per-tab factories)
 
     private var vaultClient: any VaultClientProtocol {
-        VaultHTTPClient(client: BaseHTTPClient(
-            tokenProvider: { [appState] in appState.keychain.accessToken }
-        ))
+        VaultHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var accountClient: any AccountClientProtocol {
-        AccountHTTPClient(client: BaseHTTPClient(
-            tokenProvider: { [appState] in appState.keychain.accessToken }
-        ))
+        AccountHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var settingsClient: any SettingsClientProtocol {
-        SettingsHTTPClient(client: BaseHTTPClient(
-            tokenProvider: { [appState] in appState.keychain.accessToken }
-        ))
+        SettingsHTTPClient(client: appState.makeHTTPClient())
     }
 }

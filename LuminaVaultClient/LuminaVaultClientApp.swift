@@ -72,9 +72,7 @@ struct LuminaVaultClientApp: App {
     }
 
     private var authClient: AuthHTTPClient {
-        AuthHTTPClient(client: BaseHTTPClient(
-            tokenProvider: { [appState] in appState.keychain.accessToken }
-        ))
+        AuthHTTPClient(client: appState.makeHTTPClient())
     }
 
     private func makeAuthViewModel() -> AuthViewModel {
@@ -105,9 +103,7 @@ struct LuminaVaultClientApp: App {
                             } else {
                                 CreateVaultView(
                                     vm: CreateVaultViewModel(
-                                        vaultClient: VaultHTTPClient(client: BaseHTTPClient(
-                                            tokenProvider: { [appState] in appState.keychain.accessToken }
-                                        )),
+                                        vaultClient: VaultHTTPClient(client: appState.makeHTTPClient()),
                                         appState: appState
                                     )
                                 )

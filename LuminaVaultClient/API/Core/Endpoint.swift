@@ -9,6 +9,12 @@ protocol Endpoint {
     var requiresAuth: Bool { get }
     var decoder: JSONDecoder { get }
     var encoder: JSONEncoder { get }
+    /// HER-237 — when true, a 401 propagates immediately instead of
+    /// triggering the refresh+retry interceptor. Default `!requiresAuth`
+    /// covers auth-bootstrap endpoints (login, register, refresh, oauth
+    /// exchange, magic-link, phone OTP) so they cannot drive a refresh
+    /// loop or mask credential-rejection errors as session expiry.
+    var skipsAuthRefresh: Bool { get }
 }
 
 extension Endpoint {
@@ -16,6 +22,7 @@ extension Endpoint {
     var body: (any Encodable)? { nil }
     var decoder: JSONDecoder { .hvDefault }
     var encoder: JSONEncoder { JSONEncoder() }
+    var skipsAuthRefresh: Bool { !requiresAuth }
 }
 
 /// Type-erasing wrapper so a JSONEncoder can encode an `any Encodable`
