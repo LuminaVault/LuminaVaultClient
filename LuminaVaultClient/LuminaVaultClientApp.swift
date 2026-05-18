@@ -9,6 +9,7 @@ struct LuminaVaultClientApp: App {
     @State private var theme = LVThemeManager()
     @State private var showSplash = true
     @State private var biometricChecked = false
+    @State private var captureCoordinator: CaptureCoordinator?
     @AppStorage("hasSeenGetStarted") private var hasSeenGetStarted = false
     @Environment(\.scenePhase) private var scenePhase
 
@@ -50,6 +51,7 @@ struct LuminaVaultClientApp: App {
                             // server starts them at vaultInitialized=true.
                             if appState.vaultInitialized {
                                 MainTabView()
+                                    .environment(\.captureCoordinator, captureCoordinator)
                             } else {
                                 CreateVaultView(
                                     vm: CreateVaultViewModel(
@@ -95,6 +97,21 @@ struct LuminaVaultClientApp: App {
                     named: ASAuthorizationAppleIDProvider.credentialRevokedNotification
                 ) {
                     appState.signOut()
+                }
+            }
+            // HER-34 — bring the capture coordinator up once the vault
+            // is initialized. Stop it on sign-out so SwiftData / NWPath
+            // resources don't leak across sessions.
+            .task(id: appState.vaultInitialized) {
+                if appState.vaultInitialized, captureCoordinator == nil {
+                    let coord = CaptureCoordinator(
+                        tokenProvider: { [appState] in appState.keychain.accessToken },
+                    )
+                    await coord.start()
+                    captureCoordinator = coord
+                } else if !appState.vaultInitialized, let coord = captureCoordinator {
+                    await coord.stop()
+                    captureCoordinator = nil
                 }
             }
             .task {

@@ -10,28 +10,36 @@ struct MainTabView: View {
     @Environment(AppState.self) private var appState
 
     var body: some View {
-        TabView {
-            SpacesListView(
-                vm: SpacesViewModel(spacesClient: spacesClient),
-                vaultClient: vaultClient,
-                memoryClient: memoryClient,
-            )
-                .tabItem {
-                    Label("Spaces", systemImage: "folder.fill")
-                }
+        ZStack(alignment: .bottomTrailing) {
+            TabView {
+                SpacesListView(
+                    vm: SpacesViewModel(spacesClient: spacesClient),
+                    vaultClient: vaultClient,
+                    memoryClient: memoryClient,
+                )
+                    .tabItem {
+                        Label("Spaces", systemImage: "folder.fill")
+                    }
 
-            home
-                .tabItem {
-                    Label("Home", systemImage: "sparkles")
-                }
+                home
+                    .tabItem {
+                        Label("Home", systemImage: "sparkles")
+                    }
 
-            // HER-212: Settings tab — Privacy & Data + Advanced (Hermes Gateway).
-            SettingsRootView()
-                .tabItem {
-                    Label("Settings", systemImage: "gear")
-                }
+                // HER-212: Settings tab — Privacy & Data + Advanced (Hermes Gateway).
+                SettingsRootView()
+                    .tabItem {
+                        Label("Settings", systemImage: "gear")
+                    }
+            }
+            .tint(.lvCyan)
+
+            // HER-34 — vault capture entry point. Floats above the tab
+            // bar so it's reachable from any tab without stealing one.
+            CaptureFAB()
+                .padding(.trailing, 20)
+                .padding(.bottom, 70)
         }
-        .tint(.lvCyan)
     }
 
     private var spacesClient: SpacesClientProtocol {
