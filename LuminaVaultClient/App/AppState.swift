@@ -1,6 +1,7 @@
 // LuminaVaultClient/LuminaVaultClient/App/AppState.swift
 import SwiftUI
 import Foundation
+import PostHog
 
 @Observable
 @MainActor
@@ -39,9 +40,18 @@ final class AppState {
         vaultInitialized = response.vaultInitialized
         isAuthenticated = true
         Task { await healthKit?.start() }
+        // PostHog: identify user so all subsequent events are attributed to them
+        // Prefer email if present; otherwise fall back to userId
+        let distinctId = response.email ?? response.userId.uuidString
+        var userProps: [String: Any] = [:]
+        userProps["email"] = response.email
+        PostHogSDK.shared.identify(distinctId, userProperties: userProps)
     }
 
     func signOut() {
+        // PostHog: capture sign-out then reset the anonymous distinct ID
+        PostHogSDK.shared.capture("user_signed_out")
+        PostHogSDK.shared.reset()
         Task { await healthKit?.stop() }
         keychain.clearAll()
         currentUserId = nil
@@ -50,3 +60,4 @@ final class AppState {
         isAuthenticated = false
     }
 }
+

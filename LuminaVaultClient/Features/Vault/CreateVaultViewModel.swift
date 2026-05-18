@@ -4,6 +4,7 @@
 // so the root view switcher mounts MainTabView.
 import Foundation
 import SwiftUI
+import PostHog
 
 @Observable
 @MainActor
@@ -29,6 +30,8 @@ final class CreateVaultViewModel {
                 withAnimation(.easeInOut(duration: 0.4)) {
                     appState.vaultInitialized = true
                 }
+                // PostHog: capture vault creation (top-of-funnel onboarding completion)
+                PostHogSDK.shared.capture("vault_created")
             } else {
                 error = "Vault did not initialize. Please try again."
             }

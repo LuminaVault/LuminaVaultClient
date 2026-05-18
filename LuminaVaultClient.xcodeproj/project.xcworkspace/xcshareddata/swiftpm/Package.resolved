@@ -1,5 +1,5 @@
 {
-  "originHash" : "c968f857246f44921668c57633078a834f8fed601188872cff10cba323dd1b59",
+  "originHash" : "e690b9d66208882a0a8596c17a0323efc36099479aca811106f6c8548843e113",
   "pins" : [
     {
       "identity" : "app-check",
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/LuminaVault/LuminaVaultShared.git",
       "state" : {
-        "revision" : "e6eae5f76c0030b9dca2ced437477bd7c3b5d812",
-        "version" : "0.14.0"
+        "revision" : "566a8642e968a1a7474c7971de5e21a284327844",
+        "version" : "0.15.0"
       }
     },
     {
@@ -71,6 +71,15 @@
       "state" : {
         "revision" : "c107075aa8d394be7aced273a46e944afe8b321b",
         "version" : "3.8.0"
+      }
+    },
+    {
+      "identity" : "posthog-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/PostHog/posthog-ios",
+      "state" : {
+        "revision" : "cf6155963a6532c7b88e0cfa2b1d07595d6b6db6",
+        "version" : "3.58.3"
       }
     },
     {
@@ -89,6 +98,15 @@
       "state" : {
         "revision" : "0bab74395b47df0423be3c1b3eec0e86751889b2",
         "version" : "6.20.3"
+      }
+    },
+    {
+      "identity" : "sentry-cocoa",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/getsentry/sentry-cocoa/",
+      "state" : {
+        "revision" : "cf44aa8cb4147f39e698c1f28be0b6b2c89f79d2",
+        "version" : "8.58.2"
       }
     },
     {
