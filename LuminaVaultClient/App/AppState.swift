@@ -13,6 +13,13 @@ final class AppState {
     /// user completes the "Create My Vault" screen (or for any user whose
     /// `M37` backfill set them to true).
     var vaultInitialized = false
+    /// HER-238: timestamp of the most recent successful `/v1/auth/me` fetch.
+    /// `nil` means we've never refreshed since sign-in. Used by
+    /// `refreshCurrentUserIfNeeded(authClient:now:)` to debounce.
+    private(set) var lastMeFetchAt: Date?
+    /// HER-238: minimum gap between background `/v1/auth/me` calls. Keeps
+    /// rapid foreground transitions from hammering the auth server.
+    static let meRefreshInterval: TimeInterval = 300
     let keychain: KeychainService
     let healthKit: HealthKitCoordinator?
     // HER-237: process-wide single-flight refresh coordinator. Every
@@ -94,6 +101,45 @@ final class AppState {
         currentEmail = nil
         vaultInitialized = false
         isAuthenticated = false
+        lastMeFetchAt = nil
+    }
+
+    /// HER-238 — fetch `/v1/auth/me` on app resume to keep `currentUserId`
+    /// and `currentEmail` in sync with the server. Debounced via
+    /// `meRefreshInterval` so rapid foreground transitions don't hammer
+    /// the auth server.
+    ///
+    /// - 401: silently ignored. The HER-237 interceptor will already have
+    ///   driven a sign-out by the time this returns, so there's nothing
+    ///   more to do here.
+    /// - Other failures (network, 5xx): logged via the caller (we don't
+    ///   surface UI errors for a background refresh) and the stale state
+    ///   is preserved.
+    func refreshCurrentUserIfNeeded(
+        authClient: AuthClientProtocol,
+        now: Date = .now
+    ) async {
+        guard isAuthenticated else { return }
+        if let last = lastMeFetchAt,
+           now.timeIntervalSince(last) < Self.meRefreshInterval {
+            return
+        }
+        do {
+            let me = try await authClient.getMe()
+            lastMeFetchAt = now
+            let emailChanged = (currentEmail != me.email)
+            if currentUserId != me.userId { currentUserId = me.userId }
+            if emailChanged { currentEmail = me.email }
+            // Re-identify with PostHog only when the email moved; otherwise
+            // we'd spam identify on every foreground.
+            if emailChanged {
+                PostHogSDK.shared.identify(me.email, userProperties: ["email": me.email])
+            }
+        } catch APIError.unauthorized {
+            // HER-237 interceptor already signed user out — nothing left to do.
+        } catch {
+            // Network / 5xx — keep stale state.
+        }
     }
 }
 
