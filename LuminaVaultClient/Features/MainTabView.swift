@@ -56,39 +56,27 @@ struct MainTabView: View {
     }
 
     private var spacesClient: SpacesClientProtocol {
-        SpacesHTTPClient(client: BaseHTTPClient(
-            tokenProvider: { [appState] in appState.keychain.accessToken }
-        ))
+        SpacesHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var vaultClient: VaultClientProtocol {
-        VaultHTTPClient(client: BaseHTTPClient(
-            tokenProvider: { [appState] in appState.keychain.accessToken }
-        ))
+        VaultHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var memoryClient: MemoryQueryClientProtocol {
-        MemoryQueryHTTPClient(client: BaseHTTPClient(
-            tokenProvider: { [appState] in appState.keychain.accessToken }
-        ))
+        MemoryQueryHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var kbCompileClient: KBCompileClientProtocol {
-        KBCompileHTTPClient(client: BaseHTTPClient(
-            tokenProvider: { [appState] in appState.keychain.accessToken }
-        ))
+        KBCompileHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var memoClient: MemoClientProtocol {
-        MemoHTTPClient(client: BaseHTTPClient(
-            tokenProvider: { [appState] in appState.keychain.accessToken }
-        ))
+        MemoHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var suggestionsClient: SuggestionsClientProtocol {
-        SuggestionsHTTPClient(client: BaseHTTPClient(
-            tokenProvider: { [appState] in appState.keychain.accessToken }
-        ))
+        SuggestionsHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var home: some View {
