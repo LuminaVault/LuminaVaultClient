@@ -9,12 +9,16 @@ import Foundation
 import LuminaVaultShared
 
 protocol VaultUploadClientProtocol: Sendable {
-    /// POST /v1/vault/files?path=<relativePath>
+    /// POST /v1/vault/files?path=<relativePath>[&space_id=<uuid>]
     /// Body is the raw asset bytes; `Content-Type` must match the file
     /// extension per the server allowlist (HER-34 adds heic + heif).
+    /// `spaceID` (HER-CaptureTab) optionally associates the vault_files
+    /// row with a Space the caller owns. Pass nil to leave the file
+    /// unfiled. Cross-tenant or malformed UUIDs raise 400 server-side.
     func uploadAsset(
         data: Data,
         contentType: String,
-        relativePath: String
+        relativePath: String,
+        spaceID: UUID?
     ) async throws -> VaultUploadResponse
 }

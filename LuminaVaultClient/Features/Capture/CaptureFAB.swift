@@ -36,6 +36,7 @@ struct CaptureFAB: View {
                     queue: queue,
                     locationService: LocationService(),
                     drainer: coordinator?.drainerHandle ?? .noop,
+                    spacesClient: coordinator?.spacesClient,
                 ))
             } else {
                 Text("Capture is initializing…")

@@ -22,9 +22,11 @@ struct CapturePhotosView: View {
                 pickerSection
                 if !viewModel.loadedItems.isEmpty {
                     capturesSection
+                    spaceSection
                     locationSection
                 }
             }
+            .task { await viewModel.loadSpacesIfNeeded() }
             .navigationTitle("New capture")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -92,6 +94,27 @@ struct CapturePhotosView: View {
             }
         } footer: {
             Text("Off by default. Turning it on for this capture sends one location fix and the place name with the memory.")
+        }
+    }
+
+    /// HER-CaptureTab — Space picker section. Only renders when the user
+    /// has at least one Space; absence leaves the capture unfiled.
+    @ViewBuilder
+    private var spaceSection: some View {
+        if let spaces = viewModel.availableSpaces, !spaces.isEmpty {
+            Section {
+                Picker(selection: $viewModel.selectedSpaceID) {
+                    Text("Unfiled").tag(UUID?.none)
+                    ForEach(spaces, id: \.id) { space in
+                        Text(space.name).tag(UUID?.some(space.id))
+                    }
+                } label: {
+                    Label("Space", systemImage: "folder")
+                }
+                .pickerStyle(.menu)
+            } footer: {
+                Text("Pick a Space to file this capture into. Unfiled captures land at the vault root.")
+            }
         }
     }
 }

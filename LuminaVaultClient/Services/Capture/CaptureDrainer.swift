@@ -106,6 +106,7 @@ actor CaptureDrainer {
                 data: row.imageData,
                 contentType: row.contentType,
                 relativePath: relativePath,
+                spaceID: row.spaceID,
             )
 
             let memoryContent = row.captionText?.nilIfEmpty ?? "Photo capture"

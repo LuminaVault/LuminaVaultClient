@@ -16,11 +16,16 @@ final class VaultUploadHTTPClient: VaultUploadClientProtocol {
     func uploadAsset(
         data: Data,
         contentType: String,
-        relativePath: String
+        relativePath: String,
+        spaceID: UUID?
     ) async throws -> VaultUploadResponse {
         var comps = URLComponents()
         comps.path = "/v1/vault/files"
-        comps.queryItems = [URLQueryItem(name: "path", value: relativePath)]
+        var items: [URLQueryItem] = [URLQueryItem(name: "path", value: relativePath)]
+        if let spaceID {
+            items.append(URLQueryItem(name: "space_id", value: spaceID.uuidString))
+        }
+        comps.queryItems = items
         let uri = comps.string ?? "/v1/vault/files"
 
         let raw = try await client.uploadBytes(

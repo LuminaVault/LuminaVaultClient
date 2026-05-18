@@ -16,6 +16,9 @@ private let log = Logger(subsystem: "com.luminavault", category: "capture.coordi
 final class CaptureCoordinator {
     private(set) var queue: CaptureQueue?
     private(set) var drainer: CaptureDrainer?
+    /// HER-CaptureTab — exposed so `CaptureFAB` can hand the Spaces
+    /// client to the picker VM without giving it AppState access.
+    private(set) var spacesClient: (any SpacesClientProtocol)?
     private var container: ModelContainer?
 
     private let tokenProvider: @Sendable () async -> String?
@@ -35,6 +38,7 @@ final class CaptureCoordinator {
             let httpBase = BaseHTTPClient(tokenProvider: tokenProvider)
             let uploader = VaultUploadHTTPClient(client: httpBase)
             let memory = MemoryHTTPClient(client: httpBase)
+            self.spacesClient = SpacesHTTPClient(client: httpBase)
             let drainer = CaptureDrainer(
                 queue: queue,
                 vaultUploader: uploader,
@@ -52,6 +56,7 @@ final class CaptureCoordinator {
         await drainer?.stop()
         drainer = nil
         queue = nil
+        spacesClient = nil
         container = nil
         log.info("capture coordinator stopped")
     }

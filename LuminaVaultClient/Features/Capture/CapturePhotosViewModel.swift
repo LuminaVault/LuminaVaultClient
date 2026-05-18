@@ -33,20 +33,42 @@ final class CapturePhotosViewModel {
     var saving: Bool = false
     var toast: ToastKind?
 
+    /// HER-CaptureTab — Spaces fetched from `/v1/spaces` on first open of
+    /// the sheet. nil while loading; empty array means "user has no
+    /// Spaces yet" (the picker stays hidden in that case).
+    var availableSpaces: [SpaceDTO]?
+    /// User's current selection. nil = unfiled.
+    var selectedSpaceID: UUID?
+
     // MARK: - Collaborators
 
     private let queue: CaptureQueueProtocol
     private let locationService: LocationServiceProtocol
     private let drainer: CaptureDrainerHandle
+    private let spacesClient: (any SpacesClientProtocol)?
 
     init(
         queue: CaptureQueueProtocol,
         locationService: LocationServiceProtocol,
-        drainer: CaptureDrainerHandle
+        drainer: CaptureDrainerHandle,
+        spacesClient: (any SpacesClientProtocol)? = nil
     ) {
         self.queue = queue
         self.locationService = locationService
         self.drainer = drainer
+        self.spacesClient = spacesClient
+    }
+
+    /// Loads available Spaces for the picker. Called from the view's
+    /// `.task`. Silently no-ops on failure — the sheet still works as
+    /// "unfiled capture" if the spaces fetch is unreachable.
+    func loadSpacesIfNeeded() async {
+        guard availableSpaces == nil, let spacesClient else { return }
+        do {
+            availableSpaces = try await spacesClient.list()
+        } catch {
+            availableSpaces = []
+        }
     }
 
     // MARK: - Save
@@ -71,6 +93,7 @@ final class CapturePhotosViewModel {
                 lng: fix?.lng,
                 accuracyM: fix?.accuracyM,
                 placeName: fix?.placeName,
+                spaceID: selectedSpaceID,
             )
         }
 
