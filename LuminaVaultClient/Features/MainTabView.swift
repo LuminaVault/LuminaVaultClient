@@ -5,6 +5,8 @@
 // three-pane browser (Spaces → Files → Reader) and the universal top
 // search bar share the same auth-aware HTTP layer.
 // HER-37: adds the 4th "Think" tab — natural-language query + memo flow.
+// HER-VisualSearchWire: wires HER-157's VisualSearchView into the tab bar
+// as the 4th tab. Reuses the existing memory-query HTTP client.
 import SwiftUI
 
 struct MainTabView: View {
@@ -37,6 +39,16 @@ struct MainTabView: View {
                 )
                     .tabItem {
                         Label("Think", systemImage: "bubble.left.and.text.bubble.right")
+                    }
+
+                // HER-157 surface wired by HER-VisualSearchWire.
+                VisualSearchView(viewModel: VisualSearchViewModel(
+                    ocr: ImageOCRService(),
+                    client: memoryClient,
+                    telemetry: LoggerTelemetry(),
+                ))
+                    .tabItem {
+                        Label("Visual Search", systemImage: "photo.on.rectangle.angled")
                     }
 
                 // HER-212: Settings tab — Privacy & Data + Advanced (Hermes Gateway).
