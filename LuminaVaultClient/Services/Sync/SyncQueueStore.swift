@@ -89,9 +89,12 @@ actor SyncQueueStore {
 
     func appendLog(_ entry: SyncLogEntry, retainingLast limit: Int = 50) throws {
         modelContext.insert(entry)
-        // Trim the tail so the log stays small.
+        // Trim the tail so the log stays small. Bind the tenant UUID into
+        // a local so the `#Predicate` macro emits a stable expression
+        // (capturing from an outer key path breaks the macro expansion).
+        let tenantID = entry.tenantID
         let descriptor = FetchDescriptor<SyncLogEntry>(
-            predicate: #Predicate { $0.tenantID == entry.tenantID },
+            predicate: #Predicate { $0.tenantID == tenantID },
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
         )
         let rows = try modelContext.fetch(descriptor)

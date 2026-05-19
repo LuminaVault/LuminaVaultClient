@@ -39,9 +39,24 @@
 		6088C50A2FAE1186006F894F /* LuminaVaultClientUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LuminaVaultClientUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		60HER39EXC2026051901AB /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultClient" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Config/Info.plist",
+				"Config/README.md",
+				"Resources/Hermie/README.md",
+			);
+			target = 6088C4F22FAE1184006F894F /* LuminaVaultClient */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6088C4F52FAE1184006F894F /* LuminaVaultClient */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				60HER39EXC2026051901AB /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultClient" target */,
+			);
 			path = LuminaVaultClient;
 			sourceTree = "<group>";
 		};

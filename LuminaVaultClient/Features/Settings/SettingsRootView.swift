@@ -5,6 +5,7 @@
 //   * Advanced → Hermes Gateway (HER-218) — BYO Hermes pane.
 // Future panes (theme, account, notifications, etc.) plug in as more rows.
 
+import SwiftData
 import SwiftUI
 
 struct SettingsRootView: View {
