@@ -14,10 +14,19 @@ final class SyncAndLearnViewModel {
         case idle
         case syncing
         case done(memoriesIngested: Int, durationMs: Int?)
+        /// HER-39 — user tapped Sync while offline (or the network dropped
+        /// mid-call). The compile operation is on the queue and will be
+        /// replayed automatically when reachability returns.
+        case queued
         case failed(message: String)
     }
 
-    private let client: KBCompileClientProtocol
+    /// HER-39 — accepts either a `VaultRepository` (online-first w/ offline
+    /// queueing) or a plain `KBCompileClientProtocol` (for tests + the
+    /// legacy direct-call path). The repository is the production wiring;
+    /// the protocol fallback keeps existing mocks compiling.
+    private let repository: VaultRepository?
+    private let client: KBCompileClientProtocol?
 
     var phase: Phase = .idle
 
@@ -29,13 +38,19 @@ final class SyncAndLearnViewModel {
 
     init(client: KBCompileClientProtocol) {
         self.client = client
+        self.repository = nil
+    }
+
+    init(repository: VaultRepository) {
+        self.repository = repository
+        self.client = nil
     }
 
     var mascotState: HermieMascotState {
         switch phase {
         case .syncing: .thinking
         case .done: .happy
-        case .idle, .failed: .idle
+        case .idle, .failed, .queued: .idle
         }
     }
 
@@ -48,13 +63,26 @@ final class SyncAndLearnViewModel {
         revertTask?.cancel()
         phase = .syncing
         do {
-            let response = try await client.compile(KBCompileRequest())
-            phase = .done(memoriesIngested: response.memoriesIngested, durationMs: response.durationMs)
-            // PostHog: capture KB compile success with ingestion metrics
-            var props: [String: Any] = ["memories_ingested": response.memoriesIngested]
-            if let ms = response.durationMs { props["duration_ms"] = ms }
-            PostHogSDK.shared.capture("kb_compile_completed", properties: props)
-            scheduleRevert()
+            if let repository {
+                switch try await repository.compile() {
+                case let .synced(response):
+                    phase = .done(memoriesIngested: response.memoriesIngested, durationMs: response.durationMs)
+                    var props: [String: Any] = ["memories_ingested": response.memoriesIngested]
+                    if let ms = response.durationMs { props["duration_ms"] = ms }
+                    PostHogSDK.shared.capture("kb_compile_completed", properties: props)
+                    scheduleRevert()
+                case .queued:
+                    phase = .queued
+                    PostHogSDK.shared.capture("kb_compile_queued_offline")
+                }
+            } else if let client {
+                let response = try await client.compile(KBCompileRequest())
+                phase = .done(memoriesIngested: response.memoriesIngested, durationMs: response.durationMs)
+                var props: [String: Any] = ["memories_ingested": response.memoriesIngested]
+                if let ms = response.durationMs { props["duration_ms"] = ms }
+                PostHogSDK.shared.capture("kb_compile_completed", properties: props)
+                scheduleRevert()
+            }
         } catch {
             let message = (error as? APIError)?.errorDescription ?? error.localizedDescription
             phase = .failed(message: message)

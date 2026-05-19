@@ -52,6 +52,8 @@ struct SyncAndLearnView: View {
             count == 0
                 ? "Nothing new to learn — try capturing first."
                 : "Synced \(count) memor\(count == 1 ? "y" : "ies")."
+        case .queued:
+            "Saved locally — will sync when online."
         case .failed(let message):
             "Couldn't sync: \(message)"
         }

@@ -52,6 +52,11 @@ enum VaultEndpoints {
     struct DeleteFile: Endpoint {
         typealias Response = EmptyResponse
         let relativePath: String
+        let idempotencyKey: UUID?
+        init(relativePath: String, idempotencyKey: UUID? = nil) {
+            self.relativePath = relativePath
+            self.idempotencyKey = idempotencyKey
+        }
         var path: String {
             "/v1/vault/files/\(Self.escape(relativePath))"
         }
@@ -68,6 +73,12 @@ enum VaultEndpoints {
         typealias Response = VaultFileDTO
         let from: String
         let to: String
+        let idempotencyKey: UUID?
+        init(from: String, to: String, idempotencyKey: UUID? = nil) {
+            self.from = from
+            self.to = to
+            self.idempotencyKey = idempotencyKey
+        }
         var path: String { "/v1/vault/files/move" }
         var method: HTTPMethod { .post }
         var body: (any Encodable)? { VaultMoveRequest(path: from, newPath: to) }

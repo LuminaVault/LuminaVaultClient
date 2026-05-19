@@ -34,11 +34,23 @@ final class VaultHTTPClient: VaultClientProtocol {
     }
 
     func moveFile(from: String, to: String) async throws -> VaultFileDTO {
-        try await client.execute(VaultEndpoints.MoveFile(from: from, to: to))
+        try await moveFile(from: from, to: to, idempotencyKey: nil)
     }
 
     func deleteFile(relativePath: String) async throws {
-        _ = try await client.execute(VaultEndpoints.DeleteFile(relativePath: relativePath))
+        try await deleteFile(relativePath: relativePath, idempotencyKey: nil)
+    }
+
+    // HER-39 — sync-engine entrypoints. The SyncManager replays queued
+    // operations with a stable `idempotencyKey` so the server's idempotency
+    // middleware returns the cached response on retry.
+
+    func moveFile(from: String, to: String, idempotencyKey: UUID?) async throws -> VaultFileDTO {
+        try await client.execute(VaultEndpoints.MoveFile(from: from, to: to, idempotencyKey: idempotencyKey))
+    }
+
+    func deleteFile(relativePath: String, idempotencyKey: UUID?) async throws {
+        _ = try await client.execute(VaultEndpoints.DeleteFile(relativePath: relativePath, idempotencyKey: idempotencyKey))
     }
 
     // HER-212 — binary tar.gz response, so go through fetchBytes rather than

@@ -1,7 +1,8 @@
 // LuminaVaultClient/LuminaVaultClient/App/AppState.swift
-import SwiftUI
 import Foundation
 import PostHog
+import SwiftData
+import SwiftUI
 
 @Observable
 @MainActor
@@ -22,6 +23,29 @@ final class AppState {
     static let meRefreshInterval: TimeInterval = 300
     let keychain: KeychainService
     let healthKit: HealthKitCoordinator?
+    /// HER-39: process-wide SwiftData container backing the local vault
+    /// inventory, sync queue, and sync log. Built lazily on first read so
+    /// tests can override via the in-memory container.
+    let modelContainer: ModelContainer
+    /// HER-39: actor-isolated on-disk vault manager. Reads/writes go through
+    /// here so the FS boundary stays single-owner.
+    let localVault: LocalVaultManager
+    /// HER-39: live reachability signal observed by the sync engine and
+    /// status banner. Reads must happen on the main actor.
+    let networkMonitor: NetworkMonitor
+    /// HER-39: lazily-built offline sync engine. First touch wires HTTP
+    /// clients, the SwiftData-backed queue, and the on-disk vault. Lives
+    /// for the process lifetime once constructed.
+    @ObservationIgnored private(set) lazy var syncManager: SyncManager = makeSyncManager()
+    /// HER-39: feature-facing façade. UI code talks to the repository, never
+    /// directly to `SyncManager` or the HTTP clients, so swapping the sync
+    /// strategy stays a single-file change.
+    @ObservationIgnored private(set) lazy var vaultRepository: VaultRepository = makeVaultRepository()
+    /// HER-39: observable bridge of `SyncManager.state`. Subscribed exactly
+    /// once via `bootstrapSyncObservation()` so SwiftUI can render the
+    /// status banner + Settings row without each view spinning up its own
+    /// observer.
+    private(set) var syncState: SyncManager.SyncStateSnapshot = .idle
     // HER-237: process-wide single-flight refresh coordinator. Every
     // BaseHTTPClient minted via `makeHTTPClient()` shares it so concurrent
     // 401s collapse to one /v1/auth/refresh call.
@@ -29,10 +53,16 @@ final class AppState {
 
     init(
         keychain: KeychainService = .shared,
-        healthKit: HealthKitCoordinator? = nil
+        healthKit: HealthKitCoordinator? = nil,
+        modelContainer: ModelContainer? = nil,
+        localVault: LocalVaultManager = LocalVaultManager(),
+        networkMonitor: NetworkMonitor? = nil
     ) {
         self.keychain = keychain
         self.healthKit = healthKit
+        self.modelContainer = modelContainer ?? SwiftDataStack.makePersistent()
+        self.localVault = localVault
+        self.networkMonitor = networkMonitor ?? NetworkMonitor()
         self.isAuthenticated = keychain.accessToken != nil
         // Persisted users that re-launched the app have already cleared the
         // vault gate; assume `true` so legacy installs don't get bounced to
@@ -41,6 +71,46 @@ final class AppState {
         if isAuthenticated {
             Task { await healthKit?.start() }
         }
+    }
+
+    /// HER-39 — subscribes to `SyncManager` state changes and mirrors them
+    /// into the main-actor `syncState` so SwiftUI observation flows. Safe
+    /// to call repeatedly; subsequent calls re-replay the current snapshot.
+    func bootstrapSyncObservation() {
+        let manager = syncManager
+        Task { [weak self] in
+            await manager.addStateObserver { snapshot in
+                Task { @MainActor in
+                    self?.syncState = snapshot
+                }
+            }
+        }
+    }
+
+    /// HER-39 — wires up the sync engine on first touch.
+    private func makeSyncManager() -> SyncManager {
+        let httpClient = makeHTTPClient()
+        let queueStore = SyncQueueStore(modelContainer: modelContainer)
+        return SyncManager(
+            queue: queueStore,
+            vaultClient: VaultHTTPClient(client: httpClient),
+            kbCompileClient: KBCompileHTTPClient(client: httpClient),
+            localVault: localVault,
+            networkMonitor: networkMonitor
+        )
+    }
+
+    private func makeVaultRepository() -> VaultRepository {
+        let httpClient = makeHTTPClient()
+        return VaultRepository(
+            syncManager: syncManager,
+            kbCompileClient: KBCompileHTTPClient(client: httpClient),
+            vaultClient: VaultHTTPClient(client: httpClient),
+            networkMonitor: networkMonitor,
+            modelContainer: modelContainer,
+            localVault: localVault,
+            tenantIDProvider: { [weak self] in self?.currentUserId }
+        )
     }
 
     /// HER-237 — produces a `BaseHTTPClient` wired with token injection,

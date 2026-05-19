@@ -50,6 +50,13 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>processing</string>
+		<string>fetch</string>
+	</array>
+	<!-- HER-39: BGTaskScheduler identifiers used by the offline sync engine. -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.lumina.fernando.sync.refresh</string>
+		<string>com.lumina.fernando.sync.processing</string>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict/>

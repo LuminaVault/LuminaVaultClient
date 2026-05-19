@@ -96,6 +96,11 @@ struct LuminaVaultClientApp: App {
         } else {
             SentrySDK.capture(message: "PostHog config missing — analytics disabled for this launch")
         }
+
+        // HER-39: register BGTaskScheduler identifiers before any scene
+        // activates. Must happen synchronously from `init` so the system
+        // can resolve the identifiers during scene setup.
+        BackgroundSyncRegistrar.register()
     }
 
     private var authClient: AuthHTTPClient {
@@ -167,6 +172,10 @@ struct LuminaVaultClientApp: App {
                     Task {
                         await appState.refreshCurrentUserIfNeeded(authClient: authClient)
                     }
+                } else if newPhase == .background {
+                    // HER-39: arm the next BGTaskScheduler runs so the sync
+                    // engine can drain its queue while the app is suspended.
+                    BackgroundSyncRegistrar.scheduleNext()
                 }
             }
             // HER-209: Apple emits this notification while the app is running
@@ -192,6 +201,18 @@ struct LuminaVaultClientApp: App {
                     await coord.stop()
                     captureCoordinator = nil
                 }
+            }
+            .task {
+                // HER-39 — once AppState is alive, hand the sync engine
+                // to the BGTaskScheduler so a background task fired by the
+                // system drains the queue. Idempotent reassignment is safe.
+                BackgroundSyncRegistrar.drainHandler = { [appState] in
+                    guard let tenantID = appState.currentUserId else { return }
+                    await appState.syncManager.runUntilDrained(tenantID: tenantID)
+                }
+                // HER-39 — observe SyncManager state changes so the banner +
+                // Settings row reflect live progress.
+                appState.bootstrapSyncObservation()
             }
             .task {
                 guard !biometricChecked else { return }

@@ -7,6 +7,11 @@ enum KBCompileEndpoints {
     struct Compile: Endpoint {
         typealias Response = KBCompileResponse
         let request: KBCompileRequest
+        let idempotencyKey: UUID?
+        init(request: KBCompileRequest, idempotencyKey: UUID? = nil) {
+            self.request = request
+            self.idempotencyKey = idempotencyKey
+        }
         var path: String { "/v1/kb-compile" }
         var method: HTTPMethod { .post }
         var body: (any Encodable)? { request }

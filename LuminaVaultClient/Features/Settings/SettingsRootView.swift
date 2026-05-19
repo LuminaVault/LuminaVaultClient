@@ -5,6 +5,7 @@
 //   * Advanced → Hermes Gateway (HER-218) — BYO Hermes pane.
 // Future panes (theme, account, notifications, etc.) plug in as more rows.
 
+import SwiftData
 import SwiftUI
 
 struct SettingsRootView: View {
@@ -13,6 +14,16 @@ struct SettingsRootView: View {
     var body: some View {
         NavigationStack {
             List {
+                // HER-39 — surface offline sync state + manual drain.
+                Section("Sync & Backup") {
+                    NavigationLink {
+                        SyncBackupView()
+                            .modelContainer(appState.modelContainer)
+                    } label: {
+                        Label("Sync & Backup", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                }
+
                 Section("Privacy & Data") {
                     NavigationLink {
                         PrivacyDataView(viewModel: PrivacyDataViewModel(
