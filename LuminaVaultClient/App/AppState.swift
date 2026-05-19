@@ -41,6 +41,11 @@ final class AppState {
     /// directly to `SyncManager` or the HTTP clients, so swapping the sync
     /// strategy stays a single-file change.
     @ObservationIgnored private(set) lazy var vaultRepository: VaultRepository = makeVaultRepository()
+    /// HER-39: observable bridge of `SyncManager.state`. Subscribed exactly
+    /// once via `bootstrapSyncObservation()` so SwiftUI can render the
+    /// status banner + Settings row without each view spinning up its own
+    /// observer.
+    private(set) var syncState: SyncManager.SyncStateSnapshot = .idle
     // HER-237: process-wide single-flight refresh coordinator. Every
     // BaseHTTPClient minted via `makeHTTPClient()` shares it so concurrent
     // 401s collapse to one /v1/auth/refresh call.
@@ -65,6 +70,20 @@ final class AppState {
         self.vaultInitialized = keychain.accessToken != nil
         if isAuthenticated {
             Task { await healthKit?.start() }
+        }
+    }
+
+    /// HER-39 — subscribes to `SyncManager` state changes and mirrors them
+    /// into the main-actor `syncState` so SwiftUI observation flows. Safe
+    /// to call repeatedly; subsequent calls re-replay the current snapshot.
+    func bootstrapSyncObservation() {
+        let manager = syncManager
+        Task { [weak self] in
+            await manager.addStateObserver { snapshot in
+                Task { @MainActor in
+                    self?.syncState = snapshot
+                }
+            }
         }
     }
 

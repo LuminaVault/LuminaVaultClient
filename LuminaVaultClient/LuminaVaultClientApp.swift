@@ -210,6 +210,9 @@ struct LuminaVaultClientApp: App {
                     guard let tenantID = appState.currentUserId else { return }
                     await appState.syncManager.runUntilDrained(tenantID: tenantID)
                 }
+                // HER-39 — observe SyncManager state changes so the banner +
+                // Settings row reflect live progress.
+                appState.bootstrapSyncObservation()
             }
             .task {
                 guard !biometricChecked else { return }

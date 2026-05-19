@@ -14,12 +14,16 @@ struct MainTabView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            TabView {
-                SpacesListView(
-                    vm: SpacesViewModel(spacesClient: spacesClient),
-                    vaultClient: vaultClient,
-                    memoryClient: memoryClient,
-                )
+            VStack(spacing: 0) {
+                // HER-39 — pinned sync status. Hidden when idle.
+                SyncStatusBanner()
+
+                TabView {
+                    SpacesListView(
+                        vm: SpacesViewModel(spacesClient: spacesClient),
+                        vaultClient: vaultClient,
+                        memoryClient: memoryClient,
+                    )
                     .tabItem {
                         Label("Spaces", systemImage: "folder.fill")
                     }
@@ -51,13 +55,14 @@ struct MainTabView: View {
                         Label("Visual Search", systemImage: "photo.on.rectangle.angled")
                     }
 
-                // HER-212: Settings tab — Privacy & Data + Advanced (Hermes Gateway).
-                SettingsRootView()
-                    .tabItem {
-                        Label("Settings", systemImage: "gear")
-                    }
+                    // HER-212: Settings tab — Privacy & Data + Advanced (Hermes Gateway).
+                    SettingsRootView()
+                        .tabItem {
+                            Label("Settings", systemImage: "gear")
+                        }
+                }
+                .tint(.lvCyan)
             }
-            .tint(.lvCyan)
 
             // HER-34 — vault capture entry point. Floats above the tab
             // bar so it's reachable from any tab without stealing one.
