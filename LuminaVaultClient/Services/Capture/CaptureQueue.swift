@@ -32,6 +32,8 @@ struct CaptureSnapshot: Sendable {
     let placeName: String?
     let spaceID: UUID?
     let kind: PendingCaptureKind
+    /// HER-257 — populated only when `kind == .url`.
+    let urlString: String?
 
     init(
         id: UUID = UUID(),
@@ -45,7 +47,8 @@ struct CaptureSnapshot: Sendable {
         accuracyM: Double? = nil,
         placeName: String? = nil,
         spaceID: UUID? = nil,
-        kind: PendingCaptureKind = .photo
+        kind: PendingCaptureKind = .photo,
+        urlString: String? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -59,6 +62,7 @@ struct CaptureSnapshot: Sendable {
         self.placeName = placeName
         self.spaceID = spaceID
         self.kind = kind
+        self.urlString = urlString
     }
 
     /// HER-256 — convenience for text-only memory captures. Leaves the
@@ -88,6 +92,29 @@ struct CaptureSnapshot: Sendable {
             kind: .text,
         )
     }
+
+    /// HER-257 — convenience for URL/link captures. Drainer posts these
+    /// to `POST /v1/capture/safari` (HER-149) which enriches asynchronously
+    /// (OG / oEmbed / X scrape) and persists a vault file.
+    static func url(
+        id: UUID = UUID(),
+        url: String,
+        note: String? = nil,
+        spaceID: UUID? = nil,
+        createdAt: Date = .now
+    ) -> CaptureSnapshot {
+        CaptureSnapshot(
+            id: id,
+            createdAt: createdAt,
+            captionText: note?.isEmpty == true ? nil : note,
+            imageData: Data(),
+            contentType: "",
+            fileExtension: "",
+            spaceID: spaceID,
+            kind: .url,
+            urlString: url,
+        )
+    }
 }
 
 /// Outbound row snapshot — what the drainer iterates. Avoids handing
@@ -105,6 +132,7 @@ struct CaptureRowSnapshot: Sendable, Identifiable {
     let placeName: String?
     let spaceID: UUID?
     let kind: PendingCaptureKind
+    let urlString: String?
     let attempts: Int
 }
 
@@ -142,6 +170,7 @@ actor CaptureQueue: CaptureQueueProtocol {
             placeName: snapshot.placeName,
             spaceID: snapshot.spaceID,
             kind: snapshot.kind,
+            urlString: snapshot.urlString,
         )
         ctx.insert(row)
         try ctx.save()
@@ -169,6 +198,7 @@ actor CaptureQueue: CaptureQueueProtocol {
                 placeName: row.placeName,
                 spaceID: row.spaceID,
                 kind: row.kind,
+                urlString: row.urlString,
                 attempts: row.attempts,
             )
         }

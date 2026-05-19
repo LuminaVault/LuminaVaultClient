@@ -45,6 +45,11 @@ struct CaptureFAB: View {
                         locationService: LocationService(),
                         drainer: coordinator?.drainerHandle ?? .noop,
                     ),
+                    urlViewModel: URLCaptureViewModel(
+                        queue: queue,
+                        drainer: coordinator?.drainerHandle ?? .noop,
+                        spacesClient: coordinator?.spacesClient,
+                    ),
                 )
             } else {
                 Text("Capture is initializing…")

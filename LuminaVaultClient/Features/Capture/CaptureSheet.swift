@@ -10,11 +10,13 @@ struct CaptureSheet: View {
     enum Mode: String, CaseIterable, Identifiable {
         case photo
         case text
+        case url
         var id: String { rawValue }
         var label: String {
             switch self {
             case .photo: return "Photos"
             case .text: return "Text"
+            case .url: return "Link"
             }
         }
     }
@@ -22,13 +24,16 @@ struct CaptureSheet: View {
     @State private var mode: Mode = .photo
     private let photoViewModel: CapturePhotosViewModel
     private let textViewModel: TextCaptureViewModel
+    private let urlViewModel: URLCaptureViewModel
 
     init(
         photoViewModel: CapturePhotosViewModel,
-        textViewModel: TextCaptureViewModel
+        textViewModel: TextCaptureViewModel,
+        urlViewModel: URLCaptureViewModel
     ) {
         self.photoViewModel = photoViewModel
         self.textViewModel = textViewModel
+        self.urlViewModel = urlViewModel
     }
 
     var body: some View {
@@ -46,6 +51,7 @@ struct CaptureSheet: View {
             switch mode {
             case .photo: CapturePhotosView(viewModel: photoViewModel)
             case .text: TextCaptureView(viewModel: textViewModel)
+            case .url: URLCaptureView(viewModel: urlViewModel)
             }
         }
     }

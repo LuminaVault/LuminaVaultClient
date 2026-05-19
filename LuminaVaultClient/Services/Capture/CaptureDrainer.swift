@@ -25,6 +25,10 @@ actor CaptureDrainer {
     private let queue: CaptureQueueProtocol
     private let vaultUploader: VaultUploadClientProtocol
     private let memoryClient: MemoryClientProtocol
+    /// HER-257 — optional so existing test fixtures + coordinator wiring
+    /// keep compiling. Production injection comes from
+    /// `CaptureCoordinator.start` once the safari client is built.
+    private let safariClient: (any CaptureSafariClientProtocol)?
     private let pathPrefix: String
 
     private var draining = false
@@ -35,11 +39,13 @@ actor CaptureDrainer {
         queue: CaptureQueueProtocol,
         vaultUploader: VaultUploadClientProtocol,
         memoryClient: MemoryClientProtocol,
+        safariClient: (any CaptureSafariClientProtocol)? = nil,
         pathPrefix: String = "raw/captures"
     ) {
         self.queue = queue
         self.vaultUploader = vaultUploader
         self.memoryClient = memoryClient
+        self.safariClient = safariClient
         self.pathPrefix = pathPrefix
     }
 
@@ -135,6 +141,27 @@ actor CaptureDrainer {
                     lng: row.lng,
                     accuracyM: row.accuracyM,
                     placeName: row.placeName,
+                ))
+
+            case .url:
+                // HER-257 — URL capture: hand off to /v1/capture/safari.
+                // Server enriches asynchronously (OG / oEmbed / X scrape)
+                // and persists a vault file; client doesn't wait for the
+                // enrichment status here, just for the synchronous insert.
+                guard let safariClient else {
+                    log.error("'.url' row id=\(row.id.uuidString) dropped — safari client not configured")
+                    try await queue.delete(id: row.id)
+                    return
+                }
+                guard let urlString = row.urlString?.nilIfEmpty else {
+                    try await queue.delete(id: row.id)
+                    log.info("dropped empty .url capture id=\(row.id.uuidString)")
+                    return
+                }
+                _ = try await safariClient.capture(CaptureSafariRequest(
+                    url: urlString,
+                    notes: row.captionText?.nilIfEmpty,
+                    spaceId: row.spaceID,
                 ))
             }
 

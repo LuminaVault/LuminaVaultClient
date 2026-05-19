@@ -14,15 +14,18 @@ enum PendingCaptureState: String, Codable, Sendable {
     case failed
 }
 
-/// HER-256 — discriminator added so the queue can host text-only memory
-/// captures alongside the original photo flow. New `.text` rows carry the
-/// body in `captionText`, leave `imageData` empty, and the drainer skips
-/// the vault upload step. `.photo` (default) keeps the original behaviour
-/// — rows persisted before HER-256 deserialise with `.photo` because the
-/// SwiftData store falls back to the default value of a new field.
+/// HER-256 / HER-257 — discriminator added so the queue can host
+/// non-photo captures. `.text` rows carry the body in `captionText` and
+/// route to `POST /v1/memory/upsert`. `.url` (HER-257) rows carry the
+/// URL in `urlString` and an optional note in `captionText`; the drainer
+/// posts them to `POST /v1/capture/safari`. `.photo` (default) keeps the
+/// original behaviour — rows persisted before this enum landed
+/// deserialise with `.photo` because the SwiftData store falls back to
+/// the default value of a new field.
 enum PendingCaptureKind: String, Codable, Sendable {
     case photo
     case text
+    case url
 }
 
 @Model
@@ -51,6 +54,11 @@ final class PendingCapture {
         get { PendingCaptureKind(rawValue: kindRaw) ?? .photo }
         set { kindRaw = newValue.rawValue }
     }
+
+    /// HER-257 — populated only when `kind == .url`. The drainer reads
+    /// this and posts to `/v1/capture/safari`; `captionText` carries the
+    /// optional user note that ships as `notes` on the request.
+    var urlString: String?
 
     // HER-207 geo anchor — all four optional, populated only when the
     // user toggled Location on for this capture.
@@ -87,6 +95,7 @@ final class PendingCapture {
         placeName: String? = nil,
         spaceID: UUID? = nil,
         kind: PendingCaptureKind = .photo,
+        urlString: String? = nil,
         attempts: Int = 0,
         lastError: String? = nil,
         state: PendingCaptureState = .pending
@@ -103,6 +112,7 @@ final class PendingCapture {
         self.placeName = placeName
         self.spaceID = spaceID
         self.kindRaw = kind.rawValue
+        self.urlString = urlString
         self.attempts = attempts
         self.lastError = lastError
         self.stateRaw = state.rawValue
