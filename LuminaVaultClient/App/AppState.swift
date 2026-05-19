@@ -30,6 +30,9 @@ final class AppState {
     /// HER-39: actor-isolated on-disk vault manager. Reads/writes go through
     /// here so the FS boundary stays single-owner.
     let localVault: LocalVaultManager
+    /// HER-39: live reachability signal observed by the sync engine and
+    /// status banner. Reads must happen on the main actor.
+    let networkMonitor: NetworkMonitor
     // HER-237: process-wide single-flight refresh coordinator. Every
     // BaseHTTPClient minted via `makeHTTPClient()` shares it so concurrent
     // 401s collapse to one /v1/auth/refresh call.
@@ -39,12 +42,14 @@ final class AppState {
         keychain: KeychainService = .shared,
         healthKit: HealthKitCoordinator? = nil,
         modelContainer: ModelContainer? = nil,
-        localVault: LocalVaultManager = LocalVaultManager()
+        localVault: LocalVaultManager = LocalVaultManager(),
+        networkMonitor: NetworkMonitor? = nil
     ) {
         self.keychain = keychain
         self.healthKit = healthKit
         self.modelContainer = modelContainer ?? SwiftDataStack.makePersistent()
         self.localVault = localVault
+        self.networkMonitor = networkMonitor ?? NetworkMonitor()
         self.isAuthenticated = keychain.accessToken != nil
         // Persisted users that re-launched the app have already cleared the
         // vault gate; assume `true` so legacy installs don't get bounced to
