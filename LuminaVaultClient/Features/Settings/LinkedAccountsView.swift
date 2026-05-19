@@ -89,5 +89,41 @@ struct LinkedAccountsView: View {
         } footer: {
             Text("Connecting unlocks Grok 4.x chat, X search, image understanding, and TTS for your account. You'll sign in with your X (SuperGrok) credentials.")
         }
+
+        if status.connected {
+            grokFeaturesSection
+        }
+    }
+
+    private var grokFeaturesSection: some View {
+        Section("Grok Features") {
+            NavigationLink {
+                GrokChatView(client: grokClient)
+            } label: {
+                Label("Chat with Grok", systemImage: "bubble.left.and.bubble.right")
+            }
+            NavigationLink {
+                GrokXSearchView(client: grokClient)
+            } label: {
+                Label("X Search", systemImage: "magnifyingglass")
+            }
+            NavigationLink {
+                GrokVisionView(client: grokClient)
+            } label: {
+                Label("Vision", systemImage: "eye")
+            }
+            NavigationLink {
+                GrokTTSView(client: grokClient)
+            } label: {
+                Label("Text-to-Speech", systemImage: "speaker.wave.2")
+            }
+        }
+    }
+
+    private var grokClient: any GrokClientProtocol {
+        // BaseHTTPClient default config picks up Config.apiBaseURL +
+        // shared keychain tokens via the standard token provider wiring
+        // upstream Linked Accounts ViewModel already runs against.
+        GrokHTTPClient(client: BaseHTTPClient())
     }
 }
