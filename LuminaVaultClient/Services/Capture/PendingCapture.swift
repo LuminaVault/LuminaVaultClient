@@ -14,6 +14,17 @@ enum PendingCaptureState: String, Codable, Sendable {
     case failed
 }
 
+/// HER-256 — discriminator added so the queue can host text-only memory
+/// captures alongside the original photo flow. New `.text` rows carry the
+/// body in `captionText`, leave `imageData` empty, and the drainer skips
+/// the vault upload step. `.photo` (default) keeps the original behaviour
+/// — rows persisted before HER-256 deserialise with `.photo` because the
+/// SwiftData store falls back to the default value of a new field.
+enum PendingCaptureKind: String, Codable, Sendable {
+    case photo
+    case text
+}
+
 @Model
 final class PendingCapture {
     @Attribute(.unique) var id: UUID
@@ -21,14 +32,25 @@ final class PendingCapture {
     var captionText: String?
     /// Raw bytes from `PhotosPickerItem.loadTransferable(type: Data.self)`.
     /// HEIC and JPEG both pass through losslessly (HER-34 server allowlist).
+    /// Empty `Data()` for `.text` rows (HER-256) since the queue stores
+    /// the body in `captionText` and skips the upload step.
     var imageData: Data
     /// MIME the client sends in the upload `Content-Type` header (e.g.
-    /// `image/heic`, `image/heif`, `image/jpeg`).
+    /// `image/heic`, `image/heif`, `image/jpeg`). Empty string for `.text`.
     var contentType: String
     /// File extension persisted as part of the vault path (e.g. `heic`,
     /// `jpg`). Decoupled from `contentType` because HEIF MIME still maps
-    /// to `.heic` on disk.
+    /// to `.heic` on disk. Empty string for `.text`.
     var fileExtension: String
+
+    /// HER-256 — capture kind. Defaults to `.photo` so rows persisted
+    /// before this field landed keep their original behaviour.
+    var kindRaw: String = PendingCaptureKind.photo.rawValue
+
+    var kind: PendingCaptureKind {
+        get { PendingCaptureKind(rawValue: kindRaw) ?? .photo }
+        set { kindRaw = newValue.rawValue }
+    }
 
     // HER-207 geo anchor — all four optional, populated only when the
     // user toggled Location on for this capture.
@@ -64,6 +86,7 @@ final class PendingCapture {
         accuracyM: Double? = nil,
         placeName: String? = nil,
         spaceID: UUID? = nil,
+        kind: PendingCaptureKind = .photo,
         attempts: Int = 0,
         lastError: String? = nil,
         state: PendingCaptureState = .pending
@@ -79,6 +102,7 @@ final class PendingCapture {
         self.accuracyM = accuracyM
         self.placeName = placeName
         self.spaceID = spaceID
+        self.kindRaw = kind.rawValue
         self.attempts = attempts
         self.lastError = lastError
         self.stateRaw = state.rawValue

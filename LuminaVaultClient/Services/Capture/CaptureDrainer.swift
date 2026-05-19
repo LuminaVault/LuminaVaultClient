@@ -101,25 +101,45 @@ actor CaptureDrainer {
 
     private func drainOne(_ row: CaptureRowSnapshot) async {
         do {
-            let relativePath = "\(pathPrefix)/\(row.id.uuidString).\(row.fileExtension)"
-            _ = try await vaultUploader.uploadAsset(
-                data: row.imageData,
-                contentType: row.contentType,
-                relativePath: relativePath,
-                spaceID: row.spaceID,
-            )
+            switch row.kind {
+            case .photo:
+                let relativePath = "\(pathPrefix)/\(row.id.uuidString).\(row.fileExtension)"
+                _ = try await vaultUploader.uploadAsset(
+                    data: row.imageData,
+                    contentType: row.contentType,
+                    relativePath: relativePath,
+                    spaceID: row.spaceID,
+                )
+                let memoryContent = row.captionText?.nilIfEmpty ?? "Photo capture"
+                _ = try await memoryClient.upsert(MemoryUpsertRequest(
+                    content: memoryContent,
+                    lat: row.lat,
+                    lng: row.lng,
+                    accuracyM: row.accuracyM,
+                    placeName: row.placeName,
+                ))
 
-            let memoryContent = row.captionText?.nilIfEmpty ?? "Photo capture"
-            _ = try await memoryClient.upsert(MemoryUpsertRequest(
-                content: memoryContent,
-                lat: row.lat,
-                lng: row.lng,
-                accuracyM: row.accuracyM,
-                placeName: row.placeName,
-            ))
+            case .text:
+                // HER-256 — text-only memory: no vault asset to upload.
+                // Empty bodies were already filtered by the VM before
+                // enqueue, but guard here defends against schema drift /
+                // hand-crafted rows so we don't POST garbage upsert.
+                guard let body = row.captionText?.nilIfEmpty else {
+                    try await queue.delete(id: row.id)
+                    log.info("dropped empty .text capture id=\(row.id.uuidString)")
+                    return
+                }
+                _ = try await memoryClient.upsert(MemoryUpsertRequest(
+                    content: body,
+                    lat: row.lat,
+                    lng: row.lng,
+                    accuracyM: row.accuracyM,
+                    placeName: row.placeName,
+                ))
+            }
 
             try await queue.delete(id: row.id)
-            log.info("drained capture id=\(row.id.uuidString)")
+            log.info("drained capture id=\(row.id.uuidString) kind=\(row.kind.rawValue)")
         } catch {
             let nextAttempts = row.attempts + 1
             let flipToFailed = nextAttempts >= Self.maxAttempts

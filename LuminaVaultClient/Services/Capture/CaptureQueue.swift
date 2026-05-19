@@ -31,6 +31,7 @@ struct CaptureSnapshot: Sendable {
     let accuracyM: Double?
     let placeName: String?
     let spaceID: UUID?
+    let kind: PendingCaptureKind
 
     init(
         id: UUID = UUID(),
@@ -43,7 +44,8 @@ struct CaptureSnapshot: Sendable {
         lng: Double? = nil,
         accuracyM: Double? = nil,
         placeName: String? = nil,
-        spaceID: UUID? = nil
+        spaceID: UUID? = nil,
+        kind: PendingCaptureKind = .photo
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -56,6 +58,35 @@ struct CaptureSnapshot: Sendable {
         self.accuracyM = accuracyM
         self.placeName = placeName
         self.spaceID = spaceID
+        self.kind = kind
+    }
+
+    /// HER-256 — convenience for text-only memory captures. Leaves the
+    /// photo-specific fields empty; the drainer routes `.text` rows
+    /// straight to `MemoryHTTPClient.upsert` and skips the vault upload.
+    static func text(
+        id: UUID = UUID(),
+        body: String,
+        createdAt: Date = .now,
+        lat: Double? = nil,
+        lng: Double? = nil,
+        accuracyM: Double? = nil,
+        placeName: String? = nil
+    ) -> CaptureSnapshot {
+        CaptureSnapshot(
+            id: id,
+            createdAt: createdAt,
+            captionText: body,
+            imageData: Data(),
+            contentType: "",
+            fileExtension: "",
+            lat: lat,
+            lng: lng,
+            accuracyM: accuracyM,
+            placeName: placeName,
+            spaceID: nil,
+            kind: .text,
+        )
     }
 }
 
@@ -73,6 +104,7 @@ struct CaptureRowSnapshot: Sendable, Identifiable {
     let accuracyM: Double?
     let placeName: String?
     let spaceID: UUID?
+    let kind: PendingCaptureKind
     let attempts: Int
 }
 
@@ -109,6 +141,7 @@ actor CaptureQueue: CaptureQueueProtocol {
             accuracyM: snapshot.accuracyM,
             placeName: snapshot.placeName,
             spaceID: snapshot.spaceID,
+            kind: snapshot.kind,
         )
         ctx.insert(row)
         try ctx.save()
@@ -135,6 +168,7 @@ actor CaptureQueue: CaptureQueueProtocol {
                 accuracyM: row.accuracyM,
                 placeName: row.placeName,
                 spaceID: row.spaceID,
+                kind: row.kind,
                 attempts: row.attempts,
             )
         }
