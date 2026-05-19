@@ -88,6 +88,8 @@ final class AppState {
             kbCompileClient: KBCompileHTTPClient(client: httpClient),
             vaultClient: VaultHTTPClient(client: httpClient),
             networkMonitor: networkMonitor,
+            modelContainer: modelContainer,
+            localVault: localVault,
             tenantIDProvider: { [weak self] in self?.currentUserId }
         )
     }
