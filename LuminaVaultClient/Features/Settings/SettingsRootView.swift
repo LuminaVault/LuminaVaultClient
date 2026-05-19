@@ -36,6 +36,14 @@ struct SettingsRootView: View {
                     }
                 }
 
+                Section("Connections") {
+                    NavigationLink {
+                        LinkedAccountsView(client: integrationsClient)
+                    } label: {
+                        Label("Linked Accounts", systemImage: "link.circle")
+                    }
+                }
+
                 Section("Advanced") {
                     NavigationLink {
                         HermesGatewayPaneView(client: settingsClient)
@@ -60,5 +68,9 @@ struct SettingsRootView: View {
 
     private var settingsClient: any SettingsClientProtocol {
         SettingsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var integrationsClient: any IntegrationsClientProtocol {
+        IntegrationsHTTPClient(client: appState.makeHTTPClient())
     }
 }
