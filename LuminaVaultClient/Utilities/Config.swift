@@ -1,8 +1,51 @@
 // LuminaVaultClient/LuminaVaultClient/Utilities/Config.swift
 import Foundation
 
+enum AppEnvironment: String, CaseIterable, Identifiable {
+    case local
+    case dev
+    case prod
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .local: return "Local"
+        case .dev: return "Dev"
+        case .prod: return "Prod"
+        }
+    }
+    
+    var apiBaseURL: URL {
+        switch self {
+        case .local: return URL(string: "http://localhost:8080")!
+        case .dev: return URL(string: "https://api.dev.luminavault.com")!
+        case .prod: return URL(string: "https://api.luminavault.com")!
+        }
+    }
+}
+
 enum Config {
-    static let apiBaseURL = URL(string: "http://localhost:8080")!
+    static var currentEnvironment: AppEnvironment {
+        get {
+            if let rawValue = UserDefaults.standard.string(forKey: "appEnvironment"),
+               let env = AppEnvironment(rawValue: rawValue) {
+                return env
+            }
+            #if DEBUG
+            return .local
+            #else
+            return .prod
+            #endif
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: "appEnvironment")
+        }
+    }
+
+    static var apiBaseURL: URL {
+        currentEnvironment.apiBaseURL
+    }
 
     /// Provider client IDs are read from Info.plist keys so they can be
     /// injected per-environment via xcconfig / CI without committing real
