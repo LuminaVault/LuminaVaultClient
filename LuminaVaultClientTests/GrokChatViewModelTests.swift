@@ -37,7 +37,7 @@ final class GrokChatViewModelTests: XCTestCase {
     }
 
     func test402FailsWithPremiumPrompt() async {
-        mockClient.chatResult = .failure(APIError.httpError(statusCode: 402, body: nil))
+        mockClient.chatResult = .failure(APIError.httpError(statusCode: 402, data: Data()))
         sut.prompt = "anything"
         await sut.ask()
         if case let .failed(message) = sut.state {

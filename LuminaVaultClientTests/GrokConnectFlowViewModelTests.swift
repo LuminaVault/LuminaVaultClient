@@ -40,7 +40,7 @@ final class GrokConnectFlowViewModelTests: XCTestCase {
     }
 
     func testStartFailsCleanlyOnHTTPError() async {
-        mockClient.startResult = .failure(APIError.httpError(statusCode: 501, body: nil))
+        mockClient.startResult = .failure(APIError.httpError(statusCode: 501, data: Data()))
         await sut.start()
         if case .failed(let message) = sut.state {
             XCTAssertTrue(message.contains("hasn't enabled"))

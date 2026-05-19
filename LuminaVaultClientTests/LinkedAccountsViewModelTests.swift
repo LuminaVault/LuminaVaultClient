@@ -31,7 +31,7 @@ final class LinkedAccountsViewModelTests: XCTestCase {
     }
 
     func testLoadFailsCleanlyOnError() async {
-        mockClient.statusResult = .failure(APIError.httpError(statusCode: 503, body: nil))
+        mockClient.statusResult = .failure(APIError.httpError(statusCode: 503, data: Data()))
         await sut.load()
         if case .failed(let message) = sut.state {
             XCTAssertTrue(message.contains("503"))
@@ -66,7 +66,7 @@ final class LinkedAccountsViewModelTests: XCTestCase {
     }
 
     func testDisconnectFailureSurfacesErrorWithoutMutatingState() async {
-        mockClient.disconnectResult = .failure(APIError.httpError(statusCode: 502, body: nil))
+        mockClient.disconnectResult = .failure(APIError.httpError(statusCode: 502, data: Data()))
         sut.applyConnectResult(.stubConnected)
         await sut.disconnect()
         XCTAssertEqual(sut.xaiStatus?.tier, "pro", "state untouched on failure")

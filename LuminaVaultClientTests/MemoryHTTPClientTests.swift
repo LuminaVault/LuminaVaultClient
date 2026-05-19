@@ -15,7 +15,6 @@ final class MemoryHTTPClientTests: XCTestCase {
         config.protocolClasses = [MockURLProtocol.self]
         let session = URLSession(configuration: config)
         let base = BaseHTTPClient(
-            baseURL: URL(string: "http://test.local")!,
             session: session,
             tokenProvider: { "test-bearer" },
         )

@@ -115,9 +115,12 @@ final class LocalVaultManagerTests: XCTestCase {
             XCTFail("unexpected error \(error)")
         }
 
-        // Both files still exist.
-        XCTAssertEqual(try await sut.readFile(relativePath: "a.md", tenantID: tenant), Data("a".utf8))
-        XCTAssertEqual(try await sut.readFile(relativePath: "b.md", tenantID: tenant), Data("b".utf8))
+        // Both files still exist. `XCTAssertEqual`'s autoclosure can't host
+        // `try await`, so the read goes through a local first.
+        let aBytes = try await sut.readFile(relativePath: "a.md", tenantID: tenant)
+        let bBytes = try await sut.readFile(relativePath: "b.md", tenantID: tenant)
+        XCTAssertEqual(aBytes, Data("a".utf8))
+        XCTAssertEqual(bBytes, Data("b".utf8))
     }
 
     // MARK: - Tenant isolation
@@ -128,8 +131,10 @@ final class LocalVaultManagerTests: XCTestCase {
         try await sut.writeFile(Data("alice".utf8), relativePath: "shared.md", tenantID: alice)
         try await sut.writeFile(Data("bob".utf8), relativePath: "shared.md", tenantID: bob)
 
-        XCTAssertEqual(try await sut.readFile(relativePath: "shared.md", tenantID: alice), Data("alice".utf8))
-        XCTAssertEqual(try await sut.readFile(relativePath: "shared.md", tenantID: bob), Data("bob".utf8))
+        let aliceBytes = try await sut.readFile(relativePath: "shared.md", tenantID: alice)
+        let bobBytes = try await sut.readFile(relativePath: "shared.md", tenantID: bob)
+        XCTAssertEqual(aliceBytes, Data("alice".utf8))
+        XCTAssertEqual(bobBytes, Data("bob".utf8))
     }
 
     // MARK: - Path validation

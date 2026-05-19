@@ -45,6 +45,12 @@ struct MainTabView: View {
                         Label("Think", systemImage: "bubble.left.and.text.bubble.right")
                     }
 
+                // HER-235: Brain tab — Obsidian-style memory graph.
+                BrainTabView(client: memoryGraphClient)
+                    .tabItem {
+                        Label("Brain", systemImage: "brain.head.profile")
+                    }
+
                 // HER-157 surface wired by HER-VisualSearchWire.
                 VisualSearchView(viewModel: VisualSearchViewModel(
                     ocr: ImageOCRService(),
@@ -82,6 +88,10 @@ struct MainTabView: View {
 
     private var memoryClient: MemoryQueryClientProtocol {
         MemoryQueryHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var memoryGraphClient: MemoryGraphClientProtocol {
+        MemoryGraphHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var kbCompileClient: KBCompileClientProtocol {
