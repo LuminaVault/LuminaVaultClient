@@ -203,6 +203,15 @@ struct LuminaVaultClientApp: App {
                 }
             }
             .task {
+                // HER-39 — once AppState is alive, hand the sync engine
+                // to the BGTaskScheduler so a background task fired by the
+                // system drains the queue. Idempotent reassignment is safe.
+                BackgroundSyncRegistrar.drainHandler = { [appState] in
+                    guard let tenantID = appState.currentUserId else { return }
+                    await appState.syncManager.runUntilDrained(tenantID: tenantID)
+                }
+            }
+            .task {
                 guard !biometricChecked else { return }
                 biometricChecked = true
                 if !appState.isAuthenticated,

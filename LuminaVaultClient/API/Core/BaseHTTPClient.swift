@@ -63,6 +63,12 @@ final class BaseHTTPClient: Sendable {
         if endpoint.requiresAuth, let token = await tokenProvider() {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
+        // HER-39: when the endpoint carries an idempotency key, send it
+        // so the server replays a cached response on retry instead of
+        // re-executing the handler.
+        if let key = endpoint.idempotencyKey {
+            req.setValue(key.uuidString, forHTTPHeaderField: "Idempotency-Key")
+        }
         if let body = endpoint.body {
             do { req.httpBody = try endpoint.encoder.encode(AnyEncodable(body)) }
             catch { throw APIError.encodingFailed(error) }
@@ -94,7 +100,8 @@ final class BaseHTTPClient: Sendable {
         method: HTTPMethod = .post,
         body: Data,
         contentType: String,
-        requiresAuth: Bool = true
+        requiresAuth: Bool = true,
+        idempotencyKey: UUID? = nil
     ) async throws -> Data {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw APIError.invalidURL
@@ -104,6 +111,9 @@ final class BaseHTTPClient: Sendable {
         req.setValue(contentType, forHTTPHeaderField: "Content-Type")
         if requiresAuth, let token = await tokenProvider() {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        if let idempotencyKey {
+            req.setValue(idempotencyKey.uuidString, forHTTPHeaderField: "Idempotency-Key")
         }
         req.httpBody = body
 

@@ -15,6 +15,13 @@ protocol Endpoint {
     /// exchange, magic-link, phone OTP) so they cannot drive a refresh
     /// loop or mask credential-rejection errors as session expiry.
     var skipsAuthRefresh: Bool { get }
+    /// HER-39 — when set, the value is sent as `Idempotency-Key`. The
+    /// server idempotency middleware caches the response under
+    /// `(tenant_id, key)` so the iOS sync queue can replay the same
+    /// request after a network drop without double-creating server rows.
+    /// `nil` (default) preserves pre-HER-39 behaviour — no header sent,
+    /// every retry is independent.
+    var idempotencyKey: UUID? { get }
 }
 
 extension Endpoint {
@@ -23,6 +30,7 @@ extension Endpoint {
     var decoder: JSONDecoder { .hvDefault }
     var encoder: JSONEncoder { JSONEncoder() }
     var skipsAuthRefresh: Bool { !requiresAuth }
+    var idempotencyKey: UUID? { nil }
 }
 
 /// Type-erasing wrapper so a JSONEncoder can encode an `any Encodable`

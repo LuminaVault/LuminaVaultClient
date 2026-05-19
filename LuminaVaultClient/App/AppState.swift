@@ -33,6 +33,14 @@ final class AppState {
     /// HER-39: live reachability signal observed by the sync engine and
     /// status banner. Reads must happen on the main actor.
     let networkMonitor: NetworkMonitor
+    /// HER-39: lazily-built offline sync engine. First touch wires HTTP
+    /// clients, the SwiftData-backed queue, and the on-disk vault. Lives
+    /// for the process lifetime once constructed.
+    @ObservationIgnored private(set) lazy var syncManager: SyncManager = makeSyncManager()
+    /// HER-39: feature-facing façade. UI code talks to the repository, never
+    /// directly to `SyncManager` or the HTTP clients, so swapping the sync
+    /// strategy stays a single-file change.
+    @ObservationIgnored private(set) lazy var vaultRepository: VaultRepository = makeVaultRepository()
     // HER-237: process-wide single-flight refresh coordinator. Every
     // BaseHTTPClient minted via `makeHTTPClient()` shares it so concurrent
     // 401s collapse to one /v1/auth/refresh call.
@@ -58,6 +66,30 @@ final class AppState {
         if isAuthenticated {
             Task { await healthKit?.start() }
         }
+    }
+
+    /// HER-39 — wires up the sync engine on first touch.
+    private func makeSyncManager() -> SyncManager {
+        let httpClient = makeHTTPClient()
+        let queueStore = SyncQueueStore(modelContainer: modelContainer)
+        return SyncManager(
+            queue: queueStore,
+            vaultClient: VaultHTTPClient(client: httpClient),
+            kbCompileClient: KBCompileHTTPClient(client: httpClient),
+            localVault: localVault,
+            networkMonitor: networkMonitor
+        )
+    }
+
+    private func makeVaultRepository() -> VaultRepository {
+        let httpClient = makeHTTPClient()
+        return VaultRepository(
+            syncManager: syncManager,
+            kbCompileClient: KBCompileHTTPClient(client: httpClient),
+            vaultClient: VaultHTTPClient(client: httpClient),
+            networkMonitor: networkMonitor,
+            tenantIDProvider: { [weak self] in self?.currentUserId }
+        )
     }
 
     /// HER-237 — produces a `BaseHTTPClient` wired with token injection,

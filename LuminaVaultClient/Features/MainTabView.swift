@@ -92,6 +92,9 @@ struct MainTabView: View {
     }
 
     private var home: some View {
-        SyncAndLearnView(vm: SyncAndLearnViewModel(client: kbCompileClient))
+        // HER-39 — route compile through `VaultRepository` so a tap while
+        // offline enqueues the operation instead of erroring out. The
+        // repository handles the online vs offline branch.
+        SyncAndLearnView(vm: SyncAndLearnViewModel(repository: appState.vaultRepository))
     }
 }
