@@ -1,7 +1,8 @@
 // LuminaVaultClient/LuminaVaultClient/App/AppState.swift
-import SwiftUI
 import Foundation
 import PostHog
+import SwiftData
+import SwiftUI
 
 @Observable
 @MainActor
@@ -22,6 +23,13 @@ final class AppState {
     static let meRefreshInterval: TimeInterval = 300
     let keychain: KeychainService
     let healthKit: HealthKitCoordinator?
+    /// HER-39: process-wide SwiftData container backing the local vault
+    /// inventory, sync queue, and sync log. Built lazily on first read so
+    /// tests can override via the in-memory container.
+    let modelContainer: ModelContainer
+    /// HER-39: actor-isolated on-disk vault manager. Reads/writes go through
+    /// here so the FS boundary stays single-owner.
+    let localVault: LocalVaultManager
     // HER-237: process-wide single-flight refresh coordinator. Every
     // BaseHTTPClient minted via `makeHTTPClient()` shares it so concurrent
     // 401s collapse to one /v1/auth/refresh call.
@@ -29,10 +37,14 @@ final class AppState {
 
     init(
         keychain: KeychainService = .shared,
-        healthKit: HealthKitCoordinator? = nil
+        healthKit: HealthKitCoordinator? = nil,
+        modelContainer: ModelContainer? = nil,
+        localVault: LocalVaultManager = LocalVaultManager()
     ) {
         self.keychain = keychain
         self.healthKit = healthKit
+        self.modelContainer = modelContainer ?? SwiftDataStack.makePersistent()
+        self.localVault = localVault
         self.isAuthenticated = keychain.accessToken != nil
         // Persisted users that re-launched the app have already cleared the
         // vault gate; assume `true` so legacy installs don't get bounced to
