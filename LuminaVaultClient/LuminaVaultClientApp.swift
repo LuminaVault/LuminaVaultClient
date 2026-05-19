@@ -154,7 +154,7 @@ struct LuminaVaultClientApp: App {
                     .transition(.opacity)
                     .safeAreaInset(edge: .bottom) {
                         #if DEBUG
-                        if !showSplash {
+                        if !showSplash && !appState.isAuthenticated {
                             EnvironmentTagView()
                                 .padding(.bottom, 8)
                         }
