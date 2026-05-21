@@ -7,10 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0B4FB7CF9004FCB964362A5C /* SharedAppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28D751509558FA472F19A1E9 /* SharedAppGroup.swift */; };
 		36898169B542419BA32DA510 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = F8D79674B58849A9A00C4538 /* Sentry */; };
+		4DF5595360F1E690E952EEC5 /* SharedShareQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC806D8A50D60DFFD23095C1 /* SharedShareQueue.swift */; };
 		605690302FBF20FF0059C355 /* LuminaVaultShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 605690262FBF20FE0059C355 /* LuminaVaultShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		605871F82FBCCE1E0077984D /* (null) in Frameworks */ = {isa = PBXBuildFile; };
-		605871F92FBCCE1E0077984D /* (null) in Frameworks */ = {isa = PBXBuildFile; };
+		605871F82FBCCE1E0077984D /* BuildFile in Frameworks */ = {isa = PBXBuildFile; };
+		605871F92FBCCE1E0077984D /* BuildFile in Frameworks */ = {isa = PBXBuildFile; };
 		6098173A2FB8BE2500414C79 /* LuminaVaultShared in Frameworks */ = {isa = PBXBuildFile; productRef = 609817392FB8BE2500414C79 /* LuminaVaultShared */; };
 		60GRP000B2FAE1200006F894F /* Grape in Frameworks */ = {isa = PBXBuildFile; productRef = 60GRP000A2FAE1200006F894F /* Grape */; };
 		60GSI00012FAE1200006F894F /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 60GSI00022FAE1200006F894F /* GoogleSignIn */; };
@@ -18,6 +20,7 @@
 		60PHG00012FAE1200006F894F /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 60PHG00022FAE1200006F894F /* PostHog */; };
 		60PNK00012FAE1200006F894F /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = 60PNK00022FAE1200006F894F /* PhoneNumberKit */; };
 		60SNP00012FAE1200006F894F /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 60SNP00022FAE1200006F894F /* SnapshotTesting */; };
+		7ED1DE603F22CB11D4572F63 /* PendingShare.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E92BAF538ED1E2FDADCFEDF /* PendingShare.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,10 +62,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		28D751509558FA472F19A1E9 /* SharedAppGroup.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SharedAppGroup.swift; path = LuminaVaultClient/Services/AppGroup/SharedAppGroup.swift; sourceTree = "<group>"; };
 		605690262FBF20FE0059C355 /* LuminaVaultShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LuminaVaultShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6088C4F32FAE1184006F894F /* LuminaVaultClient.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LuminaVaultClient.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6088C5002FAE1186006F894F /* LuminaVaultClientTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LuminaVaultClientTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6088C50A2FAE1186006F894F /* LuminaVaultClientUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LuminaVaultClientUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7E92BAF538ED1E2FDADCFEDF /* PendingShare.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PendingShare.swift; path = LuminaVaultClient/Services/AppGroup/PendingShare.swift; sourceTree = "<group>"; };
+		CC806D8A50D60DFFD23095C1 /* SharedShareQueue.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SharedShareQueue.swift; path = LuminaVaultClient/Services/AppGroup/SharedShareQueue.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -103,11 +109,15 @@
 		};
 		6088C5032FAE1186006F894F /* LuminaVaultClientTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = LuminaVaultClientTests;
 			sourceTree = "<group>";
 		};
 		6088C50D2FAE1186006F894F /* LuminaVaultClientUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = LuminaVaultClientUITests;
 			sourceTree = "<group>";
 		};
@@ -140,7 +150,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				60SNP00012FAE1200006F894F /* SnapshotTesting in Frameworks */,
-				605871F82FBCCE1E0077984D /* (null) in Frameworks */,
+				605871F82FBCCE1E0077984D /* BuildFile in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -148,7 +158,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				605871F92FBCCE1E0077984D /* (null) in Frameworks */,
+				605871F92FBCCE1E0077984D /* BuildFile in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -163,6 +173,9 @@
 				6088C50D2FAE1186006F894F /* LuminaVaultClientUITests */,
 				605690272FBF20FE0059C355 /* LuminaVaultShareExtension */,
 				6088C4F42FAE1184006F894F /* Products */,
+				28D751509558FA472F19A1E9 /* SharedAppGroup.swift */,
+				7E92BAF538ED1E2FDADCFEDF /* PendingShare.swift */,
+				CC806D8A50D60DFFD23095C1 /* SharedShareQueue.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -196,8 +209,6 @@
 				605690272FBF20FE0059C355 /* LuminaVaultShareExtension */,
 			);
 			name = LuminaVaultShareExtension;
-			packageProductDependencies = (
-			);
 			productName = LuminaVaultShareExtension;
 			productReference = 605690262FBF20FE0059C355 /* LuminaVaultShareExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
@@ -391,6 +402,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0B4FB7CF9004FCB964362A5C /* SharedAppGroup.swift in Sources */,
+				7ED1DE603F22CB11D4572F63 /* PendingShare.swift in Sources */,
+				4DF5595360F1E690E952EEC5 /* SharedShareQueue.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
