@@ -15,7 +15,14 @@ let allCategoriesSlug = "__all__"
 final class SpacesViewModel {
     private let spacesClient: SpacesClientProtocol
 
-    var spaces: [SpaceDTO] = []
+    // HER-258 — every mutation snapshots the list into the App Group so
+    // `LuminaVaultShareExtension` can populate its Space picker without
+    // a network call. `didSet` fires on every assignment (load, create,
+    // update, delete); skipped on init because the initial empty value
+    // matches an unwritten cache anyway.
+    var spaces: [SpaceDTO] = [] {
+        didSet { SharedSpacesCache.write(spaces) }
+    }
     var selectedCategory: String = allCategoriesSlug
     var searchQuery: String = ""
     var isLoading = false

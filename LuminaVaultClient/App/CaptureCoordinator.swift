@@ -48,10 +48,48 @@ final class CaptureCoordinator {
             )
             self.drainer = drainer
             await drainer.start()
+
+            // HER-258 — replay any shares queued by `LuminaVaultShareExtension`
+            // while the app was backgrounded. Each row becomes a `.url`
+            // capture in the live queue; the drainer picks them up on
+            // the next tick (already kicked above via `drainer.start()`).
+            await drainShareExtensionQueue(into: queue)
+
             log.info("capture coordinator started")
         } catch {
             log.error("capture coordinator start failed: \(error.localizedDescription)")
         }
+    }
+
+    /// HER-258 — drain the App Group `pendingShares.json` that the
+    /// Share Extension wrote while the host app was suspended or
+    /// terminated. Best-effort: per-row failures are logged but never
+    /// block startup, since a broken row in the App Group must never
+    /// hard-fail the capture coordinator.
+    private func drainShareExtensionQueue(into queue: CaptureQueue) async {
+        let pending: [PendingShare]
+        do {
+            pending = try SharedShareQueue.drainAndClear()
+        } catch {
+            log.error("AppGroup drain failed: \(error.localizedDescription)")
+            return
+        }
+        guard !pending.isEmpty else { return }
+        log.info("draining \(pending.count) share-extension capture(s)")
+        for share in pending {
+            do {
+                try await queue.enqueue(CaptureSnapshot.url(
+                    id: share.id,
+                    url: share.url,
+                    note: share.note,
+                    spaceID: share.spaceID,
+                    createdAt: share.capturedAt,
+                ))
+            } catch {
+                log.error("enqueue failed for share id=\(share.id.uuidString): \(error.localizedDescription)")
+            }
+        }
+        await drainer?.tick()
     }
 
     func stop() async {
