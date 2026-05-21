@@ -38,11 +38,13 @@ final class CaptureCoordinator {
             let httpBase = BaseHTTPClient(tokenProvider: tokenProvider)
             let uploader = VaultUploadHTTPClient(client: httpBase)
             let memory = MemoryHTTPClient(client: httpBase)
+            let safari = CaptureSafariHTTPClient(client: httpBase)
             self.spacesClient = SpacesHTTPClient(client: httpBase)
             let drainer = CaptureDrainer(
                 queue: queue,
                 vaultUploader: uploader,
                 memoryClient: memory,
+                safariClient: safari,
             )
             self.drainer = drainer
             await drainer.start()

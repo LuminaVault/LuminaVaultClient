@@ -25,6 +25,10 @@ actor CaptureDrainer {
     private let queue: CaptureQueueProtocol
     private let vaultUploader: VaultUploadClientProtocol
     private let memoryClient: MemoryClientProtocol
+    /// HER-257 — optional so existing test fixtures + coordinator wiring
+    /// keep compiling. Production injection comes from
+    /// `CaptureCoordinator.start` once the safari client is built.
+    private let safariClient: (any CaptureSafariClientProtocol)?
     private let pathPrefix: String
 
     private var draining = false
@@ -35,11 +39,13 @@ actor CaptureDrainer {
         queue: CaptureQueueProtocol,
         vaultUploader: VaultUploadClientProtocol,
         memoryClient: MemoryClientProtocol,
+        safariClient: (any CaptureSafariClientProtocol)? = nil,
         pathPrefix: String = "raw/captures"
     ) {
         self.queue = queue
         self.vaultUploader = vaultUploader
         self.memoryClient = memoryClient
+        self.safariClient = safariClient
         self.pathPrefix = pathPrefix
     }
 
@@ -101,25 +107,66 @@ actor CaptureDrainer {
 
     private func drainOne(_ row: CaptureRowSnapshot) async {
         do {
-            let relativePath = "\(pathPrefix)/\(row.id.uuidString).\(row.fileExtension)"
-            _ = try await vaultUploader.uploadAsset(
-                data: row.imageData,
-                contentType: row.contentType,
-                relativePath: relativePath,
-                spaceID: row.spaceID,
-            )
+            switch row.kind {
+            case .photo:
+                let relativePath = "\(pathPrefix)/\(row.id.uuidString).\(row.fileExtension)"
+                _ = try await vaultUploader.uploadAsset(
+                    data: row.imageData,
+                    contentType: row.contentType,
+                    relativePath: relativePath,
+                    spaceID: row.spaceID,
+                )
+                let memoryContent = row.captionText?.nilIfEmpty ?? "Photo capture"
+                _ = try await memoryClient.upsert(MemoryUpsertRequest(
+                    content: memoryContent,
+                    lat: row.lat,
+                    lng: row.lng,
+                    accuracyM: row.accuracyM,
+                    placeName: row.placeName,
+                ))
 
-            let memoryContent = row.captionText?.nilIfEmpty ?? "Photo capture"
-            _ = try await memoryClient.upsert(MemoryUpsertRequest(
-                content: memoryContent,
-                lat: row.lat,
-                lng: row.lng,
-                accuracyM: row.accuracyM,
-                placeName: row.placeName,
-            ))
+            case .text:
+                // HER-256 — text-only memory: no vault asset to upload.
+                // Empty bodies were already filtered by the VM before
+                // enqueue, but guard here defends against schema drift /
+                // hand-crafted rows so we don't POST garbage upsert.
+                guard let body = row.captionText?.nilIfEmpty else {
+                    try await queue.delete(id: row.id)
+                    log.info("dropped empty .text capture id=\(row.id.uuidString)")
+                    return
+                }
+                _ = try await memoryClient.upsert(MemoryUpsertRequest(
+                    content: body,
+                    lat: row.lat,
+                    lng: row.lng,
+                    accuracyM: row.accuracyM,
+                    placeName: row.placeName,
+                ))
+
+            case .url:
+                // HER-257 — URL capture: hand off to /v1/capture/safari.
+                // Server enriches asynchronously (OG / oEmbed / X scrape)
+                // and persists a vault file; client doesn't wait for the
+                // enrichment status here, just for the synchronous insert.
+                guard let safariClient else {
+                    log.error("'.url' row id=\(row.id.uuidString) dropped — safari client not configured")
+                    try await queue.delete(id: row.id)
+                    return
+                }
+                guard let urlString = row.urlString?.nilIfEmpty else {
+                    try await queue.delete(id: row.id)
+                    log.info("dropped empty .url capture id=\(row.id.uuidString)")
+                    return
+                }
+                _ = try await safariClient.capture(CaptureSafariRequest(
+                    url: urlString,
+                    notes: row.captionText?.nilIfEmpty,
+                    spaceId: row.spaceID,
+                ))
+            }
 
             try await queue.delete(id: row.id)
-            log.info("drained capture id=\(row.id.uuidString)")
+            log.info("drained capture id=\(row.id.uuidString) kind=\(row.kind.rawValue)")
         } catch {
             let nextAttempts = row.attempts + 1
             let flipToFailed = nextAttempts >= Self.maxAttempts

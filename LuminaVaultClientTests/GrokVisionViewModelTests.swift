@@ -42,7 +42,7 @@ final class GrokVisionViewModelTests: XCTestCase {
     }
 
     func testAnalyse400SurfacesRejection() async {
-        mockClient.visionResult = .failure(APIError.httpError(statusCode: 400, body: nil))
+        mockClient.visionResult = .failure(APIError.httpError(statusCode: 400, data: Data()))
         sut.imageURL = "bad-url"
         sut.prompt = "describe"
         await sut.analyse()

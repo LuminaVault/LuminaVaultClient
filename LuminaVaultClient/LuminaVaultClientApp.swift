@@ -152,6 +152,14 @@ struct LuminaVaultClientApp: App {
                         }
                     }
                     .transition(.opacity)
+                    .safeAreaInset(edge: .bottom) {
+                        #if DEBUG
+                        if !showSplash && !appState.isAuthenticated {
+                            EnvironmentTagView()
+                                .padding(.bottom, 8)
+                        }
+                        #endif
+                    }
                 }
             }
             .animation(.easeInOut(duration: 0.4), value: showSplash)

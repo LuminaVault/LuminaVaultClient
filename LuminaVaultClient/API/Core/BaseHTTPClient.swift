@@ -15,21 +15,19 @@ final class BaseHTTPClient: Sendable {
     typealias AuthFailureHandler = @Sendable () async -> Void
 
     private let session: URLSession
-    private let baseURL: URL
+    private var baseURL: URL { Config.apiBaseURL }
     private let tokenProvider: TokenProvider
     private let refreshHandler: RefreshHandler?
     private let onAuthFailure: AuthFailureHandler?
     private let refreshCoordinator: TokenRefreshCoordinator?
 
     init(
-        baseURL: URL = Config.apiBaseURL,
         session: URLSession = .shared,
         tokenProvider: @escaping TokenProvider = { nil },
         refreshHandler: RefreshHandler? = nil,
         onAuthFailure: AuthFailureHandler? = nil,
         refreshCoordinator: TokenRefreshCoordinator? = nil
     ) {
-        self.baseURL = baseURL
         self.session = session
         self.tokenProvider = tokenProvider
         self.refreshHandler = refreshHandler

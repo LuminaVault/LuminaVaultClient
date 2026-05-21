@@ -34,7 +34,7 @@ final class GrokXSearchViewModelTests: XCTestCase {
     }
 
     func testSearch402ReturnsFailureWithReconnectFlag() async {
-        mockClient.xSearchResult = .failure(APIError.httpError(statusCode: 402, body: nil))
+        mockClient.xSearchResult = .failure(APIError.httpError(statusCode: 402, data: Data()))
         sut.query = "anything"
         await sut.search()
         if case let .failed(message, reconnect) = sut.state {
@@ -46,7 +46,7 @@ final class GrokXSearchViewModelTests: XCTestCase {
     }
 
     func testSearch409ReturnsFailureWithReconnectFlag() async {
-        mockClient.xSearchResult = .failure(APIError.httpError(statusCode: 409, body: nil))
+        mockClient.xSearchResult = .failure(APIError.httpError(statusCode: 409, data: Data()))
         sut.query = "anything"
         await sut.search()
         if case let .failed(_, reconnect) = sut.state {

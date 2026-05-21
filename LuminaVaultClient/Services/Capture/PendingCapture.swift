@@ -14,6 +14,20 @@ enum PendingCaptureState: String, Codable, Sendable {
     case failed
 }
 
+/// HER-256 / HER-257 — discriminator added so the queue can host
+/// non-photo captures. `.text` rows carry the body in `captionText` and
+/// route to `POST /v1/memory/upsert`. `.url` (HER-257) rows carry the
+/// URL in `urlString` and an optional note in `captionText`; the drainer
+/// posts them to `POST /v1/capture/safari`. `.photo` (default) keeps the
+/// original behaviour — rows persisted before this enum landed
+/// deserialise with `.photo` because the SwiftData store falls back to
+/// the default value of a new field.
+enum PendingCaptureKind: String, Codable, Sendable {
+    case photo
+    case text
+    case url
+}
+
 @Model
 final class PendingCapture {
     @Attribute(.unique) var id: UUID
@@ -21,14 +35,30 @@ final class PendingCapture {
     var captionText: String?
     /// Raw bytes from `PhotosPickerItem.loadTransferable(type: Data.self)`.
     /// HEIC and JPEG both pass through losslessly (HER-34 server allowlist).
+    /// Empty `Data()` for `.text` rows (HER-256) since the queue stores
+    /// the body in `captionText` and skips the upload step.
     var imageData: Data
     /// MIME the client sends in the upload `Content-Type` header (e.g.
-    /// `image/heic`, `image/heif`, `image/jpeg`).
+    /// `image/heic`, `image/heif`, `image/jpeg`). Empty string for `.text`.
     var contentType: String
     /// File extension persisted as part of the vault path (e.g. `heic`,
     /// `jpg`). Decoupled from `contentType` because HEIF MIME still maps
-    /// to `.heic` on disk.
+    /// to `.heic` on disk. Empty string for `.text`.
     var fileExtension: String
+
+    /// HER-256 — capture kind. Defaults to `.photo` so rows persisted
+    /// before this field landed keep their original behaviour.
+    var kindRaw: String = PendingCaptureKind.photo.rawValue
+
+    var kind: PendingCaptureKind {
+        get { PendingCaptureKind(rawValue: kindRaw) ?? .photo }
+        set { kindRaw = newValue.rawValue }
+    }
+
+    /// HER-257 — populated only when `kind == .url`. The drainer reads
+    /// this and posts to `/v1/capture/safari`; `captionText` carries the
+    /// optional user note that ships as `notes` on the request.
+    var urlString: String?
 
     // HER-207 geo anchor — all four optional, populated only when the
     // user toggled Location on for this capture.
@@ -64,6 +94,8 @@ final class PendingCapture {
         accuracyM: Double? = nil,
         placeName: String? = nil,
         spaceID: UUID? = nil,
+        kind: PendingCaptureKind = .photo,
+        urlString: String? = nil,
         attempts: Int = 0,
         lastError: String? = nil,
         state: PendingCaptureState = .pending
@@ -79,6 +111,8 @@ final class PendingCapture {
         self.accuracyM = accuracyM
         self.placeName = placeName
         self.spaceID = spaceID
+        self.kindRaw = kind.rawValue
+        self.urlString = urlString
         self.attempts = attempts
         self.lastError = lastError
         self.stateRaw = state.rawValue

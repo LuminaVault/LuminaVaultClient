@@ -1,9 +1,10 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Capture/CaptureFAB.swift
 //
 // HER-34 — floating "+" button rendered on top of MainTabView. Tap
-// opens `CapturePhotosView` as a sheet. The button reads the
-// `CaptureCoordinator` from the environment so it can wire the picker
-// VM with the live queue + drainer.
+// opens `CaptureSheet` (HER-256), which hosts both the photo and text
+// capture flows behind a segmented control. The button reads the
+// `CaptureCoordinator` from the environment so it can wire the VMs
+// with the live queue + drainer.
 
 import SwiftUI
 
@@ -32,12 +33,24 @@ struct CaptureFAB: View {
         .accessibilityLabel("New capture")
         .sheet(isPresented: $showingSheet) {
             if let queue = coordinator?.queue {
-                CapturePhotosView(viewModel: CapturePhotosViewModel(
-                    queue: queue,
-                    locationService: LocationService(),
-                    drainer: coordinator?.drainerHandle ?? .noop,
-                    spacesClient: coordinator?.spacesClient,
-                ))
+                CaptureSheet(
+                    photoViewModel: CapturePhotosViewModel(
+                        queue: queue,
+                        locationService: LocationService(),
+                        drainer: coordinator?.drainerHandle ?? .noop,
+                        spacesClient: coordinator?.spacesClient,
+                    ),
+                    textViewModel: TextCaptureViewModel(
+                        queue: queue,
+                        locationService: LocationService(),
+                        drainer: coordinator?.drainerHandle ?? .noop,
+                    ),
+                    urlViewModel: URLCaptureViewModel(
+                        queue: queue,
+                        drainer: coordinator?.drainerHandle ?? .noop,
+                        spacesClient: coordinator?.spacesClient,
+                    ),
+                )
             } else {
                 Text("Capture is initializing…")
                     .padding()

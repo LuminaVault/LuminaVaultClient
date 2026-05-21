@@ -11,7 +11,6 @@ final class BaseHTTPClientTests: XCTestCase {
         config.protocolClasses = [MockURLProtocol.self]
         let session = URLSession(configuration: config)
         client = BaseHTTPClient(
-            baseURL: URL(string: "http://test.local")!,
             session: session
         )
     }
@@ -101,7 +100,6 @@ final class BaseHTTPClientTests: XCTestCase {
         config.protocolClasses = [MockURLProtocol.self]
         let session = URLSession(configuration: config)
         let interceptor = BaseHTTPClient(
-            baseURL: URL(string: "http://test.local")!,
             session: session,
             tokenProvider: { await token.access },
             refreshHandler: {
@@ -133,7 +131,6 @@ final class BaseHTTPClientTests: XCTestCase {
         config.protocolClasses = [MockURLProtocol.self]
         let session = URLSession(configuration: config)
         let interceptor = BaseHTTPClient(
-            baseURL: URL(string: "http://test.local")!,
             session: session,
             tokenProvider: { "stale" },
             refreshHandler: { throw APIError.unauthorized },
@@ -172,7 +169,6 @@ final class BaseHTTPClientTests: XCTestCase {
         config.protocolClasses = [MockURLProtocol.self]
         let session = URLSession(configuration: config)
         let interceptor = BaseHTTPClient(
-            baseURL: URL(string: "http://test.local")!,
             session: session,
             tokenProvider: { nil },
             refreshHandler: {
@@ -215,7 +211,6 @@ final class BaseHTTPClientTests: XCTestCase {
         let session = URLSession(configuration: config)
         let coordinator = TokenRefreshCoordinator()
         let interceptor = BaseHTTPClient(
-            baseURL: baseURL,
             session: session,
             tokenProvider: { await token.access },
             refreshHandler: {

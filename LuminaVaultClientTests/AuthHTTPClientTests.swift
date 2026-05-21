@@ -13,7 +13,6 @@ final class AuthHTTPClientTests: XCTestCase {
         config.protocolClasses = [MockURLProtocol.self]
         let session = URLSession(configuration: config)
         base = BaseHTTPClient(
-            baseURL: URL(string: "http://test.local")!,
             session: session
         )
         auth = AuthHTTPClient(client: base)

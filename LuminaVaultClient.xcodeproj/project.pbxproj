@@ -7,13 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		36898169B542419BA32DA510 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = F8D79674B58849A9A00C4538 /* Sentry */; };
+		605871F82FBCCE1E0077984D /* (null) in Frameworks */ = {isa = PBXBuildFile; };
+		605871F92FBCCE1E0077984D /* (null) in Frameworks */ = {isa = PBXBuildFile; };
 		6098173A2FB8BE2500414C79 /* LuminaVaultShared in Frameworks */ = {isa = PBXBuildFile; productRef = 609817392FB8BE2500414C79 /* LuminaVaultShared */; };
+		60GRP000B2FAE1200006F894F /* Grape in Frameworks */ = {isa = PBXBuildFile; productRef = 60GRP000A2FAE1200006F894F /* Grape */; };
 		60GSI00012FAE1200006F894F /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 60GSI00022FAE1200006F894F /* GoogleSignIn */; };
 		60HER40012FAE1200006F894F /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 60HER40022FAE1200006F894F /* RiveRuntime */; };
+		60PHG00012FAE1200006F894F /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 60PHG00022FAE1200006F894F /* PostHog */; };
 		60PNK00012FAE1200006F894F /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = 60PNK00022FAE1200006F894F /* PhoneNumberKit */; };
 		60SNP00012FAE1200006F894F /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 60SNP00022FAE1200006F894F /* SnapshotTesting */; };
-		60PHG00012FAE1200006F894F /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 60PHG00022FAE1200006F894F /* PostHog */; };
-		36898169B542419BA32DA510 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = F8D79674B58849A9A00C4538 /* Sentry */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -43,9 +46,9 @@
 		60HER39EXC2026051901AB /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultClient" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				"Config/Info.plist",
-				"Config/README.md",
-				"Resources/Hermie/README.md",
+				Config/Info.plist,
+				Config/README.md,
+				Resources/Hermie/README.md,
 			);
 			target = 6088C4F22FAE1184006F894F /* LuminaVaultClient */;
 		};
@@ -79,6 +82,7 @@
 			files = (
 				60GSI00012FAE1200006F894F /* GoogleSignIn in Frameworks */,
 				60HER40012FAE1200006F894F /* RiveRuntime in Frameworks */,
+				60GRP000B2FAE1200006F894F /* Grape in Frameworks */,
 				6098173A2FB8BE2500414C79 /* LuminaVaultShared in Frameworks */,
 				60PNK00012FAE1200006F894F /* PhoneNumberKit in Frameworks */,
 				60PHG00012FAE1200006F894F /* PostHog in Frameworks */,
@@ -91,7 +95,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				60SNP00012FAE1200006F894F /* SnapshotTesting in Frameworks */,
-				36898169B542419BA32DA510 /* Sentry in Frameworks */,
+				605871F82FBCCE1E0077984D /* (null) in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -99,7 +103,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				36898169B542419BA32DA510 /* Sentry in Frameworks */,
+				605871F92FBCCE1E0077984D /* (null) in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -149,6 +153,7 @@
 			packageProductDependencies = (
 				60GSI00022FAE1200006F894F /* GoogleSignIn */,
 				60HER40022FAE1200006F894F /* RiveRuntime */,
+				60GRP000A2FAE1200006F894F /* Grape */,
 				60PNK00022FAE1200006F894F /* PhoneNumberKit */,
 				609817392FB8BE2500414C79 /* LuminaVaultShared */,
 				60PHG00022FAE1200006F894F /* PostHog */,
@@ -238,6 +243,7 @@
 			packageReferences = (
 				60GSI00032FAE1200006F894F /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				60HER40032FAE1200006F894F /* XCRemoteSwiftPackageReference "rive-ios" */,
+				60GRP000C2FAE1200006F894F /* XCRemoteSwiftPackageReference "Grape" */,
 				60PNK00032FAE1200006F894F /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
 				609817382FB8BE2500414C79 /* XCRemoteSwiftPackageReference "LuminaVaultShared" */,
 				60SNP00032FAE1200006F894F /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
@@ -279,6 +285,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A53E5752B5D24598A86BD3CA /* Upload Debug Symbols to Sentry */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
+			);
+			name = "Upload Debug Symbols to Sentry";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script is responsible for uploading debug symbols and source context for Sentry.\nif which sentry-cli >/dev/null; then\n  export SENTRY_ORG=fernando-lda\n  export SENTRY_PROJECT=luminavault\n  ERROR=$(sentry-cli debug-files upload --include-sources \"$DWARF_DSYM_FOLDER_PATH\" 2>&1 >/dev/null)\n  if [ ! $? -eq 0 ]; then\n    echo \"warning: sentry-cli - $ERROR\"\n  fi\nelse\n  echo \"warning: sentry-cli not installed, download from https://github.com/getsentry/sentry-cli/releases\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		6088C4EF2FAE1184006F894F /* Sources */ = {
@@ -452,8 +476,10 @@
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultClient/LuminaVaultClient.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -483,8 +509,6 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_USER_SCRIPT_SANDBOXING = "NO";
 			};
 			name = Debug;
 		};
@@ -497,8 +521,10 @@
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultClient/LuminaVaultClient.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -528,8 +554,6 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_USER_SCRIPT_SANDBOXING = "NO";
 			};
 			name = Release;
 		};
@@ -685,8 +709,10 @@
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultClient/LuminaVaultClient.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -716,8 +742,6 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_USER_SCRIPT_SANDBOXING = "NO";
 			};
 			name = Beta;
 		};
@@ -814,7 +838,15 @@
 			repositoryURL = "https://github.com/LuminaVault/LuminaVaultShared.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 0.15.0;
+				minimumVersion = 0.19.0;
+			};
+		};
+		60GRP000C2FAE1200006F894F /* XCRemoteSwiftPackageReference "Grape" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SwiftGraphs/Grape";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.7.0;
 			};
 		};
 		60GSI00032FAE1200006F894F /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
@@ -833,6 +865,14 @@
 				minimumVersion = 6.0.0;
 			};
 		};
+		60PHG00032FAE1200006F894F /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.0;
+			};
+		};
 		60PNK00032FAE1200006F894F /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/marmelroy/PhoneNumberKit";
@@ -847,14 +887,6 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 1.17.0;
-			};
-		};
-		60PHG00032FAE1200006F894F /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/PostHog/posthog-ios";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 3.0.0;
 			};
 		};
 		63C9812D8F0349FC8A4481E2 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
@@ -873,6 +905,11 @@
 			package = 609817382FB8BE2500414C79 /* XCRemoteSwiftPackageReference "LuminaVaultShared" */;
 			productName = LuminaVaultShared;
 		};
+		60GRP000A2FAE1200006F894F /* Grape */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 60GRP000C2FAE1200006F894F /* XCRemoteSwiftPackageReference "Grape" */;
+			productName = Grape;
+		};
 		60GSI00022FAE1200006F894F /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 60GSI00032FAE1200006F894F /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
@@ -882,6 +919,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 60HER40032FAE1200006F894F /* XCRemoteSwiftPackageReference "rive-ios" */;
 			productName = RiveRuntime;
+		};
+		60PHG00022FAE1200006F894F /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 60PHG00032FAE1200006F894F /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
 		};
 		60PNK00022FAE1200006F894F /* PhoneNumberKit */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -893,46 +935,12 @@
 			package = 60SNP00032FAE1200006F894F /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */;
 			productName = SnapshotTesting;
 		};
-		60PHG00022FAE1200006F894F /* PostHog */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 60PHG00032FAE1200006F894F /* XCRemoteSwiftPackageReference "posthog-ios" */;
-			productName = PostHog;
-		};
 		F8D79674B58849A9A00C4538 /* Sentry */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 63C9812D8F0349FC8A4481E2 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
 			productName = Sentry;
 		};
 /* End XCSwiftPackageProductDependency section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		A53E5752B5D24598A86BD3CA /* Upload Debug Symbols to Sentry */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This script is responsible for uploading debug symbols and source context for Sentry.
-if which sentry-cli >/dev/null; then
-  export SENTRY_ORG=fernando-lda
-  export SENTRY_PROJECT=luminavault
-  ERROR=$(sentry-cli debug-files upload --include-sources \"$DWARF_DSYM_FOLDER_PATH\" 2>&1 >/dev/null)
-  if [ ! $? -eq 0 ]; then
-    echo \"warning: sentry-cli - $ERROR\"
-  fi
-else
-  echo \"warning: sentry-cli not installed, download from https://github.com/getsentry/sentry-cli/releases\"
-fi
-";
-			name = "Upload Debug Symbols to Sentry";
-		};
-/* End PBXShellScriptBuildPhase section */
 	};
 	rootObject = 6088C4EB2FAE1184006F894F /* Project object */;
 }

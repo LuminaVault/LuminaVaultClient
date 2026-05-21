@@ -65,10 +65,6 @@ struct SignInView: View {
             .padding(.horizontal, 24).padding(.top, 32).padding(.bottom, 40)
         }
         .lvBackground()
-        .navigationDestination(isPresented: Binding(
-            get: { vm.mfaRequired },
-            set: { if !$0 { vm.mfaRequired = false } }
-        )) { MFAChallengeView(vm: vm) }
     }
 }
 
