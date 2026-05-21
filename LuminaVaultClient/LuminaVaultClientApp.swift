@@ -49,6 +49,7 @@ struct LuminaVaultClientApp: App {
     @State private var appState = AppState()
     @State private var theme = LVThemeManager()
     @State private var notificationRouter = NotificationRouter()
+    @State private var workspaceSelection = WorkspaceSelection()
     @State private var showSplash = true
     @State private var biometricChecked = false
     @State private var captureCoordinator: CaptureCoordinator?
@@ -170,6 +171,7 @@ struct LuminaVaultClientApp: App {
             .environment(appState)
             .environment(theme)
             .environment(notificationRouter)
+            .environment(workspaceSelection)
             .task {
                 // HER-179 — bridge the AppDelegate to the SwiftUI-side
                 // router and ask for APNS authorization on first launch.

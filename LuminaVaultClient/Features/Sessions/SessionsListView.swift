@@ -12,24 +12,36 @@ final class SessionsListViewModel {
     enum LoadState: Equatable { case loading, loaded, failed(String) }
     var state: LoadState = .loading
     var sessions: [SessionDTO] = []
+    /// HER-261 — when set, list calls scope to this workspace (Space).
+    /// `nil` shows all workspaces.
+    var workspaceID: UUID?
     private let client: SessionsClientProtocol
 
-    init(client: SessionsClientProtocol) { self.client = client }
+    init(client: SessionsClientProtocol, workspaceID: UUID? = nil) {
+        self.client = client
+        self.workspaceID = workspaceID
+    }
 
     func load() async {
         state = .loading
         do {
-            let response = try await client.list(limit: 50)
+            let response = try await client.list(limit: 50, workspaceID: workspaceID)
             sessions = response.sessions.sorted { $0.lastMessageAt > $1.lastMessageAt }
             state = .loaded
         } catch {
             state = .failed("Couldn't load sessions.")
         }
     }
+
+    func setWorkspace(_ id: UUID?) async {
+        workspaceID = id
+        await load()
+    }
 }
 
 struct SessionsListView: View {
     @State var vm: SessionsListViewModel
+    @Environment(WorkspaceSelection.self) private var workspaceSelection
 
     var body: some View {
         ZStack {
@@ -38,7 +50,14 @@ struct SessionsListView: View {
         }
         .navigationTitle("Sessions")
         .lvBackground()
-        .task { await vm.load() }
+        .task {
+            // HER-261 — react to active-workspace flips from the global
+            // selection without leaking it into the VM constructor.
+            await vm.setWorkspace(workspaceSelection.activeWorkspaceID)
+        }
+        .onChange(of: workspaceSelection.activeWorkspaceID) { _, newID in
+            Task { await vm.setWorkspace(newID) }
+        }
     }
 
     @ViewBuilder
