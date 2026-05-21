@@ -51,6 +51,12 @@ struct MainTabView: View {
                         Label("Brain", systemImage: "brain.head.profile")
                     }
 
+                // HER-177: Today tab — skill outputs feed.
+                TodayView(vm: TodayViewModel(client: todayClient))
+                    .tabItem {
+                        Label("Today", systemImage: "newspaper.fill")
+                    }
+
                 // HER-157 surface wired by HER-VisualSearchWire.
                 VisualSearchView(viewModel: VisualSearchViewModel(
                     ocr: ImageOCRService(),
@@ -104,6 +110,10 @@ struct MainTabView: View {
 
     private var suggestionsClient: SuggestionsClientProtocol {
         SuggestionsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var todayClient: TodayClientProtocol {
+        TodayHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var dashboardStatsClient: DashboardStatsClientProtocol {
