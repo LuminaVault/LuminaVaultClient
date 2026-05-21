@@ -44,7 +44,8 @@ struct SettingsRootView: View {
                     }
                 }
 
-                // HER-247 — Skills hub: browse, toggle, configure cadence.
+                // HER-247 / HER-178 — Skills hub (full detail) + Automations
+                // (lightweight toggle list). Share the same SkillsHTTPClient.
                 Section("Automation") {
                     NavigationLink {
                         SkillsHubView(
@@ -53,6 +54,11 @@ struct SettingsRootView: View {
                         )
                     } label: {
                         Label("Skills", systemImage: "sparkles")
+                    }
+                    NavigationLink {
+                        AutomationsView(vm: AutomationsViewModel(client: skillsClient))
+                    } label: {
+                        Label("Automations", systemImage: "clock.badge.checkmark")
                     }
                 }
 
