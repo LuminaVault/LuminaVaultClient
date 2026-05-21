@@ -106,10 +106,48 @@ struct MainTabView: View {
         SuggestionsHTTPClient(client: appState.makeHTTPClient())
     }
 
+    private var dashboardStatsClient: DashboardStatsClientProtocol {
+        DashboardStatsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var tasksClient: TasksClientProtocol {
+        TasksHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var insightsClient: InsightsClientProtocol {
+        InsightsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var healthClient: HealthClientProtocol {
+        HealthHTTPClient()
+    }
+
     private var home: some View {
-        // HER-39 — route compile through `VaultRepository` so a tap while
-        // offline enqueues the operation instead of erroring out. The
-        // repository handles the online vs offline branch.
-        SyncAndLearnView(vm: SyncAndLearnViewModel(repository: appState.vaultRepository))
+        // HER-244 — OS Shell Home/Dashboard. Replaces the kb-compile-only
+        // SyncAndLearnView with the real dashboard. Compile flow is
+        // delegated to the existing SyncAndLearnViewModel + VaultRepository
+        // so HER-39's offline queueing still applies.
+        HomeView(
+            vm: HomeViewModel(
+                statsClient: dashboardStatsClient,
+                tasksClient: tasksClient,
+                insightsClient: insightsClient,
+                healthClient: healthClient,
+                compileViewModel: SyncAndLearnViewModel(repository: appState.vaultRepository),
+                displayName: Self.deriveDisplayName(from: appState.currentEmail)
+            ),
+            onAskLumina: {
+                // TODO(HER-245 / HER-107): when Sessions list + chat detail
+                // ship, route to those surfaces directly. For now this is
+                // a no-op — tapping defers to the Think tab via the tab bar.
+            }
+        )
+    }
+
+    private static func deriveDisplayName(from email: String?) -> String {
+        guard let email, let at = email.firstIndex(of: "@") else { return "" }
+        let local = email[..<at]
+        let first = local.split(separator: ".").first.map(String.init) ?? String(local)
+        return first.prefix(1).uppercased() + first.dropFirst()
     }
 }
