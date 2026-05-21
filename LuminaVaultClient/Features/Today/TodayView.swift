@@ -11,6 +11,10 @@ struct TodayView: View {
     @Environment(NotificationRouter.self) private var router
 
     @State private var celebrate: Bool = false
+    /// HER-264 — output being viewed in the inline detail sheet.
+    @State private var detailOutput: SkillOutputDTO?
+    /// HER-264 — output being shared via UIActivityViewController.
+    @State private var shareOutput: SkillOutputDTO?
 
     var body: some View {
         ZStack {
@@ -34,8 +38,8 @@ struct TodayView: View {
                                 TodayCardView(
                                     output: output,
                                     highlighted: vm.highlightedOutputID == output.id,
-                                    onTap: { /* TODO HER-107/HER-105: route to memo/memory/vault file */ },
-                                    onShare: { /* TODO: present UIActivityViewController with Lumina watermark */ }
+                                    onTap: { detailOutput = output },
+                                    onShare: { shareOutput = output }
                                 )
                                 .id(output.id)
                                 .padding(.horizontal, 20)
@@ -53,6 +57,14 @@ struct TodayView: View {
             }
         }
         .lvBackground()
+        .sheet(item: $detailOutput) { output in
+            TodayOutputDetailView(output: output)
+        }
+        .sheet(item: $shareOutput) { output in
+            ShareSheet(activityItems: [
+                "\(output.headline)\n\n\(output.body)\n\n— via Lumina",
+            ])
+        }
         .task { await vm.refresh() }
         .task(id: router.pendingDeepLink) {
             // HER-179 — when a digest push lands, mark the highlighted
