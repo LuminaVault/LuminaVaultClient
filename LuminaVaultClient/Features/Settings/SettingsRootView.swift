@@ -42,6 +42,12 @@ struct SettingsRootView: View {
                     } label: {
                         Label("Linked Accounts", systemImage: "link.circle")
                     }
+                    // HER-252 — per-user LLM provider credentials.
+                    NavigationLink {
+                        ProvidersPaneView(client: providersClient)
+                    } label: {
+                        Label("LLM Providers", systemImage: "brain")
+                    }
                 }
 
                 // HER-247 / HER-178 — Skills hub (full detail) + Automations
@@ -86,6 +92,12 @@ struct SettingsRootView: View {
                     } label: {
                         Label("Hermes Gateway", systemImage: "network")
                     }
+                    // HER-252 — per-user primary model + fallback chain.
+                    NavigationLink {
+                        LLMPreferencesPaneView(client: llmPreferencesClient)
+                    } label: {
+                        Label("Model Preferences", systemImage: "slider.horizontal.3")
+                    }
                 }
             }
             .navigationTitle("Settings")
@@ -120,5 +132,14 @@ struct SettingsRootView: View {
 
     private var integrationsClient: any IntegrationsClientProtocol {
         IntegrationsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    // HER-252 — per-user LLM provider credentials + routing preferences.
+    private var providersClient: any ProvidersClientProtocol {
+        ProvidersHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var llmPreferencesClient: any LLMPreferencesClientProtocol {
+        LLMPreferencesHTTPClient(client: appState.makeHTTPClient())
     }
 }
