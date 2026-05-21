@@ -45,8 +45,10 @@ enum PostHogEnv: String {
 
 @main
 struct LuminaVaultClientApp: App {
+    @UIApplicationDelegateAdaptor(NotificationsAppDelegate.self) private var appDelegate
     @State private var appState = AppState()
     @State private var theme = LVThemeManager()
+    @State private var notificationRouter = NotificationRouter()
     @State private var showSplash = true
     @State private var biometricChecked = false
     @State private var captureCoordinator: CaptureCoordinator?
@@ -167,6 +169,13 @@ struct LuminaVaultClientApp: App {
             .preferredColorScheme(theme.appearance.colorSchemeOverride)
             .environment(appState)
             .environment(theme)
+            .environment(notificationRouter)
+            .task {
+                // HER-179 — bridge the AppDelegate to the SwiftUI-side
+                // router and ask for APNS authorization on first launch.
+                appDelegate.router = notificationRouter
+                await appDelegate.requestAuthorizationAndRegister()
+            }
             .onOpenURL { url in
                 _ = GIDSignIn.sharedInstance.handle(url)
             }

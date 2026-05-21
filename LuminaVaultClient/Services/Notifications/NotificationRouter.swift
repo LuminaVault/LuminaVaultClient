@@ -1,0 +1,48 @@
+// LuminaVaultClient/LuminaVaultClient/Services/Notifications/NotificationRouter.swift
+//
+// HER-179 — central deep-link router for APNS taps. The root view
+// observes `pendingDeepLink` and reacts (switches tab, scrolls to a
+// card, injects a system message into chat).
+
+import Foundation
+import LuminaVaultShared
+import SwiftUI
+
+enum APNSDeepLink: Sendable, Equatable {
+    case today(highlightOutputID: UUID?)
+    case think(systemMessage: String?)
+    case none
+}
+
+@Observable
+@MainActor
+final class NotificationRouter {
+    var pendingDeepLink: APNSDeepLink = .none
+
+    func consume() -> APNSDeepLink {
+        let value = pendingDeepLink
+        pendingDeepLink = .none
+        return value
+    }
+
+    /// Parse a `UNNotificationContent.userInfo` dict produced by the
+    /// server-side `APNSNotificationService`.
+    func deepLink(from userInfo: [AnyHashable: Any]) -> APNSDeepLink {
+        guard let categoryRaw = userInfo["category"] as? String,
+              let category = APNSCategory(rawValue: categoryRaw)
+        else {
+            return .none
+        }
+        switch category {
+        case .digest:
+            let id = (userInfo["outputID"] as? String).flatMap(UUID.init(uuidString:))
+            return .today(highlightOutputID: id)
+        case .nudge:
+            let message = userInfo["systemMessage"] as? String
+            return .think(systemMessage: message)
+        case .chat:
+            let message = userInfo["systemMessage"] as? String
+            return .think(systemMessage: message)
+        }
+    }
+}
