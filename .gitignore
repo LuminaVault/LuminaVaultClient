@@ -3,6 +3,8 @@
 .AppleDouble
 .LSOverride
 Icon?
+!LuminaVaultClient/Assets.xcassets/Lumina/Icons
+!LuminaVaultClient/Assets.xcassets/Lumina/Icons/**
 ._*
 .Spotlight-V100
 .Trashes
