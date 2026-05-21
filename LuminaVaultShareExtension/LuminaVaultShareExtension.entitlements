@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- HER-258 — App Group entitlement so the extension and the host app
+     can read/write the same `pendingShares.json` and `spacesCache.json`
+     under `group.com.lumina.fernando`. The host app's entitlements
+     must list the same group identifier. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>group.com.lumina.fernando</string>
+    </array>
+</dict>
+</plist>
