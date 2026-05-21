@@ -9,36 +9,37 @@ extension View {
 
 private struct LVBackgroundModifier: ViewModifier {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.lvPalette) private var palette
 
     func body(content: Content) -> some View {
         ZStack {
-            Color.lvNavy.ignoresSafeArea()
+            palette.backgroundBase.ignoresSafeArea()
 
-            // Star field — dark mode only
+            // Starfield — only in dark mode.
             if scheme == .dark {
                 LVStarField().ignoresSafeArea()
             }
 
             GeometryReader { geo in
-                // Amber aurora — top-trailing
+                // Top-trailing aurora wash (warm in cyanGold, pink in nebula, gold in solar).
                 RadialGradient(
-                    colors: [Color.lvAmber.opacity(scheme == .dark ? 0.18 : 0.09), .clear],
+                    colors: [palette.auroraTop, .clear],
                     center: .topTrailing,
                     startRadius: 0,
                     endRadius: geo.size.width * 0.85
                 )
                 .ignoresSafeArea()
-                // Cyan nebula — bottom-leading
+                // Bottom-leading nebula wash.
                 RadialGradient(
-                    colors: [Color.lvCyan.opacity(scheme == .dark ? 0.14 : 0.08), .clear],
+                    colors: [palette.auroraBottom, .clear],
                     center: .bottomLeading,
                     startRadius: 0,
                     endRadius: geo.size.width * 0.75
                 )
                 .ignoresSafeArea()
-                // Blue mid-depth pulse
+                // Mid-depth pulse for added depth.
                 RadialGradient(
-                    colors: [Color.lvBlue.opacity(scheme == .dark ? 0.08 : 0.05), .clear],
+                    colors: [palette.auroraCenter, .clear],
                     center: .center,
                     startRadius: 0,
                     endRadius: geo.size.width * 0.55

@@ -167,7 +167,7 @@ struct LuminaVaultClientApp: App {
             }
             .animation(.easeInOut(duration: 0.4), value: showSplash)
             .animation(.easeInOut(duration: 0.4), value: hasSeenGetStarted)
-            .preferredColorScheme(theme.appearance.colorSchemeOverride)
+            .lvThemed(theme)
             .environment(appState)
             .environment(theme)
             .environment(notificationRouter)

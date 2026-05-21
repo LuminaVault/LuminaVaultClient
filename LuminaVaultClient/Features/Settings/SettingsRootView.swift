@@ -14,6 +14,9 @@ struct SettingsRootView: View {
     var body: some View {
         NavigationStack {
             List {
+                // HER-255 — Theme + light/dark switch at the top of Settings.
+                LVAppearanceSection()
+
                 // HER-39 — surface offline sync state + manual drain.
                 Section("Sync & Backup") {
                     NavigationLink {
@@ -84,11 +87,19 @@ struct SettingsRootView: View {
                     NavigationLink {
                         HermesGatewayPaneView(client: settingsClient)
                     } label: {
-                        Label("Hermes Gateway", systemImage: "network")
+                        HStack {
+                            Label("Hermes Gateway", systemImage: "network")
+                            Spacer()
+                            // HER-255 — connection status pill per issue spec.
+                            // TODO: drive `state` from HermesGatewayViewModel when wired.
+                            ConnectionBadge(state: .unknown)
+                        }
                     }
                 }
             }
             .navigationTitle("Settings")
+            // HER-255 — small Hermie mascot in the top-right corner per issue spec.
+            .lvNavBrand(position: .topTrailing, size: 28)
         }
     }
 

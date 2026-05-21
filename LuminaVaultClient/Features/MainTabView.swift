@@ -7,18 +7,32 @@
 // HER-37: adds the 4th "Think" tab — natural-language query + memo flow.
 // HER-VisualSearchWire: wires HER-157's VisualSearchView into the tab bar
 // as the 4th tab. Reuses the existing memory-query HTTP client.
+// HER-255: replaces the stock TabView chrome with LVTabBar (glass background
+// + glowing underline on the active tab + pulse on Home when insights pend).
 import SwiftUI
 
 struct MainTabView: View {
     @Environment(AppState.self) private var appState
+    @State private var selection: String = "workspaces"
+    @Namespace private var tabUnderline
+
+    private static let tabIds = (
+        workspaces: "workspaces",
+        home: "home",
+        think: "think",
+        brain: "brain",
+        today: "today",
+        visualsearch: "visualsearch",
+        settings: "settings"
+    )
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .bottom) {
             VStack(spacing: 0) {
                 // HER-39 — pinned sync status. Hidden when idle.
                 SyncStatusBanner()
 
-                TabView {
+                TabView(selection: $selection) {
                     // HER-249 — Workspaces wraps Spaces with workspace-aware
                     // chrome. Underlying file/folder UI is unchanged for v1.
                     WorkspacesView(
@@ -26,64 +40,78 @@ struct MainTabView: View {
                         vaultClient: vaultClient,
                         memoryClient: memoryClient,
                     )
-                    .tabItem {
-                        Label("Workspaces", systemImage: "folder.fill")
-                    }
+                    .tag(Self.tabIds.workspaces)
+                    .toolbar(.hidden, for: .tabBar)
 
-                home
-                    .tabItem {
-                        Label("Home", systemImage: "sparkles")
-                    }
+                    home
+                        .tag(Self.tabIds.home)
+                        .toolbar(.hidden, for: .tabBar)
 
-                // HER-37: Think tab — "Think with Lumina" + memo flow.
-                ThinkWithLuminaView(
-                    vm: ThinkWithLuminaViewModel(
-                        queryClient: memoryClient,
-                        suggestionsClient: suggestionsClient,
-                    ),
-                    memoClient: memoClient,
-                )
-                    .tabItem {
-                        Label("Think", systemImage: "bubble.left.and.text.bubble.right")
-                    }
+                    // HER-37: Think tab — "Think with Lumina" + memo flow.
+                    ThinkWithLuminaView(
+                        vm: ThinkWithLuminaViewModel(
+                            queryClient: memoryClient,
+                            suggestionsClient: suggestionsClient,
+                        ),
+                        memoClient: memoClient,
+                    )
+                    .tag(Self.tabIds.think)
+                    .toolbar(.hidden, for: .tabBar)
 
-                // HER-235: Brain tab — Obsidian-style memory graph.
-                BrainTabView(client: memoryGraphClient)
-                    .tabItem {
-                        Label("Brain", systemImage: "brain.head.profile")
-                    }
+                    // HER-235: Brain tab — Obsidian-style memory graph.
+                    BrainTabView(client: memoryGraphClient)
+                        .tag(Self.tabIds.brain)
+                        .toolbar(.hidden, for: .tabBar)
 
-                // HER-177: Today tab — skill outputs feed.
-                TodayView(vm: TodayViewModel(client: todayClient))
-                    .tabItem {
-                        Label("Today", systemImage: "newspaper.fill")
-                    }
+                    // HER-177: Today tab — skill outputs feed.
+                    TodayView(vm: TodayViewModel(client: todayClient))
+                        .tag(Self.tabIds.today)
+                        .toolbar(.hidden, for: .tabBar)
 
-                // HER-157 surface wired by HER-VisualSearchWire.
-                VisualSearchView(viewModel: VisualSearchViewModel(
-                    ocr: ImageOCRService(),
-                    client: memoryClient,
-                    telemetry: LoggerTelemetry(),
-                ))
-                    .tabItem {
-                        Label("Visual Search", systemImage: "photo.on.rectangle.angled")
-                    }
+                    // HER-157 surface wired by HER-VisualSearchWire.
+                    VisualSearchView(viewModel: VisualSearchViewModel(
+                        ocr: ImageOCRService(),
+                        client: memoryClient,
+                        telemetry: LoggerTelemetry(),
+                    ))
+                        .tag(Self.tabIds.visualsearch)
+                        .toolbar(.hidden, for: .tabBar)
 
                     // HER-212: Settings tab — Privacy & Data + Advanced (Hermes Gateway).
                     SettingsRootView()
-                        .tabItem {
-                            Label("Settings", systemImage: "gear")
-                        }
+                        .tag(Self.tabIds.settings)
+                        .toolbar(.hidden, for: .tabBar)
                 }
-                .tint(.lvCyan)
             }
 
-            // HER-34 — vault capture entry point. Floats above the tab
-            // bar so it's reachable from any tab without stealing one.
+            LVTabBar(items: tabItems, selection: $selection, underlineNamespace: tabUnderline)
+
+            // HER-34 / HER-255 — capture FAB rides above the new glow tab bar.
+            // 12pt clearance from the bar top, matched to LVTabBar height.
             CaptureFAB()
                 .padding(.trailing, 20)
-                .padding(.bottom, 70)
+                .padding(.bottom, 84)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
         }
+    }
+
+    private var tabItems: [LVTabItem] {
+        [
+            LVTabItem(id: Self.tabIds.workspaces, label: "Spaces",
+                      systemImage: "folder.fill", customImageName: "spaces"),
+            LVTabItem(id: Self.tabIds.home, label: "Home",
+                      systemImage: "sparkles", customImageName: "home"),
+            LVTabItem(id: Self.tabIds.think, label: "Think",
+                      systemImage: "bubble.left.and.text.bubble.right", customImageName: "think"),
+            LVTabItem(id: Self.tabIds.brain, label: "Brain",
+                      systemImage: "brain.head.profile"),
+            LVTabItem(id: Self.tabIds.today, label: "Today",
+                      systemImage: "newspaper.fill"),
+            LVTabItem(id: Self.tabIds.visualsearch, label: "Search",
+                      systemImage: "photo.on.rectangle.angled", customImageName: "visualsearch"),
+            LVTabItem(id: Self.tabIds.settings, label: "Settings",
+                      systemImage: "gear", customImageName: "settings"),
+        ]
     }
 
     private var spacesClient: SpacesClientProtocol {
