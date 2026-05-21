@@ -44,6 +44,18 @@ struct SettingsRootView: View {
                     }
                 }
 
+                // HER-247 — Skills hub: browse, toggle, configure cadence.
+                Section("Automation") {
+                    NavigationLink {
+                        SkillsHubView(
+                            vm: SkillsHubViewModel(client: skillsClient),
+                            detailClient: skillsClient
+                        )
+                    } label: {
+                        Label("Skills", systemImage: "sparkles")
+                    }
+                }
+
                 // HER-179 — APNS category opt-out.
                 Section("Notifications") {
                     NavigationLink {
@@ -67,6 +79,10 @@ struct SettingsRootView: View {
 
     private var apnsPrefsClient: any APNSPrefsClientProtocol {
         APNSPrefsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var skillsClient: any SkillsClientProtocol {
+        SkillsHTTPClient(client: appState.makeHTTPClient())
     }
 
     // MARK: - Client wiring (mirrors MainTabView's per-tab factories)
