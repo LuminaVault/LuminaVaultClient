@@ -6,6 +6,19 @@ enum HermieMascotState: String, CaseIterable, Sendable {
     case idle
     case thinking
     case happy
+    /// HER-179 — fires for ~3 seconds when an APNS digest is delivered
+    /// in-app. Maps to the existing `.happy` Rive trigger until a
+    /// dedicated celebrate animation ships in the .riv file.
+    case celebrating
+
+    /// Rive trigger name fired on the state machine. `.celebrating`
+    /// re-uses `.happy` until artwork lands.
+    var riveTrigger: String {
+        switch self {
+        case .celebrating: "happy"
+        default: rawValue
+        }
+    }
 }
 
 struct HermieMascotView: View {
@@ -54,7 +67,7 @@ struct HermieMascotView: View {
 
     private func fire(state: HermieMascotState) {
         guard let viewModel else { return }
-        viewModel.triggerInput(state.rawValue)
+        viewModel.triggerInput(state.riveTrigger)
     }
 }
 

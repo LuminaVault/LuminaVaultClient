@@ -44,6 +44,15 @@ struct SettingsRootView: View {
                     }
                 }
 
+                // HER-179 — APNS category opt-out.
+                Section("Notifications") {
+                    NavigationLink {
+                        NotificationsPaneView(vm: NotificationsPaneViewModel(client: apnsPrefsClient))
+                    } label: {
+                        Label("Notifications", systemImage: "bell.badge")
+                    }
+                }
+
                 Section("Advanced") {
                     NavigationLink {
                         HermesGatewayPaneView(client: settingsClient)
@@ -54,6 +63,10 @@ struct SettingsRootView: View {
             }
             .navigationTitle("Settings")
         }
+    }
+
+    private var apnsPrefsClient: any APNSPrefsClientProtocol {
+        APNSPrefsHTTPClient(client: appState.makeHTTPClient())
     }
 
     // MARK: - Client wiring (mirrors MainTabView's per-tab factories)
