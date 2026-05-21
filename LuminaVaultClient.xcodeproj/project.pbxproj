@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		36898169B542419BA32DA510 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = F8D79674B58849A9A00C4538 /* Sentry */; };
+		605690302FBF20FF0059C355 /* LuminaVaultShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 605690262FBF20FE0059C355 /* LuminaVaultShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		605871F82FBCCE1E0077984D /* (null) in Frameworks */ = {isa = PBXBuildFile; };
 		605871F92FBCCE1E0077984D /* (null) in Frameworks */ = {isa = PBXBuildFile; };
 		6098173A2FB8BE2500414C79 /* LuminaVaultShared in Frameworks */ = {isa = PBXBuildFile; productRef = 609817392FB8BE2500414C79 /* LuminaVaultShared */; };
@@ -20,6 +21,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		6056902E2FBF20FF0059C355 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6088C4EB2FAE1184006F894F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 605690252FBF20FE0059C355;
+			remoteInfo = LuminaVaultShareExtension;
+		};
 		6088C5012FAE1186006F894F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 6088C4EB2FAE1184006F894F /* Project object */;
@@ -36,13 +44,35 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		605690362FBF20FF0059C355 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				605690302FBF20FF0059C355 /* LuminaVaultShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		605690262FBF20FE0059C355 /* LuminaVaultShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LuminaVaultShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6088C4F32FAE1184006F894F /* LuminaVaultClient.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LuminaVaultClient.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6088C5002FAE1186006F894F /* LuminaVaultClientTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LuminaVaultClientTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6088C50A2FAE1186006F894F /* LuminaVaultClientUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LuminaVaultClientUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		605690352FBF20FF0059C355 /* Exceptions for "LuminaVaultShareExtension" folder in "LuminaVaultShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 605690252FBF20FE0059C355 /* LuminaVaultShareExtension */;
+		};
 		60HER39EXC2026051901AB /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultClient" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -55,6 +85,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		605690272FBF20FE0059C355 /* LuminaVaultShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				605690352FBF20FF0059C355 /* Exceptions for "LuminaVaultShareExtension" folder in "LuminaVaultShareExtension" target */,
+			);
+			path = LuminaVaultShareExtension;
+			sourceTree = "<group>";
+		};
 		6088C4F52FAE1184006F894F /* LuminaVaultClient */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -76,6 +114,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		605690232FBF20FE0059C355 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		6088C4F02FAE1184006F894F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -116,6 +161,7 @@
 				6088C4F52FAE1184006F894F /* LuminaVaultClient */,
 				6088C5032FAE1186006F894F /* LuminaVaultClientTests */,
 				6088C50D2FAE1186006F894F /* LuminaVaultClientUITests */,
+				605690272FBF20FE0059C355 /* LuminaVaultShareExtension */,
 				6088C4F42FAE1184006F894F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -126,6 +172,7 @@
 				6088C4F32FAE1184006F894F /* LuminaVaultClient.app */,
 				6088C5002FAE1186006F894F /* LuminaVaultClientTests.xctest */,
 				6088C50A2FAE1186006F894F /* LuminaVaultClientUITests.xctest */,
+				605690262FBF20FE0059C355 /* LuminaVaultShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -133,6 +180,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		605690252FBF20FE0059C355 /* LuminaVaultShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 605690312FBF20FF0059C355 /* Build configuration list for PBXNativeTarget "LuminaVaultShareExtension" */;
+			buildPhases = (
+				605690222FBF20FE0059C355 /* Sources */,
+				605690232FBF20FE0059C355 /* Frameworks */,
+				605690242FBF20FE0059C355 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				605690272FBF20FE0059C355 /* LuminaVaultShareExtension */,
+			);
+			name = LuminaVaultShareExtension;
+			packageProductDependencies = (
+			);
+			productName = LuminaVaultShareExtension;
+			productReference = 605690262FBF20FE0059C355 /* LuminaVaultShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		6088C4F22FAE1184006F894F /* LuminaVaultClient */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 6088C5142FAE1186006F894F /* Build configuration list for PBXNativeTarget "LuminaVaultClient" */;
@@ -141,10 +210,12 @@
 				6088C4F02FAE1184006F894F /* Frameworks */,
 				6088C4F12FAE1184006F894F /* Resources */,
 				A53E5752B5D24598A86BD3CA /* Upload Debug Symbols to Sentry */,
+				605690362FBF20FF0059C355 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				6056902F2FBF20FF0059C355 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				6088C4F52FAE1184006F894F /* LuminaVaultClient */,
@@ -218,6 +289,9 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
+					605690252FBF20FE0059C355 = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
 					6088C4F22FAE1184006F894F = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
@@ -258,11 +332,19 @@
 				6088C4F22FAE1184006F894F /* LuminaVaultClient */,
 				6088C4FF2FAE1186006F894F /* LuminaVaultClientTests */,
 				6088C5092FAE1186006F894F /* LuminaVaultClientUITests */,
+				605690252FBF20FE0059C355 /* LuminaVaultShareExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		605690242FBF20FE0059C355 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		6088C4F12FAE1184006F894F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -305,6 +387,13 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		605690222FBF20FE0059C355 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		6088C4EF2FAE1184006F894F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -329,6 +418,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		6056902F2FBF20FF0059C355 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 605690252FBF20FE0059C355 /* LuminaVaultShareExtension */;
+			targetProxy = 6056902E2FBF20FF0059C355 /* PBXContainerItemProxy */;
+		};
 		6088C5022FAE1186006F894F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 6088C4F22FAE1184006F894F /* LuminaVaultClient */;
@@ -342,6 +436,90 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		605690322FBF20FF0059C355 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 84X9WYBF36;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LuminaVaultShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LuminaVaultShareExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lumina.fernando.LuminaVaultShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		605690332FBF20FF0059C355 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 84X9WYBF36;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LuminaVaultShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LuminaVaultShareExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lumina.fernando.LuminaVaultShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		605690342FBF20FF0059C355 /* Beta */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 84X9WYBF36;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LuminaVaultShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LuminaVaultShareExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lumina.fernando.LuminaVaultShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Beta;
+		};
 		6088C5122FAE1186006F894F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -790,6 +968,16 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		605690312FBF20FF0059C355 /* Build configuration list for PBXNativeTarget "LuminaVaultShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				605690322FBF20FF0059C355 /* Debug */,
+				605690332FBF20FF0059C355 /* Release */,
+				605690342FBF20FF0059C355 /* Beta */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		6088C4EE2FAE1184006F894F /* Build configuration list for PBXProject "LuminaVaultClient" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -838,7 +1026,7 @@
 			repositoryURL = "https://github.com/LuminaVault/LuminaVaultShared.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 0.20.0;
+				minimumVersion = 0.22.0;
 			};
 		};
 		60GRP000C2FAE1200006F894F /* XCRemoteSwiftPackageReference "Grape" */ = {

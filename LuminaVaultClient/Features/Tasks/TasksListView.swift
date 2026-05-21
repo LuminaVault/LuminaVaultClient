@@ -1,0 +1,109 @@
+// LuminaVaultClient/LuminaVaultClient/Features/Tasks/TasksListView.swift
+//
+// HER-246 — Tasks screen. Consumes /v1/tasks (HER-244 stub). Empty
+// until real job tracking lands.
+
+import LuminaVaultShared
+import SwiftUI
+
+@Observable
+@MainActor
+final class TasksListViewModel {
+    enum LoadState: Equatable { case loading, loaded, failed(String) }
+    var state: LoadState = .loading
+    var tasks: [TaskDTO] = []
+    private let client: TasksClientProtocol
+
+    init(client: TasksClientProtocol) { self.client = client }
+
+    func load() async {
+        state = .loading
+        do {
+            let response = try await client.list(state: nil, limit: 50)
+            tasks = response.tasks
+            state = .loaded
+        } catch {
+            state = .failed("Couldn't load tasks.")
+        }
+    }
+
+    var running: [TaskDTO] { tasks.filter { $0.state == .running } }
+    var queued: [TaskDTO] { tasks.filter { $0.state == .queued } }
+    var completed: [TaskDTO] { tasks.filter { $0.state == .completed } }
+    var failed: [TaskDTO] { tasks.filter { $0.state == .failed } }
+}
+
+struct TasksListView: View {
+    @State var vm: TasksListViewModel
+
+    var body: some View {
+        ZStack {
+            Color.lvNavy.ignoresSafeArea()
+            content
+        }
+        .navigationTitle("Tasks")
+        .lvBackground()
+        .task { await vm.load() }
+        .refreshable { await vm.load() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch vm.state {
+        case .loading:
+            ProgressView().tint(.lvCyan)
+        case .failed(let message):
+            Text(message)
+                .font(.system(size: 13))
+                .foregroundStyle(Color.lvTextMuted)
+                .padding()
+        case .loaded where vm.tasks.isEmpty:
+            VStack(spacing: 8) {
+                Text("No active tasks.")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.lvTextPrimary)
+                Text("Long-running Hermes operations will appear here.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.lvTextSub)
+            }
+            .multilineTextAlignment(.center)
+            .padding(.top, 40)
+        case .loaded:
+            List {
+                section("Running", items: vm.running, tint: .lvCyan)
+                section("Queued", items: vm.queued, tint: .lvTextSub)
+                section("Completed", items: vm.completed, tint: .lvAmber)
+                section("Failed", items: vm.failed, tint: .red)
+            }
+            .scrollContentBackground(.hidden)
+        }
+    }
+
+    @ViewBuilder
+    private func section(_ title: String, items: [TaskDTO], tint: Color) -> some View {
+        if !items.isEmpty {
+            Section(title) {
+                ForEach(items) { task in
+                    HStack(spacing: 10) {
+                        Circle().fill(tint).frame(width: 6, height: 6)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(task.label)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(Color.lvTextPrimary)
+                            if let progress = task.progress {
+                                ProgressView(value: progress).tint(tint)
+                            }
+                        }
+                        Spacer()
+                        if let elapsed = task.elapsedSeconds {
+                            Text("\(elapsed)s")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.lvTextMuted)
+                        }
+                    }
+                    .listRowBackground(Color.lvNavy.opacity(0.5))
+                }
+            }
+        }
+    }
+}

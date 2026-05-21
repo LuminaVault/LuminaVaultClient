@@ -71,6 +71,15 @@ struct SettingsRootView: View {
                     }
                 }
 
+                // HER-250 — backend mode + SOUL.md editor.
+                Section("Server") {
+                    NavigationLink {
+                        ServerConnectionView(vm: ServerConnectionViewModel(soulClient: soulClient))
+                    } label: {
+                        Label("Server Connection", systemImage: "server.rack")
+                    }
+                }
+
                 Section("Advanced") {
                     NavigationLink {
                         HermesGatewayPaneView(client: settingsClient)
@@ -89,6 +98,10 @@ struct SettingsRootView: View {
 
     private var skillsClient: any SkillsClientProtocol {
         SkillsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var soulClient: any SoulClientProtocol {
+        SoulHTTPClient(client: appState.makeHTTPClient())
     }
 
     // MARK: - Client wiring (mirrors MainTabView's per-tab factories)
