@@ -5,6 +5,7 @@
 // four cards (vault health · active tasks · recent insights · system
 // status), and a three-button action row.
 
+import Combine
 import SwiftUI
 
 struct HomeView: View {
@@ -55,6 +56,11 @@ struct HomeView: View {
                 }
             }
             .lvBackground()
+            .onReceive(NotificationCenter.default.publisher(for: BackendModeStore.modeChangedNotification)) { _ in
+                // HER-262 — backend mode flipped; re-pull every card
+                // against the new base URL within one event loop.
+                Task { await vm.refresh() }
+            }
             .task {
                 await vm.refresh()
             }
