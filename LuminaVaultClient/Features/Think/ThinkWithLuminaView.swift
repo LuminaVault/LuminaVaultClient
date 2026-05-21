@@ -24,15 +24,20 @@ struct ThinkWithLuminaView: View {
                     }
                     .padding(.horizontal, 16)
 
-                    if !vm.suggestions.isEmpty && !isInsightActive {
+                    if !vm.suggestions.isEmpty && !isInsightActive && !isEmptyPhase {
                         SuggestionChipsRow(suggestions: vm.suggestions) { suggestion in
                             vm.applySuggestion(suggestion)
                             Task { await vm.ask() }
                         }
                     }
 
-                    HermieMascotView(state: vm.mascotState, size: 140, fallbackImageName: "OnboardingMascot")
-                        .padding(.top, 4)
+                    // HER-255 — only render the standalone mascot when there is
+                    // an active phase; the empty state has its own mascot baked
+                    // into LVEmptyState.
+                    if !isEmptyPhase {
+                        HermieMascotView(state: vm.mascotState, size: 140, fallbackImageName: "OnboardingMascot")
+                            .padding(.top, 4)
+                    }
 
                     phaseContent
                         .padding(.horizontal, 16)
@@ -89,21 +94,31 @@ struct ThinkWithLuminaView: View {
         }
     }
 
+    // HER-255 — dramatic empty state per the issue: mascot front and centre
+    // with a neural particle ring, plus the suggestion chips folded into the
+    // empty surface as floating "holographic" prompts.
     private var placeholderView: some View {
-        VStack(spacing: 8) {
-            Text("What's on your mind?")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(Color.lvTextPrimary)
-            Text("Ask anything. Lumina will pull from your vault and recent learnings.")
-                .font(.system(size: 13))
-                .foregroundStyle(Color.lvTextSub)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.top, 12)
+        LVEmptyState(
+            mascot: .thinking,
+            headline: "What would you like to explore today?",
+            supporting: "Ask anything. Lumina will pull from your vault and recent learnings.",
+            primaryCTA: nil,
+            chips: vm.suggestions.prefix(4).map { suggestion in
+                LVEmptyStateChip(label: suggestion) {
+                    vm.applySuggestion(suggestion)
+                    Task { await vm.ask() }
+                }
+            }
+        )
     }
 
     private var isInsightActive: Bool {
         if case .insight = vm.phase { return true }
+        return false
+    }
+
+    private var isEmptyPhase: Bool {
+        if case .empty = vm.phase { return true }
         return false
     }
 }

@@ -98,6 +98,8 @@ struct SettingsRootView: View {
                 }
             }
             .navigationTitle("Settings")
+            // HER-255 — small Hermie mascot in the top-right corner per issue spec.
+            .lvNavBrand(position: .topTrailing, size: 28)
         }
     }
 
