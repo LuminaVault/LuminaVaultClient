@@ -35,19 +35,7 @@ struct TodayOutputDetailView: View {
                         .foregroundStyle(Color.lvTextPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    if !output.sourceMemoryIDs.isEmpty {
-                        Divider().background(Color.lvBorder)
-                        Text("Cited memories")
-                            .font(.system(size: 11, weight: .semibold))
-                            .tracking(0.6)
-                            .foregroundStyle(Color.lvTextSub)
-                            .textCase(.uppercase)
-                        ForEach(output.sourceMemoryIDs.prefix(10), id: \.self) { id in
-                            Text(id.uuidString)
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundStyle(Color.lvTextMuted)
-                        }
-                    }
+                    sourceFooter
                 }
                 .padding(20)
             }
@@ -65,8 +53,33 @@ struct TodayOutputDetailView: View {
                 }
             }
             .sheet(isPresented: $showingShare) {
-                ShareSheet(activityItems: shareItems)
+                TodayShareSheet(activityItems: shareItems)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var sourceFooter: some View {
+        if let memoryID = output.memoryID {
+            sourceLabel("Memory", value: memoryID.uuidString)
+        } else if let memoID = output.memoID {
+            sourceLabel("Memo", value: memoID.uuidString)
+        } else if let vaultFilePath = output.vaultFilePath {
+            sourceLabel("Vault file", value: vaultFilePath)
+        }
+    }
+
+    private func sourceLabel(_ kind: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Divider().background(Color.lvBorder)
+            Text("Source — \(kind)")
+                .font(.system(size: 11, weight: .semibold))
+                .tracking(0.6)
+                .foregroundStyle(Color.lvTextSub)
+                .textCase(.uppercase)
+            Text(value)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(Color.lvTextMuted)
         }
     }
 
@@ -88,7 +101,7 @@ struct TodayOutputDetailView: View {
 }
 
 /// Thin UIViewControllerRepresentable wrapper around UIActivityViewController.
-struct ShareSheet: UIViewControllerRepresentable {
+struct TodayShareSheet: UIViewControllerRepresentable {
     let activityItems: [Any]
 
     func makeUIViewController(context _: Context) -> UIActivityViewController {

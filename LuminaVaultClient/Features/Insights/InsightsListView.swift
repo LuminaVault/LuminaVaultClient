@@ -144,6 +144,7 @@ struct InsightsListView: View {
     private func label(for section: InsightSection) -> String {
         switch section {
         case .thisWeek: "This week"
+        case .thisMonth: "This month"
         case .patterns: "Patterns"
         case .contradictions: "Contradictions"
         case .connections: "Connections"

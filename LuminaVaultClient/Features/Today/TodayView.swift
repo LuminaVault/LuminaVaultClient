@@ -61,7 +61,7 @@ struct TodayView: View {
             TodayOutputDetailView(output: output)
         }
         .sheet(item: $shareOutput) { output in
-            ShareSheet(activityItems: [
+            TodayShareSheet(activityItems: [
                 "\(output.headline)\n\n\(output.body)\n\n— via Lumina",
             ])
         }
