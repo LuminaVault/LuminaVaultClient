@@ -19,13 +19,15 @@ struct MainTabView: View {
                 SyncStatusBanner()
 
                 TabView {
-                    SpacesListView(
+                    // HER-249 — Workspaces wraps Spaces with workspace-aware
+                    // chrome. Underlying file/folder UI is unchanged for v1.
+                    WorkspacesView(
                         vm: SpacesViewModel(spacesClient: spacesClient),
                         vaultClient: vaultClient,
                         memoryClient: memoryClient,
                     )
                     .tabItem {
-                        Label("Spaces", systemImage: "folder.fill")
+                        Label("Workspaces", systemImage: "folder.fill")
                     }
 
                 home
@@ -147,11 +149,30 @@ struct MainTabView: View {
                 displayName: Self.deriveDisplayName(from: appState.currentEmail)
             ),
             onAskLumina: {
-                // TODO(HER-245 / HER-107): when Sessions list + chat detail
-                // ship, route to those surfaces directly. For now this is
-                // a no-op — tapping defers to the Think tab via the tab bar.
-            }
+                // TODO(HER-107): when chat detail ships, route to it
+                // directly. For now defers to the Think tab.
+            },
+            sessionsDestination: AnyView(
+                SessionsListView(vm: SessionsListViewModel(client: sessionsClient))
+            ),
+            tasksDestination: AnyView(
+                TasksListView(vm: TasksListViewModel(client: tasksClient))
+            ),
+            insightsDestination: AnyView(
+                InsightsListView(vm: InsightsListViewModel(client: insightsClient))
+            ),
+            serverConnectionDestination: AnyView(
+                ServerConnectionView(vm: ServerConnectionViewModel(soulClient: soulClient))
+            )
         )
+    }
+
+    private var sessionsClient: SessionsClientProtocol {
+        SessionsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var soulClient: SoulClientProtocol {
+        SoulHTTPClient(client: appState.makeHTTPClient())
     }
 
     private static func deriveDisplayName(from email: String?) -> String {

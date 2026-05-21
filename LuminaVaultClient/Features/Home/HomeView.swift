@@ -10,37 +10,77 @@ import SwiftUI
 struct HomeView: View {
     @State var vm: HomeViewModel
     let onAskLumina: () -> Void
+    /// HER-245/246/248/250 — pushed destinations from the dashboard cards.
+    /// Owners are constructed by `MainTabView`; HomeView just navigates.
+    let sessionsDestination: AnyView
+    let tasksDestination: AnyView
+    let insightsDestination: AnyView
+    let serverConnectionDestination: AnyView
 
     var body: some View {
-        ZStack {
-            Color.lvNavy.ignoresSafeArea()
-            ScrollView {
-                VStack(spacing: 20) {
-                    DashboardGreetingView(displayName: vm.displayName)
+        NavigationStack {
+            ZStack {
+                Color.lvNavy.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 20) {
+                        DashboardGreetingView(displayName: vm.displayName)
 
-                    VaultHealthCardView(state: vm.stats)
-                    ActiveTasksCardView(state: vm.tasks)
-                    RecentInsightsCardView(state: vm.insights)
-                    SystemStatusCardView(isOnline: vm.isOnline)
+                        NavigationLink { sessionsDestination } label: {
+                            cardTile(systemImage: "bubble.left.and.bubble.right.fill", title: "Sessions", subtitle: "Chat history")
+                        }
+                        VaultHealthCardView(state: vm.stats)
+                        NavigationLink { tasksDestination } label: {
+                            ActiveTasksCardView(state: vm.tasks)
+                        }
+                        NavigationLink { insightsDestination } label: {
+                            RecentInsightsCardView(state: vm.insights)
+                        }
+                        NavigationLink { serverConnectionDestination } label: {
+                            SystemStatusCardView(isOnline: vm.isOnline)
+                        }
 
-                    DashboardActionRowView(
-                        isCompiling: vm.compileViewModel.isBusy,
-                        onNewSession: onAskLumina,
-                        onTriggerCompile: { Task { await vm.triggerCompile() } },
-                        onAskAnything: onAskLumina
-                    )
-                    .padding(.top, 4)
+                        DashboardActionRowView(
+                            isCompiling: vm.compileViewModel.isBusy,
+                            onNewSession: onAskLumina,
+                            onTriggerCompile: { Task { await vm.triggerCompile() } },
+                            onAskAnything: onAskLumina
+                        )
+                        .padding(.top, 4)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 32)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 32)
+                .refreshable {
+                    await vm.refresh()
+                }
             }
-            .refreshable {
+            .lvBackground()
+            .task {
                 await vm.refresh()
             }
         }
-        .lvBackground()
-        .task {
-            await vm.refresh()
+        .buttonStyle(.plain)
+    }
+
+    private func cardTile(systemImage: String, title: String, subtitle: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Color.lvCyan)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.lvTextPrimary)
+                Text(subtitle).font(.system(size: 11)).foregroundStyle(Color.lvTextSub)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").foregroundStyle(Color.lvTextMuted)
         }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.lvNavy.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.lvCyan.opacity(0.15), lineWidth: 1)
+        )
     }
 }
