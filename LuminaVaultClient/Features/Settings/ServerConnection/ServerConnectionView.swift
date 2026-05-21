@@ -9,29 +9,9 @@
 import LuminaVaultShared
 import SwiftUI
 
-enum BackendMode: String, CaseIterable, Identifiable {
-    case hosted
-    case byo
-    case tailscale
-    case localhost
-    var id: String { rawValue }
-    var label: String {
-        switch self {
-        case .hosted: "Hosted"
-        case .byo: "BYO endpoint"
-        case .tailscale: "Tailscale"
-        case .localhost: "Localhost dev"
-        }
-    }
-    var subtitle: String {
-        switch self {
-        case .hosted: "luminavault.example managed instance."
-        case .byo: "Your own Hermes URL (HER-218)."
-        case .tailscale: "MagicDNS host on your tailnet."
-        case .localhost: "127.0.0.1 for dev rigs."
-        }
-    }
-}
+// HER-262 — `BackendMode` is now defined in `Services/ServerConnection/
+// BackendMode.swift` so `Config.apiBaseURL` can read it. This view model
+// delegates persistence + change-notification to `BackendModeStore`.
 
 @Observable
 @MainActor
@@ -42,12 +22,10 @@ final class ServerConnectionViewModel {
     var soulSaving: Bool = false
     var mode: BackendMode
     private let soulClient: SoulClientProtocol
-    private let modeKey = "lv.serverConnection.backendMode"
 
     init(soulClient: SoulClientProtocol) {
         self.soulClient = soulClient
-        let raw = UserDefaults.standard.string(forKey: modeKey) ?? BackendMode.hosted.rawValue
-        self.mode = BackendMode(rawValue: raw) ?? .hosted
+        self.mode = BackendModeStore.current
     }
 
     func load() async {
@@ -63,7 +41,7 @@ final class ServerConnectionViewModel {
 
     func setMode(_ newMode: BackendMode) {
         mode = newMode
-        UserDefaults.standard.set(newMode.rawValue, forKey: modeKey)
+        BackendModeStore.set(newMode)
     }
 
     func saveSoul() async {

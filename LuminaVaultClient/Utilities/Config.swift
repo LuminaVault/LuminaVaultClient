@@ -43,8 +43,12 @@ enum Config {
         }
     }
 
+    /// HER-262 — `BackendMode` is the user-facing selection persisted by
+    /// the Settings → Server Connection screen. When set it overrides
+    /// the build-time `AppEnvironment`. Re-read on every access so
+    /// flipping the mode hot-swaps the URL the next HTTP call uses.
     static var apiBaseURL: URL {
-        currentEnvironment.apiBaseURL
+        BackendModeStore.current.defaultBaseURL
     }
 
     /// Provider client IDs are read from Info.plist keys so they can be
