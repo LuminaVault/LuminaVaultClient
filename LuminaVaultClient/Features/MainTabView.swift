@@ -9,11 +9,16 @@
 // as the 4th tab. Reuses the existing memory-query HTTP client.
 // HER-255: replaces the stock TabView chrome with LVTabBar (glass background
 // + glowing underline on the active tab + pulse on Home when insights pend).
+// HER-243: trims the bar to 5 tabs (Spaces · Home · Think · Memory · Settings),
+// re-anchors CaptureFAB to the bar centre, and floats HermieMascotView above
+// the FAB. Today + VisualSearch surfaces move into Home dashboard cards
+// (HER-244 already accepts the AnyView destinations).
 import SwiftUI
 
 struct MainTabView: View {
     @Environment(AppState.self) private var appState
-    @State private var selection: String = "workspaces"
+    @State private var selection: String = "home"
+    @State private var hermieState: HermieMascotState = .idle
     @Namespace private var tabUnderline
 
     private static let tabIds = (
@@ -21,8 +26,6 @@ struct MainTabView: View {
         home: "home",
         think: "think",
         brain: "brain",
-        today: "today",
-        visualsearch: "visualsearch",
         settings: "settings"
     )
 
@@ -58,23 +61,9 @@ struct MainTabView: View {
                     .tag(Self.tabIds.think)
                     .toolbar(.hidden, for: .tabBar)
 
-                    // HER-235: Brain tab — Obsidian-style memory graph.
+                    // HER-235: Memory tab — Obsidian-style memory graph.
                     BrainTabView(client: memoryGraphClient)
                         .tag(Self.tabIds.brain)
-                        .toolbar(.hidden, for: .tabBar)
-
-                    // HER-177: Today tab — skill outputs feed.
-                    TodayView(vm: TodayViewModel(client: todayClient))
-                        .tag(Self.tabIds.today)
-                        .toolbar(.hidden, for: .tabBar)
-
-                    // HER-157 surface wired by HER-VisualSearchWire.
-                    VisualSearchView(viewModel: VisualSearchViewModel(
-                        ocr: ImageOCRService(),
-                        client: memoryClient,
-                        telemetry: LoggerTelemetry(),
-                    ))
-                        .tag(Self.tabIds.visualsearch)
                         .toolbar(.hidden, for: .tabBar)
 
                     // HER-212: Settings tab — Privacy & Data + Advanced (Hermes Gateway).
@@ -84,14 +73,34 @@ struct MainTabView: View {
                 }
             }
 
-            LVTabBar(items: tabItems, selection: $selection, underlineNamespace: tabUnderline)
+            // HER-243 — 5-tab bar with 84pt centre gap reserved for the FAB.
+            LVTabBar(
+                items: tabItems,
+                selection: $selection,
+                underlineNamespace: tabUnderline,
+                centerGapWidth: 84,
+            )
 
-            // HER-34 / HER-255 — capture FAB rides above the new glow tab bar.
-            // 12pt clearance from the bar top, matched to LVTabBar height.
-            CaptureFAB()
-                .padding(.trailing, 20)
-                .padding(.bottom, 84)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            // HER-243 — capture FAB anchored centrally over the bar gap, with
+            // Hermie mascot floating above it. FAB is raised ~14pt so it
+            // overlaps the bar top; Hermie sits another 56pt above the FAB.
+            VStack(spacing: 8) {
+                HermieMascotView(
+                    state: hermieState,
+                    size: 44,
+                )
+                CaptureFAB()
+            }
+            .padding(.bottom, 70)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .allowsHitTesting(true)
+        }
+        .onChange(of: selection) { _, newValue in
+            // HER-243 — drive Hermie state from the active tab. ".thinking"
+            // for Think tab; calm idle elsewhere. Streaming-aware sub-state
+            // wiring lands when ThinkWithLuminaViewModel exposes its phase
+            // via the AppState observation tree.
+            hermieState = (newValue == Self.tabIds.think) ? .thinking : .idle
         }
     }
 
@@ -103,12 +112,8 @@ struct MainTabView: View {
                       systemImage: "sparkles", customImageName: "home"),
             LVTabItem(id: Self.tabIds.think, label: "Think",
                       systemImage: "bubble.left.and.text.bubble.right", customImageName: "think"),
-            LVTabItem(id: Self.tabIds.brain, label: "Brain",
+            LVTabItem(id: Self.tabIds.brain, label: "Memory",
                       systemImage: "brain.head.profile"),
-            LVTabItem(id: Self.tabIds.today, label: "Today",
-                      systemImage: "newspaper.fill"),
-            LVTabItem(id: Self.tabIds.visualsearch, label: "Search",
-                      systemImage: "photo.on.rectangle.angled", customImageName: "visualsearch"),
             LVTabItem(id: Self.tabIds.settings, label: "Settings",
                       systemImage: "gear", customImageName: "settings"),
         ]

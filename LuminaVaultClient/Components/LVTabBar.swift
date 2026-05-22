@@ -40,25 +40,39 @@ struct LVTabBar: View {
     @Binding var selection: String
     /// Optional horizontal namespace for matchedGeometryEffect (the underline).
     private let underlineNamespace: Namespace.ID
+    /// HER-243 — when > 0, splits the items into two halves with a clear
+    /// horizontal spacer in the middle, leaving room for an overlaid FAB.
+    private let centerGapWidth: CGFloat
 
-    init(items: [LVTabItem], selection: Binding<String>, underlineNamespace: Namespace.ID) {
+    init(
+        items: [LVTabItem],
+        selection: Binding<String>,
+        underlineNamespace: Namespace.ID,
+        centerGapWidth: CGFloat = 0,
+    ) {
         self.items = items
-        self._selection = selection
+        _selection = selection
         self.underlineNamespace = underlineNamespace
+        self.centerGapWidth = centerGapWidth
     }
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(items) { item in
-                LVTabBarButton(
-                    item: item,
-                    isActive: item.id == selection,
-                    underlineNamespace: underlineNamespace,
-                    onTap: { withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
-                        selection = item.id
-                    } }
-                )
-                .frame(maxWidth: .infinity)
+            if centerGapWidth > 0, items.count >= 2 {
+                let mid = items.count / 2
+                let frontHalf = Array(items.prefix(mid))
+                let backHalf = Array(items.suffix(from: mid))
+                ForEach(frontHalf) { item in
+                    tabButton(item)
+                }
+                Spacer().frame(width: centerGapWidth)
+                ForEach(backHalf) { item in
+                    tabButton(item)
+                }
+            } else {
+                ForEach(items) { item in
+                    tabButton(item)
+                }
             }
         }
         .padding(.horizontal, 8)
@@ -78,6 +92,19 @@ struct LVTabBar: View {
             }
             .ignoresSafeArea(edges: .bottom)
         }
+    }
+
+    @ViewBuilder
+    private func tabButton(_ item: LVTabItem) -> some View {
+        LVTabBarButton(
+            item: item,
+            isActive: item.id == selection,
+            underlineNamespace: underlineNamespace,
+            onTap: { withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                selection = item.id
+            } },
+        )
+        .frame(maxWidth: .infinity)
     }
 }
 
