@@ -7,6 +7,9 @@
 import SwiftUI
 
 struct ThinkWithLuminaView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State var vm: ThinkWithLuminaViewModel
     let memoClient: MemoClientProtocol
 
@@ -53,7 +56,7 @@ struct ThinkWithLuminaView: View {
                         MemoListView(vm: MemoListViewModel(client: memoClient))
                     } label: {
                         Image(systemName: "book.closed.fill")
-                            .foregroundStyle(Color.lvAmber)
+                            .foregroundStyle(palette.accent)
                     }
                 }
             }
@@ -72,7 +75,7 @@ struct ThinkWithLuminaView: View {
         case .querying:
             ProgressView("Thinking…")
                 .progressViewStyle(.circular)
-                .tint(Color.lvCyan)
+                .tint(palette.primary)
                 .padding(.top, 24)
         case let .insight(response, queryText):
             InsightCardView(

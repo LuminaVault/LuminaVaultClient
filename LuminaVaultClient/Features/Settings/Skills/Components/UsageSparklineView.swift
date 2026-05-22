@@ -7,6 +7,9 @@ import LuminaVaultShared
 import SwiftUI
 
 struct UsageSparklineView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let points: [SkillSparklinePoint]
 
     var body: some View {
@@ -16,7 +19,7 @@ struct UsageSparklineView: View {
                 ForEach(Array(points.enumerated()), id: \.offset) { _, point in
                     let height = max(2, proxy.size.height * CGFloat(point.count) / CGFloat(maxCount))
                     Capsule()
-                        .fill(point.count > 0 ? Color.lvCyan : Color.lvCyan.opacity(0.18))
+                        .fill(point.count > 0 ? palette.primary : palette.primary.opacity(0.18))
                         .frame(height: height)
                 }
             }

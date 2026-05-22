@@ -3,6 +3,9 @@
 import SwiftUI
 
 struct AskLuminaInputView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Binding var text: String
     var isBusy: Bool
     var onSubmit: () -> Void
@@ -10,7 +13,7 @@ struct AskLuminaInputView: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "sparkles")
-                .foregroundStyle(Color.lvAmber)
+                .foregroundStyle(palette.accent)
                 .font(.system(size: 16, weight: .semibold))
             TextField("Ask Lumina anything about your life…", text: $text, axis: .vertical)
                 .textFieldStyle(.plain)
@@ -33,13 +36,13 @@ struct AskLuminaInputView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.lvCyan.opacity(0.25), lineWidth: 1)
+                .stroke(palette.primary.opacity(0.25), lineWidth: 1)
         )
     }
 
     private var submitColor: Color {
         text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isBusy
-            ? Color.lvTextSub.opacity(0.4)
-            : Color.lvCyan
+            ? palette.textSecondary.opacity(0.4)
+            : palette.primary
     }
 }

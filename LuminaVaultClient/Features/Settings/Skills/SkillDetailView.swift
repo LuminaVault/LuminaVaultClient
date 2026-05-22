@@ -8,11 +8,14 @@ import LuminaVaultShared
 import SwiftUI
 
 struct SkillDetailView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State var vm: SkillDetailViewModel
 
     var body: some View {
         ZStack {
-            Color.lvNavy.ignoresSafeArea()
+            palette.backgroundBase.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     header
@@ -36,7 +39,7 @@ struct SkillDetailView: View {
                     set: { newValue in Task { await vm.toggle(enabled: newValue) } }
                 ))
                 .labelsHidden()
-                .tint(.lvCyan)
+                .tint(palette.primary)
             }
         }
         .task { await vm.loadRuns() }
@@ -46,10 +49,10 @@ struct SkillDetailView: View {
         HStack(spacing: 10) {
             Image(systemName: vm.skill.source == .builtin ? "sparkle" : "puzzlepiece.fill")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(Color.lvCyan)
+                .foregroundStyle(palette.primary)
             Text(vm.skill.source == .builtin ? "Built-in" : "Custom")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
                 .textCase(.uppercase)
                 .tracking(0.6)
             Spacer()
@@ -59,7 +62,7 @@ struct SkillDetailView: View {
     private var descriptionSection: some View {
         Text(vm.skill.descriptionText)
             .font(.system(size: 14))
-            .foregroundStyle(Color.lvTextPrimary)
+            .foregroundStyle(palette.textPrimary)
     }
 
     private var cadenceSection: some View {
@@ -107,7 +110,7 @@ struct SkillDetailView: View {
             sectionLabel("Recent runs")
             switch vm.runsState {
             case .loading:
-                ProgressView().tint(.lvCyan)
+                ProgressView().tint(palette.primary)
             case .failed(let message):
                 Text(message)
                     .font(.system(size: 12))
@@ -133,7 +136,7 @@ struct SkillDetailView: View {
                 .frame(width: 6, height: 6)
             Text(Self.formatter.localizedString(for: run.startedAt, relativeTo: Date()))
                 .font(.system(size: 12))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
             Spacer()
             Text(run.status.rawValue)
                 .font(.system(size: 11, weight: .semibold))
@@ -145,7 +148,7 @@ struct SkillDetailView: View {
     private func color(for status: SkillRunStatus) -> Color {
         switch status {
         case .success: .green
-        case .running, .pending: .lvCyan
+        case .running, .pending: palette.primary
         case .error: .red
         }
     }
@@ -153,7 +156,7 @@ struct SkillDetailView: View {
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(Color.lvTextSub)
+            .foregroundStyle(palette.textSecondary)
             .textCase(.uppercase)
             .tracking(0.6)
     }

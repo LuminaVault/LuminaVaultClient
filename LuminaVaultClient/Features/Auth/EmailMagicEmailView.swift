@@ -3,6 +3,8 @@ import SwiftUI
 
 /// HER-142 step 1 — collect email, POST `/v1/auth/email/start`.
 struct EmailMagicEmailView: View {
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: AuthViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -10,11 +12,11 @@ struct EmailMagicEmailView: View {
         VStack(spacing: 0) {
             Text("Sign in with a code")
                 .font(.system(size: 20, weight: .heavy))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .padding(.bottom, 4)
             Text("We'll email you a 6-digit code. No password needed.")
                 .font(.system(size: 11))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
@@ -48,7 +50,7 @@ struct EmailMagicEmailView: View {
                 dismiss()
             }
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(Color.lvCyan.opacity(0.7))
+            .foregroundStyle(palette.primary.opacity(0.7))
         }
     }
 }

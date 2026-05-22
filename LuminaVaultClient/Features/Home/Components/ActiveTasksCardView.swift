@@ -8,6 +8,9 @@ import LuminaVaultShared
 import SwiftUI
 
 struct ActiveTasksCardView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let state: HomeViewModel.CardState<[TaskDTO]>
 
     var body: some View {
@@ -45,12 +48,12 @@ struct ActiveTasksCardView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(task.label)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                     .lineLimit(1)
                 if let progress = task.progress {
                     ProgressView(value: progress)
                         .progressViewStyle(.linear)
-                        .tint(.lvCyan)
+                        .tint(palette.primary)
                 }
             }
             Spacer()
@@ -68,9 +71,9 @@ struct ActiveTasksCardView: View {
 
     private func color(for state: TaskState) -> Color {
         switch state {
-        case .running: return .lvCyan
-        case .queued: return .lvTextSub
-        case .completed: return .lvAmber
+        case .running: return palette.primary
+        case .queued: return palette.textSecondary
+        case .completed: return palette.accent
         case .failed: return .red
         }
     }

@@ -49,6 +49,9 @@ enum AuthProviderOption: String, CaseIterable, Identifiable, Sendable {
 }
 
 struct AuthLandingView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: AuthViewModel
     @AppStorage("lv.auth.preferredProvider") private var preferredRaw: String = ""
 
@@ -76,10 +79,10 @@ struct AuthLandingView: View {
 
                 Text("Welcome to LuminaVault")
                     .font(.system(size: 20, weight: .heavy))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 Text("Pick a way to sign in or create an account.")
                     .font(.system(size: 11))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
                     .padding(.top, 4)
                     .padding(.bottom, 26)
 
@@ -98,17 +101,17 @@ struct AuthLandingView: View {
                 } label: {
                     Text("Use email & password")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Color.lvCyan)
+                        .foregroundStyle(palette.primary)
                 }
                 .padding(.bottom, 10)
 
                 HStack(spacing: 4) {
                     Text("Don't have an account?")
                         .font(.system(size: 11))
-                        .foregroundStyle(Color.lvTextSub)
+                        .foregroundStyle(palette.textSecondary)
                     NavigationLink("Sign Up") { SignUpView(vm: vm) }
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(Color.lvCyan)
+                        .foregroundStyle(palette.primary)
                 }
             }
             .padding(.horizontal, 24)
@@ -155,6 +158,8 @@ struct AuthLandingView: View {
 /// (network call inside `AuthViewModel`); phone / email wrap the same
 /// visual treatment around a `NavigationLink` to the next screen.
 private struct AuthLandingButton: View {
+    @Environment(\.lvPalette) private var palette
+
     let vm: AuthViewModel
     let option: AuthProviderOption
     let isPreferred: Bool
@@ -186,15 +191,15 @@ private struct AuthLandingButton: View {
             iconView
             Text(option.label)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             Spacer()
             if isPreferred {
                 Text("Last used")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Color.lvCyan)
+                    .foregroundStyle(palette.primary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Color.lvCyan.opacity(0.12))
+                    .background(palette.primary.opacity(0.12))
                     .clipShape(Capsule())
             }
         }
@@ -204,7 +209,7 @@ private struct AuthLandingButton: View {
         .background(Color.lvGlass)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isPreferred ? Color.lvCyan.opacity(0.55) : Color.lvBorder,
+                .stroke(isPreferred ? palette.primary.opacity(0.55) : palette.surfaceStroke,
                         lineWidth: isPreferred ? 1.5 : 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -220,23 +225,23 @@ private struct AuthLandingButton: View {
         case .apple:
             Image(systemName: "apple.logo")
                 .font(.system(size: 18))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
         case .google:
             Text("G")
                 .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
         case .x:
             Text("𝕏")
                 .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
         case .phone:
             Image(systemName: "phone.fill")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color.lvCyan)
+                .foregroundStyle(palette.primary)
         case .email:
             Image(systemName: "envelope.fill")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color.lvCyan)
+                .foregroundStyle(palette.primary)
         }
     }
 }

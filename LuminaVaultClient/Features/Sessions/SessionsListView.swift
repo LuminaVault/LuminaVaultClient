@@ -40,12 +40,15 @@ final class SessionsListViewModel {
 }
 
 struct SessionsListView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State var vm: SessionsListViewModel
     @Environment(WorkspaceSelection.self) private var workspaceSelection
 
     var body: some View {
         ZStack {
-            Color.lvNavy.ignoresSafeArea()
+            palette.backgroundBase.ignoresSafeArea()
             content
         }
         .navigationTitle("Sessions")
@@ -64,7 +67,7 @@ struct SessionsListView: View {
     private var content: some View {
         switch vm.state {
         case .loading:
-            ProgressView().tint(.lvCyan)
+            ProgressView().tint(palette.primary)
         case .failed(let message):
             Text(message)
                 .font(.system(size: 13))
@@ -76,7 +79,7 @@ struct SessionsListView: View {
             List {
                 ForEach(vm.sessions) { session in
                     row(session)
-                        .listRowBackground(Color.lvNavy.opacity(0.5))
+                        .listRowBackground(palette.backgroundBase.opacity(0.5))
                 }
             }
             .scrollContentBackground(.hidden)
@@ -88,7 +91,7 @@ struct SessionsListView: View {
             HStack {
                 Text(session.title)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 Spacer()
                 Text("\(session.messageCount) msg")
                     .font(.system(size: 11))
@@ -96,7 +99,7 @@ struct SessionsListView: View {
             }
             Text(session.preview)
                 .font(.system(size: 12))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
                 .lineLimit(2)
             Text(Self.formatter.localizedString(for: session.lastMessageAt, relativeTo: Date()))
                 .font(.system(size: 10))
@@ -109,10 +112,10 @@ struct SessionsListView: View {
         VStack(spacing: 8) {
             Text("No sessions yet.")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             Text("Start a chat from Think to see it here.")
                 .font(.system(size: 12))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
         }
         .multilineTextAlignment(.center)
         .padding(.top, 40)

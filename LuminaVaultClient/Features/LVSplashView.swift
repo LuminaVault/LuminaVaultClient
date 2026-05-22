@@ -2,6 +2,9 @@
 import SwiftUI
 
 struct LVSplashView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State private var pulseScale1: CGFloat = 0.5
     @State private var pulseScale2: CGFloat = 0.5
     @State private var pulseScale3: CGFloat = 0.5
@@ -16,17 +19,17 @@ struct LVSplashView: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Color.lvCyan.opacity(0.18), lineWidth: 1.5)
+                .stroke(palette.primary.opacity(0.18), lineWidth: 1.5)
                 .scaleEffect(pulseScale1)
                 .opacity(pulseOpacity1)
                 .frame(width: 280, height: 280)
             Circle()
-                .stroke(Color.lvCyan.opacity(0.12), lineWidth: 1)
+                .stroke(palette.primary.opacity(0.12), lineWidth: 1)
                 .scaleEffect(pulseScale2)
                 .opacity(pulseOpacity2)
                 .frame(width: 280, height: 280)
             Circle()
-                .stroke(Color.lvAmber.opacity(0.10), lineWidth: 1)
+                .stroke(palette.accent.opacity(0.10), lineWidth: 1)
                 .scaleEffect(pulseScale3)
                 .opacity(pulseOpacity3)
                 .frame(width: 280, height: 280)
@@ -40,14 +43,14 @@ struct LVSplashView: View {
                     .font(.system(size: 13, weight: .bold))
                     .tracking(4.0)
                     .foregroundStyle(LinearGradient(
-                        colors: [.lvAmber, .lvCyan],
+                        colors: [palette.accent, palette.primary],
                         startPoint: .leading, endPoint: .trailing
                     ))
                     .opacity(wordmarkOpacity)
 
                 Text("Your memories, illuminated.")
                     .font(.system(size: 11))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
                     .opacity(taglineOpacity)
             }
         }

@@ -2,6 +2,9 @@
 import SwiftUI
 
 struct LVButton: View {
+
+    @Environment(\.lvPalette) private var palette
+
     private let title: String
     private let isLoading: Bool
     private let action: () -> Void
@@ -30,9 +33,9 @@ struct LVButton: View {
                 ZStack {
                     LinearGradient(
                         stops: [
-                            .init(color: .lvCyan,               location: 0.0),
-                            .init(color: .lvBlue,               location: 0.6),
-                            .init(color: .lvAmber.opacity(0.7), location: 1.0)
+                            .init(color: palette.primary,               location: 0.0),
+                            .init(color: palette.secondary,               location: 0.6),
+                            .init(color: palette.accent.opacity(0.7), location: 1.0)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -51,8 +54,8 @@ struct LVButton: View {
                 }
             )
             .clipShape(RoundedRectangle(cornerRadius: 13))
-            .shadow(color: Color.lvCyan.opacity(0.35), radius: 12, y: 4)
-            .shadow(color: Color.lvAmber.opacity(0.15), radius: 24, y: 8)
+            .shadow(color: palette.primary.opacity(0.35), radius: 12, y: 4)
+            .shadow(color: palette.accent.opacity(0.15), radius: 24, y: 8)
         }
         .buttonStyle(.plain)
         .disabled(isLoading)

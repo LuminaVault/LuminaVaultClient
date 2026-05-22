@@ -2,6 +2,9 @@
 import SwiftUI
 
 struct SignUpView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: AuthViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -12,9 +15,9 @@ struct SignUpView: View {
                     .padding(.bottom, 24)
 
                 Text("Create account")
-                    .font(.system(size: 20, weight: .heavy)).foregroundStyle(Color.lvTextPrimary)
+                    .font(.system(size: 20, weight: .heavy)).foregroundStyle(palette.textPrimary)
                 Text("Capture. Compile. Illuminate.")
-                    .font(.system(size: 11)).foregroundStyle(Color.lvTextSub)
+                    .font(.system(size: 11)).foregroundStyle(palette.textSecondary)
                     .padding(.top, 4).padding(.bottom, 22)
 
                 VStack(spacing: 10) {
@@ -52,9 +55,9 @@ struct SignUpView: View {
 
                 HStack(spacing: 4) {
                     Text("Already have an account?")
-                        .font(.system(size: 11)).foregroundStyle(Color.lvTextSub)
+                        .font(.system(size: 11)).foregroundStyle(palette.textSecondary)
                     Button("Sign In") { dismiss() }
-                        .font(.system(size: 11, weight: .bold)).foregroundStyle(Color.lvCyan)
+                        .font(.system(size: 11, weight: .bold)).foregroundStyle(palette.primary)
                 }
             }
             .padding(.horizontal, 24).padding(.top, 32).padding(.bottom, 40)

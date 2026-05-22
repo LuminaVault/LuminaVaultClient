@@ -7,6 +7,9 @@
 import SwiftUI
 
 struct InsightCardView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let response: QueryResponse
     let queryText: String
     let followUps: [String]
@@ -18,11 +21,11 @@ struct InsightCardView: View {
             header
             Text(response.summary)
                 .font(.system(size: 15))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
             if !response.hits.isEmpty {
-                Divider().overlay(Color.lvBorder)
+                Divider().overlay(palette.surfaceStroke)
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(response.hits) { hit in
                         SourceLinkRow(hit: hit)
@@ -37,9 +40,9 @@ struct InsightCardView: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background(
-                            Capsule().fill(Color.lvAmber.opacity(0.15))
+                            Capsule().fill(palette.accent.opacity(0.15))
                         )
-                        .foregroundStyle(Color.lvAmber)
+                        .foregroundStyle(palette.accent)
                 }
                 .buttonStyle(.plain)
                 Spacer()
@@ -56,7 +59,7 @@ struct InsightCardView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.lvBorder, lineWidth: 1)
+                .stroke(palette.surfaceStroke, lineWidth: 1)
         )
     }
 
@@ -64,7 +67,7 @@ struct InsightCardView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(queryText)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
                 .lineLimit(2)
             Text(provenance)
                 .font(.system(size: 11))

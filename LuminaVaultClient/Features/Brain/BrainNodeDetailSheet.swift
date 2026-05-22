@@ -8,6 +8,9 @@ import LuminaVaultShared
 import SwiftUI
 
 struct BrainNodeDetailSheet: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let node: MemoryGraphNodeDTO
 
     var body: some View {
@@ -16,14 +19,14 @@ struct BrainNodeDetailSheet: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Text(node.title)
                         .font(.title2.weight(.semibold))
-                        .foregroundStyle(Color.lvTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
 
                     HStack(spacing: 8) {
                         Image(systemName: "clock")
                         Text(node.createdAt, style: .date)
                     }
                     .font(.footnote)
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
 
                     if !node.tags.isEmpty {
                         FlowLayout(spacing: 6) {
@@ -32,8 +35,8 @@ struct BrainNodeDetailSheet: View {
                                     .font(.caption.weight(.medium))
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 5)
-                                    .background(Color.lvCyan.opacity(0.15))
-                                    .foregroundStyle(Color.lvCyan)
+                                    .background(palette.primary.opacity(0.15))
+                                    .foregroundStyle(palette.primary)
                                     .clipShape(Capsule())
                             }
                         }
@@ -45,7 +48,7 @@ struct BrainNodeDetailSheet: View {
                             .foregroundStyle(Color.lvTextMuted)
                         Text(String(format: "%.2f", node.score))
                             .font(.body.monospacedDigit())
-                            .foregroundStyle(Color.lvTextPrimary)
+                            .foregroundStyle(palette.textPrimary)
                     }
                 }
                 .padding(.horizontal, 20)

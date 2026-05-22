@@ -10,6 +10,9 @@ import LuminaVaultShared
 import SwiftUI
 
 struct TodayOutputDetailView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let output: SkillOutputDTO
     @Environment(\.dismiss) private var dismiss
     @State private var showingShare = false
@@ -20,19 +23,19 @@ struct TodayOutputDetailView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(output.headline)
                         .font(.system(size: 22, weight: .heavy))
-                        .foregroundStyle(Color.lvTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
 
                     Text(output.skillName)
                         .font(.system(size: 11, weight: .semibold))
                         .tracking(0.6)
-                        .foregroundStyle(Color.lvTextSub)
+                        .foregroundStyle(palette.textSecondary)
                         .textCase(.uppercase)
 
-                    Divider().background(Color.lvBorder)
+                    Divider().background(palette.surfaceStroke)
 
                     rendered
                         .font(.system(size: 14))
-                        .foregroundStyle(Color.lvTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     sourceFooter
@@ -71,11 +74,11 @@ struct TodayOutputDetailView: View {
 
     private func sourceLabel(_ kind: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Divider().background(Color.lvBorder)
+            Divider().background(palette.surfaceStroke)
             Text("Source — \(kind)")
                 .font(.system(size: 11, weight: .semibold))
                 .tracking(0.6)
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
                 .textCase(.uppercase)
             Text(value)
                 .font(.system(size: 11, design: .monospaced))

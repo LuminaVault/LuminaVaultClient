@@ -8,6 +8,9 @@
 import SwiftUI
 
 struct SpacesListView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: SpacesViewModel
     let vaultClient: VaultClientProtocol
     let memoryClient: MemoryQueryClientProtocol
@@ -45,7 +48,7 @@ struct SpacesListView: View {
                         presentingSearch = true
                     } label: {
                         Image(systemName: "magnifyingglass")
-                            .foregroundStyle(Color.lvCyan)
+                            .foregroundStyle(palette.primary)
                     }
                 }
             }
@@ -150,7 +153,7 @@ struct SpacesListView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color.lvNavy.opacity(0.5))
+        .background(palette.backgroundBase.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .padding(.horizontal, 16)
         .padding(.top, 8)
@@ -170,7 +173,7 @@ struct SpacesListView: View {
                             .font(.system(size: 13, weight: .semibold))
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
-                            .background(isSelected ? Color.lvCyan : Color.lvNavy.opacity(0.5))
+                            .background(isSelected ? palette.primary : palette.backgroundBase.opacity(0.5))
                             .foregroundStyle(isSelected ? .black : .primary)
                             .clipShape(Capsule())
                     }
@@ -205,7 +208,7 @@ struct SpacesListView: View {
                 .frame(width: 56, height: 56)
                 .background(
                     LinearGradient(
-                        colors: [.lvCyan, .lvAmber],
+                        colors: [palette.primary, palette.accent],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing,
                     )

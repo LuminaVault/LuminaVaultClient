@@ -2,13 +2,21 @@
 import SwiftUI
 
 struct SparkleField: View {
+
+    @Environment(\.lvPalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var density: Int = 10
     var seed: UInt64 = 0xC05_5_C0DE
     var maxRadius: CGFloat = 1.8
     var driftSpeed: Double = 1.0
-    var palette: [Color] = [Color.lvCyan, Color.lvAmber, Color.white]
+    /// Override the sparkle tint palette. When nil, derives from the active
+    /// `\.lvPalette` so theme switches re-tint the field automatically.
+    var colors: [Color]? = nil
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var resolvedColors: [Color] {
+        colors ?? [palette.primary, palette.accent, Color.white]
+    }
 
     var body: some View {
         let particles = buildParticles()
@@ -39,7 +47,7 @@ struct SparkleField: View {
                 omega: 0.08 + rng.nextDouble() * 0.14,
                 phase: rng.nextDouble() * .pi * 2,
                 dotRadius: 0.9 + rng.nextDouble() * (maxRadius - 0.9),
-                paletteIdx: rng.nextInt(upperBound: palette.count)
+                paletteIdx: rng.nextInt(upperBound: resolvedColors.count)
             )
         }
     }
@@ -63,7 +71,7 @@ struct SparkleField: View {
 
             let twinkle = sin(driftT * p.omega + p.phase)
             let alpha = 0.30 + 0.55 * (twinkle * twinkle)
-            let color = palette[p.paletteIdx].opacity(alpha)
+            let color = resolvedColors[p.paletteIdx].opacity(alpha)
 
             let rect = CGRect(
                 x: x - p.dotRadius,

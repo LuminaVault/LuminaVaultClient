@@ -1,18 +1,21 @@
 import SwiftUI
 
 struct ForgotPasswordOTPView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: AuthViewModel
 
     var body: some View {
         VStack(spacing: 0) {
-            StepIcon(systemName: "envelope", color: .lvAmber)
+            StepIcon(systemName: "envelope", color: palette.accent)
             Text("Check your email")
-                .font(.system(size: 20, weight: .heavy)).foregroundStyle(Color.lvTextPrimary)
+                .font(.system(size: 20, weight: .heavy)).foregroundStyle(palette.textPrimary)
                 .padding(.bottom, 4)
             Group {
-                Text("We sent a code to ") + Text(vm.forgotEmail).foregroundColor(Color.lvCyan)
+                Text("We sent a code to ") + Text(vm.forgotEmail).foregroundColor(palette.primary)
             }
-            .font(.system(size: 11)).foregroundStyle(Color.lvTextSub)
+            .font(.system(size: 11)).foregroundStyle(palette.textSecondary)
             .multilineTextAlignment(.center).padding(.bottom, 24)
 
             OTPFieldRow(code: $vm.otpCode).padding(.bottom, 16)
@@ -24,7 +27,7 @@ struct ForgotPasswordOTPView: View {
                 .padding(.bottom, 16)
 
             Button("Didn't receive it? Resend") { Task { await vm.sendResetCode() } }
-                .font(.system(size: 10)).foregroundStyle(Color.lvCyan.opacity(0.65))
+                .font(.system(size: 10)).foregroundStyle(palette.primary.opacity(0.65))
         }
         .padding(.horizontal, 24)
     }

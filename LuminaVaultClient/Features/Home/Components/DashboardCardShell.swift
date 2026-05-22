@@ -1,13 +1,16 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Home/Components/DashboardCardShell.swift
 //
 // HER-244 — reusable card chrome for the OS Shell Home/Dashboard. Mirrors
-// the established SpaceCardView pattern (.lvNavy fill + .lvCyan stroke +
+// the established SpaceCardView pattern (palette.backgroundBase fill + palette.primary stroke +
 // 16-pt corner radius) so cards land in the same visual family as the
 // rest of the app.
 
 import SwiftUI
 
 struct DashboardCardShell<Content: View>: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let title: String
     let icon: String
     @ViewBuilder var content: () -> Content
@@ -17,10 +20,10 @@ struct DashboardCardShell<Content: View>: View {
             HStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.lvCyan)
+                    .foregroundStyle(palette.primary)
                 Text(title)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
                     .textCase(.uppercase)
                     .tracking(0.6)
                 Spacer()
@@ -29,11 +32,11 @@ struct DashboardCardShell<Content: View>: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.lvNavy.opacity(0.5))
+        .background(palette.backgroundBase.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.lvCyan.opacity(0.15), lineWidth: 1)
+                .stroke(palette.primary.opacity(0.15), lineWidth: 1)
         )
     }
 }

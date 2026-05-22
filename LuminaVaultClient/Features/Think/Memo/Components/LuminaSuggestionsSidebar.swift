@@ -5,18 +5,21 @@
 import SwiftUI
 
 struct LuminaSuggestionsSidebar: View {
+
+    @Environment(\.lvPalette) private var palette
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Image(systemName: "sparkles")
-                    .foregroundStyle(Color.lvAmber)
+                    .foregroundStyle(palette.accent)
                 Text("Lumina's Suggestions")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
             }
             Text("Suggestions tied to your vault and SOUL.md appear here once the memo planner is wired up.")
                 .font(.system(size: 12))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -27,7 +30,7 @@ struct LuminaSuggestionsSidebar: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.lvBorder, lineWidth: 1)
+                .stroke(palette.surfaceStroke, lineWidth: 1)
         )
     }
 }

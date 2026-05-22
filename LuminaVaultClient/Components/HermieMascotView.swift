@@ -22,6 +22,9 @@ enum HermieMascotState: String, CaseIterable, Sendable {
 }
 
 struct HermieMascotView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let state: HermieMascotState
     var size: CGFloat = 220
     var fallbackImageName: String = "Mascot"
@@ -43,8 +46,8 @@ struct HermieMascotView: View {
                     .frame(width: size, height: size)
             }
         }
-        .shadow(color: Color.lvCyan.opacity(0.45), radius: 30)
-        .shadow(color: Color.lvAmber.opacity(0.20), radius: 50)
+        .shadow(color: palette.primary.opacity(0.45), radius: 30)
+        .shadow(color: palette.accent.opacity(0.20), radius: 50)
         .accessibilityLabel("Hermie mascot — \(state.rawValue)")
         .task { loadIfAvailable() }
         .onChange(of: state) { _, newValue in

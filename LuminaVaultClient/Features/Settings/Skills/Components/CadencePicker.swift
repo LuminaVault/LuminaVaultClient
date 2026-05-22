@@ -22,6 +22,9 @@ struct CadencePreset: Identifiable, Hashable {
 }
 
 struct CadencePicker: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Binding var scheduleOverride: String?
     var onCommit: (String) -> Void
 
@@ -42,11 +45,11 @@ struct CadencePicker: View {
                     HStack {
                         Text(preset.label)
                             .font(.system(size: 14))
-                            .foregroundStyle(Color.lvTextPrimary)
+                            .foregroundStyle(palette.textPrimary)
                         Spacer()
                         if isCurrent(preset) {
                             Image(systemName: "checkmark")
-                                .foregroundStyle(Color.lvCyan)
+                                .foregroundStyle(palette.primary)
                         }
                     }
                     .padding(.vertical, 8)
@@ -62,7 +65,7 @@ struct CadencePicker: View {
                         .autocorrectionDisabled()
                         .font(.system(.body, design: .monospaced))
                         .padding(8)
-                        .background(Color.lvNavy.opacity(0.6))
+                        .background(palette.backgroundBase.opacity(0.6))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     if let customError {
                         Text(customError)
@@ -79,12 +82,12 @@ struct CadencePicker: View {
                         }
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.lvCyan)
+                    .tint(palette.primary)
                     .disabled(customCron.isEmpty)
                 }
                 .padding(.top, 4)
             }
-            .tint(.lvTextSub)
+            .tint(palette.textSecondary)
         }
     }
 

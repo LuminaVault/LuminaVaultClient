@@ -6,6 +6,9 @@
 import SwiftUI
 
 struct DashboardGreetingView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let displayName: String
 
     var body: some View {
@@ -16,7 +19,7 @@ struct DashboardGreetingView: View {
                 .font(.system(size: 22, weight: .heavy))
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [.lvAmber, .lvCyan],
+                        colors: [palette.accent, palette.primary],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
@@ -25,7 +28,7 @@ struct DashboardGreetingView: View {
 
             Text("Your second brain is online.")
                 .font(.system(size: 13))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
         }
         .padding(.top, 8)
     }

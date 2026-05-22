@@ -2,16 +2,19 @@
 import SwiftUI
 
 struct ForgotPasswordEmailView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: AuthViewModel
 
     var body: some View {
         VStack(spacing: 0) {
-            StepIcon(systemName: "lock", color: .lvCyan)
+            StepIcon(systemName: "lock", color: palette.primary)
             Text("Forgot password?")
-                .font(.system(size: 20, weight: .heavy)).foregroundStyle(Color.lvTextPrimary)
+                .font(.system(size: 20, weight: .heavy)).foregroundStyle(palette.textPrimary)
                 .padding(.bottom, 4)
             Text("We'll send a verification code to your email")
-                .font(.system(size: 11)).foregroundStyle(Color.lvTextSub)
+                .font(.system(size: 11)).foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center).padding(.bottom, 24)
 
             LVTextField(placeholder: "Email", text: $vm.forgotEmail,

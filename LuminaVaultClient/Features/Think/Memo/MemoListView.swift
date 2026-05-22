@@ -4,6 +4,9 @@
 import SwiftUI
 
 struct MemoListView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State var vm: MemoListViewModel
 
     var body: some View {
@@ -19,7 +22,7 @@ struct MemoListView: View {
                             .font(.system(size: 14, weight: .semibold))
                         Text(message)
                             .font(.system(size: 12))
-                            .foregroundStyle(Color.lvTextSub)
+                            .foregroundStyle(palette.textSecondary)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.top, 60)
@@ -44,13 +47,13 @@ struct MemoListView: View {
         VStack(spacing: 10) {
             Image(systemName: "bookmark")
                 .font(.system(size: 32))
-                .foregroundStyle(Color.lvAmber.opacity(0.6))
+                .foregroundStyle(palette.accent.opacity(0.6))
             Text("No memos yet")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             Text("Save an insight from \"Think with Lumina\" and it will land here.")
                 .font(.system(size: 12))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
         }
         .padding(.top, 80)

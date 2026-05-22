@@ -3,18 +3,21 @@
 import SwiftUI
 
 struct MemoRowView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let memo: MemoSummaryDTO
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "bookmark.fill")
-                .foregroundStyle(Color.lvAmber)
+                .foregroundStyle(palette.accent)
                 .font(.system(size: 14))
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 4) {
                 Text(memo.title)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                     .lineLimit(2)
                 Text(memo.createdAt, style: .date)
                     .font(.system(size: 11))
@@ -22,7 +25,7 @@ struct MemoRowView: View {
                 if let summary = memo.summary, !summary.isEmpty {
                     Text(summary)
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.lvTextSub)
+                        .foregroundStyle(palette.textSecondary)
                         .lineLimit(3)
                 }
             }
@@ -35,7 +38,7 @@ struct MemoRowView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.lvBorder, lineWidth: 1)
+                .stroke(palette.surfaceStroke, lineWidth: 1)
         )
     }
 }

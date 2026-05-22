@@ -9,6 +9,9 @@
 import SwiftUI
 
 struct VaultSearchView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: VaultSearchViewModel
     let vaultClient: VaultClientProtocol
     @Environment(\.dismiss) private var dismiss
@@ -33,11 +36,11 @@ struct VaultSearchView: View {
     private var searchBar: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
             TextField("Ask Lumina or find a file…", text: $vm.query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .submitLabel(.search)
                 .onSubmit { Task { await vm.run() } }
             if !vm.query.isEmpty {
@@ -55,7 +58,7 @@ struct VaultSearchView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color.lvGlass)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12).stroke(Color.lvBorder, lineWidth: 1),
+                    RoundedRectangle(cornerRadius: 12).stroke(palette.surfaceStroke, lineWidth: 1),
                 ),
         )
         .padding(.horizontal, 16)
@@ -106,10 +109,10 @@ struct VaultSearchView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Lumina says")
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Color.lvCyan)
+                .foregroundStyle(palette.primary)
             Text(summary)
                 .font(.system(size: 14))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .textSelection(.enabled)
         }
         .padding(14)
@@ -118,7 +121,7 @@ struct VaultSearchView: View {
             RoundedRectangle(cornerRadius: 14)
                 .fill(Color.lvGlass)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14).stroke(Color.lvBorder, lineWidth: 1),
+                    RoundedRectangle(cornerRadius: 14).stroke(palette.surfaceStroke, lineWidth: 1),
                 ),
         )
     }
@@ -138,7 +141,7 @@ struct VaultSearchView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(hit.content)
                 .font(.system(size: 13))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .lineLimit(3)
             if let createdAt = hit.createdAt {
                 Text(createdAt, style: .relative)
@@ -157,11 +160,11 @@ struct VaultSearchView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text((file.path as NSString).lastPathComponent)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .lineLimit(1)
             Text(file.path)
                 .font(.system(size: 11))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
                 .lineLimit(1)
         }
         .padding(12)
@@ -178,10 +181,10 @@ struct VaultSearchView: View {
                 .foregroundStyle(Color.lvTextMuted)
             Text("Nothing found")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             Text("Try a different word, or capture more memories first.")
                 .font(.system(size: 12))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
             Spacer()

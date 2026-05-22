@@ -2,6 +2,9 @@
 import SwiftUI
 
 struct LVSecureField: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let placeholder: String
     @Binding var text: String
     var textContentType: UITextContentType? = .password
@@ -21,7 +24,7 @@ struct LVSecureField: View {
                 }
             }
             .font(.system(size: 12))
-            .foregroundStyle(Color.lvTextPrimary)
+            .foregroundStyle(palette.textPrimary)
             .focused($focused)
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
@@ -38,7 +41,7 @@ struct LVSecureField: View {
         .background(Color.lvGlass)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(focused ? Color.lvBorderFocus : Color.lvBorder, lineWidth: 1)
+                .stroke(focused ? palette.glowPrimary : palette.surfaceStroke, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }

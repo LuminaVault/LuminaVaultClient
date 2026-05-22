@@ -10,6 +10,9 @@ import LuminaVaultShared
 import SwiftUI
 
 struct BrainTabView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State private var vm: BrainGraphViewModel
 
     init(client: any MemoryGraphClientProtocol) {
@@ -66,10 +69,10 @@ struct BrainTabView: View {
         VStack(spacing: 16) {
             ProgressView()
                 .controlSize(.large)
-                .tint(.lvCyan)
+                .tint(palette.primary)
             Text("Building your brain…")
                 .font(.callout)
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .lvBackground()
@@ -79,14 +82,14 @@ struct BrainTabView: View {
         VStack(spacing: 12) {
             Image(systemName: "brain.head.profile")
                 .font(.system(size: 56))
-                .foregroundStyle(Color.lvCyan.opacity(0.6))
+                .foregroundStyle(palette.primary.opacity(0.6))
             Text("No memories yet")
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             Text("Capture or save memories to grow your brain.")
                 .font(.callout)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
                 .padding(.horizontal, 32)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -97,18 +100,18 @@ struct BrainTabView: View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 42))
-                .foregroundStyle(Color.lvAmber)
+                .foregroundStyle(palette.accent)
             Text("Couldn't load your brain")
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             Text(message)
                 .font(.callout)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
                 .padding(.horizontal, 32)
             Button("Try again") { Task { await vm.load() } }
                 .buttonStyle(.borderedProminent)
-                .tint(.lvCyan)
+                .tint(palette.primary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .lvBackground()

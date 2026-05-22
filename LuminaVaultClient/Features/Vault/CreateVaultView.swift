@@ -5,6 +5,9 @@
 import SwiftUI
 
 struct CreateVaultView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: CreateVaultViewModel
 
     var body: some View {
@@ -55,7 +58,7 @@ struct CreateVaultView: View {
 
     private var backgroundGradient: some View {
         LinearGradient(
-            colors: [.lvBlue.opacity(0.15), .lvCyan.opacity(0.05), Color.clear],
+            colors: [palette.secondary.opacity(0.15), palette.primary.opacity(0.05), Color.clear],
             startPoint: .top,
             endPoint: .bottom,
         )

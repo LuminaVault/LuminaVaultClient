@@ -6,6 +6,9 @@
 import SwiftUI
 
 struct SystemStatusCardView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let isOnline: Bool
 
     var body: some View {
@@ -17,10 +20,10 @@ struct SystemStatusCardView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(isOnline ? "Hermes reachable" : "Hermes unreachable")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.lvTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                     Text(isOnline ? "All systems operational." : "Check your network or server URL.")
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.lvTextSub)
+                        .foregroundStyle(palette.textSecondary)
                 }
                 Spacer()
             }

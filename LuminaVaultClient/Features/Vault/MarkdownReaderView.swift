@@ -5,6 +5,9 @@
 import SwiftUI
 
 struct MarkdownReaderView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let file: VaultFileDTO
     let vaultClient: VaultClientProtocol
 
@@ -18,13 +21,13 @@ struct MarkdownReaderView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text((file.path as NSString).lastPathComponent)
                     .font(.system(size: 18, weight: .heavy))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 Text(file.path)
                     .font(.system(size: 11))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
 
                 Divider()
-                    .background(Color.lvBorder)
+                    .background(palette.surfaceStroke)
 
                 if isLoading {
                     HStack { Spacer(); ProgressView(); Spacer() }
@@ -36,19 +39,19 @@ struct MarkdownReaderView: View {
                 } else if let content {
                     Text(content)
                         .font(.system(size: 14))
-                        .foregroundStyle(Color.lvTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .textSelection(.enabled)
                 } else if let rawText {
                     Text(rawText)
                         .font(.system(size: 14, design: .monospaced))
-                        .foregroundStyle(Color.lvTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .textSelection(.enabled)
                 } else {
                     Text("Binary file — preview unavailable.")
                         .font(.system(size: 13))
-                        .foregroundStyle(Color.lvTextSub)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
             .padding(.horizontal, 20)

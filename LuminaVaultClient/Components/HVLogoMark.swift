@@ -12,6 +12,9 @@
 import SwiftUI
 
 struct LVLogoMark: View {
+
+    @Environment(\.lvPalette) private var palette
+
     enum Size {
         case auth, splash
         case custom(CGFloat)
@@ -82,8 +85,8 @@ struct LVLogoMark: View {
 
     private var scrollLayer: some View {
         WingedScrollRiveView(size: resolvedSize)
-            .shadow(color: Color.lvCyan.opacity(glowCyanAlpha), radius: glowCyanRadius)
-            .shadow(color: Color.lvAmber.opacity(glowAmberAlpha), radius: glowAmberRadius)
+            .shadow(color: palette.primary.opacity(glowCyanAlpha), radius: glowCyanRadius)
+            .shadow(color: palette.accent.opacity(glowAmberAlpha), radius: glowAmberRadius)
     }
 
     @ViewBuilder
@@ -104,8 +107,8 @@ struct LVLogoMark: View {
         let orb = resolvedSize * orbScale
         return RadialGradient(
             colors: [
-                Color.lvCyan.opacity(0.35 * alphaScale),
-                Color.lvBlue.opacity(0.18 * alphaScale),
+                palette.primary.opacity(0.35 * alphaScale),
+                palette.secondary.opacity(0.18 * alphaScale),
                 Color.clear
             ],
             center: .center,
@@ -117,7 +120,7 @@ struct LVLogoMark: View {
     private func amberHaloGradient(orbRadius: CGFloat) -> RadialGradient {
         RadialGradient(
             colors: [
-                Color.lvAmber.opacity(0.22 * alphaScale),
+                palette.accent.opacity(0.22 * alphaScale),
                 Color.clear
             ],
             center: .topTrailing,
@@ -129,9 +132,9 @@ struct LVLogoMark: View {
     private var rimGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color.lvCyan.opacity(0.5),
+                palette.primary.opacity(0.5),
                 Color.clear,
-                Color.lvAmber.opacity(0.35)
+                palette.accent.opacity(0.35)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing

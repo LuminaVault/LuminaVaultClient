@@ -2,6 +2,9 @@
 import SwiftUI
 
 struct GetStartedView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     var onContinue: () -> Void
 
     @State private var titleOpacity: Double = 0
@@ -18,7 +21,7 @@ struct GetStartedView: View {
                 Text("Welcome to LuminaVault")
                     .font(.system(size: 28, weight: .heavy))
                     .foregroundStyle(LinearGradient(
-                        colors: [.lvAmber, .lvCyan],
+                        colors: [palette.accent, palette.primary],
                         startPoint: .leading, endPoint: .trailing
                     ))
                     .multilineTextAlignment(.center)
@@ -26,7 +29,7 @@ struct GetStartedView: View {
 
                 Text("Your memories, illuminated. Let Lumina remember everything for you — privately, on your own server.")
                     .font(.system(size: 15))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
                     .opacity(subtitleOpacity)

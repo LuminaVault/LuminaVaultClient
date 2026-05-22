@@ -34,11 +34,14 @@ final class TasksListViewModel {
 }
 
 struct TasksListView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State var vm: TasksListViewModel
 
     var body: some View {
         ZStack {
-            Color.lvNavy.ignoresSafeArea()
+            palette.backgroundBase.ignoresSafeArea()
             content
         }
         .navigationTitle("Tasks")
@@ -51,7 +54,7 @@ struct TasksListView: View {
     private var content: some View {
         switch vm.state {
         case .loading:
-            ProgressView().tint(.lvCyan)
+            ProgressView().tint(palette.primary)
         case .failed(let message):
             Text(message)
                 .font(.system(size: 13))
@@ -61,18 +64,18 @@ struct TasksListView: View {
             VStack(spacing: 8) {
                 Text("No active tasks.")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 Text("Long-running Hermes operations will appear here.")
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
             }
             .multilineTextAlignment(.center)
             .padding(.top, 40)
         case .loaded:
             List {
-                section("Running", items: vm.running, tint: .lvCyan)
-                section("Queued", items: vm.queued, tint: .lvTextSub)
-                section("Completed", items: vm.completed, tint: .lvAmber)
+                section("Running", items: vm.running, tint: palette.primary)
+                section("Queued", items: vm.queued, tint: palette.textSecondary)
+                section("Completed", items: vm.completed, tint: palette.accent)
                 section("Failed", items: vm.failed, tint: .red)
             }
             .scrollContentBackground(.hidden)
@@ -89,7 +92,7 @@ struct TasksListView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(task.label)
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(Color.lvTextPrimary)
+                                .foregroundStyle(palette.textPrimary)
                             if let progress = task.progress {
                                 ProgressView(value: progress).tint(tint)
                             }
@@ -101,7 +104,7 @@ struct TasksListView: View {
                                 .foregroundStyle(Color.lvTextMuted)
                         }
                     }
-                    .listRowBackground(Color.lvNavy.opacity(0.5))
+                    .listRowBackground(palette.backgroundBase.opacity(0.5))
                 }
             }
         }

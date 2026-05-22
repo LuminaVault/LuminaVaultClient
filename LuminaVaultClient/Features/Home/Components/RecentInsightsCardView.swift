@@ -7,6 +7,9 @@ import LuminaVaultShared
 import SwiftUI
 
 struct RecentInsightsCardView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let state: HomeViewModel.CardState<[InsightDTO]>
 
     var body: some View {
@@ -40,11 +43,11 @@ struct RecentInsightsCardView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(insight.headline)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .lineLimit(2)
             Text(insight.summary)
                 .font(.system(size: 12))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
                 .lineLimit(2)
         }
     }
