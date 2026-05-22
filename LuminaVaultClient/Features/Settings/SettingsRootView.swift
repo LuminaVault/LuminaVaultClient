@@ -101,6 +101,12 @@ struct SettingsRootView: View {
                             ConnectionBadge(state: .unknown)
                         }
                     }
+                    // HER-241 — Telegram/Discord/Slack/WhatsApp bridges.
+                    NavigationLink {
+                        HermesGatewaysPaneView(client: hermesGatewaysClient)
+                    } label: {
+                        Label("Messaging Gateways", systemImage: "bubble.left.and.bubble.right")
+                    }
                     // HER-252 — per-user primary model + fallback chain.
                     NavigationLink {
                         LLMPreferencesPaneView(client: llmPreferencesClient)
@@ -152,5 +158,10 @@ struct SettingsRootView: View {
 
     private var llmPreferencesClient: any LLMPreferencesClientProtocol {
         LLMPreferencesHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    // HER-241 — per-user Hermes messaging gateway configurator.
+    private var hermesGatewaysClient: any HermesGatewaysClientProtocol {
+        HermesGatewaysHTTPClient(client: appState.makeHTTPClient())
     }
 }
