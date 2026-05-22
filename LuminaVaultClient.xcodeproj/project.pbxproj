@@ -72,6 +72,15 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5269C20E41A0D2C9D8A9B4E6 /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Services/AppGroup/SharedAppGroup.swift,
+				Services/AppGroup/PendingShare.swift,
+				Services/AppGroup/SharedShareQueue.swift,
+			);
+			target = 605690252FBF20FE0059C355 /* LuminaVaultShareExtension */;
+		};
 		605690352FBF20FF0059C355 /* Exceptions for "LuminaVaultShareExtension" folder in "LuminaVaultShareExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -103,6 +112,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				60HER39EXC2026051901AB /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultClient" target */,
+				5269C20E41A0D2C9D8A9B4E6 /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultShareExtension" target */,
 			);
 			path = LuminaVaultClient;
 			sourceTree = "<group>";
