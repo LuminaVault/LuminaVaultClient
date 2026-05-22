@@ -94,6 +94,9 @@
 				Config/Info.plist,
 				Config/README.md,
 				Resources/Hermie/README.md,
+				Resources/README.md,
+				Resources/SplashHero/README.md,
+				Resources/GetStartedHero/README.md,
 			);
 			target = 6088C4F22FAE1184006F894F /* LuminaVaultClient */;
 		};
