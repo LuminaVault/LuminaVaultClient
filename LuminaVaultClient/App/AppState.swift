@@ -145,6 +145,21 @@ final class AppState {
         )
     }
 
+    /// HER-107 — Conversations client factory. Mirrors `makeHTTPClient()`
+    /// so the Conversations endpoints share the refresh coordinator and
+    /// the bearer-token provider. Used by the chat surface in the Think
+    /// tab.
+    func makeConversationsClient() -> any ConversationsClientProtocol {
+        ConversationsHTTPClient(client: makeHTTPClient())
+    }
+
+    /// HER-107 — non-streaming chat client (BYO-Hermes-aware
+    /// `/v1/chat/completions`). Paired with the conversations client as
+    /// the "fresh" transport in the chat surface's mode toggle.
+    func makeChatClient() -> any ChatClientProtocol {
+        ChatHTTPClient(client: makeHTTPClient())
+    }
+
     func handleAuthSuccess(_ response: AuthResponse) {
         keychain.accessToken = response.accessToken
         keychain.refreshToken = response.refreshToken
