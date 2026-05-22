@@ -56,12 +56,15 @@ enum BackendModeStore {
     static let modeChangedNotification = Notification.Name("lv.backendMode.changed")
 
     static var current: BackendMode {
-        guard let raw = UserDefaults.standard.string(forKey: userDefaultsKey),
-              let mode = BackendMode(rawValue: raw)
-        else {
-            return .hosted
+        if let raw = UserDefaults.standard.string(forKey: userDefaultsKey),
+           let mode = BackendMode(rawValue: raw) {
+            return mode
         }
-        return mode
+        #if DEBUG
+        return .localhost
+        #else
+        return .hosted
+        #endif
     }
 
     static func set(_ newMode: BackendMode) {

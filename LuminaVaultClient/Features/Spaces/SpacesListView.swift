@@ -110,18 +110,19 @@ struct SpacesListView: View {
     private var content: some View {
         ScrollView {
             VStack(spacing: 16) {
+                if let error = vm.error {
+                    errorBanner(message: error)
+                }
                 searchField
                 categoryChips
-                if let error = vm.error {
-                    Text(error)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                        .padding(.horizontal, 16)
-                }
                 if vm.isLoading && vm.spaces.isEmpty {
                     ProgressView().padding(.top, 40)
                 } else if vm.visibleSpaces.isEmpty {
-                    emptyState
+                    if vm.error != nil {
+                        errorEmptyState
+                    } else {
+                        emptyState
+                    }
                 } else {
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(vm.visibleSpaces) { space in
@@ -195,6 +196,33 @@ struct SpacesListView: View {
             backgroundImage: "Lumina/Backgrounds/neural-network"
         )
         .padding(.top, 32)
+    }
+
+    private var errorEmptyState: some View {
+        LVEmptyState(
+            mascot: .thinking,
+            headline: "Can't reach the server.",
+            supporting: vm.error,
+            primaryCTA: ("Retry", { Task { await vm.load() } }),
+            chips: []
+        )
+        .padding(.top, 32)
+    }
+
+    private func errorBanner(message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption)
+            Text(message)
+                .font(.caption.weight(.medium))
+                .lineLimit(2)
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity)
+        .background(Color.red.opacity(0.18))
+        .foregroundStyle(.red)
     }
 
     private var createButton: some View {
