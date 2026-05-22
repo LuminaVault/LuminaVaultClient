@@ -32,11 +32,6 @@ struct DashboardCardShell<Content: View>: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(palette.backgroundBase.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(palette.primary.opacity(0.15), lineWidth: 1)
-        )
+        .lvGlassCard(cornerRadius: 16, intensity: 0.45)
     }
 }

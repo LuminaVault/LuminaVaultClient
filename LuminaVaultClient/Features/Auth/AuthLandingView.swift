@@ -206,15 +206,15 @@ private struct AuthLandingButton: View {
         .padding(.horizontal, 14)
         .frame(maxWidth: .infinity)
         .frame(height: 48)
-        .background(Color.lvGlass)
+        .lvGlassCard(cornerRadius: 12, intensity: isPreferred ? 0.7 : 0.35)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isPreferred ? palette.primary.opacity(0.55) : palette.surfaceStroke,
-                        lineWidth: isPreferred ? 1.5 : 1)
+                .stroke(isPreferred ? palette.primary.opacity(0.55) : Color.clear,
+                        lineWidth: isPreferred ? 1.5 : 0)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
         .scaleEffect(isPreferred ? 1.02 : 1.0)
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPreferred)
+        .lvGlowPress()
         .accessibilityLabel(option.label)
         .accessibilityAddTraits(isPreferred ? [.isSelected] : [])
     }

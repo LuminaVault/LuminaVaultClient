@@ -47,14 +47,14 @@ struct TodayCardView: View {
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(palette.backgroundBase.opacity(0.5))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .lvGlassCard(cornerRadius: 16, intensity: highlighted ? 0.9 : 0.5)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(highlighted ? palette.accent : palette.primary.opacity(0.18), lineWidth: highlighted ? 2 : 1)
+                    .stroke(highlighted ? palette.accent : Color.clear, lineWidth: 2)
             )
         }
         .buttonStyle(.plain)
+        .lvGlowPress()
     }
 
     private var icon: String {

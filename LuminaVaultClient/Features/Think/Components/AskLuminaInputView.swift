@@ -30,14 +30,7 @@ struct AskLuminaInputView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.lvGlass)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(palette.primary.opacity(0.25), lineWidth: 1)
-        )
+        .lvGlassCard(cornerRadius: 16, intensity: 0.4)
     }
 
     private var submitColor: Color {

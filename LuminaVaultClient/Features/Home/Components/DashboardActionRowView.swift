@@ -81,6 +81,7 @@ struct DashboardActionRowView: View {
             )
         }
         .buttonStyle(.plain)
+        .lvGlowPress()
         .disabled(isLoading)
     }
 }

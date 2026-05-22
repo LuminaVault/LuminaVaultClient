@@ -32,13 +32,6 @@ struct MemoRowView: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.lvGlass)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(palette.surfaceStroke, lineWidth: 1)
-        )
+        .lvGlassCard(cornerRadius: 14, intensity: 0.4)
     }
 }

@@ -53,14 +53,7 @@ struct InsightCardView: View {
             }
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.lvGlass)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(palette.surfaceStroke, lineWidth: 1)
-        )
+        .lvGlassCard(cornerRadius: 18, intensity: 0.55)
     }
 
     private var header: some View {

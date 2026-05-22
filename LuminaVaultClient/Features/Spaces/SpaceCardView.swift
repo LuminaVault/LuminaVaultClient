@@ -53,11 +53,6 @@ struct SpaceCardView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
-        .background(palette.backgroundBase.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(palette.primary.opacity(0.15), lineWidth: 1)
-        )
+        .lvGlassCard(cornerRadius: 16, intensity: 0.5)
     }
 }
