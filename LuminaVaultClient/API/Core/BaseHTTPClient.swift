@@ -81,6 +81,13 @@ final class BaseHTTPClient: Sendable {
         if let http = response as? HTTPURLResponse {
             log.debug("← \(http.statusCode) \(endpoint.path)")
             if http.statusCode == 401 { throw APIError.unauthorized }
+            if http.statusCode == 402 {
+                // HER-188 — best-effort parse of `{ "paywall_id": "...",
+                // "required_tier": "pro" }`. Bare 402 still produces a
+                // typed error so EntitlementGate can present a paywall.
+                let hints = try? JSONDecoder.hvDefault.decode(PaymentRequiredBody.self, from: data)
+                throw APIError.paymentRequired(paywallID: hints?.paywallID, requiredTier: hints?.requiredTier)
+            }
             guard (200..<300).contains(http.statusCode) else {
                 throw APIError.httpError(statusCode: http.statusCode, data: data)
             }
@@ -124,6 +131,13 @@ final class BaseHTTPClient: Sendable {
         if let http = response as? HTTPURLResponse {
             log.debug("← \(http.statusCode) \(path) [upload]")
             if http.statusCode == 401 { throw APIError.unauthorized }
+            if http.statusCode == 402 {
+                // HER-188 — best-effort parse of `{ "paywall_id": "...",
+                // "required_tier": "pro" }`. Bare 402 still produces a
+                // typed error so EntitlementGate can present a paywall.
+                let hints = try? JSONDecoder.hvDefault.decode(PaymentRequiredBody.self, from: data)
+                throw APIError.paymentRequired(paywallID: hints?.paywallID, requiredTier: hints?.requiredTier)
+            }
             guard (200..<300).contains(http.statusCode) else {
                 throw APIError.httpError(statusCode: http.statusCode, data: data)
             }
@@ -164,6 +178,13 @@ final class BaseHTTPClient: Sendable {
         if let http = response as? HTTPURLResponse {
             log.debug("← \(http.statusCode) \(path) [bytes]")
             if http.statusCode == 401 { throw APIError.unauthorized }
+            if http.statusCode == 402 {
+                // HER-188 — best-effort parse of `{ "paywall_id": "...",
+                // "required_tier": "pro" }`. Bare 402 still produces a
+                // typed error so EntitlementGate can present a paywall.
+                let hints = try? JSONDecoder.hvDefault.decode(PaymentRequiredBody.self, from: data)
+                throw APIError.paymentRequired(paywallID: hints?.paywallID, requiredTier: hints?.requiredTier)
+            }
             guard (200..<300).contains(http.statusCode) else {
                 throw APIError.httpError(statusCode: http.statusCode, data: data)
             }

@@ -80,6 +80,15 @@ struct SettingsRootView: View {
                     }
                 }
 
+                // HER-188 — subscription tier, restore purchases, legal links.
+                Section("Subscription") {
+                    NavigationLink {
+                        SubscriptionView()
+                    } label: {
+                        Label("Subscription", systemImage: "creditcard")
+                    }
+                }
+
                 // HER-250 — backend mode + SOUL.md editor.
                 Section("Server") {
                     NavigationLink {
