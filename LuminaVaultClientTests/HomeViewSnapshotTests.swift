@@ -4,7 +4,7 @@
 // the populated, loading, and empty states in light + dark mode.
 //
 // Reference simulator: **iPhone 16 Pro** with iOS 18+ SDK. To record
-// references, flip `isRecording = true` once, run the suite, then
+// references, flip `isRecording = false` once, run the suite, then
 // commit `__Snapshots__/`. Animations are disabled and perceptual
 // precision is loose to keep snapshots determinstic across CI hosts.
 
@@ -54,7 +54,7 @@ final class HomeViewSnapshotTests: XCTestCase {
     }
 
     private func makeView(_ vm: HomeViewModel) -> some View {
-        HomeView(vm: vm, onAskLumina: {})
+        HomeView(vm: vm, onAskLumina: {}, sessionsDestination: AnyView(EmptyView()), tasksDestination: AnyView(EmptyView()), insightsDestination: AnyView(EmptyView()), serverConnectionDestination: AnyView(EmptyView()))
             .transaction { $0.disablesAnimations = true }
     }
 
