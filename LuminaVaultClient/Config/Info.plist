@@ -51,6 +51,7 @@
 	<array>
 		<string>processing</string>
 		<string>fetch</string>
+		<string>remote-notification</string>
 	</array>
 	<!-- HER-39: BGTaskScheduler identifiers used by the offline sync engine. -->
 	<key>BGTaskSchedulerPermittedIdentifiers</key>

@@ -92,7 +92,12 @@ final class BaseHTTPClient: Sendable {
                 throw APIError.httpError(statusCode: http.statusCode, data: data)
             }
         }
-        do { return try endpoint.decoder.decode(E.Response.self, from: data) }
+        // HER-214 — 204 No Content (and any 2xx with an empty body) is
+        // valid for endpoints typed as `EmptyResponse`-style structs.
+        // Substitute `{}` so the decoder round-trips an empty value
+        // instead of throwing "Unexpected end of file".
+        let payload = data.isEmpty ? Data("{}".utf8) : data
+        do { return try endpoint.decoder.decode(E.Response.self, from: payload) }
         catch { throw APIError.decodingFailed(error) }
     }
 

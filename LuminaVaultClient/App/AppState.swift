@@ -61,6 +61,14 @@ final class AppState {
     /// `MockPurchasesProxy` so `BillingService` can be exercised without
     /// the RC SDK actually running.
     @ObservationIgnored var purchasesProxyFactory: @MainActor () -> PurchasesProxy = { LiveRevenueCatProxy() }
+    /// HER-214 — owns the POST/DELETE lifecycle for the APNS device
+    /// token. Lazily built on first read so we don't spin up an HTTP
+    /// client until a sign-in actually puts a token in flight.
+    @ObservationIgnored private(set) lazy var deviceRegistration: DeviceRegistrationCoordinator = {
+        DeviceRegistrationCoordinator(
+            client: DeviceHTTPClient(client: makeHTTPClient())
+        )
+    }()
 
     init(
         keychain: KeychainService = .shared,
@@ -150,7 +158,7 @@ final class AppState {
                 return response.accessToken
             },
             onAuthFailure: { [weak self] in
-                await MainActor.run { self?.signOut() }
+                await self?.signOut()
             },
             refreshCoordinator: coordinator
         )
@@ -181,7 +189,12 @@ final class AppState {
         Task { await billing.bootstrap(userID: response.userId) }
     }
 
-    func signOut() {
+    /// HER-214 — DELETE the registered APNS device-token row BEFORE the
+    /// keychain is wiped so the call still has a valid bearer. Failures
+    /// are logged and swallowed by the coordinator; the local sign-out
+    /// proceeds either way.
+    func signOut() async {
+        await deviceRegistration.unregisterCurrentToken()
         // PostHog: capture sign-out then reset the anonymous distinct ID
         PostHogSDK.shared.capture("user_signed_out")
         PostHogSDK.shared.reset()

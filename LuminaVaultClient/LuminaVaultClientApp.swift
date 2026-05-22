@@ -189,9 +189,31 @@ struct LuminaVaultClientApp: App {
             .environment(workspaceSelection)
             .task {
                 // HER-179 — bridge the AppDelegate to the SwiftUI-side
-                // router and ask for APNS authorization on first launch.
+                // router so taps deep-link into the right surface.
+                //
+                // HER-214 — install the device-registration coordinator
+                // as the APNS token observer. The actual UN authorization
+                // request fires from the `isAuthenticated` task below so
+                // we don't prompt unauthenticated visitors (and so the
+                // first POST `/v1/devices` has a valid bearer token).
                 appDelegate.router = notificationRouter
+                appDelegate.onTokenAvailable = appState.deviceRegistration
+            }
+            // HER-214 — request notification permission + register the
+            // resulting device token only after the user is signed in.
+            // The placement after SOUL.md quiz called for in HER-214 lands
+            // with HER-100's onboarding coordinator; until that ships,
+            // post-auth is the earliest correct hook (the server only
+            // accepts authenticated device registrations).
+            .task(id: appState.isAuthenticated) {
+                guard appState.isAuthenticated else { return }
                 await appDelegate.requestAuthorizationAndRegister()
+                // Re-register the in-memory token if one was captured
+                // before the coordinator existed (e.g., warm-launch with
+                // a previously-granted permission).
+                if let hex = appDelegate.deviceTokenHex {
+                    await appState.deviceRegistration.register(tokenHex: hex)
+                }
             }
             .onOpenURL { url in
                 _ = GIDSignIn.sharedInstance.handle(url)
@@ -218,7 +240,7 @@ struct LuminaVaultClientApp: App {
                 for await _ in NotificationCenter.default.notifications(
                     named: ASAuthorizationAppleIDProvider.credentialRevokedNotification
                 ) {
-                    appState.signOut()
+                    await appState.signOut()
                 }
             }
             // HER-34 — bring the capture coordinator up once the vault
@@ -274,7 +296,7 @@ struct LuminaVaultClientApp: App {
             // `.notFound` mirrors `.revoked` for our purposes: the local Apple
             // ID can no longer satisfy our session, so we tear it down.
             if state == .revoked || state == .notFound {
-                appState.signOut()
+                await appState.signOut()
             }
         } catch {
             // Transient errors (e.g., no network at cold start) shouldn't sign

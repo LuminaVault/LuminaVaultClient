@@ -141,7 +141,7 @@ final class PrivacyDataViewModel {
             try await accountClient.deleteAccount()
             // PostHog: capture account deletion before signOut resets the identity
             PostHogSDK.shared.capture("account_deleted")
-            appState.signOut()
+            await appState.signOut()
         } catch {
             deletePhase = .failed(error.localizedDescription)
         }
