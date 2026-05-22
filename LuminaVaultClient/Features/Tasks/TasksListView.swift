@@ -61,16 +61,11 @@ struct TasksListView: View {
                 .foregroundStyle(Color.lvTextMuted)
                 .padding()
         case .loaded where vm.tasks.isEmpty:
-            VStack(spacing: 8) {
-                Text("No active tasks.")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(palette.textPrimary)
-                Text("Long-running Hermes operations will appear here.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(palette.textSecondary)
-            }
-            .multilineTextAlignment(.center)
-            .padding(.top, 40)
+            LVEmptyState(
+                mascot: .idle,
+                headline: "Inbox zero.",
+                supporting: "Long-running Hermes operations will appear here."
+            )
         case .loaded:
             List {
                 section("Running", items: vm.running, tint: palette.primary)

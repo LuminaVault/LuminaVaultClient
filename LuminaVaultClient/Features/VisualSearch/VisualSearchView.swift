@@ -16,23 +16,38 @@ struct VisualSearchView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                pickerSection
-                switch viewModel.state {
-                case .idle:
-                    EmptyView()
-                case .extractingText:
-                    Section { ProgressView("Reading text…").frame(maxWidth: .infinity) }
-                case .querying:
-                    Section { ProgressView("Asking Hermes…").frame(maxWidth: .infinity) }
-                case let .results(response, extractedText):
-                    VisualSearchResultsSection(response: response, extractedText: extractedText)
-                case let .error(message):
-                    errorSection(message: message)
+            ZStack {
+                List {
+                    pickerSection
+                    switch viewModel.state {
+                    case .idle:
+                        EmptyView()
+                    case .extractingText:
+                        Section { ProgressView("Reading text…").frame(maxWidth: .infinity) }
+                    case .querying:
+                        Section { ProgressView("Asking Hermes…").frame(maxWidth: .infinity) }
+                    case let .results(response, extractedText):
+                        VisualSearchResultsSection(response: response, extractedText: extractedText)
+                    case let .error(message):
+                        errorSection(message: message)
+                    }
+                }
+                .scrollContentBackground(.hidden)
+                if case .idle = viewModel.state {
+                    LVEmptyState(
+                        mascot: .thinking,
+                        headline: "Drop an image to search.",
+                        supporting: "Long-press a photo with text and Hermes will hunt your memories.",
+                        backgroundImage: "Lumina/Backgrounds/neural-network"
+                    )
+                    .allowsHitTesting(false)
+                    .padding(.bottom, 80)
                 }
             }
+            .lvBackground()
             .navigationTitle("Visual search")
             .navigationBarTitleDisplayMode(.inline)
+            .lvNavBrand(position: .topLeading)
         }
         .onChange(of: pickedItem) { _, newItem in
             guard let newItem else { return }

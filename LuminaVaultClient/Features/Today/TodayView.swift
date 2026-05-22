@@ -108,17 +108,11 @@ struct TodayView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Text("Hermes is getting to know you.")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(palette.textPrimary)
-                .multilineTextAlignment(.center)
-            Text("Brief incoming at 7am tomorrow.")
-                .font(.system(size: 13))
-                .foregroundStyle(palette.textSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.horizontal, 32)
-        .padding(.top, 24)
+        LVEmptyState(
+            mascot: .idle,
+            headline: "Hermes is getting to know you.",
+            supporting: "Your first brief arrives at 7am tomorrow.",
+            backgroundImage: "Lumina/Backgrounds/neural-network"
+        )
     }
 }

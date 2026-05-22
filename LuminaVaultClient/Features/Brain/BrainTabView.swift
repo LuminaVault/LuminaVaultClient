@@ -24,6 +24,7 @@ struct BrainTabView: View {
             content
                 .navigationTitle("Brain")
                 .navigationBarTitleDisplayMode(.inline)
+                .lvNavBrand(position: .topLeading)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
@@ -79,19 +80,12 @@ struct BrainTabView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "brain.head.profile")
-                .font(.system(size: 56))
-                .foregroundStyle(palette.primary.opacity(0.6))
-            Text("No memories yet")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(palette.textPrimary)
-            Text("Capture or save memories to grow your brain.")
-                .font(.callout)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(palette.textSecondary)
-                .padding(.horizontal, 32)
-        }
+        LVEmptyState(
+            mascot: .thinking,
+            headline: "No memory graph yet.",
+            supporting: "Capture or save memories to grow your brain.",
+            backgroundImage: "Lumina/Backgrounds/neural-network"
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .lvBackground()
     }

@@ -44,19 +44,11 @@ struct MemoListView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "bookmark")
-                .font(.system(size: 32))
-                .foregroundStyle(palette.accent.opacity(0.6))
-            Text("No memos yet")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(palette.textPrimary)
-            Text("Save an insight from \"Think with Lumina\" and it will land here.")
-                .font(.system(size: 12))
-                .foregroundStyle(palette.textSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.top, 80)
-        .padding(.horizontal, 24)
+        LVEmptyState(
+            mascot: .thinking,
+            headline: "Lumina's notebook is empty.",
+            supporting: "Save an insight from \"Think with Lumina\" and it will land here.",
+            backgroundImage: "Lumina/Backgrounds/neural-network"
+        )
     }
 }

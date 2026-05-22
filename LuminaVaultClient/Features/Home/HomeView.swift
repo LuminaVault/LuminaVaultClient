@@ -59,6 +59,7 @@ struct HomeView: View {
                 }
             }
             .lvBackground()
+            .lvNavBrand(position: .topLeading)
             .onReceive(NotificationCenter.default.publisher(for: BackendModeStore.modeChangedNotification)) { _ in
                 // HER-262 — backend mode flipped; re-pull every card
                 // against the new base URL within one event loop.

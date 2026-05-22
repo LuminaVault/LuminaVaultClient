@@ -131,19 +131,11 @@ struct VaultFilesListView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "tray")
-                .font(.system(size: 44))
-                .foregroundStyle(Color.lvTextMuted)
-            Text("No files yet")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(palette.textPrimary)
-            Text("Capture your first memory or note from the home tab.")
-                .font(.system(size: 13))
-                .foregroundStyle(palette.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-        }
+        LVEmptyState(
+            mascot: .idle,
+            headline: "No files in this space yet.",
+            supporting: "Capture your first memory or note from the Home tab."
+        )
     }
 
     private func byteCount(_ bytes: Int64) -> String {

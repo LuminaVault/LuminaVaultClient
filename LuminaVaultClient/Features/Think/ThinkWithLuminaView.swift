@@ -50,6 +50,7 @@ struct ThinkWithLuminaView: View {
             .lvBackground()
             .navigationTitle("Think with Lumina")
             .navigationBarTitleDisplayMode(.inline)
+            .lvNavBrand(position: .topLeading)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {

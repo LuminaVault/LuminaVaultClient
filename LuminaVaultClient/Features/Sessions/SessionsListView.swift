@@ -109,16 +109,11 @@ struct SessionsListView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
-            Text("No sessions yet.")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(palette.textPrimary)
-            Text("Start a chat from Think to see it here.")
-                .font(.system(size: 12))
-                .foregroundStyle(palette.textSecondary)
-        }
-        .multilineTextAlignment(.center)
-        .padding(.top, 40)
+        LVEmptyState(
+            mascot: .idle,
+            headline: "No sessions yet.",
+            supporting: "Start a chat from Think to see it here."
+        )
     }
 
     private static let formatter: RelativeDateTimeFormatter = {

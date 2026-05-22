@@ -42,6 +42,7 @@ struct SpacesListView: View {
             }
             .navigationTitle("Spaces")
             .lvBackground()
+            .lvNavBrand(position: .topLeading)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -185,17 +186,15 @@ struct SpacesListView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "folder.badge.plus")
-                .font(.system(size: 36, weight: .light))
-                .foregroundStyle(.secondary)
-            Text("No spaces yet")
-                .font(.system(size: 16, weight: .semibold))
-            Text("Tap “New Space” to start organising memories.")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-        }
-        .padding(.top, 60)
+        LVEmptyState(
+            mascot: .idle,
+            headline: "Your vault is ready.",
+            supporting: "Tap the + button to capture your first space.",
+            primaryCTA: ("New Space", { presentingEditorFor = EditorPresentation(mode: .create) }),
+            chips: [],
+            backgroundImage: "Lumina/Backgrounds/neural-network"
+        )
+        .padding(.top, 32)
     }
 
     private var createButton: some View {
