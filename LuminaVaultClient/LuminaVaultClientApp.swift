@@ -5,6 +5,7 @@ import Sentry
 import AuthenticationServices
 import GoogleSignIn
 import PostHog
+import RevenueCat
 
 // PostHog: resolves POSTHOG_PROJECT_TOKEN / POSTHOG_HOST at runtime.
 //
@@ -98,6 +99,20 @@ struct LuminaVaultClientApp: App {
             PostHogSDK.shared.setup(config)
         } else {
             SentrySDK.capture(message: "PostHog config missing — analytics disabled for this launch")
+        }
+
+        // HER-185 — RevenueCat SDK. Soft failure on missing key (paywall
+        // ticket renders gracefully; server-truth billing still flows
+        // via /v1/auth/me/billing).
+        if let rcKey = Config.revenueCatPublicKey {
+            #if DEBUG
+            Purchases.logLevel = .info
+            #else
+            Purchases.logLevel = .warn
+            #endif
+            Purchases.configure(with: Configuration.Builder(withAPIKey: rcKey).build())
+        } else {
+            SentrySDK.capture(message: "RevenueCat key missing — billing disabled for this launch")
         }
 
         // HER-39: register BGTaskScheduler identifiers before any scene

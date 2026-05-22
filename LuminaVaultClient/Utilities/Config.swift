@@ -61,8 +61,23 @@ enum Config {
     static var xClientID: String? { infoString("X_CLIENT_ID") }
     static var xRedirectURI: String? { infoString("X_REDIRECT_URI") }
 
+    /// HER-185 — RevenueCat public SDK key. Layered: `REVENUECAT_PUBLIC_KEY`
+    /// env var (Debug scheme override) → `LV_RC_API_KEY` Info.plist key
+    /// (xcconfig-injected for TestFlight/Release). Returns nil when neither
+    /// is set; `BillingService` treats that as a soft failure and falls
+    /// back to server-truth only.
+    static var revenueCatPublicKey: String? {
+        envString("REVENUECAT_PUBLIC_KEY") ?? infoString("LV_RC_API_KEY")
+    }
+
     private static func infoString(_ key: String) -> String? {
         guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String,
+              !value.isEmpty else { return nil }
+        return value
+    }
+
+    private static func envString(_ key: String) -> String? {
+        guard let value = ProcessInfo.processInfo.environment[key],
               !value.isEmpty else { return nil }
         return value
     }

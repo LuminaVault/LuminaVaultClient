@@ -50,6 +50,17 @@ final class AppState {
     // BaseHTTPClient minted via `makeHTTPClient()` shares it so concurrent
     // 401s collapse to one /v1/auth/refresh call.
     private let refreshCoordinator = TokenRefreshCoordinator()
+    /// HER-185 — observable billing surface. Constructed lazily inside
+    /// `handleAuthSuccess(_:)` so the RC `logIn` call and the
+    /// `GET /v1/auth/me/billing` fetch are bound to a concrete user.
+    /// `nil` between sign-out and the next sign-in; UI components that
+    /// read tier state must tolerate this case.
+    private(set) var billingService: BillingService?
+    /// HER-185 — test-injectable factory for the RevenueCat-side adapter.
+    /// Production defaults to `LiveRevenueCatProxy()`; tests pass a
+    /// `MockPurchasesProxy` so `BillingService` can be exercised without
+    /// the RC SDK actually running.
+    @ObservationIgnored var purchasesProxyFactory: @MainActor () -> PurchasesProxy = { LiveRevenueCatProxy() }
 
     init(
         keychain: KeychainService = .shared,
@@ -159,6 +170,15 @@ final class AppState {
         var userProps: [String: Any] = [:]
         userProps["email"] = response.email
         PostHogSDK.shared.identify(distinctId, userProperties: userProps)
+        // HER-185 — bind RC identity to the server-side user and pull the
+        // authoritative billing snapshot. Service stays nil until the
+        // first sign-in so cold-launch + unauthenticated paths skip RC.
+        let billing = BillingService(
+            client: BillingHTTPClient(client: makeHTTPClient()),
+            purchases: purchasesProxyFactory()
+        )
+        billingService = billing
+        Task { await billing.bootstrap(userID: response.userId) }
     }
 
     func signOut() {
@@ -166,6 +186,13 @@ final class AppState {
         PostHogSDK.shared.capture("user_signed_out")
         PostHogSDK.shared.reset()
         Task { await healthKit?.stop() }
+        // HER-185 — tear down RC identity + customer-info stream before we
+        // drop the user from local state. Snapshot the service so the
+        // detached task can run after `billingService` is nilled out.
+        if let billing = billingService {
+            Task { await billing.teardown() }
+        }
+        billingService = nil
         keychain.clearAll()
         currentUserId = nil
         currentEmail = nil
