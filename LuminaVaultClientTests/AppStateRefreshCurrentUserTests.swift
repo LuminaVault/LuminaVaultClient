@@ -56,7 +56,7 @@ final class AppStateRefreshCurrentUserTests: XCTestCase {
     }
 
     func testRefreshSkipsWhenSignedOut() async {
-        state.signOut()
+        await state.signOut()
         await state.refreshCurrentUserIfNeeded(authClient: mock, now: .now)
         XCTAssertEqual(mock.getMeCallCount, 0)
     }
