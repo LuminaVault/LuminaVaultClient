@@ -8,6 +8,9 @@
 import SwiftUI
 
 struct SignInView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: AuthViewModel
 
     var body: some View {
@@ -18,10 +21,10 @@ struct SignInView: View {
 
                 Text("Welcome back")
                     .font(.system(size: 20, weight: .heavy))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 Text("Sign in with your email and password.")
                     .font(.system(size: 11))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
                     .padding(.top, 4)
                     .padding(.bottom, 22)
 
@@ -41,7 +44,7 @@ struct SignInView: View {
                         ForgotPasswordView(vm: vm)
                     }
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Color.lvCyan.opacity(0.6))
+                    .foregroundStyle(palette.primary.opacity(0.6))
                 }
                 .padding(.top, 6).padding(.bottom, 16)
 
@@ -57,9 +60,9 @@ struct SignInView: View {
 
                 HStack(spacing: 4) {
                     Text("Don't have an account?")
-                        .font(.system(size: 11)).foregroundStyle(Color.lvTextSub)
+                        .font(.system(size: 11)).foregroundStyle(palette.textSecondary)
                     NavigationLink("Sign Up") { SignUpView(vm: vm) }
-                        .font(.system(size: 11, weight: .bold)).foregroundStyle(Color.lvCyan)
+                        .font(.system(size: 11, weight: .bold)).foregroundStyle(palette.primary)
                 }
             }
             .padding(.horizontal, 24).padding(.top, 32).padding(.bottom, 40)

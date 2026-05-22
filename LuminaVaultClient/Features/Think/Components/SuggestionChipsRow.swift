@@ -3,6 +3,9 @@
 import SwiftUI
 
 struct SuggestionChipsRow: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let suggestions: [String]
     var onTap: (String) -> Void
 
@@ -15,14 +18,14 @@ struct SuggestionChipsRow: View {
                     } label: {
                         Text(suggestion)
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(Color.lvTextPrimary)
+                            .foregroundStyle(palette.textPrimary)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                             .background(
                                 Capsule().fill(Color.lvGlass)
                             )
                             .overlay(
-                                Capsule().stroke(Color.lvBorder, lineWidth: 1)
+                                Capsule().stroke(palette.surfaceStroke, lineWidth: 1)
                             )
                     }
                     .buttonStyle(.plain)

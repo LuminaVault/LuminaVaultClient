@@ -8,6 +8,9 @@
 import SwiftUI
 
 struct SpacesListView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: SpacesViewModel
     let vaultClient: VaultClientProtocol
     let memoryClient: MemoryQueryClientProtocol
@@ -39,13 +42,14 @@ struct SpacesListView: View {
             }
             .navigationTitle("Spaces")
             .lvBackground()
+            .lvNavBrand(position: .topLeading)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         presentingSearch = true
                     } label: {
                         Image(systemName: "magnifyingglass")
-                            .foregroundStyle(Color.lvCyan)
+                            .foregroundStyle(palette.primary)
                     }
                 }
             }
@@ -150,7 +154,7 @@ struct SpacesListView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color.lvNavy.opacity(0.5))
+        .background(palette.backgroundBase.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .padding(.horizontal, 16)
         .padding(.top, 8)
@@ -170,7 +174,7 @@ struct SpacesListView: View {
                             .font(.system(size: 13, weight: .semibold))
                             .padding(.horizontal, 14)
                             .padding(.vertical, 8)
-                            .background(isSelected ? Color.lvCyan : Color.lvNavy.opacity(0.5))
+                            .background(isSelected ? palette.primary : palette.backgroundBase.opacity(0.5))
                             .foregroundStyle(isSelected ? .black : .primary)
                             .clipShape(Capsule())
                     }
@@ -182,17 +186,15 @@ struct SpacesListView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "folder.badge.plus")
-                .font(.system(size: 36, weight: .light))
-                .foregroundStyle(.secondary)
-            Text("No spaces yet")
-                .font(.system(size: 16, weight: .semibold))
-            Text("Tap “New Space” to start organising memories.")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-        }
-        .padding(.top, 60)
+        LVEmptyState(
+            mascot: .idle,
+            headline: "Your vault is ready.",
+            supporting: "Tap the + button to capture your first space.",
+            primaryCTA: ("New Space", { presentingEditorFor = EditorPresentation(mode: .create) }),
+            chips: [],
+            backgroundImage: "Lumina/Backgrounds/neural-network"
+        )
+        .padding(.top, 32)
     }
 
     private var createButton: some View {
@@ -205,7 +207,7 @@ struct SpacesListView: View {
                 .frame(width: 56, height: 56)
                 .background(
                     LinearGradient(
-                        colors: [.lvCyan, .lvAmber],
+                        colors: [palette.primary, palette.accent],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing,
                     )

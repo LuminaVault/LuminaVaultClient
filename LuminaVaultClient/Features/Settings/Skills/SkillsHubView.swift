@@ -7,12 +7,15 @@ import LuminaVaultShared
 import SwiftUI
 
 struct SkillsHubView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State var vm: SkillsHubViewModel
     let detailClient: SkillsClientProtocol
 
     var body: some View {
         ZStack {
-            Color.lvNavy.ignoresSafeArea()
+            palette.backgroundBase.ignoresSafeArea()
             content
         }
         .navigationTitle("Skills")
@@ -24,7 +27,7 @@ struct SkillsHubView: View {
     private var content: some View {
         switch vm.state {
         case .loading:
-            ProgressView().tint(.lvCyan)
+            ProgressView().tint(palette.primary)
         case .failed(let message):
             Text(message)
                 .font(.system(size: 13))
@@ -69,6 +72,6 @@ struct SkillsHubView: View {
                 Task { await vm.toggle(skill: skill, enabled: newEnabled) }
             }
         }
-        .listRowBackground(Color.lvNavy.opacity(0.5))
+        .listRowBackground(palette.backgroundBase.opacity(0.5))
     }
 }

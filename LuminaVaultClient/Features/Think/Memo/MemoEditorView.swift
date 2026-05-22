@@ -4,6 +4,9 @@
 import SwiftUI
 
 struct MemoEditorView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State var vm: MemoEditorViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -53,7 +56,7 @@ struct MemoEditorView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Topic")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
             TextField("Topic", text: $vm.topic, axis: .vertical)
                 .textFieldStyle(.plain)
                 .padding(12)
@@ -68,7 +71,7 @@ struct MemoEditorView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Hint (optional)")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
             TextField("Anything Lumina should keep in mind…", text: $vm.hint, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(3...6)

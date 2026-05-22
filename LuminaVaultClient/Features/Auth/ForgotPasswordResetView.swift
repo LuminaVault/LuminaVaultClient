@@ -1,17 +1,20 @@
 import SwiftUI
 
 struct ForgotPasswordResetView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: AuthViewModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(spacing: 0) {
-            StepIcon(systemName: "checkmark.shield", color: .lvCyan)
+            StepIcon(systemName: "checkmark.shield", color: palette.primary)
             Text("New password")
-                .font(.system(size: 20, weight: .heavy)).foregroundStyle(Color.lvTextPrimary)
+                .font(.system(size: 20, weight: .heavy)).foregroundStyle(palette.textPrimary)
                 .padding(.bottom, 4)
             Text("Must be at least 8 characters")
-                .font(.system(size: 11)).foregroundStyle(Color.lvTextSub).padding(.bottom, 24)
+                .font(.system(size: 11)).foregroundStyle(palette.textSecondary).padding(.bottom, 24)
 
             VStack(spacing: 10) {
                 LVSecureField(placeholder: "New password", text: $vm.newPassword, textContentType: .newPassword)

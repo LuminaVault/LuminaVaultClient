@@ -6,6 +6,8 @@ import UIKit
 /// Smart-paste banner if a 6-digit numeric string is on the clipboard.
 /// Live "Resend in 0:XX" countdown bound to `vm.emailMagicResendSecondsLeft`.
 struct EmailMagicVerifyView: View {
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: AuthViewModel
     @State private var clipboardCode: String? = nil
 
@@ -13,12 +15,12 @@ struct EmailMagicVerifyView: View {
         VStack(spacing: 0) {
             Text("Check your email")
                 .font(.system(size: 20, weight: .heavy))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .padding(.bottom, 4)
             (Text("We sent a code to ")
-             + Text(vm.emailMagicEmail).foregroundColor(Color.lvCyan))
+             + Text(vm.emailMagicEmail).foregroundColor(palette.primary))
                 .font(.system(size: 11))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.bottom, 20)
 
@@ -31,7 +33,7 @@ struct EmailMagicVerifyView: View {
                 .padding(.bottom, 14)
             }
 
-            OTPFieldRow(code: $vm.emailMagicCode, accentColor: .lvCyan)
+            OTPFieldRow(code: $vm.emailMagicCode, accentColor: palette.primary)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
 
@@ -65,7 +67,7 @@ struct EmailMagicVerifyView: View {
                 Task { await vm.resendEmailMagic() }
             }
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(Color.lvCyan)
+            .foregroundStyle(palette.primary)
         }
     }
 

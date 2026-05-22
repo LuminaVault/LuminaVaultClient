@@ -3,6 +3,9 @@
 import SwiftUI
 
 struct CountryPickerView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Binding var selection: Country
     @Environment(\.dismiss) private var dismiss
     @State private var query: String = ""
@@ -29,11 +32,11 @@ struct CountryPickerView: View {
                         Text(country.flag).font(.system(size: 22))
                         Text(country.name)
                             .font(.system(size: 15))
-                            .foregroundStyle(Color.lvTextPrimary)
+                            .foregroundStyle(palette.textPrimary)
                         Spacer()
                         Text(country.dialCode)
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Color.lvTextSub)
+                            .foregroundStyle(palette.textSecondary)
                     }
                     .contentShape(Rectangle())
                 }
@@ -49,7 +52,7 @@ struct CountryPickerView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Cancel") { dismiss() }
-                        .foregroundStyle(Color.lvCyan)
+                        .foregroundStyle(palette.primary)
                 }
             }
         }

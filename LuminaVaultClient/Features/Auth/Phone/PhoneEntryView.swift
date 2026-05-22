@@ -4,6 +4,9 @@
 import SwiftUI
 
 struct PhoneEntryView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: AuthViewModel
     @State private var showingCountryPicker = false
 
@@ -15,10 +18,10 @@ struct PhoneEntryView: View {
 
                 Text("Continue with phone")
                     .font(.system(size: 20, weight: .heavy))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 Text("We'll send you a 6-digit code by SMS.")
                     .font(.system(size: 11))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
                     .padding(.top, 4)
                     .padding(.bottom, 22)
 
@@ -61,14 +64,14 @@ struct PhoneEntryView: View {
                     Text(vm.phoneCountry.flag).font(.system(size: 18))
                     Text(vm.phoneCountry.dialCode)
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.lvTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                     Image(systemName: "chevron.down")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Color.lvTextSub)
+                        .foregroundStyle(palette.textSecondary)
                 }
                 .padding(.horizontal, 12).padding(.vertical, 12)
                 .background(Color.lvGlass)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.lvBorder, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(palette.surfaceStroke, lineWidth: 1))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .buttonStyle(.plain)

@@ -5,11 +5,14 @@
 import SwiftUI
 
 struct SyncAndLearnView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State var vm: SyncAndLearnViewModel
 
     var body: some View {
         ZStack {
-            Color.lvNavy.ignoresSafeArea()
+            palette.backgroundBase.ignoresSafeArea()
             VStack(spacing: 20) {
                 Spacer()
 
@@ -18,13 +21,13 @@ struct SyncAndLearnView: View {
                 Text("Sync & Learn")
                     .font(.system(size: 26, weight: .heavy))
                     .foregroundStyle(LinearGradient(
-                        colors: [.lvAmber, .lvCyan],
+                        colors: [palette.accent, palette.primary],
                         startPoint: .leading, endPoint: .trailing,
                     ))
 
                 Text(captionText)
                     .font(.system(size: 13))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
                     .frame(minHeight: 36, alignment: .top)

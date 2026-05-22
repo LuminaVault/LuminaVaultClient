@@ -35,11 +35,14 @@ final class InsightsListViewModel {
 }
 
 struct InsightsListView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State var vm: InsightsListViewModel
 
     var body: some View {
         ZStack {
-            Color.lvNavy.ignoresSafeArea()
+            palette.backgroundBase.ignoresSafeArea()
             VStack(spacing: 12) {
                 filter
                 content
@@ -71,7 +74,7 @@ struct InsightsListView: View {
     private var content: some View {
         switch vm.state {
         case .loading:
-            ProgressView().tint(.lvCyan)
+            ProgressView().tint(palette.primary)
                 .frame(maxHeight: .infinity)
         case .failed(let message):
             Text(message)
@@ -83,10 +86,10 @@ struct InsightsListView: View {
             VStack(spacing: 8) {
                 Text("Lumina is still listening.")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 Text("Insights will land here when she spots patterns.")
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
             }
             .multilineTextAlignment(.center)
             .padding(.top, 40)
@@ -109,22 +112,22 @@ struct InsightsListView: View {
             Text(label(for: insight.section).uppercased())
                 .font(.system(size: 10, weight: .heavy))
                 .tracking(0.8)
-                .foregroundStyle(Color.lvAmber)
+                .foregroundStyle(palette.accent)
             Text(insight.headline)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             Text(insight.summary)
                 .font(.system(size: 13))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
                 .lineLimit(3)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.lvNavy.opacity(0.5))
+        .background(palette.backgroundBase.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.lvCyan.opacity(0.15), lineWidth: 1)
+                .stroke(palette.primary.opacity(0.15), lineWidth: 1)
         )
     }
 
@@ -134,8 +137,8 @@ struct InsightsListView: View {
                 .font(.system(size: 12, weight: .semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(isSelected ? Color.lvCyan : Color.lvNavy.opacity(0.6))
-                .foregroundStyle(isSelected ? Color.lvNavy : Color.lvTextSub)
+                .background(isSelected ? palette.primary : palette.backgroundBase.opacity(0.6))
+                .foregroundStyle(isSelected ? palette.backgroundBase : palette.textSecondary)
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)

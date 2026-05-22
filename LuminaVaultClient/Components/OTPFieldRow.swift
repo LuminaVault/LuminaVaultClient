@@ -2,14 +2,20 @@
 import SwiftUI
 
 struct OTPFieldRow: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Binding var code: String
     var length: Int = 6
-    var accentColor: Color = .lvCyan
+    /// Override the focused-digit accent. When nil, follows the active palette.
+    var accentColor: Color? = nil
     /// HER-141: pass `.oneTimeCode` for SMS-autofill; default `nil` preserves
     /// the existing MFA behaviour where the code is typed manually.
     var textContentType: UITextContentType? = nil
 
     @FocusState private var focused: Bool
+
+    private var resolvedAccent: Color { accentColor ?? palette.primary }
 
     private var digits: [String] {
         let chars = Array(code.prefix(length))
@@ -25,13 +31,13 @@ struct OTPFieldRow: View {
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
                                 .stroke(
-                                    index == code.count ? accentColor.opacity(0.6) : Color.lvBorder,
+                                    index == code.count ? resolvedAccent.opacity(0.6) : palette.surfaceStroke,
                                     lineWidth: index == code.count ? 1.5 : 1
                                 )
                         )
                     Text(digits[index])
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(accentColor)
+                        .foregroundStyle(resolvedAccent)
                 }
                 .frame(width: 40, height: 48)
             }

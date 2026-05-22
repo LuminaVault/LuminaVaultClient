@@ -8,6 +8,9 @@
 import SwiftUI
 
 struct DashboardActionRowView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let isCompiling: Bool
     let onNewSession: () -> Void
     let onTriggerCompile: () -> Void
@@ -51,7 +54,7 @@ struct DashboardActionRowView: View {
                 if isLoading {
                     ProgressView()
                         .progressViewStyle(.circular)
-                        .tint(.lvNavy)
+                        .tint(palette.backgroundBase)
                         .frame(height: 22)
                 } else {
                     Image(systemName: icon)
@@ -63,21 +66,22 @@ struct DashboardActionRowView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
-            .foregroundStyle(isPrimary ? Color.lvNavy : Color.lvTextPrimary)
+            .foregroundStyle(isPrimary ? palette.backgroundBase : palette.textPrimary)
             .frame(maxWidth: .infinity, minHeight: 64)
             .background(
                 RoundedRectangle(cornerRadius: 14)
-                    .fill(isPrimary ? Color.lvCyan : Color.lvNavy.opacity(0.6))
+                    .fill(isPrimary ? palette.primary : palette.backgroundBase.opacity(0.6))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
                     .stroke(
-                        isPrimary ? Color.clear : Color.lvCyan.opacity(0.25),
+                        isPrimary ? Color.clear : palette.primary.opacity(0.25),
                         lineWidth: 1
                     )
             )
         }
         .buttonStyle(.plain)
+        .lvGlowPress()
         .disabled(isLoading)
     }
 }

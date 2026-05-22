@@ -5,6 +5,9 @@
 import SwiftUI
 
 struct SpaceCardView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let space: SpaceDTO
     let onEdit: () -> Void
     let onDelete: () -> Void
@@ -20,7 +23,7 @@ struct SpaceCardView: View {
             HStack {
                 Image(systemName: space.icon ?? "folder.fill")
                     .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(Color.lvCyan)
+                    .foregroundStyle(palette.primary)
                 Spacer()
                 Menu {
                     Button("Edit", action: onEdit)
@@ -50,11 +53,6 @@ struct SpaceCardView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
-        .background(Color.lvNavy.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.lvCyan.opacity(0.15), lineWidth: 1)
-        )
+        .lvGlassCard(cornerRadius: 16, intensity: 0.5)
     }
 }

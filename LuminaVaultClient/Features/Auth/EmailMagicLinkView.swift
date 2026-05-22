@@ -5,6 +5,8 @@ import SwiftUI
 /// Mirrors `ForgotPasswordView`: switch on a step enum, back-button via
 /// `Environment.dismiss`, reset state on disappear.
 struct EmailMagicLinkView: View {
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: AuthViewModel
 
     var body: some View {
@@ -15,7 +17,7 @@ struct EmailMagicLinkView: View {
 
                 StepIcon(
                     systemName: vm.emailMagicStep == .email ? "envelope" : "envelope.badge",
-                    color: .lvCyan
+                    color: palette.primary
                 )
 
                 switch vm.emailMagicStep {
@@ -35,6 +37,9 @@ struct EmailMagicLinkView: View {
 }
 
 private struct EmailMagicBackButton: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: AuthViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -49,11 +54,11 @@ private struct EmailMagicBackButton: View {
         } label: {
             Image(systemName: "chevron.left")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.lvCyan.opacity(0.8))
+                .foregroundStyle(palette.primary.opacity(0.8))
                 .frame(width: 32, height: 32)
                 .background(Color.lvGlass)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.lvBorder, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(palette.surfaceStroke, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Back")

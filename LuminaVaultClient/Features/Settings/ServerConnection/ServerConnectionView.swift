@@ -57,11 +57,14 @@ final class ServerConnectionViewModel {
 }
 
 struct ServerConnectionView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State var vm: ServerConnectionViewModel
 
     var body: some View {
         ZStack {
-            Color.lvNavy.ignoresSafeArea()
+            palette.backgroundBase.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     modeSection
@@ -89,23 +92,23 @@ struct ServerConnectionView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(mode.label)
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(Color.lvTextPrimary)
+                                    .foregroundStyle(palette.textPrimary)
                                 Text(mode.subtitle)
                                     .font(.system(size: 11))
-                                    .foregroundStyle(Color.lvTextSub)
+                                    .foregroundStyle(palette.textSecondary)
                             }
                             Spacer()
                             if vm.mode == mode {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(Color.lvCyan)
+                                    .foregroundStyle(palette.primary)
                             }
                         }
                         .padding(12)
-                        .background(Color.lvNavy.opacity(0.5))
+                        .background(palette.backgroundBase.opacity(0.5))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(vm.mode == mode ? Color.lvCyan : Color.lvCyan.opacity(0.1), lineWidth: 1)
+                                .stroke(vm.mode == mode ? palette.primary : palette.primary.opacity(0.1), lineWidth: 1)
                         )
                     }
                     .buttonStyle(.plain)
@@ -122,7 +125,7 @@ struct ServerConnectionView: View {
             sectionLabel("SOUL.md")
             switch vm.state {
             case .loading:
-                ProgressView().tint(.lvCyan)
+                ProgressView().tint(palette.primary)
             case .failed(let message):
                 Text(message)
                     .font(.system(size: 12))
@@ -136,13 +139,13 @@ struct ServerConnectionView: View {
                 .font(.system(.body, design: .monospaced))
                 .frame(minHeight: 240)
                 .padding(8)
-                .background(Color.lvNavy.opacity(0.6))
+                .background(palette.backgroundBase.opacity(0.6))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 HStack {
                     Spacer()
                     Button("Save") { Task { await vm.saveSoul() } }
                         .buttonStyle(.borderedProminent)
-                        .tint(.lvCyan)
+                        .tint(palette.primary)
                         .disabled(vm.soulSaving)
                 }
             }
@@ -154,7 +157,7 @@ struct ServerConnectionView: View {
             sectionLabel("Diagnostics")
             Text("Tailscale reachability isn't exposed to iOS apps. If you're on Tailscale, set the host manually in Hermes Gateway.")
                 .font(.system(size: 11))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
         }
     }
 
@@ -162,6 +165,6 @@ struct ServerConnectionView: View {
         Text(text.uppercased())
             .font(.system(size: 11, weight: .heavy))
             .tracking(0.8)
-            .foregroundStyle(Color.lvTextSub)
+            .foregroundStyle(palette.textSecondary)
     }
 }

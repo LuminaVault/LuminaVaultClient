@@ -9,6 +9,9 @@ import Combine
 import SwiftUI
 
 struct HomeView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State var vm: HomeViewModel
     let onAskLumina: () -> Void
     /// HER-245/246/248/250 — pushed destinations from the dashboard cards.
@@ -21,7 +24,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.lvNavy.ignoresSafeArea()
+                palette.backgroundBase.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 20) {
                         DashboardGreetingView(displayName: vm.displayName)
@@ -56,6 +59,7 @@ struct HomeView: View {
                 }
             }
             .lvBackground()
+            .lvNavBrand(position: .topLeading)
             .onReceive(NotificationCenter.default.publisher(for: BackendModeStore.modeChangedNotification)) { _ in
                 // HER-262 — backend mode flipped; re-pull every card
                 // against the new base URL within one event loop.
@@ -72,21 +76,21 @@ struct HomeView: View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.lvCyan)
+                .foregroundStyle(palette.primary)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.lvTextPrimary)
-                Text(subtitle).font(.system(size: 11)).foregroundStyle(Color.lvTextSub)
+                Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(palette.textPrimary)
+                Text(subtitle).font(.system(size: 11)).foregroundStyle(palette.textSecondary)
             }
             Spacer()
             Image(systemName: "chevron.right").foregroundStyle(Color.lvTextMuted)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.lvNavy.opacity(0.5))
+        .background(palette.backgroundBase.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.lvCyan.opacity(0.15), lineWidth: 1)
+                .stroke(palette.primary.opacity(0.15), lineWidth: 1)
         )
     }
 }

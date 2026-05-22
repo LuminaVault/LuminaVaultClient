@@ -6,17 +6,20 @@ import LuminaVaultShared
 import SwiftUI
 
 struct NotificationsPaneView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State var vm: NotificationsPaneViewModel
 
     var body: some View {
         ZStack {
-            Color.lvNavy.ignoresSafeArea()
+            palette.backgroundBase.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     header
                     switch vm.state {
                     case .loading:
-                        ProgressView().tint(.lvCyan).padding()
+                        ProgressView().tint(palette.primary).padding()
                     case .failed(let message):
                         Text(message)
                             .font(.system(size: 13))
@@ -61,7 +64,7 @@ struct NotificationsPaneView: View {
     private var header: some View {
         Text("Choose how Lumina reaches you. Disabling a category suppresses the push but the underlying skill still runs.")
             .font(.system(size: 13))
-            .foregroundStyle(Color.lvTextSub)
+            .foregroundStyle(palette.textSecondary)
     }
 
     private func toggleCard(title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
@@ -69,23 +72,23 @@ struct NotificationsPaneView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 Text(subtitle)
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
             }
             Spacer()
             Toggle("", isOn: isOn)
                 .labelsHidden()
-                .tint(.lvCyan)
+                .tint(palette.primary)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.lvNavy.opacity(0.5))
+        .background(palette.backgroundBase.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.lvCyan.opacity(0.15), lineWidth: 1)
+                .stroke(palette.primary.opacity(0.15), lineWidth: 1)
         )
     }
 }

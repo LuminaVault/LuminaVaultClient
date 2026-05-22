@@ -11,6 +11,9 @@ import LuminaVaultShared
 import SwiftUI
 
 struct BrainGraphCanvas: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let graph: MemoryGraphResponse
     let onSelect: (UUID) -> Void
 
@@ -24,15 +27,15 @@ struct BrainGraphCanvas: View {
             Series(graph.nodes) { node in
                 NodeMark(id: node.id)
                     .symbolSize(radius: Self.radius(for: node.score))
-                    .foregroundStyle(Self.nodeFill(for: node.score))
+                    .foregroundStyle(nodeFill(for: node.score))
                     .stroke(
-                        draggingID == node.id ? Color.lvAmber : .clear,
+                        draggingID == node.id ? palette.accent : .clear,
                         Self.edgeStroke,
                     )
             }
             Series(graph.edges) { edge in
                 LinkMark(from: edge.from, to: edge.to)
-                    .stroke(Self.edgeStyle(for: edge), Self.edgeStroke)
+                    .stroke(edgeStyle(for: edge), Self.edgeStroke)
             }
         } force: {
             // Empirically tuned for ~500 nodes on iPhone 14 Pro. Tighten
@@ -72,22 +75,22 @@ struct BrainGraphCanvas: View {
 
     /// Interpolates `lvBlue` → `lvCyan` along the same score curve as the
     /// radius so size and hue track together.
-    private static func nodeFill(for score: Double) -> Color {
+    private func nodeFill(for score: Double) -> Color {
         let t = min(1.0, log1p(max(0, score)) / log1p(100))
         // SwiftUI doesn't expose RGB blending on `Color`, so we layer a
         // gradient by overlaying `lvCyan.opacity(t)` on `lvBlue`. Good
         // enough at node scale (4–14 px); we can swap to a Metal shader
         // when we need pixel-perfect bloom.
-        return Color.lvCyan.mix(with: .lvBlue, by: 1 - t)
+        return palette.primary.mix(with: palette.secondary, by: 1 - t)
     }
 
     /// Semantic edges use the cool channel (`lvCyan`); tag edges use the
     /// warm channel (`lvAmber`) so the two derivation paths read as
     /// distinct signals on the graph.
-    private static func edgeStyle(for edge: MemoryGraphEdgeDTO) -> Color {
+    private func edgeStyle(for edge: MemoryGraphEdgeDTO) -> Color {
         switch edge.kind {
-        case .semantic: return Color.lvCyan.opacity(0.25 + 0.55 * edge.weight)
-        case .tag: return Color.lvAmber.opacity(0.30 + 0.50 * edge.weight)
+        case .semantic: return palette.primary.opacity(0.25 + 0.55 * edge.weight)
+        case .tag: return palette.accent.opacity(0.30 + 0.50 * edge.weight)
         }
     }
 

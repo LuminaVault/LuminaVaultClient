@@ -3,6 +3,9 @@ import SwiftUI
 import RiveRuntime
 
 struct SplashHeroRiveView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     var size: CGFloat = 220
     var fallbackImageName: String = "SplashHero"
     var firePulseOnAppear: Bool = true
@@ -27,8 +30,8 @@ struct SplashHeroRiveView: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: size, height: size)
                     .scaleEffect(fallbackBreathing)
-                    .shadow(color: Color.lvCyan.opacity(0.35), radius: 28, y: 8)
-                    .shadow(color: Color.lvAmber.opacity(0.18), radius: 44, y: 14)
+                    .shadow(color: palette.primary.opacity(0.35), radius: 28, y: 8)
+                    .shadow(color: palette.accent.opacity(0.18), radius: 44, y: 14)
             }
         }
         .accessibilityLabel("LuminaVault splash mark")

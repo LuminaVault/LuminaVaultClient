@@ -27,24 +27,44 @@ struct LVEmptyState: View {
     let supporting: String?
     let primaryCTA: (label: String, action: () -> Void)?
     let chips: [LVEmptyStateChip]
+    /// Optional decorative background art (asset catalog name).
+    /// Drawn behind the mascot at low opacity with a radial fade.
+    let backgroundImage: String?
 
     init(
         mascot: HermieMascotState = .idle,
         headline: String,
         supporting: String? = nil,
         primaryCTA: (label: String, action: () -> Void)? = nil,
-        chips: [LVEmptyStateChip] = []
+        chips: [LVEmptyStateChip] = [],
+        backgroundImage: String? = nil
     ) {
         self.mascot = mascot
         self.headline = headline
         self.supporting = supporting
         self.primaryCTA = primaryCTA
         self.chips = chips
+        self.backgroundImage = backgroundImage
     }
 
     var body: some View {
         VStack(spacing: 22) {
             ZStack {
+                if let backgroundImage {
+                    Image(backgroundImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 320, height: 320)
+                        .opacity(0.18)
+                        .mask {
+                            RadialGradient(
+                                colors: [Color.white, .clear],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: 160
+                            )
+                        }
+                }
                 NeuralParticleRing()
                     .frame(width: 220, height: 220)
                 HermieMascotView(state: mascot, size: 160)

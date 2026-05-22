@@ -7,6 +7,9 @@ import LuminaVaultShared
 import SwiftUI
 
 struct TodayView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State var vm: TodayViewModel
     @Environment(NotificationRouter.self) private var router
 
@@ -18,14 +21,14 @@ struct TodayView: View {
 
     var body: some View {
         ZStack {
-            Color.lvNavy.ignoresSafeArea()
+            palette.backgroundBase.ignoresSafeArea()
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: 20) {
                         header
                         switch vm.state {
                         case .loading:
-                            ProgressView().tint(.lvCyan).padding()
+                            ProgressView().tint(palette.primary).padding()
                         case .failed(let message):
                             Text(message)
                                 .font(.system(size: 13))
@@ -91,7 +94,7 @@ struct TodayView: View {
                     .font(.system(size: 22, weight: .heavy))
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.lvAmber, .lvCyan],
+                            colors: [palette.accent, palette.primary],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
@@ -105,17 +108,11 @@ struct TodayView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Text("Hermes is getting to know you.")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color.lvTextPrimary)
-                .multilineTextAlignment(.center)
-            Text("Brief incoming at 7am tomorrow.")
-                .font(.system(size: 13))
-                .foregroundStyle(Color.lvTextSub)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.horizontal, 32)
-        .padding(.top, 24)
+        LVEmptyState(
+            mascot: .idle,
+            headline: "Hermes is getting to know you.",
+            supporting: "Your first brief arrives at 7am tomorrow.",
+            backgroundImage: "Lumina/Backgrounds/neural-network"
+        )
     }
 }

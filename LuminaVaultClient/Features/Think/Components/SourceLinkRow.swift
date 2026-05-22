@@ -4,18 +4,21 @@
 import SwiftUI
 
 struct SourceLinkRow: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let hit: QueryHitDTO
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "doc.text")
                 .font(.system(size: 13))
-                .foregroundStyle(Color.lvCyan)
+                .foregroundStyle(palette.primary)
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
                 Text(snippet)
                     .font(.system(size: 13))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                     .lineLimit(2)
                 if let createdAt = hit.createdAt {
                     Text(createdAt, style: .date)

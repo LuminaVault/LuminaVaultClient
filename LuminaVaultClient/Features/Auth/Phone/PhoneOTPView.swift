@@ -3,6 +3,9 @@
 import SwiftUI
 
 struct PhoneOTPView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: AuthViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -14,16 +17,16 @@ struct PhoneOTPView: View {
 
                 Text("Enter the code")
                     .font(.system(size: 20, weight: .heavy))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                     .padding(.bottom, 4)
                 Text("Sent to \(vm.phoneE164)")
                     .font(.system(size: 11))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
                     .padding(.bottom, 20)
 
                 OTPFieldRow(
                     code: $vm.phoneOtpCode,
-                    accentColor: .lvCyan,
+                    accentColor: palette.primary,
                     textContentType: .oneTimeCode
                 )
                 .padding(.horizontal, 24)
@@ -57,7 +60,7 @@ struct PhoneOTPView: View {
                         Image(systemName: "chevron.left")
                         Text("Back")
                     }
-                    .foregroundStyle(Color.lvCyan)
+                    .foregroundStyle(palette.primary)
                 }
             }
         }
@@ -75,7 +78,7 @@ struct PhoneOTPView: View {
                     Task { await vm.resendPhoneOTP() }
                 }
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color.lvCyan)
+                .foregroundStyle(palette.primary)
             }
         }
     }

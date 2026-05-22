@@ -2,6 +2,9 @@
 import SwiftUI
 
 struct LVTextField: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let placeholder: String
     @Binding var text: String
     var keyboardType: UIKeyboardType = .default
@@ -18,13 +21,13 @@ struct LVTextField: View {
             .autocorrectionDisabled()
             .focused($focused)
             .font(.system(size: 12))
-            .foregroundStyle(Color.lvTextPrimary)
+            .foregroundStyle(palette.textPrimary)
             .padding(.horizontal, 14)
             .padding(.vertical, 13)
             .background(Color.lvGlass)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(focused ? Color.lvBorderFocus : Color.lvBorder, lineWidth: 1)
+                    .stroke(focused ? palette.glowPrimary : palette.surfaceStroke, lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: 12))
     }

@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct ForgotPasswordView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Bindable var vm: AuthViewModel
 
     var body: some View {
@@ -11,13 +14,13 @@ struct ForgotPasswordView: View {
 
                 ZStack {
                     Circle()
-                        .fill(Color.lvCyan.opacity(0.10))
+                        .fill(palette.primary.opacity(0.10))
                         .frame(width: 44, height: 44)
-                        .overlay(Circle().stroke(Color.lvCyan.opacity(0.40), lineWidth: 1.5))
-                        .shadow(color: Color.lvCyan.opacity(0.35), radius: 14)
+                        .overlay(Circle().stroke(palette.primary.opacity(0.40), lineWidth: 1.5))
+                        .shadow(color: palette.primary.opacity(0.35), radius: 14)
                     Image(systemName: "lock.fill")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(Color.lvCyan)
+                        .foregroundStyle(palette.primary)
                 }
                 .padding(.bottom, 14)
 
@@ -41,16 +44,19 @@ struct ForgotPasswordView: View {
 }
 
 private struct LVBackButton: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         Button { dismiss() } label: {
             Image(systemName: "chevron.left")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.lvCyan.opacity(0.8))
+                .foregroundStyle(palette.primary.opacity(0.8))
                 .frame(width: 32, height: 32)
                 .background(Color.lvGlass)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.lvBorder, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(palette.surfaceStroke, lineWidth: 1))
         }
         .buttonStyle(.plain)
     }

@@ -6,6 +6,9 @@
 import SwiftUI
 
 struct VaultFilesListView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let space: SpaceDTO
     @Bindable var vm: VaultFilesViewModel
     let vaultClient: VaultClientProtocol
@@ -111,12 +114,12 @@ struct VaultFilesListView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text((file.path as NSString).lastPathComponent)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
                 .lineLimit(1)
             HStack(spacing: 8) {
                 Text(file.path)
                     .font(.system(size: 11))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
                     .lineLimit(1)
                 Spacer()
                 Text(byteCount(file.sizeBytes))
@@ -128,19 +131,11 @@ struct VaultFilesListView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "tray")
-                .font(.system(size: 44))
-                .foregroundStyle(Color.lvTextMuted)
-            Text("No files yet")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Color.lvTextPrimary)
-            Text("Capture your first memory or note from the home tab.")
-                .font(.system(size: 13))
-                .foregroundStyle(Color.lvTextSub)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-        }
+        LVEmptyState(
+            mascot: .idle,
+            headline: "No files in this space yet.",
+            supporting: "Capture your first memory or note from the Home tab."
+        )
     }
 
     private func byteCount(_ bytes: Int64) -> String {

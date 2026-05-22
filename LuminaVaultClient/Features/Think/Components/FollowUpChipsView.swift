@@ -5,6 +5,9 @@
 import SwiftUI
 
 struct FollowUpChipsView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let chips: [String]
     var onTap: (String) -> Void
 
@@ -17,14 +20,14 @@ struct FollowUpChipsView: View {
                     } label: {
                         Text(chip)
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Color.lvCyan)
+                            .foregroundStyle(palette.primary)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
                             .background(
-                                Capsule().fill(Color.lvCyan.opacity(0.12))
+                                Capsule().fill(palette.primary.opacity(0.12))
                             )
                             .overlay(
-                                Capsule().stroke(Color.lvCyan.opacity(0.4), lineWidth: 1)
+                                Capsule().stroke(palette.primary.opacity(0.4), lineWidth: 1)
                             )
                     }
                     .buttonStyle(.plain)

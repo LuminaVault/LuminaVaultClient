@@ -3,6 +3,9 @@ import SwiftUI
 import RiveRuntime
 
 struct GetStartedHeroRiveView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     var size: CGFloat = 240
     var fallbackImageName: String = "GetStartedHero"
     var fireWaveOnAppear: Bool = true
@@ -27,8 +30,8 @@ struct GetStartedHeroRiveView: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: size, height: size)
                     .offset(y: fallbackFloat)
-                    .shadow(color: Color.lvCyan.opacity(0.40), radius: 32, y: 14)
-                    .shadow(color: Color.lvAmber.opacity(0.22), radius: 56, y: 22)
+                    .shadow(color: palette.primary.opacity(0.40), radius: 32, y: 14)
+                    .shadow(color: palette.accent.opacity(0.22), radius: 56, y: 22)
             }
         }
         .accessibilityLabel("Lumina the keeper of memories")

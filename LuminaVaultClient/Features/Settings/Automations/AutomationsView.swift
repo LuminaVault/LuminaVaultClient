@@ -7,11 +7,14 @@ import LuminaVaultShared
 import SwiftUI
 
 struct AutomationsView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @State var vm: AutomationsViewModel
 
     var body: some View {
         ZStack {
-            Color.lvNavy.ignoresSafeArea()
+            palette.backgroundBase.ignoresSafeArea()
             content
         }
         .navigationTitle("Automations")
@@ -23,7 +26,7 @@ struct AutomationsView: View {
     private var content: some View {
         switch vm.state {
         case .loading:
-            ProgressView().tint(.lvCyan)
+            ProgressView().tint(palette.primary)
         case .failed(let message):
             Text(message)
                 .font(.system(size: 13))
@@ -33,7 +36,7 @@ struct AutomationsView: View {
             List {
                 ForEach(vm.skills) { skill in
                     skillRow(skill)
-                        .listRowBackground(Color.lvNavy.opacity(0.5))
+                        .listRowBackground(palette.backgroundBase.opacity(0.5))
                 }
             }
             .scrollContentBackground(.hidden)
@@ -47,10 +50,10 @@ struct AutomationsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(skill.name)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Color.lvTextPrimary)
+                        .foregroundStyle(palette.textPrimary)
                     Text(skill.descriptionText)
                         .font(.system(size: 12))
-                        .foregroundStyle(Color.lvTextSub)
+                        .foregroundStyle(palette.textSecondary)
                         .lineLimit(2)
                 }
                 Spacer()
@@ -60,7 +63,7 @@ struct AutomationsView: View {
                     set: { newValue in Task { await vm.toggle(skill, enabled: newValue) } }
                 ))
                 .labelsHidden()
-                .tint(.lvCyan)
+                .tint(palette.primary)
             }
 
             if skill.enabled, skill.schedule != nil || skill.scheduleOverride != nil {
@@ -77,18 +80,18 @@ struct AutomationsView: View {
                         Image(systemName: "chevron.up.chevron.down")
                     }
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.lvCyan)
+                    .foregroundStyle(palette.primary)
                 }
             }
 
             DisclosureGroup("What does this do?") {
                 Text(skill.bodyExcerpt)
                     .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
                     .padding(.top, 4)
             }
             .font(.system(size: 12))
-            .tint(Color.lvTextSub)
+            .tint(palette.textSecondary)
         }
         .padding(.vertical, 6)
     }
@@ -98,8 +101,8 @@ struct AutomationsView: View {
             .font(.system(size: 9, weight: .heavy))
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
-            .background((source == .builtin ? Color.lvAmber : Color.lvCyan).opacity(0.18))
-            .foregroundStyle(source == .builtin ? Color.lvAmber : Color.lvCyan)
+            .background((source == .builtin ? palette.accent : palette.primary).opacity(0.18))
+            .foregroundStyle(source == .builtin ? palette.accent : palette.primary)
             .clipShape(Capsule())
     }
 
@@ -119,7 +122,7 @@ struct AutomationsView: View {
     private func color(_ status: SkillRunStatus) -> Color {
         switch status {
         case .success: .green
-        case .running, .pending: .lvCyan
+        case .running, .pending: palette.primary
         case .error: .red
         }
     }

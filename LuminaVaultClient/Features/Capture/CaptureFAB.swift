@@ -9,6 +9,9 @@
 import SwiftUI
 
 struct CaptureFAB: View {
+
+    @Environment(\.lvPalette) private var palette
+
     @Environment(\.captureCoordinator) private var coordinator
     @State private var showingSheet = false
 
@@ -22,7 +25,7 @@ struct CaptureFAB: View {
                 .frame(width: 56, height: 56)
                 .background(
                     LinearGradient(
-                        colors: [.lvCyan, .lvBlue, .lvAmber],
+                        colors: [palette.primary, palette.secondary, palette.accent],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing,
                     ),

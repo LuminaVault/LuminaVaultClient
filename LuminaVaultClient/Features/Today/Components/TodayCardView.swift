@@ -8,6 +8,9 @@ import LuminaVaultShared
 import SwiftUI
 
 struct TodayCardView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let output: SkillOutputDTO
     let highlighted: Bool
     let onTap: () -> Void
@@ -28,30 +31,30 @@ struct TodayCardView: View {
                     Button(action: onShare) {
                         Image(systemName: "square.and.arrow.up")
                             .font(.system(size: 14))
-                            .foregroundStyle(Color.lvTextSub)
+                            .foregroundStyle(palette.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }
                 Text(output.headline)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                     .multilineTextAlignment(.leading)
                 Text(output.body.prefix(140) + (output.body.count > 140 ? "…" : ""))
                     .font(.system(size: 13))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.lvNavy.opacity(0.5))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .lvGlassCard(cornerRadius: 16, intensity: highlighted ? 0.9 : 0.5)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(highlighted ? Color.lvAmber : Color.lvCyan.opacity(0.18), lineWidth: highlighted ? 2 : 1)
+                    .stroke(highlighted ? palette.accent : Color.clear, lineWidth: 2)
             )
         }
         .buttonStyle(.plain)
+        .lvGlowPress()
     }
 
     private var icon: String {
@@ -81,8 +84,8 @@ struct TodayCardView: View {
     private var tint: Color {
         switch output.kind {
         case .contradictionFinding: .red
-        case .patternFinding, .correlationInsight: .lvAmber
-        default: .lvCyan
+        case .patternFinding, .correlationInsight: palette.accent
+        default: palette.primary
         }
     }
 }

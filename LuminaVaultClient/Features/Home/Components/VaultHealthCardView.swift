@@ -6,6 +6,9 @@ import LuminaVaultShared
 import SwiftUI
 
 struct VaultHealthCardView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let state: HomeViewModel.CardState<DashboardStatsResponse>
 
     var body: some View {
@@ -31,10 +34,10 @@ struct VaultHealthCardView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(value)
                 .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(Color.lvTextPrimary)
+                .foregroundStyle(palette.textPrimary)
             Text(label)
                 .font(.system(size: 11))
-                .foregroundStyle(Color.lvTextSub)
+                .foregroundStyle(palette.textSecondary)
         }
     }
 

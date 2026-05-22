@@ -6,6 +6,9 @@ import LuminaVaultShared
 import SwiftUI
 
 struct SkillRowView: View {
+
+    @Environment(\.lvPalette) private var palette
+
     let skill: LuminaVaultShared.SkillDTO
     let onToggle: (Bool) -> Void
 
@@ -15,11 +18,11 @@ struct SkillRowView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(skill.name)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.lvTextPrimary)
+                    .foregroundStyle(palette.textPrimary)
                     .lineLimit(1)
                 Text(skill.descriptionText)
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.lvTextSub)
+                    .foregroundStyle(palette.textSecondary)
                     .lineLimit(2)
                 lastRunFooter
             }
@@ -29,7 +32,7 @@ struct SkillRowView: View {
                 set: { onToggle($0) }
             ))
             .labelsHidden()
-            .tint(.lvCyan)
+            .tint(palette.primary)
         }
         .padding(.vertical, 6)
     }
@@ -37,11 +40,11 @@ struct SkillRowView: View {
     private var icon: some View {
         ZStack {
             Circle()
-                .fill(Color.lvCyan.opacity(0.18))
+                .fill(palette.primary.opacity(0.18))
                 .frame(width: 30, height: 30)
             Image(systemName: skill.source == .builtin ? "sparkle" : "puzzlepiece.fill")
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color.lvCyan)
+                .foregroundStyle(palette.primary)
         }
     }
 
@@ -77,7 +80,7 @@ struct SkillRowView: View {
     private func pillColor(_ status: SkillRunStatus) -> Color {
         switch status {
         case .success: .green
-        case .running, .pending: .lvCyan
+        case .running, .pending: palette.primary
         case .error: .red
         }
     }
