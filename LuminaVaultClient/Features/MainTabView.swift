@@ -196,8 +196,28 @@ struct MainTabView: View {
             ),
             serverConnectionDestination: AnyView(
                 ServerConnectionView(vm: ServerConnectionViewModel(soulClient: soulClient))
-            )
+            ),
+            skillsDestination: AnyView(
+                SkillsHubView(
+                    vm: SkillsHubViewModel(client: skillsClient),
+                    detailClient: skillsClient,
+                )
+            ),
+            todayDestination: AnyView(
+                TodayView(vm: TodayViewModel(client: todayClient))
+            ),
+            visualSearchDestination: AnyView(
+                VisualSearchView(viewModel: VisualSearchViewModel(
+                    ocr: ImageOCRService(),
+                    client: memoryClient,
+                    telemetry: LoggerTelemetry(),
+                ))
+            ),
         )
+    }
+
+    private var skillsClient: SkillsClientProtocol {
+        SkillsHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var sessionsClient: SessionsClientProtocol {

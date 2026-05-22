@@ -20,6 +20,12 @@ struct HomeView: View {
     let tasksDestination: AnyView
     let insightsDestination: AnyView
     let serverConnectionDestination: AnyView
+    /// HER-243 — surfaces demoted from the tab bar in the 5-tab redesign.
+    /// Optional so existing call sites (and unit tests) keep compiling
+    /// without forcing every variant to wire every destination.
+    var skillsDestination: AnyView? = nil
+    var todayDestination: AnyView? = nil
+    var visualSearchDestination: AnyView? = nil
 
     var body: some View {
         NavigationStack {
@@ -41,6 +47,26 @@ struct HomeView: View {
                         }
                         NavigationLink { serverConnectionDestination } label: {
                             SystemStatusCardView(isOnline: vm.isOnline)
+                        }
+
+                        // HER-243 — demoted-tab cards. Each only renders
+                        // when MainTabView provides its destination; nil
+                        // skips the card (keeps the dashboard tidy for
+                        // contexts that don't supply it).
+                        if let todayDestination {
+                            NavigationLink { todayDestination } label: {
+                                cardTile(systemImage: "newspaper.fill", title: "Today", subtitle: "Skill outputs feed")
+                            }
+                        }
+                        if let skillsDestination {
+                            NavigationLink { skillsDestination } label: {
+                                cardTile(systemImage: "sparkles.rectangle.stack", title: "Skills", subtitle: "Hermes capabilities")
+                            }
+                        }
+                        if let visualSearchDestination {
+                            NavigationLink { visualSearchDestination } label: {
+                                cardTile(systemImage: "photo.on.rectangle.angled", title: "Visual Search", subtitle: "Find by image content")
+                            }
                         }
 
                         DashboardActionRowView(
