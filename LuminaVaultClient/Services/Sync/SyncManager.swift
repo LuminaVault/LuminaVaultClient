@@ -213,6 +213,9 @@ actor SyncManager {
         if case let .httpError(statusCode, _) = error {
             return (400 ..< 500).contains(statusCode) && statusCode != 408 && statusCode != 429
         }
+        // HER-188 — 402 is hoisted into a typed case; retrying won't change
+        // anything until the user upgrades. Poison + surface via paywall.
+        if case .paymentRequired = error { return true }
         return false
     }
 
@@ -221,6 +224,10 @@ actor SyncManager {
         case let .httpError(status, _): "http \(status)"
         case let .networkFailure(err): "network: \(err.localizedDescription)"
         case .unauthorized: "unauthorized"
+        case let .paymentRequired(_, tier):
+            // HER-188 — sync queue should poison 402s so the user sees the
+            // paywall once via EntitlementGate instead of looping retries.
+            "payment required\(tier.map { " (\($0.rawValue))" } ?? "")"
         case .invalidURL: "invalid url"
         case let .encodingFailed(err): "encode: \(err.localizedDescription)"
         case let .decodingFailed(err): "decode: \(err.localizedDescription)"

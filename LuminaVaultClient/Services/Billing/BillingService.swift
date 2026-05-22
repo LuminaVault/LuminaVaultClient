@@ -190,10 +190,18 @@ final class BillingService {
     /// along the tier ladder. Used to gate optimistic upgrades — server
     /// refresh is the only path that can move the tier downward.
     private func shouldUpgrade(from current: UserTier, to candidate: UserTier) -> Bool {
-        rank(candidate) > rank(current)
+        Self.rank(candidate) > Self.rank(current)
     }
 
-    private func rank(_ tier: UserTier) -> Int {
+    /// HER-188 — true when `current` satisfies `required` along the tier
+    /// ladder (`required` ≤ `current`). Exposed for `EntitlementGate` so
+    /// the view modifier can decide pre-emptively whether to present the
+    /// paywall without itself encoding the rank order.
+    static func meets(_ current: UserTier, requires required: UserTier) -> Bool {
+        rank(current) >= rank(required)
+    }
+
+    static func rank(_ tier: UserTier) -> Int {
         switch tier {
         case .archived: return -1
         case .lapsed:   return 0
