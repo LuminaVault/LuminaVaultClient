@@ -15,6 +15,10 @@ import Foundation
 enum OnboardingStep: String, Sendable, CaseIterable {
     /// Pre-account splash + provider picker (lands with HER-140).
     case authLanding
+    /// HER-287 — conversion-funnel questionnaire (12 screens). Slots
+    /// between authentication + vault-create and the SOUL.md quiz so
+    /// the paywall fires before the user invests in personalisation.
+    case conversionFunnel
     /// SOUL.md personality quiz (lands with HER-100).
     case soulQuiz
     /// HER-219 — optional BYO Hermes gateway prompt.
