@@ -20,7 +20,7 @@ struct LVTextField: View {
             .textInputAutocapitalization(autocapitalization)
             .autocorrectionDisabled()
             .focused($focused)
-            .font(.system(size: 12))
+            .font(LVTypography.caption.font)
             .foregroundStyle(palette.textPrimary)
             .padding(.horizontal, 14)
             .padding(.vertical, 13)

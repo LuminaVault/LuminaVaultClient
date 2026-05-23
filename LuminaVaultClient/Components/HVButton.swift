@@ -23,12 +23,12 @@ struct LVButton: View {
                     ProgressView().progressViewStyle(.circular).tint(.black).scaleEffect(0.85)
                 } else {
                     Text(title)
-                        .font(.system(size: 13, weight: .heavy))
+                        .font(LVTypography.button.font)
                         .foregroundStyle(.black)
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 48)
+            .frame(height: LVSize.buttonHeight)
             .background(
                 ZStack {
                     LinearGradient(

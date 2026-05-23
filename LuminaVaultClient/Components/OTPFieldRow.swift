@@ -36,7 +36,7 @@ struct OTPFieldRow: View {
                                 )
                         )
                     Text(digits[index])
-                        .font(.system(size: 18, weight: .bold))
+                        .font(LVTypography.otp.font)
                         .foregroundStyle(resolvedAccent)
                 }
                 .frame(width: 40, height: 48)

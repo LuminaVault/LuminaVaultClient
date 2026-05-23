@@ -23,7 +23,7 @@ struct LVSecureField: View {
                         .textContentType(textContentType)
                 }
             }
-            .font(.system(size: 12))
+            .font(LVTypography.caption.font)
             .foregroundStyle(palette.textPrimary)
             .focused($focused)
             .autocorrectionDisabled()
