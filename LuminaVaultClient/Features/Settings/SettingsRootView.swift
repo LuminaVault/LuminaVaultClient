@@ -96,6 +96,17 @@ struct SettingsRootView: View {
                     }
                 }
 
+                // HER-298 — brand presence, version, Rate, social links,
+                // contact + legal. Sits before Server so reviewers and
+                // curious users can find it without digging into Advanced.
+                Section("About") {
+                    NavigationLink {
+                        AboutView()
+                    } label: {
+                        Label("About LuminaVault", systemImage: "info.circle")
+                    }
+                }
+
                 // HER-250 — backend mode + SOUL.md editor.
                 Section("Server") {
                     NavigationLink {

@@ -46,6 +46,42 @@ enum Config {
         URL(string: infoString("LV_PRIVACY_URL") ?? "https://luminavault.com/privacy")!
     }
 
+    /// HER-298 — social handles surfaced from Settings → About. Placeholder
+    /// `@luminavault` defaults until real accounts are claimed; each is
+    /// Info.plist-overridable so staging vs prod can point elsewhere.
+    static var tiktokURL: URL {
+        URL(string: infoString("LV_TIKTOK_URL") ?? "https://www.tiktok.com/@luminavault")!
+    }
+
+    static var xProfileURL: URL {
+        URL(string: infoString("LV_X_PROFILE_URL") ?? "https://x.com/luminavault")!
+    }
+
+    static var instagramURL: URL {
+        URL(string: infoString("LV_INSTAGRAM_URL") ?? "https://instagram.com/luminavault")!
+    }
+
+    /// HER-298 — brand + support links surfaced from Settings → About.
+    static var websiteURL: URL {
+        URL(string: infoString("LV_WEBSITE_URL") ?? "https://luminavault.com")!
+    }
+
+    static var supportEmail: String {
+        infoString("LV_SUPPORT_EMAIL") ?? "support@luminavault.com"
+    }
+
+    /// HER-298 — derived version string for the About pane. Reads
+    /// `CFBundleShortVersionString` + `CFBundleVersion` directly from the
+    /// app bundle so a single source updates every surface that shows the
+    /// version. Falls back to "v0.0.0 (build 0)" when both keys are
+    /// missing (only possible in unit-test bundles that ship without an
+    /// Info.plist).
+    static var appVersionString: String {
+        let short = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.0.0"
+        let build = (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) ?? "0"
+        return "v\(short) (build \(build))"
+    }
+
     private static func infoString(_ key: String) -> String? {
         guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String,
               !value.isEmpty,
