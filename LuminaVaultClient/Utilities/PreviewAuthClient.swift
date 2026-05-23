@@ -40,4 +40,20 @@ final class PreviewAuthClient: AuthClientProtocol {
         )
     }
     func logout(refreshToken: String) async throws {}
+
+    // HER-216 — preview stubs throw so accidental usage in #Preview surfaces.
+    func webAuthnRegisterBegin(username: String, displayName: String?) async throws -> WebAuthnBeginRegistrationResponse {
+        throw NSError(domain: "PreviewAuthClient", code: -216, userInfo: [NSLocalizedDescriptionKey: "passkey flows not exercised in previews"])
+    }
+    func webAuthnRegisterFinish(_ request: WebAuthnFinishRegistrationRequest) async throws -> WebAuthnFinishRegistrationResponse {
+        throw NSError(domain: "PreviewAuthClient", code: -216, userInfo: [NSLocalizedDescriptionKey: "passkey flows not exercised in previews"])
+    }
+    func webAuthnAuthenticateBegin(username: String) async throws -> WebAuthnBeginAuthenticationResponse {
+        throw NSError(domain: "PreviewAuthClient", code: -216, userInfo: [NSLocalizedDescriptionKey: "passkey flows not exercised in previews"])
+    }
+    func webAuthnAuthenticateFinish(_ request: WebAuthnFinishAuthenticationRequest) async throws -> AuthResponse { stub() }
+    func webAuthnListCredentials() async throws -> WebAuthnCredentialListResponse {
+        WebAuthnCredentialListResponse(credentials: [])
+    }
+    func webAuthnDeleteCredential(credentialID: String) async throws {}
 }
