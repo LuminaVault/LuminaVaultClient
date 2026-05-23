@@ -149,8 +149,29 @@ struct LuminaVaultClientApp: App {
                             // (M37 backfill) skip this branch because the
                             // server starts them at vaultInitialized=true.
                             if appState.vaultInitialized {
-                                MainTabView()
-                                    .environment(\.captureCoordinator, captureCoordinator)
+                                // HER-100: gate the main shell behind the
+                                // SOUL.md 5-step quiz. We only require
+                                // completion when the server's onboarding
+                                // ladder has loaded AND reports
+                                // `soulConfiguredCompleted == false`. A
+                                // nil ladder (cold-launch race, network
+                                // failure) defaults to showing the main
+                                // shell so the user is never locked out;
+                                // the next foreground re-attempts the
+                                // load and gates if appropriate.
+                                let needsSoulQuiz = appState.onboardingState?.soulConfiguredCompleted == false
+                                if needsSoulQuiz {
+                                    SoulQuizContainerView(
+                                        state: SoulQuizState(userId: appState.currentUserId),
+                                        soulClient: appState.makeSoulClient(),
+                                        onboardingClient: appState.makeOnboardingClient()
+                                    ) { updated in
+                                        appState.onboardingState = updated
+                                    }
+                                } else {
+                                    MainTabView()
+                                        .environment(\.captureCoordinator, captureCoordinator)
+                                }
                             } else {
                                 CreateVaultView(
                                     vm: CreateVaultViewModel(
@@ -228,6 +249,9 @@ struct LuminaVaultClientApp: App {
                 if let hex = appDelegate.deviceTokenHex {
                     await appState.deviceRegistration.register(tokenHex: hex)
                 }
+                // HER-100 — pull the onboarding ladder so the SOUL quiz
+                // gate above renders the right surface on this sign-in.
+                await appState.loadOnboardingState()
             }
             .onOpenURL { url in
                 _ = GIDSignIn.sharedInstance.handle(url)
