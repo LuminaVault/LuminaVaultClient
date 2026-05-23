@@ -74,12 +74,18 @@ struct NotificationPrimeView: View {
         isRequesting = true
         defer { isRequesting = false }
         let center = UNUserNotificationCenter.current()
+        var granted = false
         do {
-            _ = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+            granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
         } catch {
             // Permission denial / errors are silent — never punish the
-            // user for this choice. Funnel resolves either way.
+            // user for this choice. Funnel resolves either way. HER-295
+            // still fires the telemetry with `granted: false` so the
+            // funnel chart distinguishes "asked-and-denied" from
+            // "skipped without asking".
+            granted = false
         }
+        state.telemetryClient.notificationPrompted(granted: granted)
         // Hop to main actor; granted-token registration is owned by
         // NotificationsAppDelegate (HER-214). Funnel just resolves.
         onResolved()

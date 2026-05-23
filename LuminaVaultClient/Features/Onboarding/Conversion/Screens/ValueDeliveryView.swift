@@ -101,6 +101,7 @@ struct ValueDeliveryView: View {
     }
 
     private func presentShare() {
+        state.telemetryClient.demoShare(captureCount: pickedCaptures.count)
         let lines = pickedCaptures.map { "• \($0.title)" }.joined(separator: "\n")
         shareItem = ShareItem(text: """
         I just set up my Lumina second brain. First captures:
