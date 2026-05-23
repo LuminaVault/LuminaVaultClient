@@ -18,10 +18,13 @@ import SwiftUI
 struct ConversionFunnelContainer: View {
     @Environment(\.lvPalette) private var palette
     @State private var state: ConversionFunnelState
-    let onCompleted: () -> Void
+    let onCompleted: (ConversionFunnelCompletionSummary) -> Void
 
-    init(onCompleted: @escaping () -> Void) {
-        self._state = State(initialValue: ConversionFunnelState())
+    init(
+        state: ConversionFunnelState = ConversionFunnelState(),
+        onCompleted: @escaping (ConversionFunnelCompletionSummary) -> Void
+    ) {
+        self._state = State(initialValue: state)
         self.onCompleted = onCompleted
     }
 
@@ -123,7 +126,9 @@ struct ConversionFunnelContainer: View {
         case .valueDelivery:
             ValueDeliveryView(state: state)
         case .notificationPrime:
-            NotificationPrimeView(state: state, onResolved: onCompleted)
+            NotificationPrimeView(state: state) {
+                onCompleted(state.completionSummary())
+            }
         }
     }
 }

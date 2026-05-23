@@ -175,13 +175,25 @@ struct LuminaVaultClientApp: App {
                                 // load and gates if appropriate.
                                 let needsSoulQuiz = appState.onboardingState?.soulConfiguredCompleted == false
                                 if needsConversionFunnel {
-                                    ConversionFunnelContainer {
+                                    ConversionFunnelContainer { summary in
                                         // HER-287 → HER-211 handoff: flip
                                         // the local flag so the funnel
                                         // never re-presents, then trigger
                                         // the universal root paywall.
+                                        //
+                                        // HER-295 — emit the funnel
+                                        // completion + paywall-shown
+                                        // events so the PostHog funnel
+                                        // chart closes out with the same
+                                        // distinct_id PostHog already
+                                        // bound via `identify` in
+                                        // AppState.handleAuthSuccess.
+                                        let telemetry = ConversionFunnelTelemetry()
+                                        telemetry.completed(summary: summary)
                                         hasSeenConversionFunnel = true
-                                        appState.pendingPaywallID = PaywallPresentation(id: "default")
+                                        let paywallID = "default"
+                                        appState.pendingPaywallID = PaywallPresentation(id: paywallID)
+                                        telemetry.paywallShown(paywallID: paywallID)
                                     }
                                 } else if needsSoulQuiz {
                                     SoulQuizContainerView(
