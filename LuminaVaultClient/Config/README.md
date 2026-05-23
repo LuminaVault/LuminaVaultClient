@@ -1,67 +1,83 @@
-# LuminaVaultClient/Config
+# LuminaVaultClient Configuration
 
-OAuth client-side configuration for HER-239 (Google Auth).
+This directory contains the client-side build configuration contract for OAuth, RevenueCat, analytics, Sentry, legal URLs, and hosted backend selection.
 
-## What's in here
+## Files
 
 | File | Committed? | Purpose |
-|------|------------|---------|
-| `GoogleAuth.xcconfig.sample` | ✅ | Template with placeholder values |
-| `GoogleAuth.xcconfig` | ❌ (gitignored) | Real values — created locally |
-| `Info.plist` | ✅ | Replaces the auto-generated Info.plist; references `$(GID_CLIENT_ID)` and `$(REVERSED_CLIENT_ID)` |
-| `README.md` | ✅ | This file |
+| --- | --- | --- |
+| `Config.Debug.xcconfig.sample` | yes | Debug/local template |
+| `Config.Beta.xcconfig.sample` | yes | TestFlight template |
+| `Config.Release.xcconfig.sample` | yes | App Store template |
+| `Config.Debug.xcconfig` | no | Real Debug values |
+| `Config.Beta.xcconfig` | no | Real Beta values |
+| `Config.Release.xcconfig` | no | Real Release values |
+| `GoogleAuth.xcconfig.sample` | yes | Legacy Google-only template |
+| `Info.plist` | yes | File-based plist with build-setting substitutions |
 
-## One-time Xcode wiring
+Real `.xcconfig` files are gitignored. Do not commit secrets, signing material, private keys, or provisioning profiles.
 
-Required after pulling this scaffold for the first time.
+## One-time local setup
 
-1. **Copy the sample**
-   ```bash
-   cp LuminaVaultClient/Config/GoogleAuth.xcconfig.sample \
-      LuminaVaultClient/Config/GoogleAuth.xcconfig
-   ```
-   Edit `GoogleAuth.xcconfig` and paste the real iOS OAuth 2.0 client ID from
-   Google Cloud Console → Credentials → your iOS OAuth client.
+```sh
+cp LuminaVaultClient/Config/Config.Debug.xcconfig.sample \
+   LuminaVaultClient/Config/Config.Debug.xcconfig
+cp LuminaVaultClient/Config/Config.Beta.xcconfig.sample \
+   LuminaVaultClient/Config/Config.Beta.xcconfig
+cp LuminaVaultClient/Config/Config.Release.xcconfig.sample \
+   LuminaVaultClient/Config/Config.Release.xcconfig
+```
 
-2. **Register the xcconfig in Xcode**
-   - Open `LuminaVaultClient.xcodeproj` in Xcode.
-   - Drag `LuminaVaultClient/Config/GoogleAuth.xcconfig` into the project
-     navigator (do **not** add it to the target — xcconfig files are
-     build-time only).
-   - Select the project root → **Info** tab → **Configurations**.
-   - Set `GoogleAuth` as the project-level config file for both **Debug**
-     and **Release**.
+Fill the real values from Apple Developer, Google Cloud, X Developer Portal, RevenueCat, PostHog, and Sentry.
 
-3. **Switch from generated to file-based Info.plist**
-   - Select the `LuminaVaultClient` target → **Build Settings** → All.
-   - Search `Info.plist File` → set to `LuminaVaultClient/Config/Info.plist`
-     for both configs.
-   - Search `Generate Info.plist File` → set to **No** for both configs.
-   - Remove every `INFOPLIST_KEY_*` row (their values now live in the new
-     `Info.plist`).
+## Xcode wiring
 
-4. **Verify**
-   - Build the app. The Info.plist preprocessor substitutes the xcconfig
-     vars; the `CFBundleURLTypes` entry now contains the real reversed
-     client ID.
-   - Run the app and tap **Sign in with Google** on `AuthLandingView`.
-     The system web sheet opens, you consent, and the app receives a
-     `com.googleusercontent.apps.*` callback that
-     `LuminaVaultClientApp.swift` forwards to `GIDSignIn.sharedInstance.handle(_:)`.
+For each project configuration, set the matching config file:
 
-## Cross-repo invariant
+| Xcode configuration | Config file |
+| --- | --- |
+| Debug | `LuminaVaultClient/Config/Config.Debug.xcconfig` |
+| Beta | `LuminaVaultClient/Config/Config.Beta.xcconfig` |
+| Release | `LuminaVaultClient/Config/Config.Release.xcconfig` |
 
-The iOS `GID_CLIENT_ID` MUST equal the LuminaVaultServer env var
-`OAUTH_GOOGLE_CLIENTID` (server config key `oauth.google.clientId`,
-wired in `Sources/App/App+build.swift`). The server verifies the
-ID token's `aud` claim against that value — a mismatch returns
-`401 OAuthError.invalidToken`.
+Then select the `LuminaVaultClient` app target and set:
 
-If you rotate the iOS OAuth client, update both repos in the same change.
+- `Info.plist File`: `LuminaVaultClient/Config/Info.plist`
+- `Generate Info.plist File`: `No`
 
-## Why not GoogleService-Info.plist?
+The file-based plist is required for `CFBundleURLTypes`, which Google Sign-In needs for OAuth callbacks.
 
-LuminaVault doesn't use Firebase or other Google services that require
-`GoogleService-Info.plist`. Only `GIDClientID` is needed for the
-GoogleSignIn-iOS SDK, and we set it directly so no Google-managed plist
-needs to be checked into the repo.
+## Required values
+
+| Key | Used by | Notes |
+| --- | --- | --- |
+| `API_BASE_URL` | `Config.hostedAPIBaseURL` | Hosted API URL, normally `https://api.luminavault.com` |
+| `APPLE_SERVICE_ID` | `Config.appleServiceID` | Must match server `OAUTH_APPLE_CLIENTID` audience |
+| `GID_CLIENT_ID` | Google Sign-In | Must match server `OAUTH_GOOGLE_CLIENTID` |
+| `REVERSED_CLIENT_ID` | Info.plist URL scheme | `com.googleusercontent.apps.<id>` |
+| `X_CLIENT_ID` | X sign-in | Must match server `OAUTH_X_CLIENTID` |
+| `X_REDIRECT_URI` | X sign-in callback | Must match X Developer Portal exactly |
+| `LV_RC_API_KEY` | RevenueCat SDK | Public iOS SDK key |
+| `POSTHOG_PROJECT_TOKEN` | PostHog SDK | Public client token |
+| `POSTHOG_HOST` | PostHog SDK | Usually `https://us.i.posthog.com` |
+| `SENTRY_DSN` | Sentry SDK | Public client DSN |
+| `SENTRY_ENVIRONMENT` | Sentry SDK | `debug`, `beta`, or `production` |
+| `LV_TERMS_URL` | Settings/Billing UI | App Review legal link |
+| `LV_PRIVACY_URL` | Settings/Billing UI | App Review legal link |
+
+## Cross-repo invariants
+
+- `GID_CLIENT_ID` must equal `LuminaVaultServer` `OAUTH_GOOGLE_CLIENTID`.
+- `X_CLIENT_ID` must equal `LuminaVaultServer` `OAUTH_X_CLIENTID`.
+- `APPLE_SERVICE_ID` must equal the Apple token audience accepted by `LuminaVaultServer` `OAUTH_APPLE_CLIENTID`.
+- The production APNS topic must match `com.lumina.fernando`; the server must set `APNS_BUNDLE_ID=com.lumina.fernando`.
+- RevenueCat webhook secret lives only on the server; the client only receives the public `LV_RC_API_KEY`.
+
+## App Store service checklist
+
+- Apple Developer App IDs have Push Notifications, Sign in with Apple, HealthKit, background delivery, and App Groups enabled.
+- App Store Connect products exist for every RevenueCat product ID.
+- RevenueCat offerings map products to entitlements such as `plus` and `pro`.
+- Google OAuth iOS client has the correct bundle ID.
+- X OAuth app has the exact redirect URI from the xcconfig.
+- Sentry has separate environment filtering for `beta` and `production`.

@@ -115,8 +115,11 @@ For interactive exploration, see the regenerated Bruno collection at [`LuminaVau
 
 - **Prod**: `com.lumina.fernando`
 - **Test**: `com.lumina.fernando.test`
+- **Beta/TestFlight**: `com.lumina.fernando.beta`
 
 Each bundle id has its own iCloud container, push topic, and dev-server base URL. Switching environments wipes Keychain — by design, so prod tokens never bleed into test.
+
+Build-time public configuration is supplied through gitignored xcconfig files copied from `LuminaVaultClient/Config/Config.*.xcconfig.sample`. Those files define the hosted API URL, Apple/Google/X OAuth IDs, RevenueCat public SDK key, PostHog keys, Sentry DSN, and legal URLs. See [`LuminaVaultClient/Config/README.md`](LuminaVaultClient/Config/README.md) and [`docs/TESTFLIGHT.md`](docs/TESTFLIGHT.md).
 
 ## Logo assets
 

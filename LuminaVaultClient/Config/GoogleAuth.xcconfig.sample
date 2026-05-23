@@ -1,5 +1,9 @@
 // LuminaVaultClient/Config/GoogleAuth.xcconfig.sample
 //
+// Legacy Google-only template. Prefer Config.Debug.xcconfig.sample,
+// Config.Beta.xcconfig.sample, or Config.Release.xcconfig.sample for new
+// environment setup.
+//
 // Copy this file to `GoogleAuth.xcconfig` and fill in real values from the
 // Google Cloud Console. The real file is gitignored.
 //

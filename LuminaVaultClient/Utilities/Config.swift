@@ -9,6 +9,10 @@ enum Config {
         BackendModeStore.current.defaultBaseURL
     }
 
+    static var hostedAPIBaseURL: URL {
+        URL(string: infoString("API_BASE_URL") ?? "https://api.luminavault.com")!
+    }
+
     /// Provider client IDs are read from Info.plist keys so they can be
     /// injected per-environment via xcconfig / CI without committing real
     /// values to source. All return nil if unset — the corresponding sign-in
@@ -18,6 +22,8 @@ enum Config {
     static var googleReversedClientID: String? { infoString("GOOGLE_REVERSED_CLIENT_ID") }
     static var xClientID: String? { infoString("X_CLIENT_ID") }
     static var xRedirectURI: String? { infoString("X_REDIRECT_URI") }
+    static var sentryDSN: String? { envString("SENTRY_DSN") ?? infoString("SENTRY_DSN") }
+    static var sentryEnvironment: String? { envString("SENTRY_ENVIRONMENT") ?? infoString("SENTRY_ENVIRONMENT") }
 
     /// HER-185 — RevenueCat public SDK key. Layered: `REVENUECAT_PUBLIC_KEY`
     /// env var (Debug scheme override) → `LV_RC_API_KEY` Info.plist key
@@ -42,7 +48,9 @@ enum Config {
 
     private static func infoString(_ key: String) -> String? {
         guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String,
-              !value.isEmpty else { return nil }
+              !value.isEmpty,
+              !value.hasPrefix("$("),
+              !value.hasPrefix("REPLACE_WITH_") else { return nil }
         return value
     }
 

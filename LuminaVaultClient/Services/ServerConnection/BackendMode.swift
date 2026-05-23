@@ -40,9 +40,9 @@ enum BackendMode: String, CaseIterable, Identifiable, Sendable {
     /// here as a sensible fallback when the override isn't set.
     var defaultBaseURL: URL {
         switch self {
-        case .hosted: return URL(string: "https://api.luminavault.com")!
-        case .byo: return URL(string: "https://api.luminavault.com")!
-        case .tailscale: return URL(string: "https://api.luminavault.com")!
+        case .hosted: return Config.hostedAPIBaseURL
+        case .byo: return Config.hostedAPIBaseURL
+        case .tailscale: return Config.hostedAPIBaseURL
         case .localhost: return URL(string: "http://localhost:8080")!
         }
     }

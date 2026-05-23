@@ -45,6 +45,14 @@ platform :ios do
       skip_waiting_for_build_processing: true,
       changelog: ENV["CHANGELOG"] || "Latest internal build."
     )
+
+    if ENV["SENTRY_AUTH_TOKEN"]
+      sentry_debug_files_upload(
+        org_slug: 'fernando-lda',
+        project_slug: 'luminavault',
+        include_sources: true
+      )
+    end
   end
 
   desc "Ship to App Store (manual review submission)"

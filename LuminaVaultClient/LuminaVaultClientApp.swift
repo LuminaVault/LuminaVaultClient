@@ -59,7 +59,10 @@ struct LuminaVaultClientApp: App {
 
     init() {
         SentrySDK.start { options in
-            options.dsn = "https://a3a94645381ee5af35e404c7299e019c@o4510766840872960.ingest.de.sentry.io/4511406692368464"
+            options.dsn = Config.sentryDSN ?? "https://a3a94645381ee5af35e404c7299e019c@o4510766840872960.ingest.de.sentry.io/4511406692368464"
+            if let environment = Config.sentryEnvironment {
+                options.environment = environment
+            }
 
             // Adds IP for users.
             // For more information, visit: https://docs.sentry.io/platforms/apple/data-management/data-collected/
