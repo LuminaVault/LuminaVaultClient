@@ -1,5 +1,5 @@
 {
-  "originHash" : "7513e4af08658b3905e47852656a4fc081a9152e30ea9a7499625c08c7bd68c9",
+  "originHash" : "51d117af93f8bdbd3db4ce9e4f654c3d456d510aa2e48e686ba01abfabcb14c8",
   "pins" : [
     {
       "identity" : "app-check",
@@ -69,8 +69,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/LuminaVault/LuminaVaultShared.git",
       "state" : {
-        "revision" : "dc36e767e8460842ef5e422bb972645e0ed03b75",
-        "version" : "0.27.0"
+        "revision" : "a3284cec61bdbe8eec17dabd9810c1fa98b250e5",
+        "version" : "0.28.0"
       }
     },
     {
@@ -98,6 +98,15 @@
       "state" : {
         "revision" : "540318ecedd63d883069ae7f1ed811a2df00b6ac",
         "version" : "2.4.0"
+      }
+    },
+    {
+      "identity" : "purchases-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RevenueCat/purchases-ios.git",
+      "state" : {
+        "revision" : "002f8e7d6dc861153e212758c26f7ae168e25922",
+        "version" : "5.73.1"
       }
     },
     {

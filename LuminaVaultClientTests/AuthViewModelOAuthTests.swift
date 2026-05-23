@@ -104,13 +104,13 @@ final class AuthViewModelOAuthTests: XCTestCase {
 
     // Sign-out clears the persisted Apple credentials so a different Apple
     // account can sign in cleanly.
-    func testSignOutClearsAppleKeychainEntries() {
+    func testSignOutClearsAppleKeychainEntries() async {
         appState.keychain.appleUserId = "001234.abcdef.5678"
         var components = PersonNameComponents()
         components.givenName = "Ada"
         appState.keychain.appleFullName = components
 
-        appState.signOut()
+        await appState.signOut()
 
         XCTAssertNil(appState.keychain.appleUserId)
         XCTAssertNil(appState.keychain.appleFullName)

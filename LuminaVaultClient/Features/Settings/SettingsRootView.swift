@@ -80,6 +80,15 @@ struct SettingsRootView: View {
                     }
                 }
 
+                // HER-188 — subscription tier, restore purchases, legal links.
+                Section("Subscription") {
+                    NavigationLink {
+                        SubscriptionView()
+                    } label: {
+                        Label("Subscription", systemImage: "creditcard")
+                    }
+                }
+
                 // HER-250 — backend mode + SOUL.md editor.
                 Section("Server") {
                     NavigationLink {
@@ -100,6 +109,12 @@ struct SettingsRootView: View {
                             // TODO: drive `state` from HermesGatewayViewModel when wired.
                             ConnectionBadge(state: .unknown)
                         }
+                    }
+                    // HER-241 — Telegram/Discord/Slack/WhatsApp bridges.
+                    NavigationLink {
+                        HermesGatewaysPaneView(client: hermesGatewaysClient)
+                    } label: {
+                        Label("Messaging Gateways", systemImage: "bubble.left.and.bubble.right")
                     }
                     // HER-252 — per-user primary model + fallback chain.
                     NavigationLink {
@@ -152,5 +167,10 @@ struct SettingsRootView: View {
 
     private var llmPreferencesClient: any LLMPreferencesClientProtocol {
         LLMPreferencesHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    // HER-241 — per-user Hermes messaging gateway configurator.
+    private var hermesGatewaysClient: any HermesGatewaysClientProtocol {
+        HermesGatewaysHTTPClient(client: appState.makeHTTPClient())
     }
 }

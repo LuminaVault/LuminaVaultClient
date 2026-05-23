@@ -19,6 +19,10 @@ enum OnboardingStep: String, Sendable, CaseIterable {
     case soulQuiz
     /// HER-219 — optional BYO Hermes gateway prompt.
     case byoHermesPrompt
+    /// HER-241 — optional Hermes messaging gateways (Telegram, Discord,
+    /// Slack, WhatsApp). Skippable, idempotent. Reuses the Settings
+    /// detail screen for per-gateway form entry.
+    case gatewaysSetup
     /// First capture (lands with HER-110).
     case firstCapture
     /// Done — tab bar shell takes over.

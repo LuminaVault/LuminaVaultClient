@@ -50,6 +50,25 @@ final class AppState {
     // BaseHTTPClient minted via `makeHTTPClient()` shares it so concurrent
     // 401s collapse to one /v1/auth/refresh call.
     private let refreshCoordinator = TokenRefreshCoordinator()
+    /// HER-185 — observable billing surface. Constructed lazily inside
+    /// `handleAuthSuccess(_:)` so the RC `logIn` call and the
+    /// `GET /v1/auth/me/billing` fetch are bound to a concrete user.
+    /// `nil` between sign-out and the next sign-in; UI components that
+    /// read tier state must tolerate this case.
+    private(set) var billingService: BillingService?
+    /// HER-185 — test-injectable factory for the RevenueCat-side adapter.
+    /// Production defaults to `LiveRevenueCatProxy()`; tests pass a
+    /// `MockPurchasesProxy` so `BillingService` can be exercised without
+    /// the RC SDK actually running.
+    @ObservationIgnored var purchasesProxyFactory: @MainActor () -> PurchasesProxy = { LiveRevenueCatProxy() }
+    /// HER-214 — owns the POST/DELETE lifecycle for the APNS device
+    /// token. Lazily built on first read so we don't spin up an HTTP
+    /// client until a sign-in actually puts a token in flight.
+    @ObservationIgnored private(set) lazy var deviceRegistration: DeviceRegistrationCoordinator = {
+        DeviceRegistrationCoordinator(
+            client: DeviceHTTPClient(client: makeHTTPClient())
+        )
+    }()
 
     init(
         keychain: KeychainService = .shared,
@@ -139,7 +158,7 @@ final class AppState {
                 return response.accessToken
             },
             onAuthFailure: { [weak self] in
-                await MainActor.run { self?.signOut() }
+                await self?.signOut()
             },
             refreshCoordinator: coordinator
         )
@@ -174,13 +193,34 @@ final class AppState {
         var userProps: [String: Any] = [:]
         userProps["email"] = response.email
         PostHogSDK.shared.identify(distinctId, userProperties: userProps)
+        // HER-185 — bind RC identity to the server-side user and pull the
+        // authoritative billing snapshot. Service stays nil until the
+        // first sign-in so cold-launch + unauthenticated paths skip RC.
+        let billing = BillingService(
+            client: BillingHTTPClient(client: makeHTTPClient()),
+            purchases: purchasesProxyFactory()
+        )
+        billingService = billing
+        Task { await billing.bootstrap(userID: response.userId) }
     }
 
-    func signOut() {
+    /// HER-214 — DELETE the registered APNS device-token row BEFORE the
+    /// keychain is wiped so the call still has a valid bearer. Failures
+    /// are logged and swallowed by the coordinator; the local sign-out
+    /// proceeds either way.
+    func signOut() async {
+        await deviceRegistration.unregisterCurrentToken()
         // PostHog: capture sign-out then reset the anonymous distinct ID
         PostHogSDK.shared.capture("user_signed_out")
         PostHogSDK.shared.reset()
         Task { await healthKit?.stop() }
+        // HER-185 — tear down RC identity + customer-info stream before we
+        // drop the user from local state. Snapshot the service so the
+        // detached task can run after `billingService` is nilled out.
+        if let billing = billingService {
+            Task { await billing.teardown() }
+        }
+        billingService = nil
         keychain.clearAll()
         currentUserId = nil
         currentEmail = nil
