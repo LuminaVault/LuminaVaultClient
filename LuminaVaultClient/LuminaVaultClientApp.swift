@@ -170,6 +170,19 @@ struct LuminaVaultClientApp: App {
                                         onboardingClient: appState.makeOnboardingClient()
                                     ) { updated in
                                         appState.onboardingState = updated
+                                        // HER-214 (per ticket) — the UN-authorization
+                                        // prompt lands AFTER the SOUL quiz, BEFORE
+                                        // the main app shell takes over. Fire-and-
+                                        // forget: granted permission flows through
+                                        // `NotificationsAppDelegate` →
+                                        // `deviceRegistration.register(tokenHex:)`
+                                        // so the POST happens automatically.
+                                        Task {
+                                            await appDelegate.requestAuthorizationAndRegister()
+                                            if let hex = appDelegate.deviceTokenHex {
+                                                await appState.deviceRegistration.register(tokenHex: hex)
+                                            }
+                                        }
                                     }
                                 } else {
                                     MainTabView()
@@ -230,31 +243,43 @@ struct LuminaVaultClientApp: App {
                 // router so taps deep-link into the right surface.
                 //
                 // HER-214 — install the device-registration coordinator
-                // as the APNS token observer. The actual UN authorization
-                // request fires from the `isAuthenticated` task below so
-                // we don't prompt unauthenticated visitors (and so the
-                // first POST `/v1/devices` has a valid bearer token).
+                // as the APNS token observer. The UN-authorization prompt
+                // itself fires from `SoulQuizContainerView` on save (see
+                // the `onCompleted` closure on the gate above) so it lands
+                // at the ticket-correct "after SOUL.md quiz" moment for
+                // fresh sign-ups.
                 appDelegate.router = notificationRouter
                 appDelegate.onTokenAvailable = appState.deviceRegistration
             }
-            // HER-214 — request notification permission + register the
-            // resulting device token only after the user is signed in.
-            // The placement after SOUL.md quiz called for in HER-214 lands
-            // with HER-100's onboarding coordinator; until that ships,
-            // post-auth is the earliest correct hook (the server only
-            // accepts authenticated device registrations).
+            // HER-214 — warm-launch path only. If the system has already
+            // granted notification permission on a previous run, APNS
+            // hands us a token before any UI mounts; re-POST it so the
+            // server row stays current. New sign-ups whose permission
+            // status is still `.notDetermined` will see the prompt land
+            // from the SOUL confirm step, not here.
+            //
+            // HER-100 — pull the onboarding ladder so the SOUL quiz gate
+            // above renders the right surface on this sign-in.
             .task(id: appState.isAuthenticated) {
                 guard appState.isAuthenticated else { return }
-                await appDelegate.requestAuthorizationAndRegister()
-                // Re-register the in-memory token if one was captured
-                // before the coordinator existed (e.g., warm-launch with
-                // a previously-granted permission).
                 if let hex = appDelegate.deviceTokenHex {
                     await appState.deviceRegistration.register(tokenHex: hex)
                 }
-                // HER-100 — pull the onboarding ladder so the SOUL quiz
-                // gate above renders the right surface on this sign-in.
                 await appState.loadOnboardingState()
+                // HER-214 — covers the "returning user on a new device"
+                // case where the SOUL quiz is bypassed (server already
+                // reports `soulConfiguredCompleted == true`) but the
+                // notification authorization status is still
+                // `.notDetermined`. Fresh sign-ups still get the prompt
+                // from the SoulQuizContainerView `onCompleted` closure
+                // above; this hook only fires when the quiz is skipped.
+                if appState.onboardingState?.soulConfiguredCompleted == true,
+                   await NotificationsAppDelegate.shouldRequestAuthorization() {
+                    await appDelegate.requestAuthorizationAndRegister()
+                    if let hex = appDelegate.deviceTokenHex {
+                        await appState.deviceRegistration.register(tokenHex: hex)
+                    }
+                }
             }
             .onOpenURL { url in
                 _ = GIDSignIn.sharedInstance.handle(url)
