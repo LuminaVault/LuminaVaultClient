@@ -76,6 +76,33 @@ final class MockAuthClient: AuthClientProtocol {
         logoutCalls.append(refreshToken)
         if let e = logoutError { throw e }
     }
+
+    // HER-216 WebAuthn — stub conformance. Tests that exercise the
+    // passkey paths should subclass + override these or set up their
+    // own MockAuthClient. Default impls fail loudly so a missed
+    // expectation in a future passkey-touching test surfaces clearly.
+    func webAuthnRegisterBegin(username: String, displayName: String?) async throws -> WebAuthnBeginRegistrationResponse {
+        throw NotImplementedError.passkeyMockNotConfigured
+    }
+    func webAuthnRegisterFinish(_ request: WebAuthnFinishRegistrationRequest) async throws -> WebAuthnFinishRegistrationResponse {
+        throw NotImplementedError.passkeyMockNotConfigured
+    }
+    func webAuthnAuthenticateBegin(username: String) async throws -> WebAuthnBeginAuthenticationResponse {
+        throw NotImplementedError.passkeyMockNotConfigured
+    }
+    func webAuthnAuthenticateFinish(_ request: WebAuthnFinishAuthenticationRequest) async throws -> AuthResponse {
+        throw NotImplementedError.passkeyMockNotConfigured
+    }
+    func webAuthnListCredentials() async throws -> WebAuthnCredentialListResponse {
+        throw NotImplementedError.passkeyMockNotConfigured
+    }
+    func webAuthnDeleteCredential(credentialID: String) async throws {
+        throw NotImplementedError.passkeyMockNotConfigured
+    }
+}
+
+private enum NotImplementedError: Error {
+    case passkeyMockNotConfigured
 }
 
 extension MeResponse {
