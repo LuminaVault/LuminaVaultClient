@@ -62,3 +62,36 @@ protocol PurchasesProxy: Sendable {
     /// server-truth in a single round-trip.
     func restorePurchases() async throws -> RCCustomerInfoSnapshot
 }
+
+/// Fallback `PurchasesProxy` used when RevenueCat is not configured for
+/// the current launch (missing/empty `Config.revenueCatPublicKey`).
+///
+/// Touching `Purchases.shared` without first calling `Purchases.configure`
+/// produces a hard `fatalError` from the SDK. Routing through this no-op
+/// keeps `BillingService` and every downstream call site alive — server-
+/// truth billing still flows via `GET /v1/auth/me/billing`, only the
+/// client-side StoreKit surface goes inert.
+struct NoOpPurchasesProxy: PurchasesProxy {
+    func logIn(_ userID: String) async throws {}
+    func logOut() async throws {}
+
+    func customerInfo() async throws -> RCCustomerInfoSnapshot {
+        RCCustomerInfoSnapshot(activeEntitlementIDs: [], originalAppUserID: "")
+    }
+
+    func customerInfoStream() -> AsyncStream<RCCustomerInfoSnapshot> {
+        AsyncStream { $0.finish() }
+    }
+
+    func purchase(productID: String) async throws -> RCPurchaseResult {
+        throw NSError(
+            domain: "PurchasesProxy",
+            code: -100,
+            userInfo: [NSLocalizedDescriptionKey: "In-app purchases are unavailable on this build."]
+        )
+    }
+
+    func restorePurchases() async throws -> RCCustomerInfoSnapshot {
+        RCCustomerInfoSnapshot(activeEntitlementIDs: [], originalAppUserID: "")
+    }
+}

@@ -61,3 +61,17 @@ struct LiveRevenueCatProxy: PurchasesProxy {
         )
     }
 }
+
+/// Picks the right `PurchasesProxy` for the current launch. When
+/// `Purchases.configure(…)` has run (RC key present + non-empty), returns
+/// the live proxy; otherwise returns `NoOpPurchasesProxy` so callers don't
+/// trip the SDK's `Purchases.shared` `fatalError`.
+///
+/// Lives alongside `LiveRevenueCatProxy` because `AppState` must not
+/// import `RevenueCat` directly — the proxy seam is the boundary.
+enum PurchasesProxyFactory {
+    @MainActor
+    static func makeDefault() -> any PurchasesProxy {
+        Purchases.isConfigured ? LiveRevenueCatProxy() : NoOpPurchasesProxy()
+    }
+}

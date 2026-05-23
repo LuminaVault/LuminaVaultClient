@@ -58,10 +58,12 @@ final class AppState {
     /// read tier state must tolerate this case.
     private(set) var billingService: BillingService?
     /// HER-185 — test-injectable factory for the RevenueCat-side adapter.
-    /// Production defaults to `LiveRevenueCatProxy()`; tests pass a
-    /// `MockPurchasesProxy` so `BillingService` can be exercised without
-    /// the RC SDK actually running.
-    @ObservationIgnored var purchasesProxyFactory: @MainActor () -> PurchasesProxy = { LiveRevenueCatProxy() }
+    /// Production defaults to `PurchasesProxyFactory.makeDefault()`, which
+    /// returns a `LiveRevenueCatProxy` when `Purchases.configure(…)` ran
+    /// or a `NoOpPurchasesProxy` when the RC key was absent/empty. Tests
+    /// pass a `MockPurchasesProxy` so `BillingService` can be exercised
+    /// without the RC SDK actually running.
+    @ObservationIgnored var purchasesProxyFactory: @MainActor () -> PurchasesProxy = { PurchasesProxyFactory.makeDefault() }
     /// HER-211 — universal 402 → paywall presentation. Every
     /// `BaseHTTPClient` minted via `makeHTTPClient()` fires the
     /// `onPaymentRequired` callback on a 402; that callback sets this
