@@ -19,6 +19,12 @@ final class SubscriptionViewModel {
     /// the paywall sheet should present. `nil` keeps the sheet dismissed.
     var presentedPaywallID: String?
 
+    /// HER-211 — bound to `.manageSubscriptionsSheet`. SwiftUI flips this
+    /// back to false on dismiss; the view model only ever sets it true
+    /// from `tapManageSubscription()`. Source of truth for whether the
+    /// StoreKit-native manage UI is visible.
+    var isManageSubscriptionsPresented: Bool = false
+
     /// Set when `restorePurchases()` raises an error so the view can
     /// surface a banner. Cleared by `dismissError()`.
     private(set) var restoreErrorMessage: String?
@@ -57,6 +63,12 @@ final class SubscriptionViewModel {
 
     func tapUpgrade() {
         presentedPaywallID = "default"
+    }
+
+    /// HER-211 — surfaces the StoreKit-native manage UI.
+    /// `.manageSubscriptionsSheet` modifier reads `isManageSubscriptionsPresented`.
+    func tapManageSubscription() {
+        isManageSubscriptionsPresented = true
     }
 
     func dismissPaywall() {

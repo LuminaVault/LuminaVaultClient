@@ -26,6 +26,10 @@ struct TodayView: View {
                 ScrollView {
                     VStack(spacing: 20) {
                         header
+                        // HER-211 — trial countdown banner. Self-gates to
+                        // visible only when tier == .trial and < 5 days
+                        // remaining; renders an empty view otherwise.
+                        TrialCountdownBanner()
                         switch vm.state {
                         case .loading:
                             ProgressView().tint(palette.primary).padding()

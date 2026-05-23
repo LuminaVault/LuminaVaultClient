@@ -61,6 +61,13 @@ final class AppState {
     /// `MockPurchasesProxy` so `BillingService` can be exercised without
     /// the RC SDK actually running.
     @ObservationIgnored var purchasesProxyFactory: @MainActor () -> PurchasesProxy = { LiveRevenueCatProxy() }
+    /// HER-211 — universal 402 → paywall presentation. Every
+    /// `BaseHTTPClient` minted via `makeHTTPClient()` fires the
+    /// `onPaymentRequired` callback on a 402; that callback sets this
+    /// property, and `LuminaVaultClientApp` binds a root-level
+    /// `.sheet(item:)` to it so the paywall presents regardless of
+    /// which screen the failing call came from.
+    var pendingPaywallID: PaywallPresentation?
     /// HER-214 — owns the POST/DELETE lifecycle for the APNS device
     /// token. Lazily built on first read so we don't spin up an HTTP
     /// client until a sign-in actually puts a token in flight.
@@ -159,6 +166,16 @@ final class AppState {
             },
             onAuthFailure: { [weak self] in
                 await self?.signOut()
+            },
+            onPaymentRequired: { [weak self] paywallID, _ in
+                // HER-211 — root-level paywall presentation. The server's
+                // hint (or "default") drives which RC offering renders;
+                // `LuminaVaultClientApp` binds a `.sheet(item:)` to
+                // `pendingPaywallID` so this hops onto the main actor
+                // and surfaces the sheet wherever the user is.
+                await MainActor.run {
+                    self?.pendingPaywallID = PaywallPresentation(id: paywallID ?? "default")
+                }
             },
             refreshCoordinator: coordinator
         )
