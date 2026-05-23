@@ -200,8 +200,136 @@ final class BaseHTTPClient: Sendable {
         return (data, contentType)
     }
 
+    /// HER-269 — Server-Sent Events transport. Returns an
+    /// `AsyncThrowingStream` of `Event` values, one per SSE `data:` frame.
+    /// The underlying URLSession task is cancelled when the consumer
+    /// stops iterating (via `continuation.onTermination`), which lets
+    /// SwiftUI `.task { }` modifiers tear down mid-stream when the view
+    /// disappears.
+    ///
+    /// 401 handling: the response status is checked before the byte loop
+    /// starts. On 401 the stream throws `APIError.unauthorized`; use
+    /// `executeStreamWithRefresh` for the variant that retries once after
+    /// a single-flight token refresh. Mid-stream 401s cannot be
+    /// transparently retried (bytes already delivered) and propagate to
+    /// the consumer unchanged.
+    func executeStream<E: StreamingEndpoint>(_ endpoint: E) -> AsyncThrowingStream<E.Event, any Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task { [session, baseURL, tokenProvider] in
+                do {
+                    let request = try await Self.buildStreamRequest(
+                        endpoint: endpoint,
+                        baseURL: baseURL,
+                        tokenProvider: tokenProvider,
+                    )
+                    log.debug("→ \(endpoint.method.rawValue) \(endpoint.path) [stream]")
+                    let (bytes, response) = try await session.bytes(for: request)
+                    if let http = response as? HTTPURLResponse {
+                        log.debug("← \(http.statusCode) \(endpoint.path) [stream]")
+                        if http.statusCode == 401 { throw APIError.unauthorized }
+                        guard (200..<300).contains(http.statusCode) else {
+                            var trailing = Data()
+                            for try await byte in bytes { trailing.append(byte) }
+                            throw APIError.httpError(statusCode: http.statusCode, data: trailing)
+                        }
+                    }
+
+                    var parser = SSEFrameParser()
+                    for try await line in bytes.lines {
+                        if Task.isCancelled { break }
+                        switch parser.feed(line: line) {
+                        case .pending:
+                            continue
+                        case .event(let data):
+                            let event: E.Event
+                            do { event = try endpoint.decoder.decode(E.Event.self, from: data) }
+                            catch { throw APIError.decodingFailed(error) }
+                            continuation.yield(event)
+                        case .done:
+                            continuation.finish()
+                            return
+                        }
+                    }
+                    // Stream ended without trailing blank line — flush
+                    // any unfinished frame so we don't drop the last event.
+                    switch parser.flush() {
+                    case .event(let data):
+                        let event = try endpoint.decoder.decode(E.Event.self, from: data)
+                        continuation.yield(event)
+                    case .done, .pending:
+                        break
+                    }
+                    continuation.finish()
+                } catch is CancellationError {
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// Same as `executeStream` but transparently retries once after a
+    /// single-flight token refresh if the first connect attempt returns
+    /// 401. Mid-stream 401s still propagate unchanged.
+    func executeStreamWithRefresh<E: StreamingEndpoint>(_ endpoint: E) -> AsyncThrowingStream<E.Event, any Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task { [weak self] in
+                guard let self else { continuation.finish(); return }
+                var didRefresh = false
+                while !Task.isCancelled {
+                    do {
+                        for try await event in self.executeStream(endpoint) {
+                            continuation.yield(event)
+                        }
+                        continuation.finish()
+                        return
+                    } catch APIError.unauthorized where !didRefresh && self.shouldRetryAfterRefresh(streamEndpoint: endpoint) {
+                        didRefresh = true
+                        do { try await self.performRefreshOrSignOut() }
+                        catch { continuation.finish(throwing: error); return }
+                        continue
+                    } catch {
+                        continuation.finish(throwing: error)
+                        return
+                    }
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    private static func buildStreamRequest<E: StreamingEndpoint>(
+        endpoint: E,
+        baseURL: URL,
+        tokenProvider: TokenProvider,
+    ) async throws -> URLRequest {
+        guard let url = URL(string: endpoint.path, relativeTo: baseURL) else {
+            throw APIError.invalidURL
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = endpoint.method.rawValue
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        if endpoint.requiresAuth, let token = await tokenProvider() {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        if let body = endpoint.body {
+            do { req.httpBody = try endpoint.encoder.encode(AnyEncodable(body)) }
+            catch { throw APIError.encodingFailed(error) }
+        }
+        return req
+    }
+
     private func shouldRetryAfterRefresh<E: Endpoint>(endpoint: E) -> Bool {
         guard refreshHandler != nil, !endpoint.skipsAuthRefresh else { return false }
+        return true
+    }
+
+    private func shouldRetryAfterRefresh<E: StreamingEndpoint>(streamEndpoint: E) -> Bool {
+        guard refreshHandler != nil, streamEndpoint.requiresAuth else { return false }
         return true
     }
 

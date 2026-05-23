@@ -50,13 +50,19 @@ struct MainTabView: View {
                         .tag(Self.tabIds.home)
                         .toolbar(.hidden, for: .tabBar)
 
-                    // HER-37: Think tab — "Think with Lumina" + memo flow.
+                    // HER-107: Think tab — multi-turn chat. Memory-grounded
+                    // mode streams over SSE; fresh mode hits
+                    // /v1/chat/completions. Both routes are BYO-Hermes-aware
+                    // server-side.
                     ThinkWithLuminaView(
-                        vm: ThinkWithLuminaViewModel(
-                            queryClient: memoryClient,
-                            suggestionsClient: suggestionsClient,
+                        chatVM: ChatViewModel(
+                            conversationsClient: conversationsClient,
+                            chatClient: chatClient,
+                            memoryClient: memoryUpsertClient,
+                            historyStore: chatHistoryStore,
                         ),
                         memoClient: memoClient,
+                        suggestionsClient: suggestionsClient,
                     )
                     .tag(Self.tabIds.think)
                     .toolbar(.hidden, for: .tabBar)
@@ -73,12 +79,14 @@ struct MainTabView: View {
                 }
             }
 
-            // HER-243 — 5-tab bar with 84pt centre gap reserved for the FAB.
+            // HER-107 — primary 3 (Home / Think / Spaces) + More overflow
+            // (Settings / Memory). HER-243's FAB sits centred over the bar
+            // anchored via the VStack below.
             LVTabBar(
-                items: tabItems,
+                primaryItems: primaryTabItems,
+                overflowItems: overflowTabItems,
                 selection: $selection,
                 underlineNamespace: tabUnderline,
-                centerGapWidth: 84,
             )
 
             // HER-243 — capture FAB anchored centrally over the bar gap, with
@@ -104,18 +112,27 @@ struct MainTabView: View {
         }
     }
 
-    private var tabItems: [LVTabItem] {
+    // HER-107: tab bar split per Apple HIG — 3 primary tabs + More
+    // overflow. Home / Think / Spaces are the daily-driver surfaces;
+    // Settings / Memory live behind More. HER-243 already moved Today
+    // and VisualSearch into Home dashboard cards.
+    private var primaryTabItems: [LVTabItem] {
         [
-            LVTabItem(id: Self.tabIds.workspaces, label: "Spaces",
-                      systemImage: "folder.fill", customImageName: "spaces"),
             LVTabItem(id: Self.tabIds.home, label: "Home",
                       systemImage: "sparkles", customImageName: "home"),
             LVTabItem(id: Self.tabIds.think, label: "Think",
                       systemImage: "bubble.left.and.text.bubble.right", customImageName: "think"),
-            LVTabItem(id: Self.tabIds.brain, label: "Memory",
-                      systemImage: "brain.head.profile"),
+            LVTabItem(id: Self.tabIds.workspaces, label: "Spaces",
+                      systemImage: "folder.fill", customImageName: "spaces"),
+        ]
+    }
+
+    private var overflowTabItems: [LVTabItem] {
+        [
             LVTabItem(id: Self.tabIds.settings, label: "Settings",
                       systemImage: "gear", customImageName: "settings"),
+            LVTabItem(id: Self.tabIds.brain, label: "Memory",
+                      systemImage: "brain.head.profile"),
         ]
     }
 
@@ -129,6 +146,31 @@ struct MainTabView: View {
 
     private var memoryClient: MemoryQueryClientProtocol {
         MemoryQueryHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    // HER-107 — Conversations client wraps the shared BaseHTTPClient so
+    // streaming chat shares the bearer + 401 refresh coordinator.
+    private var conversationsClient: any ConversationsClientProtocol {
+        appState.makeConversationsClient()
+    }
+
+    // HER-107 — non-streaming chat client (Hermes "fresh" mode).
+    private var chatClient: any ChatClientProtocol {
+        appState.makeChatClient()
+    }
+
+    // HER-107 — memory write-side client for long-press save-to-memory
+    // (distinct from read-side `memoryClient`, which only queries).
+    private var memoryUpsertClient: any MemoryClientProtocol {
+        MemoryHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    // HER-107 — persisted chat history (last 50 turns) keyed by
+    // conversation id. Shared actor lives in App Group container so the
+    // share extension can later seed conversations from outside the
+    // host app.
+    private var chatHistoryStore: ChatHistoryStore {
+        ChatHistoryStore()
     }
 
     private var memoryGraphClient: MemoryGraphClientProtocol {
