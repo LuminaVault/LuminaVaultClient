@@ -15,6 +15,11 @@ struct ThinkWithLuminaView: View {
     @State var chatVM: ChatViewModel
     let memoClient: MemoClientProtocol
     let suggestionsClient: SuggestionsClientProtocol
+    /// HER-155 follow-up — passed to `ChatView` so finalized assistant
+    /// bubbles can resolve `[[note]]` / `[[memory:uuid]]` citations
+    /// inline. Optional to keep test wirings light.
+    var vaultClient: (any VaultClientProtocol)?
+    var memoryClient: (any MemoryClientProtocol)?
 
     @State private var suggestions: [String] = []
 
@@ -25,6 +30,8 @@ struct ThinkWithLuminaView: View {
                 emptyStateSuggestions: suggestions,
                 emptyHeadline: "What would you like to explore today?",
                 emptySupporting: "Ask anything. Lumina pulls from your vault and recent learnings.",
+                vaultClient: vaultClient,
+                memoryClient: memoryClient,
             )
             .lvBackground()
             .navigationTitle("Think with Lumina")

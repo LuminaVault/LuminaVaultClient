@@ -14,6 +14,13 @@ struct TodayOutputDetailView: View {
     @Environment(\.lvPalette) private var palette
 
     let output: SkillOutputDTO
+    /// HER-155 follow-up — when both clients are present the body
+    /// renders through `WikilinkMarkdownView` so `[[memory:uuid]]` and
+    /// `[[note]]` citations in daily-brief / weekly-memo bodies are
+    /// tappable. Optional so existing callers (and previews) compile
+    /// without the new wiring.
+    var vaultClient: (any VaultClientProtocol)?
+    var memoryClient: (any MemoryClientProtocol)?
     @Environment(\.dismiss) private var dismiss
     @State private var showingShare = false
 
@@ -88,7 +95,13 @@ struct TodayOutputDetailView: View {
 
     @ViewBuilder
     private var rendered: some View {
-        if let attr = try? AttributedString(markdown: output.body, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+        if let vaultClient, let memoryClient {
+            WikilinkMarkdownView(
+                markdown: output.body,
+                vaultClient: vaultClient,
+                memoryClient: memoryClient,
+            )
+        } else if let attr = try? AttributedString(markdown: output.body, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
             Text(attr)
         } else {
             Text(output.body)

@@ -11,6 +11,11 @@ struct TodayView: View {
     @Environment(\.lvPalette) private var palette
 
     @State var vm: TodayViewModel
+    /// HER-155 follow-up — forwarded to `TodayOutputDetailView` so the
+    /// rendered memo body can resolve wikilink citations. Optional to
+    /// keep existing test wirings backward-compatible.
+    var vaultClient: (any VaultClientProtocol)?
+    var memoryClient: (any MemoryClientProtocol)?
     @Environment(NotificationRouter.self) private var router
 
     @State private var celebrate: Bool = false
@@ -65,7 +70,11 @@ struct TodayView: View {
         }
         .lvBackground()
         .sheet(item: $detailOutput) { output in
-            TodayOutputDetailView(output: output)
+            TodayOutputDetailView(
+                output: output,
+                vaultClient: vaultClient,
+                memoryClient: memoryClient,
+            )
         }
         .sheet(item: $shareOutput) { output in
             TodayShareSheet(activityItems: [
