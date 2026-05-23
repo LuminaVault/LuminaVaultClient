@@ -46,7 +46,7 @@ final class AppStateBillingHookTests: XCTestCase {
             (proxy?.logInCalls.first) != nil
         }
 
-        state.signOut()
+        await state.signOut()
 
         XCTAssertNil(state.billingService, "service reference must be cleared on sign-out")
         await waitUntil(timeout: 2.0) { [proxy] in

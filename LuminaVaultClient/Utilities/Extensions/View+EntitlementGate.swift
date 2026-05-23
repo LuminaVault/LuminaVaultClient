@@ -56,8 +56,10 @@ extension EnvironmentValues {
 
 /// Wrapping the paywall ID in `Identifiable` so `.sheet(item:)` can drive
 /// the presentation off a single optional binding (SwiftUI requires the
-/// item type to conform; `String` doesn't).
-private struct PaywallPresentation: Identifiable, Equatable {
+/// item type to conform; `String` doesn't). Hoisted to internal in HER-211
+/// so `AppState.pendingPaywallID` can publish the same type — root-level
+/// universal paywall sheet binds against it directly.
+struct PaywallPresentation: Identifiable, Equatable, Sendable {
     let id: String
 }
 

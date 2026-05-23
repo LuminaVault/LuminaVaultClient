@@ -1,5 +1,6 @@
 // LuminaVaultClient/LuminaVaultClient/API/Core/BaseHTTPClient.swift
 import Foundation
+import LuminaVaultShared
 import OSLog
 import PostHog
 
@@ -13,12 +14,23 @@ final class BaseHTTPClient: Sendable {
     typealias TokenProvider = @Sendable () async -> String?
     typealias RefreshHandler = @Sendable () async throws -> String
     typealias AuthFailureHandler = @Sendable () async -> Void
+    /// HER-211 — fired on every 402 response, regardless of whether the
+    /// call site catches `APIError.paymentRequired`. The throw still
+    /// happens (so HER-188 `EntitlementGate` reactive handling keeps
+    /// working). `AppState` wires this to a root-level paywall sheet so
+    /// the user sees the paywall even when no in-tree gate wraps the
+    /// failing call site.
+    typealias PaymentRequiredHandler = @Sendable (
+        _ paywallID: String?,
+        _ requiredTier: UserTier?
+    ) async -> Void
 
     private let session: URLSession
     private var baseURL: URL { Config.apiBaseURL }
     private let tokenProvider: TokenProvider
     private let refreshHandler: RefreshHandler?
     private let onAuthFailure: AuthFailureHandler?
+    private let onPaymentRequired: PaymentRequiredHandler?
     private let refreshCoordinator: TokenRefreshCoordinator?
 
     init(
@@ -26,12 +38,14 @@ final class BaseHTTPClient: Sendable {
         tokenProvider: @escaping TokenProvider = { nil },
         refreshHandler: RefreshHandler? = nil,
         onAuthFailure: AuthFailureHandler? = nil,
+        onPaymentRequired: PaymentRequiredHandler? = nil,
         refreshCoordinator: TokenRefreshCoordinator? = nil
     ) {
         self.session = session
         self.tokenProvider = tokenProvider
         self.refreshHandler = refreshHandler
         self.onAuthFailure = onAuthFailure
+        self.onPaymentRequired = onPaymentRequired
         // HER-237: a refresh handler without a coordinator would stampede
         // the auth server on concurrent 401s. Always provide one when
         // refresh is wired; share it across clients to keep single-flight
@@ -86,6 +100,10 @@ final class BaseHTTPClient: Sendable {
                 // "required_tier": "pro" }`. Bare 402 still produces a
                 // typed error so EntitlementGate can present a paywall.
                 let hints = try? JSONDecoder.hvDefault.decode(PaymentRequiredBody.self, from: data)
+                // HER-211 — fire the universal interceptor BEFORE throwing.
+                // AppState wires this to a root-level sheet; the throw
+                // keeps HER-188's reactive EntitlementGate handlers working.
+                await onPaymentRequired?(hints?.paywallID, hints?.requiredTier)
                 throw APIError.paymentRequired(paywallID: hints?.paywallID, requiredTier: hints?.requiredTier)
             }
             guard (200..<300).contains(http.statusCode) else {
@@ -141,6 +159,10 @@ final class BaseHTTPClient: Sendable {
                 // "required_tier": "pro" }`. Bare 402 still produces a
                 // typed error so EntitlementGate can present a paywall.
                 let hints = try? JSONDecoder.hvDefault.decode(PaymentRequiredBody.self, from: data)
+                // HER-211 — fire the universal interceptor BEFORE throwing.
+                // AppState wires this to a root-level sheet; the throw
+                // keeps HER-188's reactive EntitlementGate handlers working.
+                await onPaymentRequired?(hints?.paywallID, hints?.requiredTier)
                 throw APIError.paymentRequired(paywallID: hints?.paywallID, requiredTier: hints?.requiredTier)
             }
             guard (200..<300).contains(http.statusCode) else {
@@ -188,6 +210,10 @@ final class BaseHTTPClient: Sendable {
                 // "required_tier": "pro" }`. Bare 402 still produces a
                 // typed error so EntitlementGate can present a paywall.
                 let hints = try? JSONDecoder.hvDefault.decode(PaymentRequiredBody.self, from: data)
+                // HER-211 — fire the universal interceptor BEFORE throwing.
+                // AppState wires this to a root-level sheet; the throw
+                // keeps HER-188's reactive EntitlementGate handlers working.
+                await onPaymentRequired?(hints?.paywallID, hints?.requiredTier)
                 throw APIError.paymentRequired(paywallID: hints?.paywallID, requiredTier: hints?.requiredTier)
             }
             guard (200..<300).contains(http.statusCode) else {

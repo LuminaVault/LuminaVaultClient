@@ -86,6 +86,25 @@ final class EntitlementGateTests: XCTestCase {
         XCTAssertNotNil(vm.restoreErrorMessage)
     }
 
+    // MARK: - HER-211 Manage Subscription state
+
+    func testTapManageSubscriptionFlipsPresentationFlag() {
+        let vm = SubscriptionViewModel(billing: nil)
+        XCTAssertFalse(vm.isManageSubscriptionsPresented)
+        vm.tapManageSubscription()
+        XCTAssertTrue(vm.isManageSubscriptionsPresented)
+    }
+
+    func testManageSubscriptionDismissableViaBinding() {
+        // SwiftUI's `.manageSubscriptionsSheet` writes `false` back on
+        // dismiss. The view model must accept that without state corruption.
+        let vm = SubscriptionViewModel(billing: nil)
+        vm.tapManageSubscription()
+        XCTAssertTrue(vm.isManageSubscriptionsPresented)
+        vm.isManageSubscriptionsPresented = false
+        XCTAssertFalse(vm.isManageSubscriptionsPresented)
+    }
+
     // MARK: - Helpers
 
     private func makeBillingService(

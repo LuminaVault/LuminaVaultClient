@@ -187,6 +187,20 @@ struct LuminaVaultClientApp: App {
             .environment(theme)
             .environment(notificationRouter)
             .environment(workspaceSelection)
+            // HER-211 — universal 402 interceptor presents the paywall at
+            // the root regardless of which tab/screen the failing call
+            // originated from. AppState publishes `pendingPaywallID`
+            // from the BaseHTTPClient `onPaymentRequired` callback.
+            .sheet(
+                item: Binding(
+                    get: { appState.pendingPaywallID },
+                    set: { appState.pendingPaywallID = $0 }
+                )
+            ) { presentation in
+                PaywallView(paywallID: presentation.id)
+                    .environment(appState)
+                    .environment(theme)
+            }
             .task {
                 // HER-179 — bridge the AppDelegate to the SwiftUI-side
                 // router so taps deep-link into the right surface.

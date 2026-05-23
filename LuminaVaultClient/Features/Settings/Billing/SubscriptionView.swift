@@ -11,6 +11,7 @@
 // powers `EntitlementGate`, so visuals stay consistent.
 
 import SwiftUI
+import StoreKit
 import LuminaVaultShared
 
 struct SubscriptionView: View {
@@ -64,6 +65,22 @@ struct SubscriptionView: View {
             }
 
             Section("Manage") {
+                // HER-211 — StoreKit-native manage UI. Inline sheet
+                // (no app-switch). Visible when the user has any
+                // existing subscription history; surfaced unconditionally
+                // here per Apple HIG §3.1.2 review checklist (the sheet
+                // itself renders an "All subscriptions" empty state when
+                // there's nothing to manage).
+                Button {
+                    viewModel.tapManageSubscription()
+                } label: {
+                    Label("Manage Subscription", systemImage: "creditcard.and.123")
+                }
+                .manageSubscriptionsSheet(isPresented: Binding(
+                    get: { viewModel.isManageSubscriptionsPresented },
+                    set: { viewModel.isManageSubscriptionsPresented = $0 }
+                ))
+
                 Button {
                     Task { await viewModel.restorePurchases() }
                 } label: {
