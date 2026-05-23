@@ -196,6 +196,13 @@ final class AppState {
         ChatHTTPClient(client: makeHTTPClient())
     }
 
+    /// HER-154 — daily review digest client (GET /v1/me/today). Pull-
+    /// to-refresh and tab-appear consumers go through this factory so
+    /// they share the bearer + 401 refresh coordinator.
+    func makeDailyReviewClient() -> any DailyReviewClientProtocol {
+        DailyReviewHTTPClient(client: makeHTTPClient())
+    }
+
     func handleAuthSuccess(_ response: AuthResponse) {
         keychain.accessToken = response.accessToken
         keychain.refreshToken = response.refreshToken
