@@ -303,6 +303,11 @@ private struct AuthLandingButton: View {
             Image(systemName: "envelope.fill")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(palette.primary)
+        case .passkey:
+            // HER-216 — passkey symbol matches `option.systemImageName` (line 34).
+            Image(systemName: "key.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(palette.primary)
         }
     }
 }
