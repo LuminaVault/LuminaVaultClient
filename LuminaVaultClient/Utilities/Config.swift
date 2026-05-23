@@ -34,10 +34,17 @@ enum Config {
     /// HER-185 — RevenueCat public SDK key. Layered: `REVENUECAT_PUBLIC_KEY`
     /// env var (Debug scheme override) → `LV_RC_API_KEY` Info.plist key
     /// (xcconfig-injected for TestFlight/Release). Returns nil when neither
-    /// is set; `BillingService` treats that as a soft failure and falls
-    /// back to server-truth only.
+    /// is set OR when the resolved value is empty; `BillingService` treats
+    /// that as a soft failure and falls back to server-truth only.
+    ///
+    /// Empty string is treated as nil because xcconfig templates often
+    /// expand to `""` for missing keys, and passing an empty key to
+    /// `Purchases.configure` produces a runtime `Purchases.shared`
+    /// `fatalError` on the next access.
     static var revenueCatPublicKey: String? {
-        envString("REVENUECAT_PUBLIC_KEY") ?? infoString("LV_RC_API_KEY")
+        let raw = envString("REVENUECAT_PUBLIC_KEY") ?? infoString("LV_RC_API_KEY")
+        guard let raw, !raw.isEmpty else { return nil }
+        return raw
     }
 
     /// HER-188 — App Review-required legal links surfaced from the
