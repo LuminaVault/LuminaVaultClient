@@ -55,6 +55,11 @@ struct LuminaVaultClientApp: App {
     @State private var biometricChecked = false
     @State private var captureCoordinator: CaptureCoordinator?
     @AppStorage("hasSeenGetStarted") private var hasSeenGetStarted = false
+    // HER-287 — local flag for the conversion-funnel completion. Sits
+    // between vault-create and SOUL quiz. UserDefaults-backed so the
+    // user only sees it once across reinstalls only if the device-id
+    // store gets wiped (per-install scope is good enough for v1).
+    @AppStorage("hasSeenConversionFunnel") private var hasSeenConversionFunnel = false
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -152,6 +157,12 @@ struct LuminaVaultClientApp: App {
                             // (M37 backfill) skip this branch because the
                             // server starts them at vaultInitialized=true.
                             if appState.vaultInitialized {
+                                // HER-287 — conversion-funnel questionnaire
+                                // gates between vault-create and SOUL quiz.
+                                // Local-only flag (no server latch);
+                                // running it again is harmless if a user
+                                // ever resets defaults.
+                                let needsConversionFunnel = !hasSeenConversionFunnel
                                 // HER-100: gate the main shell behind the
                                 // SOUL.md 5-step quiz. We only require
                                 // completion when the server's onboarding
@@ -163,7 +174,16 @@ struct LuminaVaultClientApp: App {
                                 // the next foreground re-attempts the
                                 // load and gates if appropriate.
                                 let needsSoulQuiz = appState.onboardingState?.soulConfiguredCompleted == false
-                                if needsSoulQuiz {
+                                if needsConversionFunnel {
+                                    ConversionFunnelContainer {
+                                        // HER-287 → HER-211 handoff: flip
+                                        // the local flag so the funnel
+                                        // never re-presents, then trigger
+                                        // the universal root paywall.
+                                        hasSeenConversionFunnel = true
+                                        appState.pendingPaywallID = PaywallPresentation(id: "default")
+                                    }
+                                } else if needsSoulQuiz {
                                     SoulQuizContainerView(
                                         state: SoulQuizState(userId: appState.currentUserId),
                                         soulClient: appState.makeSoulClient(),
