@@ -295,6 +295,10 @@ private struct AuthLandingButton: View {
             Text("𝕏")
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(palette.textPrimary)
+        case .passkey:
+            Image(systemName: "key.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(palette.primary)
         case .phone:
             Image(systemName: "phone.fill")
                 .font(.system(size: 16, weight: .semibold))

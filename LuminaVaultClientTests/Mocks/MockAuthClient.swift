@@ -15,6 +15,12 @@ final class MockAuthClient: AuthClientProtocol {
     var emailMagicStartResult: Result<EmailMagicStartResponse, Error> = .success(.stub)
     var emailMagicVerifyResult: Result<AuthResponse, Error> = .success(.stub)
     var getMeResult: Result<MeResponse, Error> = .success(.stub)
+    var webAuthnRegisterBeginResult: Result<WebAuthnBeginRegistrationResponse, Error> = .success(.stub)
+    var webAuthnRegisterFinishResult: Result<WebAuthnFinishRegistrationResponse, Error> = .success(.stub)
+    var webAuthnAuthenticateBeginResult: Result<WebAuthnBeginAuthenticationResponse, Error> = .success(.stub)
+    var webAuthnAuthenticateFinishResult: Result<AuthResponse, Error> = .success(.stub)
+    var webAuthnListCredentialsResult: Result<WebAuthnCredentialListResponse, Error> = .success(.stub)
+    var webAuthnDeleteCredentialError: Error? = nil
     var logoutError: Error? = nil
 
     // Invocation recorders
@@ -26,52 +32,100 @@ final class MockAuthClient: AuthClientProtocol {
     private(set) var emailMagicStartCalls: [String] = []
     private(set) var emailMagicVerifyCalls: [(email: String, code: String)] = []
     private(set) var getMeCallCount: Int = 0
+    private(set) var webAuthnRegisterBeginCalls: [(username: String, displayName: String?)] = []
+    private(set) var webAuthnRegisterFinishCalls: [WebAuthnFinishRegistrationRequest] = []
+    private(set) var webAuthnAuthenticateBeginCalls: [String] = []
+    private(set) var webAuthnAuthenticateFinishCalls: [WebAuthnFinishAuthenticationRequest] = []
+    private(set) var webAuthnListCredentialsCallCount: Int = 0
+    private(set) var webAuthnDeleteCredentialCalls: [String] = []
     private(set) var logoutCalls: [String] = []
 
     func login(email: String, password: String, mfaCode: String?) async throws -> AuthResponse {
         loginCalls.append((email, password, mfaCode))
         return try loginResult.get()
     }
+
     func register(email: String, username: String, password: String) async throws -> AuthResponse {
         try registerResult.get()
     }
+
     func forgotPassword(email: String) async throws {
         if let e = forgotPasswordError { throw e }
     }
+
     func resetPassword(email: String, code: String, newPassword: String) async throws {
         if let e = resetPasswordError { throw e }
     }
+
     func verifyMFA(challengeId: UUID, code: String) async throws -> AuthResponse {
         verifyMFACalls.append((challengeId, code))
         return try verifyMFAResult.get()
     }
+
     func exchangeOAuth(provider: String, idToken: String) async throws -> AuthResponse {
         exchangeOAuthCalls.append((provider, idToken))
         return try exchangeOAuthResult.get()
     }
+
     func refreshToken(_ token: String) async throws -> AuthResponse {
         try refreshResult.get()
     }
+
     func phoneStart(phone: String) async throws -> PhoneStartResponse {
         phoneStartCalls.append(phone)
         return try phoneStartResult.get()
     }
+
     func phoneVerify(phone: String, code: String) async throws -> AuthResponse {
         phoneVerifyCalls.append((phone, code))
         return try phoneVerifyResult.get()
     }
+
     func emailMagicStart(email: String) async throws -> EmailMagicStartResponse {
         emailMagicStartCalls.append(email)
         return try emailMagicStartResult.get()
     }
+
     func emailMagicVerify(email: String, code: String) async throws -> AuthResponse {
         emailMagicVerifyCalls.append((email, code))
         return try emailMagicVerifyResult.get()
     }
+
     func getMe() async throws -> MeResponse {
         getMeCallCount += 1
         return try getMeResult.get()
     }
+
+    func webAuthnRegisterBegin(username: String, displayName: String?) async throws -> WebAuthnBeginRegistrationResponse {
+        webAuthnRegisterBeginCalls.append((username, displayName))
+        return try webAuthnRegisterBeginResult.get()
+    }
+
+    func webAuthnRegisterFinish(_ request: WebAuthnFinishRegistrationRequest) async throws -> WebAuthnFinishRegistrationResponse {
+        webAuthnRegisterFinishCalls.append(request)
+        return try webAuthnRegisterFinishResult.get()
+    }
+
+    func webAuthnAuthenticateBegin(username: String) async throws -> WebAuthnBeginAuthenticationResponse {
+        webAuthnAuthenticateBeginCalls.append(username)
+        return try webAuthnAuthenticateBeginResult.get()
+    }
+
+    func webAuthnAuthenticateFinish(_ request: WebAuthnFinishAuthenticationRequest) async throws -> AuthResponse {
+        webAuthnAuthenticateFinishCalls.append(request)
+        return try webAuthnAuthenticateFinishResult.get()
+    }
+
+    func webAuthnListCredentials() async throws -> WebAuthnCredentialListResponse {
+        webAuthnListCredentialsCallCount += 1
+        return try webAuthnListCredentialsResult.get()
+    }
+
+    func webAuthnDeleteCredential(credentialID: String) async throws {
+        webAuthnDeleteCredentialCalls.append(credentialID)
+        if let e = webAuthnDeleteCredentialError { throw e }
+    }
+
     func logout(refreshToken: String) async throws {
         logoutCalls.append(refreshToken)
         if let e = logoutError { throw e }
@@ -149,4 +203,20 @@ extension AuthResponse {
         mfaRequired: true,
         mfaChallengeId: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
     )
+}
+
+extension WebAuthnBeginRegistrationResponse {
+    static let stub = WebAuthnBeginRegistrationResponse(options: .object([:]))
+}
+
+extension WebAuthnBeginAuthenticationResponse {
+    static let stub = WebAuthnBeginAuthenticationResponse(options: .object([:]))
+}
+
+extension WebAuthnFinishRegistrationResponse {
+    static let stub = WebAuthnFinishRegistrationResponse(credentialID: "credential-stub")
+}
+
+extension WebAuthnCredentialListResponse {
+    static let stub = WebAuthnCredentialListResponse(credentials: [])
 }
