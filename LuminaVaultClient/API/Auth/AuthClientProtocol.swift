@@ -15,4 +15,12 @@ protocol AuthClientProtocol {
     func emailMagicVerify(email: String, code: String) async throws -> AuthResponse
     func getMe() async throws -> MeResponse
     func logout(refreshToken: String) async throws
+
+    // HER-216 WebAuthn / passkey
+    func webAuthnRegisterBegin(username: String, displayName: String?) async throws -> WebAuthnBeginRegistrationResponse
+    func webAuthnRegisterFinish(_ request: WebAuthnFinishRegistrationRequest) async throws -> WebAuthnFinishRegistrationResponse
+    func webAuthnAuthenticateBegin(username: String) async throws -> WebAuthnBeginAuthenticationResponse
+    func webAuthnAuthenticateFinish(_ request: WebAuthnFinishAuthenticationRequest) async throws -> AuthResponse
+    func webAuthnListCredentials() async throws -> WebAuthnCredentialListResponse
+    func webAuthnDeleteCredential(credentialID: String) async throws
 }

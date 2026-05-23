@@ -139,7 +139,10 @@ struct LuminaVaultClientApp: App {
             appState: appState,
             appleService: AppleSignInService(),
             googleService: GoogleSignInService(),
-            xService: XSignInService()
+            xService: XSignInService(),
+            passkeyService: Config.webAuthnRelyingPartyID.map {
+                PasskeyService(relyingPartyIdentifier: $0)
+            }
         )
     }
 

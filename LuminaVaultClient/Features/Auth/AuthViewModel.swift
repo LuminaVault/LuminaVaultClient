@@ -67,19 +67,22 @@ final class AuthViewModel {
     private let appleService: any SignInServiceProtocol
     private let googleService: (any SignInServiceProtocol)?
     private let xService: (any SignInServiceProtocol)?
+    private let passkeyService: (any PasskeyServiceProtocol)?
 
     init(
         authClient: any AuthClientProtocol,
         appState: AppState,
         appleService: any SignInServiceProtocol = AppleSignInService(),
         googleService: (any SignInServiceProtocol)? = nil,
-        xService: (any SignInServiceProtocol)? = nil
+        xService: (any SignInServiceProtocol)? = nil,
+        passkeyService: (any PasskeyServiceProtocol)? = nil
     ) {
         self.authClient = authClient
         self.appState = appState
         self.appleService = appleService
         self.googleService = googleService
         self.xService = xService
+        self.passkeyService = passkeyService
     }
 
     func signIn() async {
@@ -169,6 +172,67 @@ final class AuthViewModel {
             return
         }
         await runOAuth(provider: "x", service: service)
+    }
+
+    // MARK: - HER-216 passkey
+
+    /// Begin → ASAuthorization → finish round-trip for sign-in. Surfaces
+    /// `passkeyService == nil` as a soft "not available" error so the
+    /// caller can gracefully fall back to email/OTP.
+    func signInWithPasskey(username: String) async {
+        guard let passkeyService else {
+            error = "Passkeys aren't available on this device."
+            return
+        }
+        isLoading = true; error = nil; defer { isLoading = false }
+        do {
+            let begin = try await authClient.webAuthnAuthenticateBegin(username: username)
+            let credential = try await passkeyService.authenticate(
+                options: begin.options,
+                presentationAnchor: Self.currentPresentationAnchor()
+            )
+            let request = WebAuthnFinishAuthenticationRequest(
+                username: username,
+                credential: credential
+            )
+            let response = try await authClient.webAuthnAuthenticateFinish(request)
+            appState.handleAuthSuccess(response)
+            PostHogSDK.shared.capture("auth_signed_in", properties: ["method": "passkey"])
+        } catch PasskeyError.cancelled {
+            // Silent — user dismissed the system sheet.
+        } catch {
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    /// Enrol a fresh passkey for the currently authenticated user. Settings
+    /// surface drives this; landing-screen UI does not call into it.
+    func registerPasskey(username: String, displayName: String?) async {
+        guard let passkeyService else {
+            error = "Passkeys aren't available on this device."
+            return
+        }
+        isLoading = true; error = nil; defer { isLoading = false }
+        do {
+            let begin = try await authClient.webAuthnRegisterBegin(
+                username: username,
+                displayName: displayName
+            )
+            let credential = try await passkeyService.register(
+                options: begin.options,
+                presentationAnchor: Self.currentPresentationAnchor()
+            )
+            let request = WebAuthnFinishRegistrationRequest(
+                username: username,
+                credentialCreationData: credential
+            )
+            _ = try await authClient.webAuthnRegisterFinish(request)
+            PostHogSDK.shared.capture("auth_passkey_enrolled")
+        } catch PasskeyError.cancelled {
+            // Silent.
+        } catch {
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
     }
 
     private func runOAuth(provider: String, service: any SignInServiceProtocol) async {

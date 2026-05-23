@@ -22,6 +22,12 @@ enum Config {
     static var googleReversedClientID: String? { infoString("GOOGLE_REVERSED_CLIENT_ID") }
     static var xClientID: String? { infoString("X_CLIENT_ID") }
     static var xRedirectURI: String? { infoString("X_REDIRECT_URI") }
+    /// HER-216 — WebAuthn relying-party identifier. MUST match the `id`
+    /// returned in the server's `rp` block (usually the apex domain — e.g.
+    /// `luminavault.app`). Pair with an `associated-domains` entitlement
+    /// of `webcredentials:<this-value>` for the OS to honour cross-device
+    /// passkey sync via iCloud Keychain.
+    static var webAuthnRelyingPartyID: String? { infoString("WEBAUTHN_RP_ID") }
     static var sentryDSN: String? { envString("SENTRY_DSN") ?? infoString("SENTRY_DSN") }
     static var sentryEnvironment: String? { envString("SENTRY_ENVIRONMENT") ?? infoString("SENTRY_ENVIRONMENT") }
 

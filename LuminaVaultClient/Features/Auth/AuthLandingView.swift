@@ -13,37 +13,39 @@ import SwiftUI
 /// Identifies a provider on the landing screen. A superset of `SSOProvider`
 /// (which is OAuth-only and reused by `AuthViewModel.handleSSOTap`).
 enum AuthProviderOption: String, CaseIterable, Identifiable, Sendable {
-    case apple, google, x, phone, email
+    case apple, google, x, passkey, phone, email
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .apple:  return "Sign in with Apple"
-        case .google: return "Sign in with Google"
-        case .x:      return "Sign in with X"
-        case .phone:  return "Continue with phone"
-        case .email:  return "Continue with email"
+        case .apple:   return "Sign in with Apple"
+        case .google:  return "Sign in with Google"
+        case .x:       return "Sign in with X"
+        case .passkey: return "Sign in with a passkey"
+        case .phone:   return "Continue with phone"
+        case .email:   return "Continue with email"
         }
     }
 
     var iconSystemName: String? {
         switch self {
-        case .apple:  return "apple.logo"
-        case .phone:  return "phone.fill"
-        case .email:  return "envelope.fill"
+        case .apple:   return "apple.logo"
+        case .passkey: return "key.fill"
+        case .phone:   return "phone.fill"
+        case .email:   return "envelope.fill"
         case .google, .x: return nil // glyph rendered separately
         }
     }
 
     /// Bridges to the OAuth-only enum used by `AuthViewModel`. Returns nil
-    /// for non-OAuth providers (phone/email use their own flows).
+    /// for non-OAuth providers (phone/email/passkey use their own flows).
     var ssoProvider: SSOProvider? {
         switch self {
         case .apple:  return .apple
         case .google: return .google
         case .x:      return .x
-        case .phone, .email: return nil
+        case .phone, .email, .passkey: return nil
         }
     }
 }
@@ -54,6 +56,7 @@ struct AuthLandingView: View {
 
     @Bindable var vm: AuthViewModel
     @AppStorage("lv.auth.preferredProvider") private var preferredRaw: String = ""
+    @State private var showingPasskeySheet = false
 
     private var preferred: AuthProviderOption? {
         AuthProviderOption(rawValue: preferredRaw)
@@ -61,12 +64,13 @@ struct AuthLandingView: View {
 
     private var visibleProviders: [AuthProviderOption] {
         // Mirror SSORow: only show Google / X when their client IDs are
-        // configured. Phone + email are always available; Apple is always
-        // shown because §4.8 mandates SIWA presence whenever any third
-        // party identity option is offered.
+        // configured. Phone + email + passkey are always available; Apple is
+        // always shown because §4.8 mandates SIWA presence whenever any
+        // third party identity option is offered.
         var providers: [AuthProviderOption] = [.apple]
         if Config.googleClientID != nil { providers.append(.google) }
         if Config.xClientID != nil { providers.append(.x) }
+        providers.append(.passkey)
         providers.append(contentsOf: [.phone, .email])
         return providers
     }
@@ -124,6 +128,9 @@ struct AuthLandingView: View {
             get: { vm.mfaRequired },
             set: { if !$0 { vm.mfaRequired = false } }
         )) { MFAChallengeView(vm: vm) }
+        .sheet(isPresented: $showingPasskeySheet) {
+            PasskeyUsernameSheet(vm: vm)
+        }
     }
 
     private var providerStack: some View {
@@ -145,12 +152,66 @@ struct AuthLandingView: View {
         case .apple, .google, .x:
             guard let sso = option.ssoProvider else { return }
             Task { await vm.handleSSOTap(provider: sso) }
+        case .passkey:
+            // HER-216 — passkey sign-in needs a username so the server can
+            // hand back the right `allowCredentials` set. A small bottom
+            // sheet collects it, then drives `vm.signInWithPasskey`.
+            showingPasskeySheet = true
         case .phone, .email:
             // Navigation handled by NavigationLink wrappers inside
             // AuthLandingButton — phone / email cases push their dedicated
             // entry screens instead of firing a network call here.
             break
         }
+    }
+}
+
+// MARK: - HER-216 passkey username sheet
+
+/// Small bottom sheet that collects the username and dispatches a passkey
+/// sign-in attempt. Kept private to `AuthLandingView` — the only place
+/// passkey sign-in is initiated from the auth landing surface.
+struct PasskeyUsernameSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.lvPalette) private var palette
+    @Bindable var vm: AuthViewModel
+    @State private var username = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Sign in with a passkey")
+                .font(.system(size: 18, weight: .heavy))
+                .foregroundStyle(palette.textPrimary)
+            Text("Enter your username — your device will handle the rest.")
+                .font(.system(size: 12))
+                .foregroundStyle(palette.textSecondary)
+            TextField("username", text: $username)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled(true)
+                .padding(12)
+                .lvGlassCard(cornerRadius: 10, intensity: 0.4)
+
+            Button {
+                let target = username.trimmingCharacters(in: .whitespaces)
+                guard !target.isEmpty else { return }
+                Task {
+                    await vm.signInWithPasskey(username: target)
+                    dismiss()
+                }
+            } label: {
+                Text("Continue")
+                    .font(.system(size: 14, weight: .bold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(palette.primary)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+            .buttonStyle(.plain)
+            .disabled(username.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+        .padding(20)
+        .presentationDetents([.height(260)])
     }
 }
 

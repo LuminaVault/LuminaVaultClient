@@ -122,4 +122,61 @@ enum AuthEndpoints {
         var method: HTTPMethod { .post }
         var body: (any Encodable)? { RefreshRequest(refreshToken: refreshToken) }
     }
+
+    // MARK: - HER-216 WebAuthn / passkey
+
+    struct WebAuthnRegisterBegin: Endpoint {
+        typealias Response = WebAuthnBeginRegistrationResponse
+        let username: String
+        let displayName: String?
+        var path: String { "/v1/auth/webauthn/register/begin" }
+        var method: HTTPMethod { .post }
+        var requiresAuth: Bool { false }
+        var body: (any Encodable)? {
+            WebAuthnBeginRegistrationRequest(username: username, displayName: displayName)
+        }
+    }
+
+    struct WebAuthnRegisterFinish: Endpoint {
+        typealias Response = WebAuthnFinishRegistrationResponse
+        let request: WebAuthnFinishRegistrationRequest
+        var path: String { "/v1/auth/webauthn/register/finish" }
+        var method: HTTPMethod { .post }
+        var requiresAuth: Bool { false }
+        var body: (any Encodable)? { request }
+    }
+
+    struct WebAuthnAuthenticateBegin: Endpoint {
+        typealias Response = WebAuthnBeginAuthenticationResponse
+        let username: String
+        var path: String { "/v1/auth/webauthn/authenticate/begin" }
+        var method: HTTPMethod { .post }
+        var requiresAuth: Bool { false }
+        var body: (any Encodable)? { WebAuthnBeginAuthenticationRequest(username: username) }
+    }
+
+    struct WebAuthnAuthenticateFinish: Endpoint {
+        typealias Response = AuthResponse
+        let request: WebAuthnFinishAuthenticationRequest
+        var path: String { "/v1/auth/webauthn/authenticate/finish" }
+        var method: HTTPMethod { .post }
+        var requiresAuth: Bool { false }
+        var body: (any Encodable)? { request }
+    }
+
+    struct WebAuthnListCredentials: Endpoint {
+        typealias Response = WebAuthnCredentialListResponse
+        var path: String { "/v1/auth/webauthn/credentials" }
+        var method: HTTPMethod { .get }
+    }
+
+    struct WebAuthnDeleteCredential: Endpoint {
+        typealias Response = EmptyResponse
+        let credentialID: String
+        var path: String {
+            let encoded = credentialID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? credentialID
+            return "/v1/auth/webauthn/credentials/\(encoded)"
+        }
+        var method: HTTPMethod { .delete }
+    }
 }

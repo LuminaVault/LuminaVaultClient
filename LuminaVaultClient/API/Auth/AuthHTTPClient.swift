@@ -45,4 +45,30 @@ final class AuthHTTPClient: AuthClientProtocol {
     func logout(refreshToken: String) async throws {
         _ = try await client.execute(AuthEndpoints.Logout(refreshToken: refreshToken))
     }
+
+    // MARK: - HER-216 WebAuthn / passkey
+
+    func webAuthnRegisterBegin(username: String, displayName: String?) async throws -> WebAuthnBeginRegistrationResponse {
+        try await client.execute(AuthEndpoints.WebAuthnRegisterBegin(username: username, displayName: displayName))
+    }
+
+    func webAuthnRegisterFinish(_ request: WebAuthnFinishRegistrationRequest) async throws -> WebAuthnFinishRegistrationResponse {
+        try await client.execute(AuthEndpoints.WebAuthnRegisterFinish(request: request))
+    }
+
+    func webAuthnAuthenticateBegin(username: String) async throws -> WebAuthnBeginAuthenticationResponse {
+        try await client.execute(AuthEndpoints.WebAuthnAuthenticateBegin(username: username))
+    }
+
+    func webAuthnAuthenticateFinish(_ request: WebAuthnFinishAuthenticationRequest) async throws -> AuthResponse {
+        try await client.execute(AuthEndpoints.WebAuthnAuthenticateFinish(request: request))
+    }
+
+    func webAuthnListCredentials() async throws -> WebAuthnCredentialListResponse {
+        try await client.execute(AuthEndpoints.WebAuthnListCredentials())
+    }
+
+    func webAuthnDeleteCredential(credentialID: String) async throws {
+        _ = try await client.execute(AuthEndpoints.WebAuthnDeleteCredential(credentialID: credentialID))
+    }
 }
