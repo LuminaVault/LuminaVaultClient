@@ -15,6 +15,7 @@
 // — these callbacks make the convergence explicit.
 
 import SwiftUI
+import StoreKit
 import RevenueCat
 import RevenueCatUI
 
@@ -27,6 +28,10 @@ struct PaywallView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.lvPalette) private var palette
     @Environment(\.dismiss) private var dismiss
+    /// HER-298 — SwiftUI wrapper around `SKStoreReviewController`. Apple
+    /// silently throttles past 3 prompts per device per 365 days, so we
+    /// can fire it on every successful purchase without local tracking.
+    @Environment(\.requestReview) private var requestReview
 
     init(paywallID: String? = nil) {
         self.paywallID = paywallID
@@ -42,8 +47,18 @@ struct PaywallView: View {
                     .padding(.bottom, 8)
                 RevenueCatUI.PaywallView()
                     .onPurchaseCompleted { _ in
-                        Task { await appState.billingService?.refreshFromServer() }
-                        dismiss()
+                        // HER-211 — fire-and-forget server refresh so the
+                        // UI converges off the webhook-driven tier.
+                        // HER-298 — ~2 s delay lets the RC checkout sheet
+                        // unwind + the celebration mascot (HER-297) land,
+                        // then surface the review prompt at the moment
+                        // the user's just paid (highest 5-star yield).
+                        Task { @MainActor in
+                            await appState.billingService?.refreshFromServer()
+                            try? await Task.sleep(nanoseconds: 2_000_000_000)
+                            requestReview()
+                            dismiss()
+                        }
                     }
                     .onRestoreCompleted { _ in
                         Task { await appState.billingService?.refreshFromServer() }
