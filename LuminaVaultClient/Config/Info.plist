@@ -6,6 +6,30 @@
 	     Value is substituted from GoogleAuth.xcconfig at build time. -->
 	<key>GIDClientID</key>
 	<string>$(GID_CLIENT_ID)</string>
+	<key>APPLE_SERVICE_ID</key>
+	<string>$(APPLE_SERVICE_ID)</string>
+	<key>GOOGLE_REVERSED_CLIENT_ID</key>
+	<string>$(REVERSED_CLIENT_ID)</string>
+	<key>X_CLIENT_ID</key>
+	<string>$(X_CLIENT_ID)</string>
+	<key>X_REDIRECT_URI</key>
+	<string>$(X_REDIRECT_URI)</string>
+	<key>API_BASE_URL</key>
+	<string>$(API_BASE_URL)</string>
+	<key>LV_RC_API_KEY</key>
+	<string>$(LV_RC_API_KEY)</string>
+	<key>POSTHOG_PROJECT_TOKEN</key>
+	<string>$(POSTHOG_PROJECT_TOKEN)</string>
+	<key>POSTHOG_HOST</key>
+	<string>$(POSTHOG_HOST)</string>
+	<key>SENTRY_DSN</key>
+	<string>$(SENTRY_DSN)</string>
+	<key>SENTRY_ENVIRONMENT</key>
+	<string>$(SENTRY_ENVIRONMENT)</string>
+	<key>LV_TERMS_URL</key>
+	<string>$(LV_TERMS_URL)</string>
+	<key>LV_PRIVACY_URL</key>
+	<string>$(LV_PRIVACY_URL)</string>
 
 	<!-- URL scheme registered so the OAuth callback can return to the app.
 	     GoogleSignIn requires the reversed iOS client ID. -->
