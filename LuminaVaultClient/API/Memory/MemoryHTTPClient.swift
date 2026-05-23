@@ -10,6 +10,10 @@ final class MemoryHTTPClient: MemoryClientProtocol {
 
     init(client: BaseHTTPClient) { self.client = client }
 
+    func get(id: UUID) async throws -> MemoryDTO {
+        try await client.execute(MemoryEndpoints.Get(id: id))
+    }
+
     func upsert(_ request: MemoryUpsertRequest) async throws -> MemoryUpsertResponse {
         try await client.execute(MemoryEndpoints.Upsert(request: request))
     }

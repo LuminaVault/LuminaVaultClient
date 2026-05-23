@@ -42,6 +42,7 @@ struct MainTabView: View {
                         vm: SpacesViewModel(spacesClient: spacesClient),
                         vaultClient: vaultClient,
                         memoryClient: memoryClient,
+                        memoryDetailClient: memoryUpsertClient,
                     )
                     .tag(Self.tabIds.workspaces)
                     .toolbar(.hidden, for: .tabBar)

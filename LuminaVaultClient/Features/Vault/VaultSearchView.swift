@@ -14,6 +14,7 @@ struct VaultSearchView: View {
 
     @Bindable var vm: VaultSearchViewModel
     let vaultClient: VaultClientProtocol
+    let memoryClient: MemoryClientProtocol
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -90,7 +91,7 @@ struct VaultSearchView: View {
                         section(title: "Files") {
                             ForEach(vm.fileHits) { file in
                                 NavigationLink {
-                                    MarkdownReaderView(file: file, vaultClient: vaultClient)
+                                    MarkdownReaderView(file: file, vaultClient: vaultClient, memoryClient: memoryClient)
                                 } label: {
                                     fileRow(file)
                                 }

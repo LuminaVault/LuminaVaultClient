@@ -139,4 +139,8 @@ private struct NoOpMemoryClient: MemoryClientProtocol {
     func upsert(_ request: MemoryUpsertRequest) async throws -> MemoryUpsertResponse {
         throw APIError.unauthorized
     }
+
+    func get(id: UUID) async throws -> MemoryDTO {
+        throw APIError.unauthorized
+    }
 }

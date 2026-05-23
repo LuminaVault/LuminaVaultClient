@@ -13,9 +13,15 @@ struct WorkspacesView: View {
     let vm: SpacesViewModel
     let vaultClient: any VaultClientProtocol
     let memoryClient: any MemoryQueryClientProtocol
+    let memoryDetailClient: any MemoryClientProtocol
 
     var body: some View {
-        SpacesListView(vm: vm, vaultClient: vaultClient, memoryClient: memoryClient)
+        SpacesListView(
+            vm: vm,
+            vaultClient: vaultClient,
+            memoryClient: memoryClient,
+            memoryDetailClient: memoryDetailClient,
+        )
             .navigationTitle("Workspaces")
     }
 }

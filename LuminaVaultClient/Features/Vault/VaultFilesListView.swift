@@ -12,14 +12,16 @@ struct VaultFilesListView: View {
     let space: SpaceDTO
     @Bindable var vm: VaultFilesViewModel
     let vaultClient: VaultClientProtocol
+    let memoryClient: MemoryClientProtocol
 
     @State private var fileToDelete: VaultFileDTO?
     @State private var fileToRename: VaultFileDTO?
     @State private var renameInput: String = ""
 
-    init(space: SpaceDTO, vaultClient: VaultClientProtocol) {
+    init(space: SpaceDTO, vaultClient: VaultClientProtocol, memoryClient: MemoryClientProtocol) {
         self.space = space
         self.vaultClient = vaultClient
+        self.memoryClient = memoryClient
         self._vm = Bindable(wrappedValue: VaultFilesViewModel(vaultClient: vaultClient, spaceSlug: space.slug))
     }
 
@@ -79,7 +81,7 @@ struct VaultFilesListView: View {
         List {
             ForEach(vm.files) { file in
                 NavigationLink {
-                    MarkdownReaderView(file: file, vaultClient: vaultClient)
+                    MarkdownReaderView(file: file, vaultClient: vaultClient, memoryClient: memoryClient)
                 } label: {
                     fileRow(file)
                 }

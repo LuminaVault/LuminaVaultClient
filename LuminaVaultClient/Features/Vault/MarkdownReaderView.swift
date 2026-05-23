@@ -1,7 +1,7 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Vault/MarkdownReaderView.swift
 // HER-105: in-app reader for a single vault file. Markdown gets rendered
-// via SwiftUI's `AttributedString(markdown:)` for now — fast and
-// dependency-free. Binary files fall through to a placeholder.
+// via SwiftUI text with Obsidian-compatible wikilink routing. Binary files
+// fall through to a placeholder.
 import SwiftUI
 
 struct MarkdownReaderView: View {
@@ -10,9 +10,10 @@ struct MarkdownReaderView: View {
 
     let file: VaultFileDTO
     let vaultClient: VaultClientProtocol
+    let memoryClient: MemoryClientProtocol
 
-    @State private var content: AttributedString?
     @State private var rawText: String?
+    @State private var isMarkdown = false
     @State private var isLoading = true
     @State private var error: String?
 
@@ -36,12 +37,12 @@ struct MarkdownReaderView: View {
                     Text(error)
                         .font(.system(size: 13))
                         .foregroundStyle(.red.opacity(0.85))
-                } else if let content {
-                    Text(content)
-                        .font(.system(size: 14))
-                        .foregroundStyle(palette.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
+                } else if let rawText, isMarkdown {
+                    WikilinkMarkdownView(
+                        markdown: rawText,
+                        vaultClient: vaultClient,
+                        memoryClient: memoryClient,
+                    )
                 } else if let rawText {
                     Text(rawText)
                         .font(.system(size: 14, design: .monospaced))
@@ -76,16 +77,7 @@ struct MarkdownReaderView: View {
             guard isText else { return }
             let text = String(data: data, encoding: .utf8) ?? ""
             self.rawText = text
-            if contentType.contains("markdown") || file.path.hasSuffix(".md") {
-                if let attributed = try? AttributedString(
-                    markdown: text,
-                    options: AttributedString.MarkdownParsingOptions(
-                        interpretedSyntax: .inlineOnlyPreservingWhitespace,
-                    ),
-                ) {
-                    self.content = attributed
-                }
-            }
+            self.isMarkdown = contentType.contains("markdown") || file.path.hasSuffix(".md")
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }

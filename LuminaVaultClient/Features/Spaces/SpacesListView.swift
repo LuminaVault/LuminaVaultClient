@@ -14,16 +14,23 @@ struct SpacesListView: View {
     @Bindable var vm: SpacesViewModel
     let vaultClient: VaultClientProtocol
     let memoryClient: MemoryQueryClientProtocol
+    let memoryDetailClient: MemoryClientProtocol
 
     @State private var presentingEditorFor: EditorPresentation?
     @State private var spaceToDelete: SpaceDTO?
     @State private var presentingSearch = false
     @State private var searchVM: VaultSearchViewModel
 
-    init(vm: SpacesViewModel, vaultClient: VaultClientProtocol, memoryClient: MemoryQueryClientProtocol) {
+    init(
+        vm: SpacesViewModel,
+        vaultClient: VaultClientProtocol,
+        memoryClient: MemoryQueryClientProtocol,
+        memoryDetailClient: MemoryClientProtocol,
+    ) {
         self._vm = Bindable(wrappedValue: vm)
         self.vaultClient = vaultClient
         self.memoryClient = memoryClient
+        self.memoryDetailClient = memoryDetailClient
         self._searchVM = State(wrappedValue: VaultSearchViewModel(
             memoryClient: memoryClient, vaultClient: vaultClient,
         ))
@@ -101,7 +108,7 @@ struct SpacesListView: View {
                 )
             }
             .sheet(isPresented: $presentingSearch) {
-                VaultSearchView(vm: searchVM, vaultClient: vaultClient)
+                VaultSearchView(vm: searchVM, vaultClient: vaultClient, memoryClient: memoryDetailClient)
             }
         }
     }
@@ -127,7 +134,11 @@ struct SpacesListView: View {
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(vm.visibleSpaces) { space in
                             NavigationLink {
-                                VaultFilesListView(space: space, vaultClient: vaultClient)
+                                VaultFilesListView(
+                                    space: space,
+                                    vaultClient: vaultClient,
+                                    memoryClient: memoryDetailClient,
+                                )
                             } label: {
                                 SpaceCardView(
                                     space: space,

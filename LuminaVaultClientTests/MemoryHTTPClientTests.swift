@@ -26,6 +26,43 @@ final class MemoryHTTPClientTests: XCTestCase {
         super.tearDown()
     }
 
+    func testGetFetchesMemoryByID() async throws {
+        let memoryID = UUID()
+        let payload = #"""
+        {
+          "id": "\#(memoryID.uuidString)",
+          "content": "linked memory body",
+          "tags": ["memo", "source"],
+          "created_at": "2026-05-23T10:00:00Z"
+        }
+        """#
+        let captured = CaptureBox()
+
+        MockURLProtocol.handler = { req in
+            captured.method = req.httpMethod
+            captured.url = req.url
+            captured.authorization = req.value(forHTTPHeaderField: "Authorization")
+            return (
+                HTTPURLResponse(
+                    url: req.url!,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["Content-Type": "application/json"],
+                )!,
+                Data(payload.utf8),
+            )
+        }
+
+        let memory = try await client.get(id: memoryID)
+
+        XCTAssertEqual(memory.id, memoryID)
+        XCTAssertEqual(memory.content, "linked memory body")
+        XCTAssertEqual(memory.tags, ["memo", "source"])
+        XCTAssertEqual(captured.method, "GET")
+        XCTAssertEqual(captured.url?.path, "/v1/memory/\(memoryID.uuidString.lowercased())")
+        XCTAssertEqual(captured.authorization, "Bearer test-bearer")
+    }
+
     func testUpsertSendsCorrectRequest() async throws {
         let memoryID = UUID()
         let payload = #"{"memory_id":"\#(memoryID.uuidString)","content":"Photo capture","summary":"saved"}"#

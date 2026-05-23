@@ -7,6 +7,14 @@ import Foundation
 import LuminaVaultShared
 
 enum MemoryEndpoints {
+    struct Get: Endpoint {
+        typealias Response = MemoryDTO
+        let id: UUID
+
+        var path: String { "/v1/memory/\(id.uuidString.lowercased())" }
+        var method: HTTPMethod { .get }
+    }
+
     struct Upsert: Endpoint {
         typealias Response = MemoryUpsertResponse
         let request: MemoryUpsertRequest
