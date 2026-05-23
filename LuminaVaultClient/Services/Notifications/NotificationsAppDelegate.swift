@@ -23,6 +23,15 @@ final class NotificationsAppDelegate: NSObject, UIApplicationDelegate, UNUserNot
 
     @MainActor weak var onTokenAvailable: TokenObserver?
 
+    /// HER-214 — true when the system has not yet asked the user about
+    /// notifications. Callers gate the `requestAuthorizationAndRegister()`
+    /// prompt on this so an already-denied or already-granted user
+    /// doesn't see a redundant authorization request mid-session.
+    static func shouldRequestAuthorization() async -> Bool {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        return settings.authorizationStatus == .notDetermined
+    }
+
     /// Asks the user to allow notifications and registers for remote
     /// notifications if granted. Idempotent.
     @MainActor func requestAuthorizationAndRegister() async {
