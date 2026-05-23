@@ -64,6 +64,8 @@ struct MainTabView: View {
                         ),
                         memoClient: memoClient,
                         suggestionsClient: suggestionsClient,
+                        vaultClient: vaultClient,
+                        memoryClient: memoryUpsertClient,
                     )
                     .tag(Self.tabIds.think)
                     .toolbar(.hidden, for: .tabBar)
@@ -247,7 +249,11 @@ struct MainTabView: View {
                 )
             ),
             todayDestination: AnyView(
-                TodayView(vm: TodayViewModel(client: todayClient))
+                TodayView(
+                    vm: TodayViewModel(client: todayClient),
+                    vaultClient: vaultClient,
+                    memoryClient: memoryUpsertClient,
+                )
             ),
             visualSearchDestination: AnyView(
                 VisualSearchView(viewModel: VisualSearchViewModel(

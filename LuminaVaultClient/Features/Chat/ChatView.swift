@@ -15,6 +15,13 @@ struct ChatView: View {
     /// Optional empty-state copy. Defaults to a generic prompt.
     var emptyHeadline: String = "What would you like to explore today?"
     var emptySupporting: String = "Ask anything. Lumina pulls from your vault and recent learnings."
+    /// HER-155 follow-up — assistant bubbles render their markdown body
+    /// through `WikilinkMarkdownView` so `[[note]]` and
+    /// `[[memory:<uuid>]]` citations are tappable. Both clients are
+    /// optional so previews / dev menus that don't need wikilink
+    /// resolution can omit them; bubbles fall back to plain text.
+    var vaultClient: (any VaultClientProtocol)?
+    var memoryClient: (any MemoryClientProtocol)?
 
     @FocusState private var composerFocused: Bool
 
@@ -34,7 +41,12 @@ struct ChatView: View {
                 } else {
                     LazyVStack(alignment: .leading, spacing: 12) {
                         ForEach(viewModel.messages) { message in
-                            MessageRow(message: message, mascotState: .idle)
+                            MessageRow(
+                                message: message,
+                                mascotState: .idle,
+                                vaultClient: vaultClient,
+                                memoryClient: memoryClient,
+                            )
                                 .id(message.id)
                                 .contextMenu {
                                     if message.role == .assistant {
@@ -153,6 +165,11 @@ private struct EmptyStateHero: View {
 private struct MessageRow: View {
     let message: ChatViewModel.Message
     let mascotState: HermieMascotState
+    /// HER-155 follow-up — passed through from `ChatView`. Assistant
+    /// bubbles render their body via `WikilinkMarkdownView` only when
+    /// both clients are present; otherwise we fall back to plain text.
+    let vaultClient: (any VaultClientProtocol)?
+    let memoryClient: (any MemoryClientProtocol)?
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -169,10 +186,7 @@ private struct MessageRow: View {
 
     private var bubble: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(message.content)
-                .font(.body)
-                .foregroundStyle(message.role == .user ? Color.white : Color.primary)
-                .multilineTextAlignment(.leading)
+            bubbleBody
             if !message.sources.isEmpty {
                 SourceChipRow(sources: message.sources)
             }
@@ -181,6 +195,29 @@ private struct MessageRow: View {
         .padding(.vertical, 8)
         .background(bubbleFill)
         .clipShape(.rect(cornerRadius: 16))
+    }
+
+    @ViewBuilder
+    private var bubbleBody: some View {
+        // HER-155 follow-up — only assistant messages can carry
+        // `[[memory:uuid]]` citations from Hermes; user messages stay
+        // plain so user-entered brackets aren't rewritten.
+        if message.role == .assistant,
+           let vaultClient,
+           let memoryClient
+        {
+            WikilinkMarkdownView(
+                markdown: message.content,
+                vaultClient: vaultClient,
+                memoryClient: memoryClient,
+            )
+            .foregroundStyle(Color.primary)
+        } else {
+            Text(message.content)
+                .font(.body)
+                .foregroundStyle(message.role == .user ? Color.white : Color.primary)
+                .multilineTextAlignment(.leading)
+        }
     }
 
     private var bubbleFill: Color {
