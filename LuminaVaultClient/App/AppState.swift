@@ -1,5 +1,6 @@
 // LuminaVaultClient/LuminaVaultClient/App/AppState.swift
 import Foundation
+import LuminaVaultShared
 import PostHog
 import SwiftData
 import SwiftUI
@@ -76,6 +77,11 @@ final class AppState {
             client: DeviceHTTPClient(client: makeHTTPClient())
         )
     }()
+    /// HER-93 / HER-100 — server-tracked onboarding ladder. `nil` until
+    /// `loadOnboardingState()` resolves on first authenticated launch.
+    /// `LuminaVaultClientApp` reads `soulConfiguredCompleted` to decide
+    /// whether to gate the main shell behind the SOUL.md quiz.
+    var onboardingState: OnboardingStateDTO?
 
     init(
         keychain: KeychainService = .shared,
@@ -251,6 +257,39 @@ final class AppState {
         vaultInitialized = false
         isAuthenticated = false
         lastMeFetchAt = nil
+        onboardingState = nil
+    }
+
+    /// HER-100 — Onboarding state HTTP client factory. Used by the SOUL
+    /// quiz gate to read the current ladder and by the confirm step to
+    /// latch `soulConfiguredCompleted` on save.
+    func makeOnboardingClient() -> any OnboardingClientProtocol {
+        OnboardingHTTPClient(client: makeHTTPClient())
+    }
+
+    /// HER-100 — SOUL.md client factory. Mirrors the existing
+    /// `SoulHTTPClient` wiring used by Settings → Server Connection so
+    /// the quiz confirm step can `PUT /v1/soul` against the same
+    /// refresh-coordinator-aware HTTP client.
+    func makeSoulClient() -> any SoulClientProtocol {
+        SoulHTTPClient(client: makeHTTPClient())
+    }
+
+    /// HER-93 — pull the current onboarding ladder from the server.
+    /// Debounce-free: callers (`LuminaVaultClientApp.task(id: isAuthenticated)`)
+    /// invoke this once per sign-in, and the SOUL confirm step refreshes
+    /// the snapshot on successful save by handing back the patched DTO.
+    func loadOnboardingState() async {
+        guard isAuthenticated else { return }
+        do {
+            onboardingState = try await makeOnboardingClient().get()
+        } catch APIError.unauthorized {
+            // HER-237 already drove sign-out; nothing left to do.
+        } catch {
+            // Network / 5xx — keep stale (or nil) state; the gate
+            // tolerates `nil` by deferring the quiz until the next
+            // fetch succeeds.
+        }
     }
 
     /// HER-238 — fetch `/v1/auth/me` on app resume to keep `currentUserId`
