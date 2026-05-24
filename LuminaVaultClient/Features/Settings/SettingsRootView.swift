@@ -40,6 +40,8 @@ struct SettingsRootView: View {
                             vaultClient: vaultClient,
                             accountClient: accountClient,
                             appState: appState
+                        ), securityViewModel: SecuritySettingsViewModel(
+                            keychain: appState.keychain
                         ))
                     } label: {
                         Label("Privacy & Data", systemImage: "lock.shield")

@@ -8,7 +8,7 @@ final class KeychainServiceTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        sut = KeychainService(service: "com.luminavault.test")
+        sut = KeychainService(service: "com.luminavault.test", inMemory: true)
         sut.clearAll()
     }
     override func tearDown() { sut.clearAll(); super.tearDown() }

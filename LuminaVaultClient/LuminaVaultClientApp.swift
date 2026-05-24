@@ -53,6 +53,8 @@ struct LuminaVaultClientApp: App {
     @State private var workspaceSelection = WorkspaceSelection()
     @State private var showSplash = true
     @State private var biometricChecked = false
+    @State private var biometricUnlockFailed = false
+    @State private var biometricAuthenticating = false
     @State private var captureCoordinator: CaptureCoordinator?
     @AppStorage("hasSeenGetStarted") private var hasSeenGetStarted = false
     // HER-287 — local flag for the conversion-funnel completion. Sits
@@ -154,7 +156,17 @@ struct LuminaVaultClientApp: App {
                         .transition(.opacity)
                 } else {
                     Group {
-                        if appState.isAuthenticated {
+                        if biometricUnlockFailed && appState.needsBiometricUnlock {
+                            BiometricUnlockView(
+                                isAuthenticating: biometricAuthenticating,
+                                retry: {
+                                    Task { await runBiometricUnlock() }
+                                },
+                                signInInstead: {
+                                    Task { await clearStoredSessionForSignIn() }
+                                }
+                            )
+                        } else if appState.isAuthenticated {
                             // HER-35: gate the home tab behind the explicit
                             // "Create My Vault" handshake. Legacy users
                             // (M37 backfill) skip this branch because the
@@ -374,16 +386,31 @@ struct LuminaVaultClientApp: App {
             .task {
                 guard !biometricChecked else { return }
                 biometricChecked = true
-                if !appState.isAuthenticated,
-                   appState.keychain.biometricsEnabled,
-                   appState.keychain.accessToken != nil {
-                    let ok = await BiometricsService.shared.authenticate(reason: "Unlock LuminaVault")
-                    if ok { appState.isAuthenticated = true }
-                }
+                await runBiometricUnlock()
                 try? await Task.sleep(for: .seconds(2.0))
                 withAnimation { showSplash = false }
             }
         }
+    }
+
+    private func runBiometricUnlock() async {
+        guard appState.needsBiometricUnlock else { return }
+        biometricUnlockFailed = false
+        biometricAuthenticating = true
+        let ok = await BiometricsService.shared.authenticate(reason: "Unlock LuminaVault")
+        biometricAuthenticating = false
+        if ok {
+            appState.unlockStoredSession()
+        } else {
+            biometricUnlockFailed = true
+        }
+    }
+
+    private func clearStoredSessionForSignIn() async {
+        await appState.signOut()
+        biometricUnlockFailed = false
+        biometricAuthenticating = false
+        hasSeenGetStarted = true
     }
 
     // HER-209 acceptance: "Revocation in iOS Settings logs the user out within

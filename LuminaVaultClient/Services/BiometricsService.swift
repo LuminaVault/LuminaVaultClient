@@ -1,6 +1,12 @@
 import LocalAuthentication
 
-final class BiometricsService: Sendable {
+protocol BiometricsAuthenticating: Sendable {
+    var isAvailable: Bool { get }
+
+    func authenticate(reason: String) async -> Bool
+}
+
+final class BiometricsService: BiometricsAuthenticating {
     static let shared = BiometricsService()
     private init() {}
 
