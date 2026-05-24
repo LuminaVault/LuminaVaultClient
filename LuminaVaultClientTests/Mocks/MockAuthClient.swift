@@ -9,6 +9,7 @@ final class MockAuthClient: AuthClientProtocol {
     var resetPasswordError: Error? = nil
     var verifyMFAResult: Result<AuthResponse, Error> = .success(.stub)
     var exchangeOAuthResult: Result<AuthResponse, Error> = .success(.stub)
+    var exchangeOAuthAccessTokenResult: Result<AuthResponse, Error> = .success(.stub)
     var refreshResult: Result<AuthResponse, Error> = .success(.stub)
     var phoneStartResult: Result<PhoneStartResponse, Error> = .success(.stub)
     var phoneVerifyResult: Result<AuthResponse, Error> = .success(.stub)
@@ -26,6 +27,7 @@ final class MockAuthClient: AuthClientProtocol {
     // Invocation recorders
     private(set) var loginCalls: [(email: String, password: String, mfaCode: String?)] = []
     private(set) var exchangeOAuthCalls: [(provider: String, idToken: String)] = []
+    private(set) var exchangeOAuthAccessTokenCalls: [(provider: String, accessToken: String)] = []
     private(set) var verifyMFACalls: [(challengeId: UUID, code: String)] = []
     private(set) var phoneStartCalls: [String] = []
     private(set) var phoneVerifyCalls: [(phone: String, code: String)] = []
@@ -65,6 +67,11 @@ final class MockAuthClient: AuthClientProtocol {
     func exchangeOAuth(provider: String, idToken: String) async throws -> AuthResponse {
         exchangeOAuthCalls.append((provider, idToken))
         return try exchangeOAuthResult.get()
+    }
+
+    func exchangeOAuthAccessToken(provider: String, accessToken: String) async throws -> AuthResponse {
+        exchangeOAuthAccessTokenCalls.append((provider, accessToken))
+        return try exchangeOAuthAccessTokenResult.get()
     }
 
     func refreshToken(_ token: String) async throws -> AuthResponse {

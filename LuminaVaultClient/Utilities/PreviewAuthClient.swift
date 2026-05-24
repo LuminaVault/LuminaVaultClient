@@ -20,6 +20,7 @@ final class PreviewAuthClient: AuthClientProtocol {
     func resetPassword(email: String, code: String, newPassword: String) async throws {}
     func verifyMFA(challengeId: UUID, code: String) async throws -> AuthResponse { stub() }
     func exchangeOAuth(provider: String, idToken: String) async throws -> AuthResponse { stub() }
+    func exchangeOAuthAccessToken(provider: String, accessToken: String) async throws -> AuthResponse { stub() }
     func refreshToken(_ token: String) async throws -> AuthResponse { stub() }
     func phoneStart(phone: String) async throws -> PhoneStartResponse {
         PhoneStartResponse(challengeId: UUID(), expiresAt: Date().addingTimeInterval(300))

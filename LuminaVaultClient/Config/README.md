@@ -56,7 +56,8 @@ The file-based plist is required for `CFBundleURLTypes`, which Google Sign-In ne
 | `GID_CLIENT_ID` | Google Sign-In | Must match server `OAUTH_GOOGLE_CLIENTID` |
 | `REVERSED_CLIENT_ID` | Info.plist URL scheme | `com.googleusercontent.apps.<id>` |
 | `X_CLIENT_ID` | X sign-in | Must match server `OAUTH_X_CLIENTID` |
-| `X_REDIRECT_URI` | X sign-in callback | Must match X Developer Portal exactly |
+| `X_REDIRECT_SCHEME` | Info.plist `CFBundleURLTypes` | Bare scheme registered for the X callback (e.g. `luminavault-debug`) |
+| `X_REDIRECT_URI` | X sign-in callback | Full URI handed to X authorize; must share the scheme above and match X Developer Portal exactly |
 | `LV_RC_API_KEY` | RevenueCat SDK | Public iOS SDK key |
 | `POSTHOG_PROJECT_TOKEN` | PostHog SDK | Public client token |
 | `POSTHOG_HOST` | PostHog SDK | Usually `https://us.i.posthog.com` |
@@ -69,6 +70,7 @@ The file-based plist is required for `CFBundleURLTypes`, which Google Sign-In ne
 
 - `GID_CLIENT_ID` must equal `LuminaVaultServer` `OAUTH_GOOGLE_CLIENTID`.
 - `X_CLIENT_ID` must equal `LuminaVaultServer` `OAUTH_X_CLIENTID`.
+- `X_REDIRECT_URI` must start with `$(X_REDIRECT_SCHEME)://` so the scheme registered in `CFBundleURLTypes` matches the URI sent to X.
 - `APPLE_SERVICE_ID` must equal the Apple token audience accepted by `LuminaVaultServer` `OAUTH_APPLE_CLIENTID`.
 - The production APNS topic must match `com.lumina.fernando`; the server must set `APNS_BUNDLE_ID=com.lumina.fernando`.
 - RevenueCat webhook secret lives only on the server; the client only receives the public `LV_RC_API_KEY`.

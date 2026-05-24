@@ -66,6 +66,24 @@ enum AuthEndpoints {
         var requiresAuth: Bool { false }
         var body: (any Encodable)? { OAuthExchangeRequest(idToken: idToken) }
     }
+    /// HER-144: X (Twitter) sign-in returns an OAuth 2.0 access_token (no
+    /// id_token), so the server's `/v1/auth/oauth/x/exchange` route decodes a
+    /// distinct `{ accessToken }` body. The shared `OAuthAccessTokenRequest`
+    /// schema lives in `openapi.yaml`; we mirror it inline here until it's
+    /// promoted into LuminaVaultShared (tracked as a follow-up).
+    struct OAuthAccessTokenExchange: Endpoint {
+        typealias Response = AuthResponse
+        let provider: String
+        let accessToken: String
+        var path: String { "/v1/auth/oauth/\(provider)/exchange" }
+        var method: HTTPMethod { .post }
+        var requiresAuth: Bool { false }
+        var body: (any Encodable)? { Body(accessToken: accessToken) }
+
+        private struct Body: Encodable {
+            let accessToken: String
+        }
+    }
     struct RefreshToken: Endpoint {
         typealias Response = AuthResponse
         let token: String

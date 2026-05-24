@@ -7,7 +7,9 @@ APPLE_SERVICE_ID = com.lumina.fernando.beta
 GID_CLIENT_ID = REPLACE_WITH_BETA_IOS_CLIENT_ID.apps.googleusercontent.com
 REVERSED_CLIENT_ID = com.googleusercontent.apps.REPLACE_WITH_BETA_IOS_CLIENT_ID
 X_CLIENT_ID = REPLACE_WITH_X_CLIENT_ID
-X_REDIRECT_URI = luminavault-beta://oauth/x/callback
+// HER-144: see Config.Debug.xcconfig.sample for the scheme/URI invariant.
+X_REDIRECT_SCHEME = luminavault-beta
+X_REDIRECT_URI = $(X_REDIRECT_SCHEME):/$()/oauth/x/callback
 
 LV_RC_API_KEY = REPLACE_WITH_REVENUECAT_BETA_PUBLIC_SDK_KEY
 POSTHOG_PROJECT_TOKEN = phc_uJu7ZqyfuPpDAsWpyzNiPH2pow8kdUfNVQVM2PEUCFGU

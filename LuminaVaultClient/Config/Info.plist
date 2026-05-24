@@ -31,8 +31,11 @@
 	<key>LV_PRIVACY_URL</key>
 	<string>$(LV_PRIVACY_URL)</string>
 
-	<!-- URL scheme registered so the OAuth callback can return to the app.
-	     GoogleSignIn requires the reversed iOS client ID. -->
+	<!-- URL schemes registered so OAuth callbacks return to the app.
+	     - GoogleSignIn requires the reversed iOS client ID.
+	     - HER-144: X (Twitter) sign-in uses ASWebAuthenticationSession with a
+	       per-build scheme so debug / beta / release builds don't collide.
+	       Scheme is substituted from the active Config.<env>.xcconfig. -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -43,6 +46,16 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>$(REVERSED_CLIENT_ID)</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.lumina.x.oauth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(X_REDIRECT_SCHEME)</string>
 			</array>
 		</dict>
 	</array>
