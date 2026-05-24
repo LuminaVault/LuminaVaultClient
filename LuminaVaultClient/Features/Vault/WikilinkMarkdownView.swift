@@ -157,6 +157,15 @@ struct WikilinkMarkdownView: View {
     }
 
     private func noteMatches(for target: String, in files: [VaultFileDTO]) -> [VaultFileDTO] {
+        WikilinkResolver.noteMatches(for: target, in: files)
+    }
+}
+
+/// HER-155 follow-up — pure note-resolution helpers extracted off
+/// `WikilinkMarkdownView` so they can be unit-tested without spinning
+/// up a SwiftUI view hierarchy.
+enum WikilinkResolver {
+    static func noteMatches(for target: String, in files: [VaultFileDTO]) -> [VaultFileDTO] {
         let markdownFiles = files.filter { file in
             file.contentType.contains("markdown") || file.path.lowercased().hasSuffix(".md")
         }
@@ -168,7 +177,7 @@ struct WikilinkMarkdownView: View {
         return markdownFiles
     }
 
-    private func normalizedNoteKey(_ raw: String) -> String {
+    static func normalizedNoteKey(_ raw: String) -> String {
         var value = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if value.hasSuffix(".md") { value.removeLast(3) }
         return value
