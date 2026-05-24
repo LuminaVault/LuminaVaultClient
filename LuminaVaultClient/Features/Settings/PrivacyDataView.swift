@@ -6,14 +6,20 @@ import SwiftUI
 
 struct PrivacyDataView: View {
     @State private var viewModel: PrivacyDataViewModel
+    @State private var securityViewModel: SecuritySettingsViewModel
     @State private var shareItem: ShareItem? = nil
 
-    init(viewModel: PrivacyDataViewModel) {
+    init(
+        viewModel: PrivacyDataViewModel,
+        securityViewModel: SecuritySettingsViewModel
+    ) {
         _viewModel = State(initialValue: viewModel)
+        _securityViewModel = State(initialValue: securityViewModel)
     }
 
     var body: some View {
         List {
+            securitySection
             exportSection
             deleteSection
         }
@@ -25,6 +31,45 @@ struct PrivacyDataView: View {
     }
 
     // MARK: - Sections
+
+    private var securitySection: some View {
+        Section {
+            Toggle(isOn: Binding(
+                get: { securityViewModel.isBiometricUnlockEnabled },
+                set: { enabled in
+                    Task {
+                        await securityViewModel.setBiometricUnlockEnabled(enabled)
+                    }
+                }
+            )) {
+                Label("Face ID / Touch ID", systemImage: "lock.shield")
+            }
+            .disabled(!securityViewModel.isBiometricUnlockAvailable || securityViewModel.isUpdating)
+
+            if securityViewModel.isUpdating {
+                HStack {
+                    ProgressView()
+                    Text("Verifying…")
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+
+            if let message = securityViewModel.errorMessage {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+        } header: {
+            Text("Security")
+        } footer: {
+            if securityViewModel.isBiometricUnlockAvailable {
+                Text("Require local biometric verification before opening a stored LuminaVault session on app launch.")
+            } else {
+                Text("Face ID or Touch ID is not available on this device.")
+            }
+        }
+    }
 
     private var exportSection: some View {
         Section {

@@ -6,9 +6,11 @@ final class KeychainService: Sendable {
     static let shared = KeychainService()
 
     private let service: String
+    private let inMemoryStore: InMemoryKeychainStore?
 
-    init(service: String = "com.luminavault.client") {
+    init(service: String = "com.luminavault.client", inMemory: Bool = false) {
         self.service = service
+        self.inMemoryStore = inMemory ? InMemoryKeychainStore() : nil
     }
 
     var accessToken: String? {
@@ -66,6 +68,11 @@ final class KeychainService: Sendable {
     }
 
     private func write(key: String, value: String?) {
+        if let inMemoryStore {
+            inMemoryStore.write(key: key, value: value)
+            return
+        }
+
         let account = "\(service).\(key)"
         var query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
@@ -80,6 +87,10 @@ final class KeychainService: Sendable {
     }
 
     private func read(key: String) -> String? {
+        if let inMemoryStore {
+            return inMemoryStore.read(key: key)
+        }
+
         let account = "\(service).\(key)"
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
@@ -92,5 +103,24 @@ final class KeychainService: Sendable {
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
               let data = result as? Data else { return nil }
         return String(data: data, encoding: .utf8)
+    }
+}
+
+// Test-only backing store for simulator environments where unsigned unit-test
+// bundles cannot write to Security.framework keychain items.
+private final class InMemoryKeychainStore: @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [String: String] = [:]
+
+    func write(key: String, value: String?) {
+        lock.lock()
+        defer { lock.unlock() }
+        values[key] = value
+    }
+
+    func read(key: String) -> String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return values[key]
     }
 }

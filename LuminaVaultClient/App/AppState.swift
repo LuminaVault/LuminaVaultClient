@@ -97,14 +97,26 @@ final class AppState {
         self.modelContainer = modelContainer ?? SwiftDataStack.makePersistent()
         self.localVault = localVault
         self.networkMonitor = networkMonitor ?? NetworkMonitor()
-        self.isAuthenticated = keychain.accessToken != nil
+        let hasStoredSession = keychain.accessToken != nil
+        self.isAuthenticated = hasStoredSession && !keychain.biometricsEnabled
         // Persisted users that re-launched the app have already cleared the
         // vault gate; assume `true` so legacy installs don't get bounced to
         // CreateVaultView. Fresh signups overwrite this in handleAuthSuccess.
-        self.vaultInitialized = keychain.accessToken != nil
+        self.vaultInitialized = hasStoredSession
         if isAuthenticated {
             Task { await healthKit?.start() }
         }
+    }
+
+    var needsBiometricUnlock: Bool {
+        keychain.accessToken != nil && keychain.biometricsEnabled && !isAuthenticated
+    }
+
+    func unlockStoredSession() {
+        guard keychain.accessToken != nil else { return }
+        isAuthenticated = true
+        vaultInitialized = true
+        Task { await healthKit?.start() }
     }
 
     /// HER-39 — subscribes to `SyncManager` state changes and mirrors them
@@ -332,4 +344,3 @@ final class AppState {
         }
     }
 }
-
