@@ -239,7 +239,13 @@ final class AuthViewModel {
         isLoading = true; error = nil; defer { isLoading = false }
         do {
             let credential = try await service.signIn(presentationAnchor: Self.currentPresentationAnchor())
-            let response = try await authClient.exchangeOAuth(provider: provider, idToken: credential.idToken)
+            let response: AuthResponse
+            switch credential.tokenKind {
+            case .idToken:
+                response = try await authClient.exchangeOAuth(provider: provider, idToken: credential.idToken)
+            case .accessToken:
+                response = try await authClient.exchangeOAuthAccessToken(provider: provider, accessToken: credential.idToken)
+            }
             appState.handleAuthSuccess(response)
             persistAppleCredentialIfNeeded(provider: provider, credential: credential)
             // PostHog: capture SSO sign-in

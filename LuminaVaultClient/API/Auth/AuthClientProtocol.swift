@@ -8,6 +8,7 @@ protocol AuthClientProtocol {
     func resetPassword(email: String, code: String, newPassword: String) async throws
     func verifyMFA(challengeId: UUID, code: String) async throws -> AuthResponse
     func exchangeOAuth(provider: String, idToken: String) async throws -> AuthResponse
+    func exchangeOAuthAccessToken(provider: String, accessToken: String) async throws -> AuthResponse
     func refreshToken(_ token: String) async throws -> AuthResponse
     func phoneStart(phone: String) async throws -> PhoneStartResponse
     func phoneVerify(phone: String, code: String) async throws -> AuthResponse

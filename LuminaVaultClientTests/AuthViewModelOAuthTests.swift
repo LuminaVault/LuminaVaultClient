@@ -147,13 +147,20 @@ final class AuthViewModelOAuthTests: XCTestCase {
 
     // MARK: - X
 
-    func testXSignInHappyPathCallsExchangeOAuth() async {
-        mockClient.exchangeOAuthResult = .success(.stub)
-        xService.result = .success(ProviderCredential(idToken: "x-access-token", rawNonce: nil))
+    func testXSignInHappyPathCallsExchangeOAuthAccessToken() async {
+        // HER-144: X uses the access-token exchange route, not the id-token one.
+        mockClient.exchangeOAuthAccessTokenResult = .success(.stub)
+        xService.result = .success(ProviderCredential(
+            idToken: "x-access-token",
+            rawNonce: nil,
+            tokenKind: .accessToken
+        ))
         await sut.signInWithX()
         XCTAssertEqual(xService.signInCalls, 1)
-        XCTAssertEqual(mockClient.exchangeOAuthCalls.first?.provider, "x")
-        XCTAssertEqual(mockClient.exchangeOAuthCalls.first?.idToken, "x-access-token")
+        XCTAssertEqual(mockClient.exchangeOAuthAccessTokenCalls.count, 1)
+        XCTAssertEqual(mockClient.exchangeOAuthAccessTokenCalls.first?.provider, "x")
+        XCTAssertEqual(mockClient.exchangeOAuthAccessTokenCalls.first?.accessToken, "x-access-token")
+        XCTAssertTrue(mockClient.exchangeOAuthCalls.isEmpty, "X must not hit the id-token route")
         XCTAssertTrue(appState.isAuthenticated)
         XCTAssertNil(sut.error)
     }
@@ -161,15 +168,15 @@ final class AuthViewModelOAuthTests: XCTestCase {
     func testXSignInCancelIsSilent() async {
         xService.result = .failure(SignInCancelled())
         await sut.signInWithX()
-        XCTAssertEqual(mockClient.exchangeOAuthCalls.count, 0)
+        XCTAssertEqual(mockClient.exchangeOAuthAccessTokenCalls.count, 0)
         XCTAssertFalse(appState.isAuthenticated)
         XCTAssertNil(sut.error)
     }
 
     func testXSignInProviderErrorSurfacesMessage() async {
-        xService.result = .failure(NSError(domain: "XSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "provider failed"]))
+        xService.result = .failure(XSignInError.invalidGrant("provider failed"))
         await sut.signInWithX()
-        XCTAssertEqual(mockClient.exchangeOAuthCalls.count, 0)
+        XCTAssertEqual(mockClient.exchangeOAuthAccessTokenCalls.count, 0)
         XCTAssertFalse(appState.isAuthenticated)
         XCTAssertNotNil(sut.error)
     }

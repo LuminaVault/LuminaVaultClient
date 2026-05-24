@@ -24,6 +24,9 @@ final class AuthHTTPClient: AuthClientProtocol {
     func exchangeOAuth(provider: String, idToken: String) async throws -> AuthResponse {
         try await client.execute(AuthEndpoints.OAuthExchange(provider: provider, idToken: idToken))
     }
+    func exchangeOAuthAccessToken(provider: String, accessToken: String) async throws -> AuthResponse {
+        try await client.execute(AuthEndpoints.OAuthAccessTokenExchange(provider: provider, accessToken: accessToken))
+    }
     func refreshToken(_ token: String) async throws -> AuthResponse {
         try await client.execute(AuthEndpoints.RefreshToken(token: token))
     }
