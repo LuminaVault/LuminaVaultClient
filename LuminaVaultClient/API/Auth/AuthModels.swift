@@ -11,6 +11,7 @@ typealias ForgotPasswordRequest = LuminaVaultShared.ForgotPasswordRequest
 typealias ResetPasswordRequest = LuminaVaultShared.ResetPasswordRequest
 typealias MFAVerifyRequest = LuminaVaultShared.MFAVerifyRequest
 typealias OAuthExchangeRequest = LuminaVaultShared.OAuthExchangeRequest
+typealias OAuthAccessTokenRequest = LuminaVaultShared.OAuthAccessTokenRequest
 typealias RefreshRequest = LuminaVaultShared.RefreshRequest
 typealias AuthResponse = LuminaVaultShared.AuthResponse
 typealias PhoneStartRequest = LuminaVaultShared.PhoneStartRequest
