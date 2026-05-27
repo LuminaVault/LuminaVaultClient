@@ -93,6 +93,29 @@ struct CaptureSnapshot: Sendable {
         )
     }
 
+    /// Share-extension text capture that must preserve Space association.
+    /// The drainer uploads the body as markdown to the vault, then upserts
+    /// memory content for search continuity.
+    static func textFile(
+        id: UUID = UUID(),
+        body: String,
+        note: String? = nil,
+        spaceID: UUID? = nil,
+        createdAt: Date = .now
+    ) -> CaptureSnapshot {
+        let rendered = Self.renderSharedText(body: body, note: note)
+        return CaptureSnapshot(
+            id: id,
+            createdAt: createdAt,
+            captionText: body,
+            imageData: Data(rendered.utf8),
+            contentType: "text/markdown",
+            fileExtension: "md",
+            spaceID: spaceID,
+            kind: .textFile,
+        )
+    }
+
     /// HER-257 — convenience for URL/link captures. Drainer posts these
     /// to `POST /v1/capture/safari` (HER-149) which enriches asynchronously
     /// (OG / oEmbed / X scrape) and persists a vault file.
@@ -114,6 +137,13 @@ struct CaptureSnapshot: Sendable {
             kind: .url,
             urlString: url,
         )
+    }
+
+    static func renderSharedText(body: String, note: String?) -> String {
+        let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNote = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let trimmedNote, !trimmedNote.isEmpty else { return trimmedBody + "\n" }
+        return "\(trimmedNote)\n\n---\n\n\(trimmedBody)\n"
     }
 }
 

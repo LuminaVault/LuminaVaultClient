@@ -12,8 +12,8 @@
 		4DF5595360F1E690E952EEC5 /* SharedShareQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC806D8A50D60DFFD23095C1 /* SharedShareQueue.swift */; };
 		597D439B97706F0F59CC1976 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = D7B92A4C1DB72A55FF1DE968 /* RevenueCatUI */; };
 		605690302FBF20FF0059C355 /* LuminaVaultShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 605690262FBF20FE0059C355 /* LuminaVaultShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		605871F82FBCCE1E0077984D /* BuildFile in Frameworks */ = {isa = PBXBuildFile; };
-		605871F92FBCCE1E0077984D /* BuildFile in Frameworks */ = {isa = PBXBuildFile; };
+		605871F82FBCCE1E0077984D /* (null) in Frameworks */ = {isa = PBXBuildFile; };
+		605871F92FBCCE1E0077984D /* (null) in Frameworks */ = {isa = PBXBuildFile; };
 		6098173A2FB8BE2500414C79 /* LuminaVaultShared in Frameworks */ = {isa = PBXBuildFile; productRef = 609817392FB8BE2500414C79 /* LuminaVaultShared */; };
 		60GRP000B2FAE1200006F894F /* Grape in Frameworks */ = {isa = PBXBuildFile; productRef = 60GRP000A2FAE1200006F894F /* Grape */; };
 		60GSI00012FAE1200006F894F /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 60GSI00022FAE1200006F894F /* GoogleSignIn */; };
@@ -77,9 +77,12 @@
 		5269C20E41A0D2C9D8A9B4E6 /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultShareExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Services/AppGroup/SharedAppGroup.swift,
 				Services/AppGroup/PendingShare.swift,
+				Services/AppGroup/SharedAppGroup.swift,
+				Services/AppGroup/SharedCapturePreferences.swift,
+				Services/AppGroup/SharedSessionKeychain.swift,
 				Services/AppGroup/SharedShareQueue.swift,
+				Services/KeychainService.swift,
 			);
 			target = 605690252FBF20FE0059C355 /* LuminaVaultShareExtension */;
 		};
@@ -97,8 +100,6 @@
 				Config/README.md,
 				Resources/Hermie/README.md,
 				Resources/README.md,
-				Resources/SplashHero/README.md,
-				Resources/GetStartedHero/README.md,
 			);
 			target = 6088C4F22FAE1184006F894F /* LuminaVaultClient */;
 		};
@@ -124,15 +125,11 @@
 		};
 		6088C5032FAE1186006F894F /* LuminaVaultClientTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = LuminaVaultClientTests;
 			sourceTree = "<group>";
 		};
 		6088C50D2FAE1186006F894F /* LuminaVaultClientUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = LuminaVaultClientUITests;
 			sourceTree = "<group>";
 		};
@@ -167,7 +164,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				60SNP00012FAE1200006F894F /* SnapshotTesting in Frameworks */,
-				605871F82FBCCE1E0077984D /* BuildFile in Frameworks */,
+				605871F82FBCCE1E0077984D /* (null) in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -175,7 +172,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				605871F92FBCCE1E0077984D /* BuildFile in Frameworks */,
+				605871F92FBCCE1E0077984D /* (null) in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

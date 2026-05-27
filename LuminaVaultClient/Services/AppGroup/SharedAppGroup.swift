@@ -6,9 +6,10 @@
 // only sanctioned cross-target shared store.
 //
 // Layout (under the App Group container root):
-//   pendingShares.json   — array of `PendingShare` queued by the extension
-//   spacesCache.json     — snapshot of the user's Spaces, written by the
-//                          main app so the extension's picker is populated
+//   pendingShares.json       — array of `PendingShare` queued by the extension
+//   pendingShareAssets/      — sidecar files for queued image attachments
+//   spacesCache.json         — snapshot of the user's Spaces, written by the
+//                              main app so the extension's picker is populated
 //
 // The directory itself is provisioned by iOS the first time either
 // target reads the App Group container URL.
@@ -29,6 +30,10 @@ enum SharedAppGroup {
         static let spacesCache = "spacesCache.json"
     }
 
+    enum DirectoryName {
+        static let pendingShareAssets = "pendingShareAssets"
+    }
+
     enum AccessError: Error {
         case containerUnavailable
     }
@@ -42,6 +47,10 @@ enum SharedAppGroup {
 
     static func fileURL(named name: String) -> URL? {
         containerURL?.appendingPathComponent(name)
+    }
+
+    static func directoryURL(named name: String) -> URL? {
+        containerURL?.appendingPathComponent(name, isDirectory: true)
     }
 
     /// Read a `Codable` payload from the App Group container. Returns

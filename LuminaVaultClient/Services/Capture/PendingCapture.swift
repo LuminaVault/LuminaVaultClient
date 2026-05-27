@@ -16,15 +16,18 @@ enum PendingCaptureState: String, Codable, Sendable {
 
 /// HER-256 / HER-257 — discriminator added so the queue can host
 /// non-photo captures. `.text` rows carry the body in `captionText` and
-/// route to `POST /v1/memory/upsert`. `.url` (HER-257) rows carry the
-/// URL in `urlString` and an optional note in `captionText`; the drainer
-/// posts them to `POST /v1/capture/safari`. `.photo` (default) keeps the
+/// route to `POST /v1/memory/upsert`. `.textFile` rows also carry
+/// markdown bytes in `imageData` so Space association is preserved via
+/// `POST /v1/vault/files`. `.url` (HER-257) rows carry the URL in
+/// `urlString` and an optional note in `captionText`; the drainer posts
+/// them to `POST /v1/capture/safari`. `.photo` (default) keeps the
 /// original behaviour — rows persisted before this enum landed
 /// deserialise with `.photo` because the SwiftData store falls back to
 /// the default value of a new field.
 enum PendingCaptureKind: String, Codable, Sendable {
     case photo
     case text
+    case textFile
     case url
 }
 

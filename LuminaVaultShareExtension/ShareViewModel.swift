@@ -1,13 +1,11 @@
 // LuminaVaultShareExtension/ShareViewModel.swift
 //
-// HER-258 — extension-side view model. Mirrors `URLCaptureViewModel`'s
-// shape but talks to the App Group queue (`SharedShareQueue.append`)
-// instead of the live `CaptureQueue`. Spaces come from the App Group
-// cache (`SharedSpacesCache`) that the main app keeps in sync.
+// Extension-side view model. Saves directly with the shared bearer token
+// when possible and falls back to the App Group queue when offline or
+// unauthenticated.
 
 import Foundation
 import Observation
-import SwiftUI
 
 @MainActor
 @Observable
@@ -16,10 +14,11 @@ final class ShareViewModel {
         case idle
         case saving
         case saved
+        case queued
         case failed(String)
     }
 
-    var urlString: String
+    let payloads: [SharePayload]
     var note: String = ""
     var selectedSpaceID: UUID?
     var saveState: SaveState = .idle
@@ -27,56 +26,80 @@ final class ShareViewModel {
     /// missing — the picker stays hidden in that case and the share
     /// lands unfiled.
     let availableSpaces: [SharedSpaceSummary]?
+    private let client: ShareExtensionCaptureClient
 
-    init(initialURL: String) {
-        self.urlString = initialURL
-        // Read directly via SharedAppGroup to keep the extension target
-        // independent of `SharedSpacesCache` (which imports
-        // `LuminaVaultShared` for the writer signature).
-        self.availableSpaces = SharedAppGroup.read(
+    init(
+        payloads: [SharePayload],
+        client: ShareExtensionCaptureClient = ShareExtensionCaptureClient()
+    ) {
+        self.payloads = payloads
+        self.client = client
+        let spaces = SharedAppGroup.read(
             [SharedSpaceSummary].self,
             from: SharedAppGroup.FileName.spacesCache,
         )
-    }
-
-    var trimmedURL: String {
-        urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    var isURLValid: Bool {
-        let t = trimmedURL
-        guard !t.isEmpty,
-              let parsed = URL(string: t),
-              let scheme = parsed.scheme?.lowercased(),
-              scheme == "http" || scheme == "https",
-              parsed.host?.isEmpty == false
-        else { return false }
-        return true
+        self.availableSpaces = spaces
+        if let lastSpaceID = SharedCapturePreferences.lastShareSpaceID,
+           spaces?.contains(where: { $0.id == lastSpaceID }) == true {
+            self.selectedSpaceID = lastSpaceID
+        }
     }
 
     var canSave: Bool {
         if case .saving = saveState { return false }
-        return isURLValid
+        return !payloads.isEmpty
     }
 
-    /// Persist a `PendingShare` to the App Group. The host app's
-    /// `CaptureCoordinator` will replay it into the live capture queue
-    /// the next time it cold-starts (or the next time `applicationWillEnterForeground`
-    /// triggers the coordinator restart, depending on how the host wires it up).
-    func save() {
-        guard isURLValid, saveState != .saving else { return }
+    func save() async {
+        guard canSave else { return }
         saveState = .saving
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        let share = PendingShare(
-            url: trimmedURL,
-            note: trimmedNote.isEmpty ? nil : trimmedNote,
-            spaceID: selectedSpaceID,
-        )
-        do {
-            try SharedShareQueue.append(share)
-            saveState = .saved
-        } catch {
-            saveState = .failed(error.localizedDescription)
+        let note = trimmedNote.isEmpty ? nil : trimmedNote
+        var queuedCount = 0
+
+        for payload in payloads {
+            do {
+                try await client.capture(payload, note: note, spaceID: selectedSpaceID)
+            } catch {
+                do {
+                    try queue(payload, note: note)
+                    queuedCount += 1
+                } catch {
+                    saveState = .failed(error.localizedDescription)
+                    return
+                }
+            }
+        }
+
+        SharedCapturePreferences.lastShareSpaceID = selectedSpaceID
+        saveState = queuedCount > 0 ? .queued : .saved
+    }
+
+    func failureMessage() -> String? {
+        if case .failed(let message) = saveState {
+            return message
+        }
+        if payloads.isEmpty {
+            return "LuminaVault could not read a supported URL, text, or image attachment from this share."
+        }
+        return nil
+    }
+
+    private func queue(_ payload: SharePayload, note: String?) throws {
+        switch payload {
+        case .url(let id, let url):
+            try SharedShareQueue.append(PendingShare(id: id, url: url, note: note, spaceID: selectedSpaceID))
+        case .text(let id, let text):
+            try SharedShareQueue.append(PendingShare(id: id, text: text, note: note, spaceID: selectedSpaceID))
+        case .image(let id, let data, let contentType, let fileExtension):
+            _ = try SharedShareQueue.appendImage(
+                id: id,
+                data: data,
+                contentType: contentType,
+                fileExtension: fileExtension,
+                note: note,
+                spaceID: selectedSpaceID,
+            )
         }
     }
 }

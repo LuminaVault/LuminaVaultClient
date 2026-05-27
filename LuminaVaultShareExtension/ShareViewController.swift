@@ -3,26 +3,29 @@
 // HER-258 — entry point for the iOS share-sheet flow. Bridges from
 // `UIViewController` (required by the share-extension principal class
 // contract) into SwiftUI. The actual UI lives in `ShareRootView`; this
-// controller just unwraps the host-provided `NSExtensionItem`, hands a
-// URL string to the SwiftUI hierarchy, and owns the
+// controller loads supported URL/text/image payloads and owns the
 // `completeRequest` / `cancelRequest` callbacks that close the sheet.
 
 import Foundation
 import SwiftUI
 import UIKit
-import UniformTypeIdentifiers
 
 final class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
-        loadURL { [weak self] urlString in
-            self?.present(initialURL: urlString)
+        Task { [weak self] in
+            guard let self else { return }
+            let payloads = await ShareItemLoader.load(from: self.extensionContext)
+            await MainActor.run {
+                self.present(payloads: payloads)
+            }
         }
     }
 
-    private func present(initialURL: String?) {
-        let viewModel = ShareViewModel(initialURL: initialURL ?? "")
+    @MainActor
+    private func present(payloads: [SharePayload]) {
+        let viewModel = ShareViewModel(payloads: payloads)
         let root = ShareRootView(
             viewModel: viewModel,
             onCancel: { [weak self] in self?.cancelRequest() },
@@ -41,38 +44,6 @@ final class ShareViewController: UIViewController {
             host.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
         ])
         host.didMove(toParent: self)
-    }
-
-    // MARK: - Extension item parsing
-
-    /// Iterates the inbound `NSExtensionItem`s looking for the first
-    /// `public.url` (and falls back to `public.plain-text` so the user
-    /// can paste from anywhere). Calls back on the main thread with
-    /// `nil` when no URL is found.
-    private func loadURL(completion: @escaping (String?) -> Void) {
-        let items = (extensionContext?.inputItems as? [NSExtensionItem]) ?? []
-        let attachments = items.flatMap { $0.attachments ?? [] }
-
-        guard let provider = attachments.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.url.identifier) })
-            ?? attachments.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) })
-        else {
-            completion(nil)
-            return
-        }
-
-        let identifier = provider.hasItemConformingToTypeIdentifier(UTType.url.identifier)
-            ? UTType.url.identifier
-            : UTType.plainText.identifier
-
-        provider.loadItem(forTypeIdentifier: identifier, options: nil) { item, _ in
-            let result: String?
-            switch item {
-            case let url as URL: result = url.absoluteString
-            case let string as String: result = string
-            default: result = nil
-            }
-            DispatchQueue.main.async { completion(result) }
-        }
     }
 
     // MARK: - Lifecycle callbacks

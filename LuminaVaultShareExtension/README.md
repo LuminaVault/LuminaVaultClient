@@ -1,93 +1,95 @@
-# LuminaVaultShareExtension (HER-258)
+# LuminaVaultShareExtension
 
-iOS Share Extension target. Receives URLs from Safari / X / YouTube /
-Reader via the system share sheet and queues them into the App Group
-container; the main app's `CaptureCoordinator` replays the queue into
-`CaptureQueue` on next launch, and `CaptureDrainer` posts to
-`POST /v1/capture/safari` (HER-149).
+iOS Share Extension target for universal capture from Safari, Mail, Notes, Chrome, and any app that can share URLs, plain text, or images.
 
-## Xcode target setup (one-time, manual)
+The extension first attempts direct network capture while the host app is killed. If it cannot reach the API or cannot read the shared keychain access token, it writes the payload into the App Group queue. The host app drains that queue on launch and whenever it returns to the foreground.
 
-The Swift source + entitlements + `Info.plist` in this directory are
-ready to drop into a new Xcode target. The target itself must be
-created via Xcode UI (Claude can't safely synthesise the `.pbxproj`
-entries by hand):
+## Runtime Behavior
 
-1. **File → New → Target… → iOS → Share Extension.**
-2. **Product name:** `LuminaVaultShareExtension`.
-3. **Team / signing:** same as the main `LuminaVaultClient` target.
-4. **Embed in Application:** `LuminaVaultClient`.
-5. Xcode generates a scaffold — **delete** the auto-created
-   `ShareViewController.swift`, `MainInterface.storyboard`, and the
-   default `Info.plist`.
-6. **Drag this folder's files into the new target's group** in the
-   navigator: `ShareViewController.swift`, `ShareRootView.swift`,
-   `ShareViewModel.swift`, `Info.plist`,
-   `LuminaVaultShareExtension.entitlements`.
-   - Confirm target membership = `LuminaVaultShareExtension` only.
-7. **Add target membership** of these existing files in the
-   `LuminaVaultClient/Services/AppGroup/` folder to the extension
-   target (the same files stay in the main app target too — checkbox
-   both):
-   - `SharedAppGroup.swift`
-   - `PendingShare.swift`
-   - `SharedShareQueue.swift`
-   - **Do NOT** add `SharedSpacesCache.swift` (imports
-     `LuminaVaultShared` — main app only).
-8. Build Settings on the extension target:
-   - **Code Signing Entitlements** → point at
-     `LuminaVaultShareExtension/LuminaVaultShareExtension.entitlements`.
-   - **Info.plist File** → point at
-     `LuminaVaultShareExtension/Info.plist`.
-   - **Product Bundle Identifier**:
-     - Debug: `com.lumina.fernando.test.share`
-     - Release: `com.lumina.fernando.share`
-   - **Skip Install** → `NO`.
-9. Add an **App Group** capability to the main `LuminaVaultClient`
-   target as well: Signing & Capabilities → `+` → App Groups →
-   `group.com.lumina.fernando`. Xcode appends the entitlement to the
-   app's `.entitlements` file.
-10. Open Apple Developer portal → App IDs → confirm both bundle ids
-    have **App Groups** enabled and the `group.com.lumina.fernando`
-    group is registered. Regenerate provisioning profiles if Xcode
-    prompts.
+- URL shares call `POST /v1/capture/safari`.
+- Plain text shares are rendered into Markdown, uploaded through `POST /v1/vault/files`, and mirrored through memory upsert.
+- Image shares are uploaded through `POST /v1/vault/files` and mirrored through memory upsert.
+- There is no `/v1/capture/photo` endpoint contract in the current server. Image capture uses the existing vault file upload path.
+- Last-used Space is stored in App Group `UserDefaults` and preselected the next time the extension opens.
+- Offline, unauthenticated, or failed direct saves are queued under the shared App Group container and replayed by `CaptureCoordinator`.
+
+The extension intentionally does not embed Sentry or PostHog SDKs. Keep extension telemetry lightweight unless a dedicated memory-budget ticket changes that rule.
+
+## Required Configuration
+
+Both the host app and extension receive build settings from the same configuration family:
+
+| Key | Used by | Notes |
+| --- | --- | --- |
+| `API_BASE_URL` | Share extension direct save client | Hosted backend URL, normally `https://api.luminavault.com` |
+| `KEYCHAIN_ACCESS_GROUP` | Host app and extension keychain sharing | Normally `$(AppIdentifierPrefix)com.lumina.fernando.shared` |
+
+The host app mirrors the current access token into `KEYCHAIN_ACCESS_GROUP`. The extension reads that token directly, so this value must match exactly across targets and provisioning profiles.
+
+## Bundle IDs
+
+Use the existing bundle identifiers:
+
+| Configuration | Bundle ID |
+| --- | --- |
+| Debug | `com.lumina.fernando.test.LuminaVaultShareExtension` |
+| Beta | `com.lumina.fernando.beta.LuminaVaultShareExtension` |
+| Release | `com.lumina.fernando.LuminaVaultShareExtension` |
+
+## Apple Capabilities
+
+Host app:
+
+- App Groups: `group.com.lumina.fernando`
+- Keychain Sharing: `$(KEYCHAIN_ACCESS_GROUP)`
+- Push Notifications
+- Sign in with Apple
+- HealthKit
+- Background delivery
+
+Share extension:
+
+- App Groups: `group.com.lumina.fernando`
+- Keychain Sharing: `$(KEYCHAIN_ACCESS_GROUP)`
+
+Regenerate provisioning profiles after adding App Groups or Keychain Sharing in Apple Developer.
+
+## Source Files
+
+Extension-only files:
+
+```text
+LuminaVaultShareExtension/
+├── Info.plist
+├── LuminaVaultShareExtension.entitlements
+├── ShareExtensionCaptureClient.swift
+├── ShareExtensionConfig.swift
+├── ShareItemLoader.swift
+├── SharePayload.swift
+├── ShareRootView.swift
+├── ShareViewController.swift
+└── ShareViewModel.swift
+```
+
+Shared files compiled into both host app and extension:
+
+```text
+LuminaVaultClient/Services/AppGroup/
+├── PendingShare.swift
+├── SharedAppGroup.swift
+├── SharedCapturePreferences.swift
+├── SharedSessionKeychain.swift
+└── SharedShareQueue.swift
+
+LuminaVaultClient/Services/KeychainService.swift
+```
+
+Do not add `SharedSpacesCache.swift` to the extension target; it imports host-app-only dependencies.
 
 ## Verification
 
-1. Build + run the app once to provision the App Group container.
-2. From Safari, share any URL → tap **LuminaVault** in the share sheet.
-3. Confirm: URL preview, optional note field, Space picker (if any
-   Spaces exist), Save dismisses the sheet.
-4. Reopen the LuminaVault app. The shared URL should appear in the
-   vault within a few seconds (`CaptureDrainer` ticks on startup).
-
-## File layout
-
-```
-LuminaVaultShareExtension/
-├── README.md                                  (this file)
-├── Info.plist                                 (activation rules + principal class)
-├── LuminaVaultShareExtension.entitlements     (App Group)
-├── ShareViewController.swift                  (UIKit entry point)
-├── ShareRootView.swift                        (SwiftUI: URL + note + Space picker)
-└── ShareViewModel.swift                       (@Observable; writes to App Group)
-```
-
-## Shared files (compiled into both targets)
-
-```
-LuminaVaultClient/Services/AppGroup/
-├── SharedAppGroup.swift          App Group root URL + Codable I/O
-├── PendingShare.swift            wire shape extension → host
-├── SharedShareQueue.swift        append / drain helpers
-└── SharedSpacesCache.swift       host-only writer (imports LuminaVaultShared)
-```
-
-## Out of scope (HER-258 v1)
-
-- No direct network from the extension — all `/v1/capture/safari`
-  traffic flows through the host app's `CaptureDrainer`.
-- No Sentry / PostHog SDKs in the extension target (memory budget).
-- No "sign in from the extension" affordance — when the host app has
-  never been launched the share lands in the queue and processes on
-  first launch post-sign-in.
+1. Build and run the host app once, then sign in so the access token is mirrored to the shared keychain.
+2. From Safari or Chrome, share a URL to LuminaVault and confirm it saves without launching the host app.
+3. From Notes or Mail, share plain text and confirm a Markdown capture appears in the selected Space.
+4. Share an image and confirm the asset uploads through the vault file path.
+5. Disable network, share any supported payload, then foreground the host app after restoring network. The queued capture should drain automatically.

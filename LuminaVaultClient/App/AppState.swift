@@ -84,6 +84,7 @@ final class AppState {
     /// `LuminaVaultClientApp` reads `soulConfiguredCompleted` to decide
     /// whether to gate the main shell behind the SOUL.md quiz.
     var onboardingState: OnboardingStateDTO?
+    private let sharedSessionKeychain = SharedSessionKeychain(accessGroup: Config.keychainAccessGroup)
 
     init(
         keychain: KeychainService = .shared,
@@ -104,6 +105,7 @@ final class AppState {
         // CreateVaultView. Fresh signups overwrite this in handleAuthSuccess.
         self.vaultInitialized = hasStoredSession
         if isAuthenticated {
+            sharedSessionKeychain.accessToken = keychain.accessToken
             Task { await healthKit?.start() }
         }
     }
@@ -165,6 +167,7 @@ final class AppState {
     /// be built through this factory so they share the refresh coordinator.
     func makeHTTPClient() -> BaseHTTPClient {
         let keychain = self.keychain
+        let sharedSessionKeychain = self.sharedSessionKeychain
         let coordinator = self.refreshCoordinator
         // Bootstrap client used solely for `/v1/auth/refresh`. Has no
         // refresh handler of its own, so a 401 on the refresh call itself
@@ -182,6 +185,7 @@ final class AppState {
                 let response = try await authClient.refreshToken(token)
                 keychain.accessToken = response.accessToken
                 keychain.refreshToken = response.refreshToken
+                sharedSessionKeychain.accessToken = response.accessToken
                 return response.accessToken
             },
             onAuthFailure: { [weak self] in
@@ -250,6 +254,7 @@ final class AppState {
     func handleAuthSuccess(_ response: AuthResponse) {
         keychain.accessToken = response.accessToken
         keychain.refreshToken = response.refreshToken
+        sharedSessionKeychain.accessToken = response.accessToken
         currentUserId = response.userId
         currentEmail = response.email
         vaultInitialized = response.vaultInitialized
@@ -289,6 +294,7 @@ final class AppState {
             Task { await billing.teardown() }
         }
         billingService = nil
+        sharedSessionKeychain.clear()
         keychain.clearAll()
         currentUserId = nil
         currentEmail = nil

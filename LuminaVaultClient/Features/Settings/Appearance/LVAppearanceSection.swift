@@ -11,20 +11,19 @@ struct LVAppearanceSection: View {
 
     var body: some View {
         @Bindable var bindable = manager
-        Section("Appearance") {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Theme")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                LVThemePicker(selection: $bindable.theme)
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Theme")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+            LVThemePicker(selection: $bindable.theme)
 
-                Text("Mode")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                LVAppearancePicker(selection: $bindable.appearance)
-            }
-            .padding(.vertical, 6)
+            Text("Mode")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+            LVAppearancePicker(selection: $bindable.appearance)
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
     }
 }
 

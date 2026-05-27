@@ -22,6 +22,10 @@ enum Config {
     static var googleReversedClientID: String? { infoString("GOOGLE_REVERSED_CLIENT_ID") }
     static var xClientID: String? { infoString("X_CLIENT_ID") }
     static var xRedirectURI: String? { infoString("X_REDIRECT_URI") }
+    /// Shared keychain access group used by the share extension to read
+    /// the host app's bearer access token. Must match both targets'
+    /// `keychain-access-groups` entitlement.
+    static var keychainAccessGroup: String? { infoString("KEYCHAIN_ACCESS_GROUP") }
     /// HER-216 — WebAuthn relying-party identifier. MUST match the `id`
     /// returned in the server's `rp` block (usually the apex domain — e.g.
     /// `luminavault.app`). Pair with an `associated-domains` entitlement

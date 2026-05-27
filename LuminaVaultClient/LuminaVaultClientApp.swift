@@ -341,6 +341,9 @@ struct LuminaVaultClientApp: App {
                     Task {
                         await appState.refreshCurrentUserIfNeeded(authClient: authClient)
                     }
+                    Task {
+                        await captureCoordinator?.drainShareExtensionQueue()
+                    }
                 } else if newPhase == .background {
                     // HER-39: arm the next BGTaskScheduler runs so the sync
                     // engine can drain its queue while the app is suspended.

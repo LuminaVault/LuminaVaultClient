@@ -70,15 +70,18 @@ struct MainTabView: View {
                     .tag(Self.tabIds.think)
                     .toolbar(.hidden, for: .tabBar)
 
-                    // HER-235: Memory tab — Obsidian-style memory graph.
-                    BrainTabView(client: memoryGraphClient)
-                        .tag(Self.tabIds.brain)
-                        .toolbar(.hidden, for: .tabBar)
-
                     // HER-212: Settings tab — Privacy & Data + Advanced (Hermes Gateway).
                     SettingsRootView()
                         .tag(Self.tabIds.settings)
                         .toolbar(.hidden, for: .tabBar)
+
+                    VisualSearchView(viewModel: VisualSearchViewModel(
+                        ocr: ImageOCRService(),
+                        client: memoryClient,
+                        telemetry: LoggerTelemetry(),
+                    ))
+                    .tag("visual_search")
+                    .toolbar(.hidden, for: .tabBar)
                 }
             }
 
@@ -92,19 +95,9 @@ struct MainTabView: View {
                 underlineNamespace: tabUnderline,
             )
 
-            // HER-243 — capture FAB anchored centrally over the bar gap, with
-            // Hermie mascot floating above it. FAB is raised ~14pt so it
-            // overlaps the bar top; Hermie sits another 56pt above the FAB.
-            VStack(spacing: 8) {
-                HermieMascotView(
-                    state: hermieState,
-                    size: 44,
-                )
-                CaptureFAB()
-            }
-            .padding(.bottom, 70)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            .allowsHitTesting(true)
+            // HER-243 — capture FAB anchored centrally over the tab bar.
+            CaptureFAB()
+                .padding(.bottom, 70)
         }
         .onChange(of: selection) { _, newValue in
             // HER-243 — drive Hermie state from the active tab. ".thinking"
@@ -117,25 +110,24 @@ struct MainTabView: View {
 
     // HER-107: tab bar split per Apple HIG — 3 primary tabs + More
     // overflow. Home / Think / Spaces are the daily-driver surfaces;
-    // Settings / Memory live behind More. HER-243 already moved Today
-    // and VisualSearch into Home dashboard cards.
+    // Settings / Visual Search live behind More.
     private var primaryTabItems: [LVTabItem] {
         [
+            LVTabItem(id: Self.tabIds.workspaces, label: "Spaces",
+                      systemImage: "folder.fill", customImageName: "spaces"),
             LVTabItem(id: Self.tabIds.home, label: "Home",
                       systemImage: "sparkles", customImageName: "home"),
             LVTabItem(id: Self.tabIds.think, label: "Think",
                       systemImage: "bubble.left.and.text.bubble.right", customImageName: "think"),
-            LVTabItem(id: Self.tabIds.workspaces, label: "Spaces",
-                      systemImage: "folder.fill", customImageName: "spaces"),
         ]
     }
 
     private var overflowTabItems: [LVTabItem] {
         [
+            LVTabItem(id: "visual_search", label: "Visual Search",
+                      systemImage: "photo.on.rectangle.angled"),
             LVTabItem(id: Self.tabIds.settings, label: "Settings",
                       systemImage: "gear", customImageName: "settings"),
-            LVTabItem(id: Self.tabIds.brain, label: "Memory",
-                      systemImage: "brain.head.profile"),
         ]
     }
 

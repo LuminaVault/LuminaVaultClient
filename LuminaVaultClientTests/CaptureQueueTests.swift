@@ -39,6 +39,23 @@ final class CaptureQueueTests: XCTestCase {
         XCTAssertTrue(after.isEmpty)
     }
 
+    func testTextFileSnapshotPreservesSpaceAndMarkdownBytes() async throws {
+        let spaceID = UUID()
+        let snapshot = CaptureSnapshot.textFile(
+            body: "Shared body",
+            note: "Caption",
+            spaceID: spaceID,
+        )
+        try await queue.enqueue(snapshot)
+
+        let pending = try await queue.pending()
+        XCTAssertEqual(pending.count, 1)
+        XCTAssertEqual(pending[0].kind, .textFile)
+        XCTAssertEqual(pending[0].spaceID, spaceID)
+        XCTAssertEqual(pending[0].contentType, "text/markdown")
+        XCTAssertEqual(String(data: pending[0].imageData, encoding: .utf8), "Caption\n\n---\n\nShared body\n")
+    }
+
     func testMarkFailureIncrementsAndFlips() async throws {
         let snapshot = CaptureSnapshot(
             imageData: Data([0x01]),

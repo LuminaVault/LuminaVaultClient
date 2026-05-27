@@ -10,5 +10,9 @@
     <array>
         <string>group.com.lumina.fernando</string>
     </array>
+    <key>keychain-access-groups</key>
+    <array>
+        <string>$(KEYCHAIN_ACCESS_GROUP)</string>
+    </array>
 </dict>
 </plist>
