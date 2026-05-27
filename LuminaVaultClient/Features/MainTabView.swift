@@ -223,7 +223,12 @@ struct MainTabView: View {
                 tasksClient: tasksClient,
                 insightsClient: insightsClient,
                 healthClient: healthClient,
-                compileViewModel: SyncAndLearnViewModel(repository: appState.vaultRepository),
+                compileViewModel: SyncAndLearnViewModel(
+                    repository: appState.vaultRepository,
+                    pendingClient: appState.makeKBCompileClient(),
+                    webSocket: appState.makeKBCompileWebSocketClient(),
+                    memoryClient: appState.makeMemoryClient(),
+                ),
                 displayName: Self.deriveDisplayName(from: appState.currentEmail)
             ),
             onAskLumina: {

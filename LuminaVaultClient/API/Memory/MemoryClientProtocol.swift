@@ -15,4 +15,8 @@ protocol MemoryClientProtocol: Sendable {
     /// GET /v1/memory/{id} — fetch one memory for detail popovers and
     /// wikilink previews.
     func get(id: UUID) async throws -> MemoryDTO
+
+    /// HER-290 — PATCH /v1/memory/{id} with a reviewState body. Server
+    /// validates only `pending → approved` / `pending → rejected`.
+    func patch(id: UUID, _ request: MemoryPatchRequest) async throws -> MemoryDTO
 }

@@ -16,4 +16,13 @@ enum KBCompileEndpoints {
         var method: HTTPMethod { .post }
         var body: (any Encodable)? { request }
     }
+
+    /// HER-293 — `GET /v1/kb-compile/pending`. Cheap probe used by the
+    /// "Sync & Learn" surface to disable the button when nothing is
+    /// pending. Poll-on-focus is cheap (no kb-compile rate-limit hit).
+    struct Pending: Endpoint {
+        typealias Response = KBCompilePendingResponse
+        var path: String { "/v1/kb-compile/pending" }
+        var method: HTTPMethod { .get }
+    }
 }

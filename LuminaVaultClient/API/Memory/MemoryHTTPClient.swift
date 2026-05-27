@@ -17,4 +17,8 @@ final class MemoryHTTPClient: MemoryClientProtocol {
     func upsert(_ request: MemoryUpsertRequest) async throws -> MemoryUpsertResponse {
         try await client.execute(MemoryEndpoints.Upsert(request: request))
     }
+
+    func patch(id: UUID, _ request: MemoryPatchRequest) async throws -> MemoryDTO {
+        try await client.execute(MemoryEndpoints.Patch(id: id, request: request))
+    }
 }

@@ -198,6 +198,11 @@ final class ChatViewModel {
                     // HER-37b will surface these as tappable chips.
                     // For now they're observable but not stored.
                     continue
+                case .linkSaved:
+                    // HER-274 — server auto-captured a URL to the vault.
+                    // Not surfaced in chat UI yet; the link will show up
+                    // in the vault on next refresh.
+                    continue
                 case .done:
                     finalizeAssistantTurn()
                     phase = .idle
@@ -422,6 +427,10 @@ private struct NoMemoryClient: MemoryClientProtocol {
     }
 
     func get(id: UUID) async throws -> MemoryDTO {
+        throw APIError.unauthorized
+    }
+
+    func patch(id: UUID, _ request: MemoryPatchRequest) async throws -> MemoryDTO {
         throw APIError.unauthorized
     }
 }

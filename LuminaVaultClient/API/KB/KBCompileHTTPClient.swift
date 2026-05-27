@@ -16,4 +16,9 @@ final class KBCompileHTTPClient: KBCompileClientProtocol {
     func compile(_ request: KBCompileRequest, idempotencyKey: UUID?) async throws -> KBCompileResponse {
         try await client.execute(KBCompileEndpoints.Compile(request: request, idempotencyKey: idempotencyKey))
     }
+
+    // HER-293 — cheap pending-files count for the disable-on-zero UX.
+    func pending() async throws -> KBCompilePendingResponse {
+        try await client.execute(KBCompileEndpoints.Pending())
+    }
 }
