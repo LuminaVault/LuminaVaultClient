@@ -46,6 +46,12 @@ jobs:
       - name: Resolve Swift packages
         run: xcodebuild -project LuminaVaultClient.xcodeproj -resolvePackageDependencies
 
+      - name: Install iOS simulator runtime
+        run: |
+          # Xcode 26.x runners ship without the iOS Simulator runtime
+          # preinstalled — only visionOS. Download it on demand.
+          sudo xcodebuild -downloadPlatform iOS
+
       - name: Pick an available iPhone simulator
         id: sim
         run: |
