@@ -49,19 +49,20 @@ jobs:
       - name: Pick an available iPhone simulator
         id: sim
         run: |
-          # Prefer the newest iPhone simulator the runner has installed.
+          # Newest iOS runtime → first available iPhone in that runtime.
           sim=$(xcrun simctl list devices available --json \
-            | python3 -c '
-import json, sys
-data = json.load(sys.stdin)["devices"]
-for runtime in sorted(data.keys(), reverse=True):
-    if "iOS" not in runtime: continue
-    for d in data[runtime]:
-        if d.get("isAvailable") and "iPhone" in d["name"]:
-            print(d["name"])
-            sys.exit(0)
-sys.exit(1)
-')
+            | jq -r '.devices | to_entries
+                     | map(select(.key | test("iOS")))
+                     | sort_by(.key) | reverse
+                     | .[].value[]
+                     | select(.isAvailable == true and (.name | test("iPhone")))
+                     | .name' \
+            | head -n 1)
+          if [ -z "$sim" ]; then
+            echo "::error::no iPhone simulator available on runner"
+            xcrun simctl list devices available
+            exit 1
+          fi
           echo "name=$sim" >> "$GITHUB_OUTPUT"
           echo "Selected simulator: $sim"
 
