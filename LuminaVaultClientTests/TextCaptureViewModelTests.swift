@@ -27,7 +27,7 @@ final class TextCaptureViewModelTests: XCTestCase {
         XCTAssertNil(vm.toast, "no toast on a no-op save")
     }
 
-    func testSaveEnqueuesTextSnapshotWithoutLocation() async {
+    func testSaveEnqueuesTextSnapshotWithoutLocation() async throws {
         let queue = StubQueue()
         let location = StubLocationService(fix: LocationFix(lat: 1, lng: 1, accuracyM: 1, placeName: nil))
         let kicked = KickFlag()
@@ -44,7 +44,7 @@ final class TextCaptureViewModelTests: XCTestCase {
 
         let snapshots = await queue.snapshot()
         XCTAssertEqual(snapshots.count, 1)
-        let snap = try! XCTUnwrap(snapshots.first)
+        let snap = try XCTUnwrap(snapshots.first)
         XCTAssertEqual(snap.kind, .text)
         XCTAssertEqual(snap.captionText, "learned about pgvector today", "VM must trim whitespace before enqueue")
         XCTAssertTrue(snap.imageData.isEmpty)
