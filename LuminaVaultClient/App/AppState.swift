@@ -223,6 +223,30 @@ final class AppState {
         DailyReviewHTTPClient(client: makeHTTPClient())
     }
 
+    /// HER-293 / HER-108 — kb-compile HTTP client (POST `/v1/kb-compile`
+    /// and `GET /v1/kb-compile/pending`). Used by `SyncAndLearnViewModel`
+    /// to drive the disable-on-zero state.
+    func makeKBCompileClient() -> any KBCompileClientProtocol {
+        KBCompileHTTPClient(client: makeHTTPClient())
+    }
+
+    /// HER-288 / HER-108 — WS subscription to `/v1/ws` decoded as
+    /// `KBCompileProgressEvent` frames. Token provider is read fresh per
+    /// connect attempt so token refreshes propagate without recreating
+    /// the client.
+    func makeKBCompileWebSocketClient() -> any KBCompileWebSocketClientProtocol {
+        let keychain = self.keychain
+        return KBCompileWebSocketClient(
+            baseURL: Config.apiBaseURL,
+            tokenProvider: { @Sendable in keychain.accessToken },
+        )
+    }
+
+    /// HER-290 / HER-108 — memory HTTP client (PATCH approve/reject).
+    func makeMemoryClient() -> any MemoryClientProtocol {
+        MemoryHTTPClient(client: makeHTTPClient())
+    }
+
     func handleAuthSuccess(_ response: AuthResponse) {
         keychain.accessToken = response.accessToken
         keychain.refreshToken = response.refreshToken

@@ -143,4 +143,8 @@ private struct NoOpMemoryClient: MemoryClientProtocol {
     func get(id: UUID) async throws -> MemoryDTO {
         throw APIError.unauthorized
     }
+
+    func patch(id: UUID, _ request: MemoryPatchRequest) async throws -> MemoryDTO {
+        throw APIError.unauthorized
+    }
 }

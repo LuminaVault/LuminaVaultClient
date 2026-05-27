@@ -28,4 +28,16 @@ enum MemoryEndpoints {
             return e
         }
     }
+
+    /// HER-290 — PATCH `/v1/memory/{id}` with `reviewState` body. Server
+    /// validates only `pending → approved` / `pending → rejected`.
+    struct Patch: Endpoint {
+        typealias Response = MemoryDTO
+        let id: UUID
+        let request: MemoryPatchRequest
+
+        var path: String { "/v1/memory/\(id.uuidString.lowercased())" }
+        var method: HTTPMethod { .patch }
+        var body: (any Encodable)? { request }
+    }
 }
