@@ -46,13 +46,32 @@ jobs:
       - name: Resolve Swift packages
         run: xcodebuild -project LuminaVaultClient.xcodeproj -resolvePackageDependencies
 
+      - name: Pick an available iPhone simulator
+        id: sim
+        run: |
+          # Prefer the newest iPhone simulator the runner has installed.
+          sim=$(xcrun simctl list devices available --json \
+            | python3 -c '
+import json, sys
+data = json.load(sys.stdin)["devices"]
+for runtime in sorted(data.keys(), reverse=True):
+    if "iOS" not in runtime: continue
+    for d in data[runtime]:
+        if d.get("isAvailable") and "iPhone" in d["name"]:
+            print(d["name"])
+            sys.exit(0)
+sys.exit(1)
+')
+          echo "name=$sim" >> "$GITHUB_OUTPUT"
+          echo "Selected simulator: $sim"
+
       - name: Run unit tests (Debug, with coverage)
         run: |
           xcodebuild test \
             -project LuminaVaultClient.xcodeproj \
             -scheme LuminaVaultClient \
             -configuration Debug \
-            -destination 'platform=iOS Simulator,OS=latest,name=iPhone 16 Pro' \
+            -destination "platform=iOS Simulator,OS=latest,name=${{ steps.sim.outputs.name }}" \
             -only-testing:LuminaVaultClientTests \
             -enableCodeCoverage YES \
             -resultBundlePath TestResults.xcresult
