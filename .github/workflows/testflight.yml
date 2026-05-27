@@ -17,7 +17,7 @@ on:
 
 jobs:
   beta:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 60
     env:
       LANG: en_US.UTF-8
