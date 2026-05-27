@@ -52,7 +52,7 @@ jobs:
             -project LuminaVaultClient.xcodeproj \
             -scheme LuminaVaultClient \
             -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination 'platform=iOS Simulator,OS=latest,name=iPhone 16 Pro' \
             -only-testing:LuminaVaultClientTests \
             -enableCodeCoverage YES \
             -resultBundlePath TestResults.xcresult
