@@ -6,10 +6,16 @@ final class KeychainService: Sendable {
     static let shared = KeychainService()
 
     private let service: String
+    private let accessGroup: String?
     private let inMemoryStore: InMemoryKeychainStore?
 
-    init(service: String = "com.luminavault.client", inMemory: Bool = false) {
+    init(
+        service: String = "com.luminavault.client",
+        accessGroup: String? = nil,
+        inMemory: Bool = false
+    ) {
         self.service = service
+        self.accessGroup = accessGroup?.isEmpty == false ? accessGroup : nil
         self.inMemoryStore = inMemory ? InMemoryKeychainStore() : nil
     }
 
@@ -79,6 +85,9 @@ final class KeychainService: Sendable {
             kSecAttrService: service,
             kSecAttrAccount: account
         ]
+        if let accessGroup {
+            query[kSecAttrAccessGroup] = accessGroup
+        }
         SecItemDelete(query as CFDictionary)
         guard let value else { return }
         query[kSecValueData] = Data(value.utf8)
@@ -92,13 +101,16 @@ final class KeychainService: Sendable {
         }
 
         let account = "\(service).\(key)"
-        let query: [CFString: Any] = [
+        var query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: account,
             kSecReturnData: true,
             kSecMatchLimit: kSecMatchLimitOne
         ]
+        if let accessGroup {
+            query[kSecAttrAccessGroup] = accessGroup
+        }
         var result: AnyObject?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
               let data = result as? Data else { return nil }

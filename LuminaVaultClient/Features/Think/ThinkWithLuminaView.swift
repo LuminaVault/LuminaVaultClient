@@ -32,9 +32,9 @@ struct ThinkWithLuminaView: View {
                 emptySupporting: "Ask anything. Lumina pulls from your vault and recent learnings.",
                 vaultClient: vaultClient,
                 memoryClient: memoryClient,
+                bottomPadding: 90
             )
-            .lvBackground()
-            .navigationTitle("Think with Lumina")
+            .lvBackground()            .navigationTitle("Think with Lumina")
             .navigationBarTitleDisplayMode(.inline)
             .lvNavBrand(position: .topLeading)
             .toolbar {
@@ -48,6 +48,17 @@ struct ThinkWithLuminaView: View {
                             .foregroundStyle(palette.accent)
                     }
                     .accessibilityLabel(transportAccessibilityLabel)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if !chatVM.messages.isEmpty || chatVM.conversationID != nil {
+                        Button {
+                            chatVM.reset()
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                                .foregroundStyle(palette.accent)
+                        }
+                        .accessibilityLabel("New chat")
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {

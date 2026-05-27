@@ -143,6 +143,27 @@ actor CaptureDrainer {
                     placeName: row.placeName,
                 ))
 
+            case .textFile:
+                guard let body = row.captionText?.nilIfEmpty else {
+                    try await queue.delete(id: row.id)
+                    log.info("dropped empty .textFile capture id=\(row.id.uuidString)")
+                    return
+                }
+                let relativePath = "\(pathPrefix)/\(row.id.uuidString).\(row.fileExtension)"
+                _ = try await vaultUploader.uploadAsset(
+                    data: row.imageData,
+                    contentType: row.contentType,
+                    relativePath: relativePath,
+                    spaceID: row.spaceID,
+                )
+                _ = try await memoryClient.upsert(MemoryUpsertRequest(
+                    content: body,
+                    lat: row.lat,
+                    lng: row.lng,
+                    accuracyM: row.accuracyM,
+                    placeName: row.placeName,
+                ))
+
             case .url:
                 // HER-257 — URL capture: hand off to /v1/capture/safari.
                 // Server enriches asynchronously (OG / oEmbed / X scrape)

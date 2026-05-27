@@ -22,6 +22,7 @@ struct ChatView: View {
     /// resolution can omit them; bubbles fall back to plain text.
     var vaultClient: (any VaultClientProtocol)?
     var memoryClient: (any MemoryClientProtocol)?
+    var bottomPadding: CGFloat = 0
 
     @FocusState private var composerFocused: Bool
 
@@ -109,6 +110,7 @@ struct ChatView: View {
                 )
                 .focused($composerFocused)
             }
+            .padding(.bottom, bottomPadding)
             .background(Color(.systemBackground))
         }
     }

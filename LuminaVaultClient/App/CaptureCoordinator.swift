@@ -50,10 +50,10 @@ final class CaptureCoordinator {
             await drainer.start()
 
             // HER-258 — replay any shares queued by `LuminaVaultShareExtension`
-            // while the app was backgrounded. Each row becomes a `.url`
-            // capture in the live queue; the drainer picks them up on
-            // the next tick (already kicked above via `drainer.start()`).
-            await drainShareExtensionQueue(into: queue)
+            // while the app was backgrounded. Each row becomes a durable
+            // capture in the live queue; the drainer picks them up on the
+            // next tick (already kicked above via `drainer.start()`).
+            await drainShareExtensionQueue()
 
             log.info("capture coordinator started")
         } catch {
@@ -66,30 +66,60 @@ final class CaptureCoordinator {
     /// terminated. Best-effort: per-row failures are logged but never
     /// block startup, since a broken row in the App Group must never
     /// hard-fail the capture coordinator.
-    private func drainShareExtensionQueue(into queue: CaptureQueue) async {
-        let pending: [PendingShare]
-        do {
-            pending = try SharedShareQueue.drainAndClear()
-        } catch {
-            log.error("AppGroup drain failed: \(error.localizedDescription)")
-            return
-        }
+    func drainShareExtensionQueue() async {
+        guard let queue else { return }
+        let pending = SharedShareQueue.loadAll()
         guard !pending.isEmpty else { return }
         log.info("draining \(pending.count) share-extension capture(s)")
         for share in pending {
             do {
-                try await queue.enqueue(CaptureSnapshot.url(
-                    id: share.id,
-                    url: share.url,
-                    note: share.note,
-                    spaceID: share.spaceID,
-                    createdAt: share.capturedAt,
-                ))
+                let snapshot = try Self.captureSnapshot(from: share)
+                try await queue.enqueue(snapshot)
+                try SharedShareQueue.remove(id: share.id)
             } catch {
                 log.error("enqueue failed for share id=\(share.id.uuidString): \(error.localizedDescription)")
             }
         }
         await drainer?.tick()
+    }
+
+    private static func captureSnapshot(from share: PendingShare) throws -> CaptureSnapshot {
+        switch share.kind {
+        case .url:
+            guard let url = share.url?.nilIfEmpty else { throw ShareDrainError.missingPayload }
+            return CaptureSnapshot.url(
+                id: share.id,
+                url: url,
+                note: share.note,
+                spaceID: share.spaceID,
+                createdAt: share.capturedAt,
+            )
+        case .text:
+            guard let text = share.text?.nilIfEmpty else { throw ShareDrainError.missingPayload }
+            return CaptureSnapshot.textFile(
+                id: share.id,
+                body: text,
+                note: share.note,
+                spaceID: share.spaceID,
+                createdAt: share.capturedAt,
+            )
+        case .image:
+            guard let data = try SharedShareQueue.assetData(for: share),
+                  let contentType = share.contentType?.nilIfEmpty,
+                  let fileExtension = share.fileExtension?.nilIfEmpty else {
+                throw ShareDrainError.missingPayload
+            }
+            return CaptureSnapshot(
+                id: share.id,
+                createdAt: share.capturedAt,
+                captionText: share.note?.nilIfEmpty,
+                imageData: data,
+                contentType: contentType,
+                fileExtension: fileExtension,
+                spaceID: share.spaceID,
+                kind: .photo,
+            )
+        }
     }
 
     func stop() async {
@@ -109,4 +139,12 @@ final class CaptureCoordinator {
             await drainer?.tick()
         })
     }
+}
+
+private enum ShareDrainError: Error {
+    case missingPayload
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

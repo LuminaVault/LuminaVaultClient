@@ -92,19 +92,9 @@ struct MainTabView: View {
                 underlineNamespace: tabUnderline,
             )
 
-            // HER-243 — capture FAB anchored centrally over the bar gap, with
-            // Hermie mascot floating above it. FAB is raised ~14pt so it
-            // overlaps the bar top; Hermie sits another 56pt above the FAB.
-            VStack(spacing: 8) {
-                HermieMascotView(
-                    state: hermieState,
-                    size: 44,
-                )
-                CaptureFAB()
-            }
-            .padding(.bottom, 70)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            .allowsHitTesting(true)
+            // HER-243 — capture FAB anchored centrally over the tab bar.
+            CaptureFAB()
+                .padding(.bottom, 70)
         }
         .onChange(of: selection) { _, newValue in
             // HER-243 — drive Hermie state from the active tab. ".thinking"

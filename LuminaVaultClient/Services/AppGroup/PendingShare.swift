@@ -1,32 +1,90 @@
 // LuminaVaultClient/LuminaVaultClient/Services/AppGroup/PendingShare.swift
 //
-// HER-258 — wire shape the Share Extension writes into the App Group.
-// Main app reads at launch, enqueues each row into `CaptureQueue` as a
-// `.url` snapshot, then deletes the file.
+// Wire shape the Share Extension writes into the App Group. Main app
+// reads on launch/foreground, replays each row into the capture pipeline,
+// then removes only successfully handled rows.
 
 import Foundation
+
+enum PendingShareKind: String, Codable, Sendable {
+    case url
+    case text
+    case image
+}
 
 struct PendingShare: Codable, Sendable, Equatable {
     /// Stable id so the main app can dedupe if both targets somehow
     /// touch the queue in the same launch cycle.
     let id: UUID
-    let url: String
+    let kind: PendingShareKind
+    let url: String?
+    let text: String?
     let note: String?
     let spaceID: UUID?
     let capturedAt: Date
+    /// Relative file name under `pendingShareAssets/` for queued image
+    /// attachments. URL/text rows keep this nil.
+    let assetFileName: String?
+    let contentType: String?
+    let fileExtension: String?
 
     init(
         id: UUID = UUID(),
         url: String,
         note: String? = nil,
         spaceID: UUID? = nil,
-        capturedAt: Date = Date(),
+        capturedAt: Date = Date()
     ) {
         self.id = id
+        self.kind = .url
         self.url = url
+        self.text = nil
         self.note = note
         self.spaceID = spaceID
         self.capturedAt = capturedAt
+        self.assetFileName = nil
+        self.contentType = nil
+        self.fileExtension = nil
+    }
+
+    init(
+        id: UUID = UUID(),
+        text: String,
+        note: String? = nil,
+        spaceID: UUID? = nil,
+        capturedAt: Date = Date()
+    ) {
+        self.id = id
+        self.kind = .text
+        self.url = nil
+        self.text = text
+        self.note = note
+        self.spaceID = spaceID
+        self.capturedAt = capturedAt
+        self.assetFileName = nil
+        self.contentType = "text/markdown"
+        self.fileExtension = "md"
+    }
+
+    init(
+        id: UUID = UUID(),
+        imageAssetFileName: String,
+        contentType: String,
+        fileExtension: String,
+        note: String? = nil,
+        spaceID: UUID? = nil,
+        capturedAt: Date = Date()
+    ) {
+        self.id = id
+        self.kind = .image
+        self.url = nil
+        self.text = nil
+        self.note = note
+        self.spaceID = spaceID
+        self.capturedAt = capturedAt
+        self.assetFileName = imageAssetFileName
+        self.contentType = contentType
+        self.fileExtension = fileExtension
     }
 }
 

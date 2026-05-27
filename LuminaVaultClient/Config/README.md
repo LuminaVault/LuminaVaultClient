@@ -63,6 +63,7 @@ The file-based plist is required for `CFBundleURLTypes`, which Google Sign-In ne
 | `POSTHOG_HOST` | PostHog SDK | Usually `https://us.i.posthog.com` |
 | `SENTRY_DSN` | Sentry SDK | Public client DSN |
 | `SENTRY_ENVIRONMENT` | Sentry SDK | `debug`, `beta`, or `production` |
+| `KEYCHAIN_ACCESS_GROUP` | Host app and share extension | Shared access group for the auth token, normally `$(AppIdentifierPrefix)com.lumina.fernando.shared` |
 | `LV_TERMS_URL` | Settings/Billing UI | App Review legal link |
 | `LV_PRIVACY_URL` | Settings/Billing UI | App Review legal link |
 
@@ -74,10 +75,14 @@ The file-based plist is required for `CFBundleURLTypes`, which Google Sign-In ne
 - `APPLE_SERVICE_ID` must equal the Apple token audience accepted by `LuminaVaultServer` `OAUTH_APPLE_CLIENTID`.
 - The production APNS topic must match `com.lumina.fernando`; the server must set `APNS_BUNDLE_ID=com.lumina.fernando`.
 - RevenueCat webhook secret lives only on the server; the client only receives the public `LV_RC_API_KEY`.
+- `KEYCHAIN_ACCESS_GROUP` must be identical in the host app and `LuminaVaultShareExtension` targets so the extension can read the signed-in user's access token.
+- `group.com.lumina.fernando` must be present in both host app and share extension entitlements. The share extension uses it for queued captures, image sidecar files, and last-used Space preferences.
+- `API_BASE_URL` must be available to both the host app and share extension. The extension uses it for direct URL, text, and image capture while the host app is not running.
 
 ## App Store service checklist
 
-- Apple Developer App IDs have Push Notifications, Sign in with Apple, HealthKit, background delivery, and App Groups enabled.
+- Apple Developer App IDs have Push Notifications, Sign in with Apple, HealthKit, background delivery, App Groups, and Keychain Sharing enabled where required.
+- Share extension App IDs exist for Debug, Beta, and Release bundle IDs, with App Groups and Keychain Sharing enabled.
 - App Store Connect products exist for every RevenueCat product ID.
 - RevenueCat offerings map products to entitlements such as `plus` and `pro`.
 - Google OAuth iOS client has the correct bundle ID.

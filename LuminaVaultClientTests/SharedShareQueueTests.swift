@@ -38,6 +38,38 @@ final class SharedShareQueueTests: XCTestCase {
         let data = try encoder.encode(original)
         let decoded = try decoder.decode(PendingShare.self, from: data)
         XCTAssertEqual(decoded, original)
+        XCTAssertEqual(decoded.kind, .url)
+        XCTAssertNil(decoded.text)
+    }
+
+    func testPendingTextShareCodableRoundTrip() throws {
+        let original = PendingShare(
+            text: "clip this thought",
+            note: "from Mail",
+            spaceID: UUID(),
+            capturedAt: Date(timeIntervalSince1970: 1_700_000_010),
+        )
+        let data = try SharedAppGroup.encoder.encode(original)
+        let decoded = try SharedAppGroup.decoder.decode(PendingShare.self, from: data)
+        XCTAssertEqual(decoded, original)
+        XCTAssertEqual(decoded.kind, .text)
+        XCTAssertNil(decoded.url)
+    }
+
+    func testPendingImageShareCodableRoundTrip() throws {
+        let original = PendingShare(
+            imageAssetFileName: "image.heic",
+            contentType: "image/heic",
+            fileExtension: "heic",
+            note: "receipt",
+            spaceID: UUID(),
+            capturedAt: Date(timeIntervalSince1970: 1_700_000_020),
+        )
+        let data = try SharedAppGroup.encoder.encode(original)
+        let decoded = try SharedAppGroup.decoder.decode(PendingShare.self, from: data)
+        XCTAssertEqual(decoded, original)
+        XCTAssertEqual(decoded.kind, .image)
+        XCTAssertEqual(decoded.assetFileName, "image.heic")
     }
 
     /// Multiple appends produce an ordered array under the App Group
@@ -53,7 +85,7 @@ final class SharedShareQueueTests: XCTestCase {
         let data = try Data(contentsOf: url)
         let decoded = try SharedAppGroup.decoder.decode([PendingShare].self, from: data)
         XCTAssertEqual(decoded.count, 3)
-        XCTAssertEqual(decoded.map(\.url), ["https://a.example", "https://b.example", "https://c.example"])
+        XCTAssertEqual(decoded.compactMap(\.url), ["https://a.example", "https://b.example", "https://c.example"])
         XCTAssertEqual(decoded[1].note, "second")
         XCTAssertNotNil(decoded[2].spaceID)
     }

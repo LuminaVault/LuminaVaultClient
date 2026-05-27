@@ -16,6 +16,8 @@
 	<string>$(X_REDIRECT_URI)</string>
 	<key>API_BASE_URL</key>
 	<string>$(API_BASE_URL)</string>
+	<key>KEYCHAIN_ACCESS_GROUP</key>
+	<string>$(KEYCHAIN_ACCESS_GROUP)</string>
 	<key>LV_RC_API_KEY</key>
 	<string>$(LV_RC_API_KEY)</string>
 	<key>POSTHOG_PROJECT_TOKEN</key>

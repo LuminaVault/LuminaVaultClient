@@ -1,8 +1,4 @@
 // LuminaVaultShareExtension/ShareRootView.swift
-//
-// HER-258 — SwiftUI surface inside the share sheet. Mirrors
-// `URLCaptureView` (URL + note + Space picker) so users see the same
-// shape whether they capture from inside the app or from Safari/X/YT.
 
 import SwiftUI
 
@@ -24,10 +20,10 @@ struct ShareRootView: View {
     var body: some View {
         NavigationStack {
             List {
-                urlSection
+                payloadSection
                 noteSection
                 spaceSection
-                if case .failed(let message) = viewModel.saveState {
+                if let message = viewModel.failureMessage() {
                     Section {
                         Label(message, systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(.red)
@@ -54,30 +50,47 @@ struct ShareRootView: View {
     }
 
     private func saveAndClose() {
-        viewModel.save()
-        if case .saved = viewModel.saveState {
-            onSave()
+        Task {
+            await viewModel.save()
+            switch viewModel.saveState {
+            case .saved, .queued:
+                onSave()
+            default:
+                break
+            }
         }
     }
 
-    // MARK: - Sections
-
     @ViewBuilder
-    private var urlSection: some View {
+    private var payloadSection: some View {
         Section {
-            TextField("https://…", text: $viewModel.urlString)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .keyboardType(.URL)
+            if viewModel.payloads.isEmpty {
+                Label("Unsupported share", systemImage: "square.and.arrow.up.trianglebadge.exclamationmark")
+            } else {
+                ForEach(viewModel.payloads) { payload in
+                    Label {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(payload.title)
+                                .font(.body)
+                            Text(payload.subtitle)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(3)
+                        }
+                    } icon: {
+                        Image(systemName: iconName(for: payload))
+                    }
+                }
+            }
         } footer: {
-            Text("LuminaVault enriches links (Open Graph, oEmbed, X post metadata) in the background once you reopen the app.")
+            Text("LuminaVault saves online when it can. If the network is unavailable, the app retries the capture next time it opens.")
         }
     }
 
     @ViewBuilder
     private var noteSection: some View {
         Section {
-            TextField("Add a note (optional)", text: $viewModel.note, axis: .vertical)
+            TextField("Add a caption (optional)", text: $viewModel.note, axis: .vertical)
                 .lineLimit(1 ... 4)
                 .textInputAutocapitalization(.sentences)
         }
@@ -97,8 +110,16 @@ struct ShareRootView: View {
                 }
                 .pickerStyle(.menu)
             } footer: {
-                Text("Pick a Space to file this link into. Unfiled links land at the vault root.")
+                Text("Pick a Space to file this capture into. Unfiled captures land at the vault root.")
             }
+        }
+    }
+
+    private func iconName(for payload: SharePayload) -> String {
+        switch payload {
+        case .url: return "link"
+        case .text: return "text.alignleft"
+        case .image: return "photo"
         }
     }
 }

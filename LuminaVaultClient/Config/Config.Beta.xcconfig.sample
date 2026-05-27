@@ -2,6 +2,7 @@
 // Copy to Config.Beta.xcconfig and fill App Store Connect/TestFlight values.
 
 API_BASE_URL = https:/$()/api.luminavault.com
+KEYCHAIN_ACCESS_GROUP = $(AppIdentifierPrefix)com.lumina.fernando.shared
 
 APPLE_SERVICE_ID = com.lumina.fernando.beta
 GID_CLIENT_ID = REPLACE_WITH_BETA_IOS_CLIENT_ID.apps.googleusercontent.com
