@@ -44,22 +44,32 @@ struct SpacesListView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
+                // Background
+                Color.black.ignoresSafeArea()
+                
+                // Cosmic aurora gradients
+                RadialGradient(
+                    colors: [palette.glowPrimary.opacity(0.15), .clear],
+                    center: .topTrailing,
+                    startRadius: 0,
+                    endRadius: 600
+                ).ignoresSafeArea()
+                
+                RadialGradient(
+                    colors: [palette.accent.opacity(0.1), .clear],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: 500
+                ).ignoresSafeArea()
+                
                 content
                 createButton
             }
-            .navigationTitle("Spaces")
-            .lvBackground()
-            .lvNavBrand(position: .topLeading)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        presentingSearch = true
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(palette.primary)
-                    }
-                }
+            .safeAreaInset(edge: .top) {
+                LuminaHeader(title: "Spaces")
             }
+            .lvBackground()
+            .toolbar(.hidden, for: .navigationBar) // Custom header instead
             .task { await vm.load() }
             .refreshable { await vm.load() }
             .alert("Delete space?",
@@ -116,14 +126,21 @@ struct SpacesListView: View {
     @ViewBuilder
     private var content: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            VStack(spacing: 24) {
+                searchField
+                
+                if !vm.categories.isEmpty && vm.categories.count > 1 {
+                    categoryChips
+                }
+
                 if let error = vm.error {
                     errorBanner(message: error)
                 }
-                searchField
-                categoryChips
+
                 if vm.isLoading && vm.spaces.isEmpty {
-                    ProgressView().padding(.top, 40)
+                    ProgressView()
+                        .tint(palette.glowPrimary)
+                        .padding(.top, 60)
                 } else if vm.visibleSpaces.isEmpty {
                     if vm.error != nil {
                         errorEmptyState
@@ -131,7 +148,7 @@ struct SpacesListView: View {
                         emptyState
                     }
                 } else {
-                    LazyVGrid(columns: columns, spacing: 12) {
+                    LazyVGrid(columns: columns, spacing: 16) {
                         ForEach(vm.visibleSpaces) { space in
                             NavigationLink {
                                 VaultFilesListView(
@@ -149,52 +166,103 @@ struct SpacesListView: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 20)
                 }
             }
-            .padding(.bottom, 96)
+            .padding(.top, 40)
+            .padding(.bottom, 120)
         }
     }
 
+    private var headerSection: some View {
+        HStack {
+            Text("Spaces")
+                .font(.system(size: 38, weight: .black, design: .rounded))
+                .foregroundStyle(palette.textPrimary)
+                .shadow(color: palette.glowPrimary.opacity(0.8), radius: 12)
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+    }
+
     private var searchField: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(palette.textSecondary)
+            
             TextField("Search spaces", text: $vm.searchQuery)
                 .textFieldStyle(.plain)
                 .autocorrectionDisabled()
+                .foregroundStyle(palette.textPrimary)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(palette.backgroundBase.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .padding(.horizontal, 16)
-        .padding(.top, 8)
+        .padding(.vertical, 14)
+        .background {
+            RoundedRectangle(cornerRadius: 14)
+                .fill(palette.surface)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(palette.surfaceStroke, lineWidth: 1)
+                }
+        }
+        .padding(.horizontal, 20)
     }
 
     private var categoryChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 ForEach(vm.categories, id: \.self) { cat in
                     let isSelected = vm.selectedCategory == cat
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             vm.selectedCategory = cat
                         }
                     } label: {
                         Text(cat == allCategoriesSlug ? "All" : cat.capitalized)
-                            .font(.system(size: 13, weight: .semibold))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(isSelected ? palette.primary : palette.backgroundBase.opacity(0.5))
-                            .foregroundStyle(isSelected ? .black : .primary)
-                            .clipShape(Capsule())
+                            .font(.system(size: 13, weight: .bold))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background {
+                                if isSelected {
+                                    Capsule()
+                                        .fill(palette.glowPrimary)
+                                        .shadow(color: palette.glowPrimary.opacity(0.5), radius: 8)
+                                } else {
+                                    Capsule()
+                                        .fill(palette.surface)
+                                        .overlay {
+                                            Capsule()
+                                                .stroke(palette.surfaceStroke, lineWidth: 1)
+                                        }
+                                }
+                            }
+                            .foregroundStyle(isSelected ? .black : palette.textPrimary)
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20)
         }
+    }
+
+    private var createButton: some View {
+        Button {
+            presentingEditorFor = EditorPresentation(mode: .create)
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 26, weight: .light))
+                .foregroundStyle(.black)
+                .frame(width: 64, height: 64)
+                .background {
+                    Circle()
+                        .fill(palette.glowPrimary)
+                        .shadow(color: palette.glowPrimary.opacity(0.6), radius: 15)
+                }
+                .lvGlowPress()
+        }
+        .padding(24)
+        .padding(.bottom, 16)
     }
 
     private var emptyState: some View {
@@ -234,27 +302,6 @@ struct SpacesListView: View {
         .frame(maxWidth: .infinity)
         .background(Color.red.opacity(0.18))
         .foregroundStyle(.red)
-    }
-
-    private var createButton: some View {
-        Button {
-            presentingEditorFor = EditorPresentation(mode: .create)
-        } label: {
-            Image(systemName: "plus")
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(.black)
-                .frame(width: 56, height: 56)
-                .background(
-                    LinearGradient(
-                        colors: [palette.primary, palette.accent],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing,
-                    )
-                )
-                .clipShape(Circle())
-                .shadow(color: .black.opacity(0.25), radius: 10, y: 4)
-        }
-        .padding(20)
     }
 }
 

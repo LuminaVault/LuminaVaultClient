@@ -10,145 +10,230 @@ import SwiftUI
 
 struct SettingsRootView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.lvPalette) private var palette
 
     var body: some View {
         NavigationStack {
-            List {
-                // HER-211 — trial countdown banner. Self-gates: renders
-                // empty when not in trial or >= 5 days remaining.
-                TrialCountdownBanner()
-                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
+            ZStack(alignment: .top) {
+                // Cosmic Background
+                Color.black.ignoresSafeArea()
+                
+                RadialGradient(
+                    colors: [palette.glowPrimary.opacity(0.15), .clear],
+                    center: .topTrailing,
+                    startRadius: 0,
+                    endRadius: 600
+                ).ignoresSafeArea()
+                
+                RadialGradient(
+                    colors: [palette.accent.opacity(0.1), .clear],
+                    center: .bottomLeading,
+                    startRadius: 0,
+                    endRadius: 500
+                ).ignoresSafeArea()
+                
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // HER-211 — trial countdown banner.
+                        TrialCountdownBanner()
+                            .padding(.top, 10)
 
-                // HER-255 — Theme + light/dark switch at the top of Settings.
-                LVAppearanceSection()
+                        // HER-255 — Theme + light/dark switch
+                        glassSection(title: "Appearance") {
+                            LVAppearanceSection()
+                        }
 
-                // HER-39 — surface offline sync state + manual drain.
-                Section("Sync & Backup") {
-                    NavigationLink {
-                        SyncBackupView()
-                            .modelContainer(appState.modelContainer)
-                    } label: {
-                        Label("Sync & Backup", systemImage: "arrow.triangle.2.circlepath")
-                    }
-                }
+                        // Sync & Privacy
+                        glassSection(title: "Account & Data") {
+                            settingsRow(
+                                title: "Sync & Backup",
+                                icon: "arrow.triangle.2.circlepath",
+                                destination: AnyView(SyncBackupView().modelContainer(appState.modelContainer))
+                            )
+                            settingsDivider
+                            settingsRow(
+                                title: "Privacy & Data",
+                                icon: "lock.shield",
+                                destination: AnyView(PrivacyDataView(
+                                    viewModel: PrivacyDataViewModel(
+                                        vaultClient: vaultClient,
+                                        accountClient: accountClient,
+                                        appState: appState
+                                    ),
+                                    securityViewModel: SecuritySettingsViewModel(keychain: appState.keychain)
+                                ))
+                            )
+                        }
 
-                Section("Privacy & Data") {
-                    NavigationLink {
-                        PrivacyDataView(viewModel: PrivacyDataViewModel(
-                            vaultClient: vaultClient,
-                            accountClient: accountClient,
-                            appState: appState
-                        ), securityViewModel: SecuritySettingsViewModel(
-                            keychain: appState.keychain
-                        ))
-                    } label: {
-                        Label("Privacy & Data", systemImage: "lock.shield")
-                    }
-                }
+                        // Connections
+                        glassSection(title: "Connections") {
+                            settingsRow(
+                                title: "Linked Accounts",
+                                icon: "link.circle",
+                                destination: AnyView(LinkedAccountsView(client: integrationsClient))
+                            )
+                            settingsDivider
+                            settingsRow(
+                                title: "LLM Providers",
+                                icon: "brain",
+                                destination: AnyView(ProvidersPaneView(client: providersClient))
+                            )
+                        }
 
-                Section("Connections") {
-                    NavigationLink {
-                        LinkedAccountsView(client: integrationsClient)
-                    } label: {
-                        Label("Linked Accounts", systemImage: "link.circle")
-                    }
-                    // HER-252 — per-user LLM provider credentials.
-                    NavigationLink {
-                        ProvidersPaneView(client: providersClient)
-                    } label: {
-                        Label("LLM Providers", systemImage: "brain")
-                    }
-                }
+                        // Automation & Notifications
+                        glassSection(title: "Automation & Alerts") {
+                            settingsRow(
+                                title: "Skills",
+                                icon: "sparkles",
+                                destination: AnyView(SkillsHubView(vm: SkillsHubViewModel(client: skillsClient), detailClient: skillsClient))
+                            )
+                            settingsDivider
+                            settingsRow(
+                                title: "Automations",
+                                icon: "clock.badge.checkmark",
+                                destination: AnyView(AutomationsView(vm: AutomationsViewModel(client: skillsClient)))
+                            )
+                            settingsDivider
+                            settingsRow(
+                                title: "Notifications",
+                                icon: "bell.badge",
+                                destination: AnyView(NotificationsPaneView(vm: NotificationsPaneViewModel(client: apnsPrefsClient)))
+                            )
+                        }
 
-                // HER-247 / HER-178 — Skills hub (full detail) + Automations
-                // (lightweight toggle list). Share the same SkillsHTTPClient.
-                Section("Automation") {
-                    NavigationLink {
-                        SkillsHubView(
-                            vm: SkillsHubViewModel(client: skillsClient),
-                            detailClient: skillsClient
-                        )
-                    } label: {
-                        Label("Skills", systemImage: "sparkles")
-                    }
-                    NavigationLink {
-                        AutomationsView(vm: AutomationsViewModel(client: skillsClient))
-                    } label: {
-                        Label("Automations", systemImage: "clock.badge.checkmark")
-                    }
-                }
+                        // Subscription & About
+                        glassSection(title: "App") {
+                            settingsRow(
+                                title: "Subscription",
+                                icon: "creditcard",
+                                destination: AnyView(SubscriptionView())
+                            )
+                            settingsDivider
+                            settingsRow(
+                                title: "About LuminaVault",
+                                icon: "info.circle",
+                                destination: AnyView(AboutView())
+                            )
+                        }
 
-                // HER-179 — APNS category opt-out.
-                Section("Notifications") {
-                    NavigationLink {
-                        NotificationsPaneView(vm: NotificationsPaneViewModel(client: apnsPrefsClient))
-                    } label: {
-                        Label("Notifications", systemImage: "bell.badge")
-                    }
-                }
-
-                // HER-188 — subscription tier, restore purchases, legal links.
-                Section("Subscription") {
-                    NavigationLink {
-                        SubscriptionView()
-                    } label: {
-                        Label("Subscription", systemImage: "creditcard")
-                    }
-                }
-
-                // HER-298 — brand presence, version, Rate, social links,
-                // contact + legal. Sits before Server so reviewers and
-                // curious users can find it without digging into Advanced.
-                Section("About") {
-                    NavigationLink {
-                        AboutView()
-                    } label: {
-                        Label("About LuminaVault", systemImage: "info.circle")
-                    }
-                }
-
-                // HER-250 — backend mode + SOUL.md editor.
-                Section("Server") {
-                    NavigationLink {
-                        ServerConnectionView(vm: ServerConnectionViewModel(soulClient: soulClient))
-                    } label: {
-                        Label("Server Connection", systemImage: "server.rack")
-                    }
-                }
-
-                Section("Advanced") {
-                    NavigationLink {
-                        HermesGatewayPaneView(client: settingsClient)
-                    } label: {
-                        HStack {
-                            Label("Hermes Gateway", systemImage: "network")
-                            Spacer()
-                            // HER-255 — connection status pill per issue spec.
-                            // TODO: drive `state` from HermesGatewayViewModel when wired.
-                            ConnectionBadge(state: .unknown)
+                        // Server & Advanced
+                        glassSection(title: "System & Advanced") {
+                            settingsRow(
+                                title: "Server Connection",
+                                icon: "server.rack",
+                                destination: AnyView(ServerConnectionView(vm: ServerConnectionViewModel(soulClient: soulClient)))
+                            )
+                            settingsDivider
+                            
+                            // Hermes Gateway with connection badge
+                            NavigationLink {
+                                HermesGatewayPaneView(client: settingsClient)
+                            } label: {
+                                HStack(spacing: 16) {
+                                    Image(systemName: "network")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundStyle(palette.glowPrimary)
+                                        .frame(width: 24)
+                                    Text("Hermes Gateway")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundStyle(palette.textPrimary)
+                                    Spacer()
+                                    ConnectionBadge(state: .unknown)
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(palette.textSecondary.opacity(0.5))
+                                }
+                                .padding(.vertical, 14)
+                                .padding(.horizontal, 16)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            
+                            settingsDivider
+                            settingsRow(
+                                title: "Messaging Gateways",
+                                icon: "bubble.left.and.bubble.right",
+                                destination: AnyView(HermesGatewaysPaneView(client: hermesGatewaysClient))
+                            )
+                            settingsDivider
+                            settingsRow(
+                                title: "Model Preferences",
+                                icon: "slider.horizontal.3",
+                                destination: AnyView(LLMPreferencesPaneView(client: llmPreferencesClient))
+                            )
                         }
                     }
-                    // HER-241 — Telegram/Discord/Slack/WhatsApp bridges.
-                    NavigationLink {
-                        HermesGatewaysPaneView(client: hermesGatewaysClient)
-                    } label: {
-                        Label("Messaging Gateways", systemImage: "bubble.left.and.bubble.right")
-                    }
-                    // HER-252 — per-user primary model + fallback chain.
-                    NavigationLink {
-                        LLMPreferencesPaneView(client: llmPreferencesClient)
-                    } label: {
-                        Label("Model Preferences", systemImage: "slider.horizontal.3")
-                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 40)
+                    .padding(.bottom, 140)
                 }
             }
-            .navigationTitle("Settings")
-            // HER-255 — small Hermie mascot in the top-right corner per issue spec.
-            .lvNavBrand(position: .topTrailing, size: 28)
+            .safeAreaInset(edge: .top) {
+                LuminaHeader(title: "Settings")
+            }
+            .lvBackground()
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
+
+    private var headerSection: some View {
+        HStack {
+            Text("Settings")
+                .font(.system(size: 38, weight: .black, design: .rounded))
+                .foregroundStyle(palette.textPrimary)
+                .shadow(color: palette.glowPrimary.opacity(0.8), radius: 12)
+            Spacer()
+        }
+    }
+
+    private func glassSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title.uppercased())
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .foregroundStyle(palette.textSecondary)
+                .tracking(2)
+                .padding(.leading, 8)
+            
+            VStack(spacing: 0) {
+                content()
+            }
+            .lvGlassCard(cornerRadius: 24, intensity: 0.5)
+        }
+    }
+
+    private func settingsRow(title: String, icon: String, destination: AnyView) -> some View {
+        NavigationLink {
+            destination
+        } label: {
+            HStack(spacing: 16) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(palette.glowPrimary)
+                    .frame(width: 24)
+                
+                Text(title)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(palette.textPrimary)
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(palette.textSecondary.opacity(0.5))
+            }
+            .padding(.vertical, 14)
+            .padding(.horizontal, 16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var settingsDivider: some View {
+        Divider()
+            .background(palette.surfaceStroke)
+            .padding(.leading, 56)
+    }
+
 
     private var apnsPrefsClient: any APNSPrefsClientProtocol {
         APNSPrefsHTTPClient(client: appState.makeHTTPClient())

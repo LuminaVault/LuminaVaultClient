@@ -28,47 +28,14 @@ struct ThinkWithLuminaView: View {
             ChatView(
                 viewModel: chatVM,
                 emptyStateSuggestions: suggestions,
-                emptyHeadline: "What would you like to explore today?",
+                emptyHeadline: "Think",
                 emptySupporting: "Ask anything. Lumina pulls from your vault and recent learnings.",
                 vaultClient: vaultClient,
                 memoryClient: memoryClient,
                 bottomPadding: 90
             )
-            .lvBackground()            .navigationTitle("Think with Lumina")
-            .navigationBarTitleDisplayMode(.inline)
-            .lvNavBrand(position: .topLeading)
-            .toolbar {
-                // HER-107 — mode toggle: 🧠 memory-grounded (SSE source-cited)
-                // vs ☁️ Hermes-fresh (no retrieval, one-shot).
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        chatVM.toggleTransport()
-                    } label: {
-                        Image(systemName: transportIcon)
-                            .foregroundStyle(palette.accent)
-                    }
-                    .accessibilityLabel(transportAccessibilityLabel)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    if !chatVM.messages.isEmpty || chatVM.conversationID != nil {
-                        Button {
-                            chatVM.reset()
-                        } label: {
-                            Image(systemName: "square.and.pencil")
-                                .foregroundStyle(palette.accent)
-                        }
-                        .accessibilityLabel("New chat")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        MemoListView(vm: MemoListViewModel(client: memoClient))
-                    } label: {
-                        Image(systemName: "book.closed.fill")
-                            .foregroundStyle(palette.accent)
-                    }
-                }
-            }
+            .lvBackground()
+            .toolbar(.hidden, for: .navigationBar)
             .task {
                 await chatVM.restore()
                 await loadSuggestions()

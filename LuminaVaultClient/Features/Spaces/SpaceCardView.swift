@@ -12,47 +12,41 @@ struct SpaceCardView: View {
     let onEdit: () -> Void
     let onDelete: () -> Void
 
-    private static let relativeFormatter: RelativeDateTimeFormatter = {
-        let f = RelativeDateTimeFormatter()
-        f.unitsStyle = .abbreviated
-        return f
-    }()
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
                 Image(systemName: space.icon ?? "folder.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(palette.primary)
+                    .font(.system(size: 32, weight: .light))
+                    .foregroundStyle(palette.glowPrimary)
+                    .shadow(color: palette.glowPrimary.opacity(0.6), radius: 8)
+                
                 Spacer()
+                
                 Menu {
                     Button("Edit", action: onEdit)
                     Button("Delete", role: .destructive, action: onDelete)
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary.opacity(0.5))
                         .padding(8)
                         .contentShape(Rectangle())
                 }
             }
 
-            Text(space.name)
-                .font(.system(size: 16, weight: .heavy))
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(space.name)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(palette.textPrimary)
 
-            Text("\(space.noteCount) \(space.noteCount == 1 ? "note" : "notes")")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
-
-            if let lastCompiledAt = space.lastCompiledAt {
-                Text("compiled \(Self.relativeFormatter.localizedString(for: lastCompiledAt, relativeTo: Date()))")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+                Text("\(space.noteCount) \(space.noteCount == 1 ? "note" : "notes")")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(palette.glowPrimary)
             }
+            .padding(.top, 4)
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
-        .lvGlassCard(cornerRadius: 16, intensity: 0.5)
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .lvGlassCard(cornerRadius: 24, intensity: 0.7)
     }
 }

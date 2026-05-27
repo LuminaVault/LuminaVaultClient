@@ -7,6 +7,7 @@
 import SwiftUI
 
 struct ChatView: View {
+    @Environment(\.lvPalette) private var palette
     @State var viewModel: ChatViewModel
     /// HER-107 — empty-state suggestion chips (Think tab passes the
     /// server's `/v1/me/suggestions` payload). Tapping a chip seeds the
@@ -28,67 +29,95 @@ struct ChatView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ScrollView {
-                if viewModel.messages.isEmpty && !viewModel.isStreaming {
-                    EmptyStateHero(
-                        mascotState: viewModel.mascotState,
-                        headline: emptyHeadline,
-                        supporting: emptySupporting,
-                        suggestions: emptyStateSuggestions,
-                        onSuggestion: { viewModel.sendSuggestion($0) },
-                    )
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 32)
-                } else {
-                    LazyVStack(alignment: .leading, spacing: 12) {
-                        ForEach(viewModel.messages) { message in
-                            MessageRow(
-                                message: message,
-                                mascotState: .idle,
-                                vaultClient: vaultClient,
-                                memoryClient: memoryClient,
-                            )
-                                .id(message.id)
-                                .contextMenu {
-                                    if message.role == .assistant {
-                                        Button {
-                                            viewModel.saveAsMemory(message)
-                                        } label: {
-                                            Label("Save as memory", systemImage: "brain.head.profile")
+            ZStack {
+                // Background
+                Color.black.ignoresSafeArea()
+                
+                // Deep cosmic gradients
+                RadialGradient(
+                    colors: [palette.glowPrimary.opacity(0.12), .clear],
+                    center: .topTrailing,
+                    startRadius: 0,
+                    endRadius: 500
+                ).ignoresSafeArea()
+                
+                ScrollView {
+                    if viewModel.messages.isEmpty && !viewModel.isStreaming {
+                        EmptyStateHero(
+                            mascotState: viewModel.mascotState,
+                            headline: emptyHeadline,
+                            supporting: emptySupporting,
+                            suggestions: emptyStateSuggestions,
+                            onSuggestion: { viewModel.sendSuggestion($0) },
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.top, 24)
+                    } else {
+                        LazyVStack(alignment: .leading, spacing: 16) {
+                            // Header for active chat (compact view)
+                            HStack {
+                                Spacer()
+                                Button {
+                                    viewModel.reset()
+                                } label: {
+                                    Image(systemName: "trash")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.bottom, 8)
+
+                            ForEach(viewModel.messages) { message in
+                                MessageRow(
+                                    message: message,
+                                    mascotState: .idle,
+                                    vaultClient: vaultClient,
+                                    memoryClient: memoryClient,
+                                )
+                                    .id(message.id)
+                                    .contextMenu {
+                                        if message.role == .assistant {
+                                            Button {
+                                                viewModel.saveAsMemory(message)
+                                            } label: {
+                                                Label("Save as memory", systemImage: "brain.head.profile")
+                                            }
                                         }
                                     }
-                                }
+                            }
+                            if viewModel.isStreaming || !viewModel.pendingAssistant.isEmpty {
+                                PendingAssistantRow(
+                                    text: viewModel.pendingAssistant,
+                                    sources: viewModel.pendingSources,
+                                    isStreaming: viewModel.isStreaming,
+                                    mascotState: viewModel.mascotState,
+                                )
+                                .id(Self.pendingAnchor)
+                            }
+                            if case let .failed(message) = viewModel.phase {
+                                ErrorRow(message: message)
+                            }
                         }
-                        if viewModel.isStreaming || !viewModel.pendingAssistant.isEmpty {
-                            PendingAssistantRow(
-                                text: viewModel.pendingAssistant,
-                                sources: viewModel.pendingSources,
-                                isStreaming: viewModel.isStreaming,
-                                mascotState: viewModel.mascotState,
-                            )
-                            .id(Self.pendingAnchor)
-                        }
-                        if case let .failed(message) = viewModel.phase {
-                            ErrorRow(message: message)
-                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 20)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 16)
+                }
+                .onChange(of: viewModel.pendingAssistant) { _, _ in
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        proxy.scrollTo(Self.pendingAnchor, anchor: .bottom)
+                    }
+                }
+                .onChange(of: viewModel.messages.count) { _, _ in
+                    guard let last = viewModel.messages.last?.id else { return }
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        proxy.scrollTo(last, anchor: .bottom)
+                    }
                 }
             }
-            .onChange(of: viewModel.pendingAssistant) { _, _ in
-                withAnimation(.easeOut(duration: 0.15)) {
-                    proxy.scrollTo(Self.pendingAnchor, anchor: .bottom)
-                }
-            }
-            .onChange(of: viewModel.messages.count) { _, _ in
-                guard let last = viewModel.messages.last?.id else { return }
-                withAnimation(.easeOut(duration: 0.15)) {
-                    proxy.scrollTo(last, anchor: .bottom)
-                }
+            .safeAreaInset(edge: .top) {
+                LuminaHeader(title: emptyHeadline, mascotState: viewModel.mascotState)
             }
         }
-        .background(Color(.systemBackground))
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
                 if let toast = viewModel.savedMemoryToast {
@@ -97,7 +126,7 @@ struct ChatView: View {
                 if let notice = viewModel.fallbackNotice {
                     FallbackBanner(notice: notice)
                 }
-                Divider()
+                
                 ComposerBar(
                     text: $viewModel.composer,
                     canSend: viewModel.canSend,
@@ -111,7 +140,7 @@ struct ChatView: View {
                 .focused($composerFocused)
             }
             .padding(.bottom, bottomPadding)
-            .background(Color(.systemBackground))
+            .background(.clear)
         }
     }
 
@@ -121,6 +150,7 @@ struct ChatView: View {
 // MARK: - Empty state
 
 private struct EmptyStateHero: View {
+    @Environment(\.lvPalette) private var palette
     let mascotState: HermieMascotState
     let headline: String
     let supporting: String
@@ -128,35 +158,55 @@ private struct EmptyStateHero: View {
     let onSuggestion: (String) -> Void
 
     var body: some View {
-        VStack(spacing: 20) {
-            HermieMascotView(state: mascotState, size: 140, fallbackImageName: "OnboardingMascot")
-            VStack(spacing: 8) {
+        VStack(spacing: 30) {
+            // Header Row
+            HStack(alignment: .top) {
                 Text(headline)
-                    .font(.title3)
-                    .multilineTextAlignment(.center)
-                Text(supporting)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                    .font(.system(size: 44, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .shadow(color: palette.glowPrimary.opacity(0.8), radius: 12)
+                
+                Spacer()
+                
+                Image(systemName: "person.circle.fill")
+                    .font(.system(size: 32, weight: .light))
+                    .foregroundStyle(palette.glowPrimary)
+                    .shadow(color: palette.glowPrimary.opacity(0.6), radius: 8)
             }
+            
+            // Mascot with Electricity effects (simulated with shadow/glow)
+            HermieMascotView(state: mascotState, size: 240, fallbackImageName: "OnboardingMascot")
+                .shadow(color: palette.glowPrimary.opacity(0.4), radius: 40)
+                .overlay {
+                    // Subtle electricity "wires" glow effect could be added here
+                    // if we had a specific view for it.
+                }
+
             if !suggestions.isEmpty {
-                VStack(spacing: 8) {
-                    ForEach(suggestions.prefix(4), id: \.self) { suggestion in
+                VStack(alignment: .trailing, spacing: 12) {
+                    ForEach(suggestions.prefix(3), id: \.self) { suggestion in
                         Button {
                             onSuggestion(suggestion)
                         } label: {
                             Text(suggestion)
-                                .font(.footnote)
-                                .foregroundStyle(.primary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color(.secondarySystemBackground))
-                                .clipShape(.rect(cornerRadius: 12))
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
+                                .background {
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(palette.surface)
+                                        .overlay {
+                                            RoundedRectangle(cornerRadius: 14)
+                                                .stroke(palette.glowPrimary.opacity(0.6), lineWidth: 1.5)
+                                        }
+                                }
+                                .shadow(color: palette.glowPrimary.opacity(0.3), radius: 8)
                         }
                         .buttonStyle(.plain)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
     }
@@ -165,6 +215,7 @@ private struct EmptyStateHero: View {
 // MARK: - Bubbles
 
 private struct MessageRow: View {
+    @Environment(\.lvPalette) private var palette
     let message: ChatViewModel.Message
     let mascotState: HermieMascotState
     /// HER-155 follow-up — passed through from `ChatView`. Assistant
@@ -174,29 +225,46 @@ private struct MessageRow: View {
     let memoryClient: (any MemoryClientProtocol)?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: 10) {
             if message.role == .user {
-                Spacer(minLength: 32)
+                Spacer(minLength: 40)
                 bubble
             } else {
                 AssistantAvatar(state: mascotState)
+                    .padding(.top, 4)
                 bubble
-                Spacer(minLength: 32)
+                Spacer(minLength: 40)
             }
         }
     }
 
     private var bubble: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             bubbleBody
             if !message.sources.isEmpty {
                 SourceChipRow(sources: message.sources)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(bubbleFill)
-        .clipShape(.rect(cornerRadius: 16))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background {
+            if message.role == .user {
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(palette.glowPrimary.opacity(0.15))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(palette.glowPrimary.opacity(0.4), lineWidth: 1)
+                    }
+            } else {
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(palette.surface)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(palette.surfaceStroke, lineWidth: 1)
+                    }
+            }
+        }
+        .shadow(color: (message.role == .user ? palette.glowPrimary : Color.clear).opacity(0.2), radius: 8)
     }
 
     @ViewBuilder
@@ -213,41 +281,35 @@ private struct MessageRow: View {
                 vaultClient: vaultClient,
                 memoryClient: memoryClient,
             )
-            .foregroundStyle(Color.primary)
+            .foregroundStyle(palette.textPrimary)
         } else {
             Text(message.content)
-                .font(.body)
-                .foregroundStyle(message.role == .user ? Color.white : Color.primary)
+                .font(.system(size: 15))
+                .foregroundStyle(palette.textPrimary)
                 .multilineTextAlignment(.leading)
-        }
-    }
-
-    private var bubbleFill: Color {
-        switch message.role {
-        case .user: Color.accentColor
-        case .assistant: Color(.secondarySystemBackground)
-        case .system: Color(.tertiarySystemBackground)
         }
     }
 }
 
 private struct PendingAssistantRow: View {
+    @Environment(\.lvPalette) private var palette
     let text: String
     let sources: [QueryHitDTO]
     let isStreaming: Bool
     let mascotState: HermieMascotState
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: 10) {
             AssistantAvatar(state: mascotState)
-            VStack(alignment: .leading, spacing: 4) {
+                .padding(.top, 4)
+            VStack(alignment: .leading, spacing: 6) {
                 if text.isEmpty && isStreaming {
                     StreamingCaret()
                 } else {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(text)
-                            .font(.body)
-                            .foregroundStyle(.primary)
+                            .font(.system(size: 15))
+                            .foregroundStyle(palette.textPrimary)
                             .multilineTextAlignment(.leading)
                         if isStreaming { StreamingCaret() }
                     }
@@ -256,11 +318,17 @@ private struct PendingAssistantRow: View {
                     SourceChipRow(sources: sources)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(.rect(cornerRadius: 16))
-            Spacer(minLength: 32)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background {
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(palette.surface)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(palette.surfaceStroke, lineWidth: 1)
+                    }
+            }
+            Spacer(minLength: 40)
         }
     }
 }
@@ -366,6 +434,7 @@ private struct ErrorRow: View {
 // MARK: - Composer
 
 private struct ComposerBar: View {
+    @Environment(\.lvPalette) private var palette
     @Binding var text: String
     let canSend: Bool
     let isStreaming: Bool
@@ -373,32 +442,62 @@ private struct ComposerBar: View {
     let onCancel: () -> Void
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TextField("Ask Lumina…", text: $text, axis: .vertical)
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(palette.glowPrimary)
+            
+            TextField("Ask Hermie anything...", text: $text, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...6)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color(.secondarySystemBackground))
-                .clipShape(.rect(cornerRadius: 16))
+                .foregroundStyle(.white)
+            
+            Spacer()
+            
             if isStreaming {
                 Button(action: onCancel) {
                     Image(systemName: "stop.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 24))
+                        .foregroundStyle(palette.accent)
                 }
-                .accessibilityLabel("Cancel reply")
             } else {
-                Button(action: onSend) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(canSend ? Color.accentColor : Color.secondary)
+                Button {
+                    // Speech recognition trigger would go here
+                } label: {
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(palette.glowPrimary)
                 }
-                .disabled(!canSend)
-                .accessibilityLabel("Send")
+                
+                if !text.isEmpty && canSend {
+                    Button(action: onSend) {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(palette.glowPrimary)
+                            .shadow(color: palette.glowPrimary.opacity(0.6), radius: 8)
+                    }
+                }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .background {
+            RoundedRectangle(cornerRadius: 18)
+                .fill(palette.surface)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(
+                            LinearGradient(
+                                colors: [palette.glowPrimary.opacity(0.8), .clear, palette.glowPrimary.opacity(0.4)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.5
+                        )
+                }
+        }
+        .shadow(color: palette.glowPrimary.opacity(0.2), radius: 10)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
     }
 }

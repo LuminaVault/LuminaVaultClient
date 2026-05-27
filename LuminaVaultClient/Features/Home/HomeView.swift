@@ -27,68 +27,57 @@ struct HomeView: View {
     var todayDestination: AnyView? = nil
     var visualSearchDestination: AnyView? = nil
 
+    private let columns = [
+        GridItem(.flexible(), spacing: 16),
+        GridItem(.flexible(), spacing: 16),
+        GridItem(.flexible(), spacing: 16)
+    ]
+
     var body: some View {
         NavigationStack {
             ZStack {
-                palette.backgroundBase.ignoresSafeArea()
+                // Background
+                Color.black.ignoresSafeArea()
+                
+                // Deep cosmic gradients
+                RadialGradient(
+                    colors: [palette.glowPrimary.opacity(0.12), .clear],
+                    center: .topTrailing,
+                    startRadius: 0,
+                    endRadius: 500
+                ).ignoresSafeArea()
+                
+                RadialGradient(
+                    colors: [palette.accent.opacity(0.08), .clear],
+                    center: .bottomLeading,
+                    startRadius: 0,
+                    endRadius: 600
+                ).ignoresSafeArea()
+                
                 ScrollView {
-                    VStack(spacing: 20) {
-                        DashboardGreetingView(displayName: vm.displayName)
-
-                        NavigationLink { sessionsDestination } label: {
-                            cardTile(systemImage: "bubble.left.and.bubble.right.fill", title: "Sessions", subtitle: "Chat history")
+                    VStack(spacing: 40) {
+                        VStack(spacing: 24) {
+                            quickActionsHeader
+                            cardGrid
                         }
-                        VaultHealthCardView(state: vm.stats)
-                        NavigationLink { tasksDestination } label: {
-                            ActiveTasksCardView(state: vm.tasks)
-                        }
-                        NavigationLink { insightsDestination } label: {
-                            RecentInsightsCardView(state: vm.insights)
-                        }
-                        NavigationLink { serverConnectionDestination } label: {
-                            SystemStatusCardView(isOnline: vm.isOnline)
-                        }
-
-                        // HER-243 — demoted-tab cards. Each only renders
-                        // when MainTabView provides its destination; nil
-                        // skips the card (keeps the dashboard tidy for
-                        // contexts that don't supply it).
-                        if let todayDestination {
-                            NavigationLink { todayDestination } label: {
-                                cardTile(systemImage: "newspaper.fill", title: "Today", subtitle: "Skill outputs feed")
-                            }
-                        }
-                        if let skillsDestination {
-                            NavigationLink { skillsDestination } label: {
-                                cardTile(systemImage: "sparkles.rectangle.stack", title: "Skills", subtitle: "Hermes capabilities")
-                            }
-                        }
-                        if let visualSearchDestination {
-                            NavigationLink { visualSearchDestination } label: {
-                                cardTile(systemImage: "photo.on.rectangle.angled", title: "Visual Search", subtitle: "Find by image content")
-                            }
-                        }
-
-                        DashboardActionRowView(
-                            isCompiling: vm.compileViewModel.isBusy,
-                            onNewSession: onAskLumina,
-                            onTriggerCompile: { Task { await vm.triggerCompile() } },
-                            onAskAnything: onAskLumina
-                        )
-                        .padding(.top, 4)
+                        
+                        syncAndLearnButton
+                        
+                        // Extra spacing at bottom for tab bar
+                        Spacer().frame(height: 120)
                     }
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 32)
+                    .padding(.top, 24)
                 }
                 .refreshable {
                     await vm.refresh()
                 }
             }
+            .safeAreaInset(edge: .top) {
+                LuminaHeader(title: "LuminaVault")
+            }
             .lvBackground()
-            .lvNavBrand(position: .topLeading)
             .onReceive(NotificationCenter.default.publisher(for: BackendModeStore.modeChangedNotification)) { _ in
-                // HER-262 — backend mode flipped; re-pull every card
-                // against the new base URL within one event loop.
                 Task { await vm.refresh() }
             }
             .task {
@@ -98,25 +87,109 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
-    private func cardTile(systemImage: String, title: String, subtitle: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(palette.primary)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(palette.textPrimary)
-                Text(subtitle).font(.system(size: 11)).foregroundStyle(palette.textSecondary)
-            }
+    private var quickActionsHeader: some View {
+        HStack {
+            Text("Quick Actions")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(palette.textPrimary)
+                .shadow(color: palette.glowPrimary.opacity(0.3), radius: 4)
             Spacer()
-            Image(systemName: "chevron.right").foregroundStyle(Color.lvTextMuted)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(palette.backgroundBase.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(palette.primary.opacity(0.15), lineWidth: 1)
-        )
+    }
+
+    private var cardGrid: some View {
+        LazyVGrid(columns: columns, spacing: 16) {
+            // Row 1: Spaces, AI, Health
+            NavigationLink { workspacesView } label: {
+                SciFiCardView(icon: "doc.text.fill", title: "Spaces", subtitle: "Winged docs")
+            }
+            
+            NavigationLink { sessionsDestination } label: {
+                SciFiCardView(icon: "brain.head.profile", title: "AI", subtitle: "Neural brain")
+            }
+            
+            NavigationLink { sessionsDestination } label: {
+                SciFiCardView(icon: "heart.fill", title: "Health", subtitle: "Winged heart")
+            }
+            
+            // Row 2: Ideas, Stocks, Work
+            NavigationLink { insightsDestination } label: {
+                SciFiCardView(icon: "lightbulb.fill", title: "Ideas", subtitle: "Glowing light")
+            }
+            
+            NavigationLink { sessionsDestination } label: {
+                SciFiCardView(icon: "chart.xyaxis.line", title: "Stocks", subtitle: "Market flow")
+            }
+            
+            NavigationLink { visualSearchDestination ?? AnyView(EmptyView()) } label: {
+                SciFiCardView(icon: "briefcase.fill", title: "Work", subtitle: "Core tasks")
+            }
+        }
+    }
+
+    private var syncAndLearnButton: some View {
+        Button {
+            Task { await vm.triggerCompile() }
+        } label: {
+            VStack(spacing: 6) {
+                HStack(spacing: 14) {
+                    if vm.compileViewModel.isBusy {
+                        ProgressView()
+                            .tint(.white)
+                    } else {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 24, weight: .bold))
+                            .shadow(color: .white.opacity(0.8), radius: 8)
+                    }
+                    
+                    Text("Sync & Learn")
+                        .font(.system(size: 22, weight: .black))
+                }
+                
+                Text("Compile new captures into your memory.")
+                    .font(.system(size: 14, weight: .medium))
+                    .opacity(0.9)
+            }
+            .foregroundStyle(.white)
+            .padding(.vertical, 30)
+            .frame(maxWidth: .infinity)
+            .background {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 28)
+                        .fill(
+                            LinearGradient(
+                                colors: [palette.glowPrimary, palette.secondary],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    
+                    // Volumetric highlight
+                    RoundedRectangle(cornerRadius: 28)
+                        .stroke(
+                            LinearGradient(
+                                colors: [.white.opacity(0.6), .clear, .white.opacity(0.2)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.5
+                        )
+                }
+            }
+            .shadow(color: palette.glowPrimary.opacity(0.7), radius: 20)
+            .shadow(color: palette.secondary.opacity(0.4), radius: 30)
+            .lvGlowPress()
+        }
+        .padding(.top, 10)
+    }
+    
+    // Helper to get Workspaces destination if needed, 
+    // though in MainTabView it's already defined as a tab.
+    // For the "Spaces" card, we'll just navigate to a placeholder 
+    // or the existing sessions for now if not explicitly passed.
+    private var workspacesView: AnyView {
+        // Ideally we'd pass the spacesDestination but HomeView didn't have it.
+        // I'll just use sessionsDestination as a placeholder if it's not provided.
+        sessionsDestination
     }
 }
