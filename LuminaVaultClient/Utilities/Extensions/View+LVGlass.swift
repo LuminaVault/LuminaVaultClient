@@ -16,6 +16,17 @@ extension View {
     func lvGlowStroke(cornerRadius: CGFloat = 16, intensity: CGFloat = 0.7) -> some View {
         modifier(LVGlowStrokeModifier(cornerRadius: cornerRadius, intensity: intensity))
     }
+
+    /// HER-300 — premium-CTA gold ring. A `palette.accent` → `palette.glowPrimary`
+    /// gradient stroke paired with a soft outer amber glow. Reserved for the single
+    /// most important call-to-action on a screen (e.g. Home's "Sync & Learn" pill).
+    ///
+    /// Pair with `palette.surface` fill underneath; the modifier only paints the
+    /// ring + glow, not the fill, so it composes with `lvGlassCard` or a custom
+    /// background.
+    func lvAuroraGoldRing(cornerRadius: CGFloat = 20, intensity: CGFloat = 1.0) -> some View {
+        modifier(LVAuroraGoldRingModifier(cornerRadius: cornerRadius, intensity: intensity))
+    }
 }
 
 private struct LVGlassCardModifier: ViewModifier {
@@ -75,5 +86,32 @@ private struct LVGlowStrokeModifier: ViewModifier {
             }
             .shadow(color: palette.glowPrimary.opacity(0.55 * intensity), radius: 14)
             .shadow(color: palette.glowSecondary.opacity(0.2 * intensity), radius: 28)
+    }
+}
+
+private struct LVAuroraGoldRingModifier: ViewModifier {
+    @Environment(\.lvPalette) private var palette
+    let cornerRadius: CGFloat
+    let intensity: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                palette.accent.opacity(0.95 * intensity),
+                                palette.glowPrimary.opacity(0.5 * intensity),
+                                palette.accent.opacity(0.95 * intensity)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.5
+                    )
+            }
+            .shadow(color: palette.accent.opacity(0.4 * intensity), radius: 12)
+            .shadow(color: palette.glowPrimary.opacity(0.18 * intensity), radius: 28)
     }
 }
