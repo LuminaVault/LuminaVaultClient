@@ -43,11 +43,11 @@ struct InsightsListView: View {
     var body: some View {
         ZStack {
             palette.backgroundBase.ignoresSafeArea()
-            VStack(spacing: 12) {
+            VStack(spacing: LVSpacing.md) {
                 filter
                 content
             }
-            .padding(.top, 12)
+            .padding(.top, LVSpacing.md)
         }
         .navigationTitle("Insights")
         .lvBackground()
@@ -56,7 +56,7 @@ struct InsightsListView: View {
 
     private var filter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: LVSpacing.sm) {
                 chip("All", isSelected: vm.section == nil) {
                     Task { await vm.setSection(nil) }
                 }
@@ -66,7 +66,7 @@ struct InsightsListView: View {
                     }
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, LVSpacing.lg)
         }
     }
 
@@ -78,55 +78,55 @@ struct InsightsListView: View {
                 .frame(maxHeight: .infinity)
         case .failed(let message):
             Text(message)
-                .font(.system(size: 13))
+                .font(LVTypography.footnote.font)
                 .foregroundStyle(Color.lvTextMuted)
                 .padding()
                 .frame(maxHeight: .infinity, alignment: .top)
         case .loaded where vm.insights.isEmpty:
-            VStack(spacing: 8) {
+            VStack(spacing: LVSpacing.sm) {
                 Text("Lumina is still listening.")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(LVTypography.fieldLabel.font)
                     .foregroundStyle(palette.textPrimary)
                 Text("Insights will land here when she spots patterns.")
-                    .font(.system(size: 12))
+                    .font(LVTypography.caption.font)
                     .foregroundStyle(palette.textSecondary)
             }
             .multilineTextAlignment(.center)
-            .padding(.top, 40)
+            .padding(.top, LVSpacing.xxl)
             .frame(maxHeight: .infinity, alignment: .top)
         case .loaded:
             ScrollView {
-                LazyVStack(spacing: 12) {
+                LazyVStack(spacing: LVSpacing.md) {
                     ForEach(vm.insights) { insight in
                         card(insight)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+                .padding(.horizontal, LVSpacing.lg)
+                .padding(.bottom, LVSpacing.lg)
             }
         }
     }
 
     private func card(_ insight: InsightDTO) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
             Text(label(for: insight.section).uppercased())
-                .font(.system(size: 10, weight: .heavy))
+                .font(LVTypography.microTag.font.weight(.heavy))
                 .tracking(0.8)
                 .foregroundStyle(palette.accent)
             Text(insight.headline)
-                .font(.system(size: 16, weight: .semibold))
+                .font(LVTypography.bodyEmphasis.font)
                 .foregroundStyle(palette.textPrimary)
             Text(insight.summary)
-                .font(.system(size: 13))
+                .font(LVTypography.footnote.font)
                 .foregroundStyle(palette.textSecondary)
                 .lineLimit(3)
         }
-        .padding(14)
+        .padding(LVSpacing.base)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(palette.backgroundBase.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: LVRadius.lg))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: LVRadius.lg)
                 .stroke(palette.primary.opacity(0.15), lineWidth: 1)
         )
     }
@@ -134,9 +134,9 @@ struct InsightsListView: View {
     private func chip(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .font(LVTypography.caption.font.weight(.semibold))
+                .padding(.horizontal, LVSpacing.md)
+                .padding(.vertical, LVSpacing.sm)
                 .background(isSelected ? palette.primary : palette.backgroundBase.opacity(0.6))
                 .foregroundStyle(isSelected ? palette.backgroundBase : palette.textSecondary)
                 .clipShape(Capsule())
