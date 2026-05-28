@@ -119,28 +119,24 @@ struct MainTabView: View {
     // HER-107: tab bar split per Apple HIG — 3 primary tabs + More
     // overflow. Home / Think / Spaces are the daily-driver surfaces;
     // Settings / Visual Search live behind More.
+    // HER-291: tab icons resolve via `LVIcon`; the `.tab*` cases carry
+    // their `Lumina/Tab/*` branded asset paths.
     private var primaryTabItems: [LVTabItem] {
         [
-            LVTabItem(id: Self.tabIds.workspaces, label: "Spaces",
-                      systemImage: "folder.fill", customImageName: "spaces"),
-            LVTabItem(id: Self.tabIds.home, label: "Home",
-                      systemImage: "sparkles", customImageName: "home"),
+            LVTabItem(id: Self.tabIds.workspaces, label: "Spaces", icon: .tabSpaces),
+            LVTabItem(id: Self.tabIds.home, label: "Home", icon: .tabHome),
             // HER-194 — Reflect lives between Home and Think; the
             // synthesis-intelligence cluster is the premium-flawless
             // surface that justifies a primary tab.
-            LVTabItem(id: Self.tabIds.reflect, label: "Reflect",
-                      systemImage: "sparkles.rectangle.stack"),
-            LVTabItem(id: Self.tabIds.think, label: "Think",
-                      systemImage: "bubble.left.and.text.bubble.right", customImageName: "think"),
+            LVTabItem(id: Self.tabIds.reflect, label: "Reflect", icon: .sparklesRectangleStack),
+            LVTabItem(id: Self.tabIds.think, label: "Think", icon: .tabThink),
         ]
     }
 
     private var overflowTabItems: [LVTabItem] {
         [
-            LVTabItem(id: "visual_search", label: "Visual Search",
-                      systemImage: "photo.on.rectangle.angled"),
-            LVTabItem(id: Self.tabIds.settings, label: "Settings",
-                      systemImage: "gear", customImageName: "settings"),
+            LVTabItem(id: "visual_search", label: "Visual Search", icon: .photoOnRectangleAngled),
+            LVTabItem(id: Self.tabIds.settings, label: "Settings", icon: .tabSettings),
         ]
     }
 

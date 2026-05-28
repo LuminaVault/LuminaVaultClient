@@ -37,8 +37,7 @@ struct GoalQuestionView: View {
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if selected {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(palette.glowPrimary)
+                LVIconView(.checkmarkCircleFill, tint: palette.glowPrimary)
             }
         }
         .padding(14)

@@ -68,8 +68,7 @@ private struct ErrorRow: View {
     let message: String
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+            LVIconView(.exclamationmarkTriangleFill, tint: .orange)
             Text(message)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -109,8 +108,7 @@ private struct StreakPill: View {
     let days: Int
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "flame.fill")
-                .foregroundStyle(.orange)
+            LVIconView(.flameFill, tint: .orange)
             Text("\(days)-day streak")
                 .font(.subheadline.weight(.medium))
         }
@@ -135,9 +133,7 @@ private struct ReflectionCard: View {
             HStack {
                 Spacer(minLength: 0)
                 ShareLink(item: text) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    LVIconView(.squareAndArrowUp, size: 15, tint: .secondary)
                 }
                 .accessibilityLabel("Share reflection")
             }
@@ -187,9 +183,7 @@ private struct MemoryRow: View {
             }
             Spacer(minLength: 0)
             ShareLink(item: memory.content) {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                LVIconView(.squareAndArrowUp, size: 15, tint: .secondary)
             }
             .accessibilityLabel("Share memo")
         }

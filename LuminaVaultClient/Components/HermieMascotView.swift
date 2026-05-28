@@ -177,6 +177,7 @@ public struct SciFiCardView: View {
     
     public var body: some View {
         VStack(spacing: 12) {
+            // HER-291: kept as Image — runtime symbol name
             Image(systemName: icon)
                 .font(.system(size: 28, weight: .light))
                 .foregroundStyle(color ?? palette.glowPrimary)

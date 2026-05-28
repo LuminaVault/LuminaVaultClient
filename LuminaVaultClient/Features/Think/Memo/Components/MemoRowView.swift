@@ -10,9 +10,7 @@ struct MemoRowView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "bookmark.fill")
-                .foregroundStyle(palette.accent)
-                .font(.system(size: 14))
+            LVIconView(.bookmarkFill, size: 14, tint: palette.accent)
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 4) {
                 Text(memo.title)

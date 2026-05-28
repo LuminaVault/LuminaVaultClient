@@ -143,8 +143,7 @@ struct HomeView: View {
                         ProgressView()
                             .tint(.white)
                     } else {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 24, weight: .bold))
+                        LVIconView(.sparkles, size: 24, tint: .white, weight: .bold)
                             .shadow(color: .white.opacity(0.8), radius: 8)
                     }
                     

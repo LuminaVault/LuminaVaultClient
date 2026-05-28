@@ -12,6 +12,7 @@ struct MicHoldButton: View {
     @State private var isHeld = false
 
     var body: some View {
+        // HER-291: kept as Image — runtime symbol name (mic.circle.fill not in LVIcon)
         Image(systemName: voice.isRecording ? "mic.circle.fill" : "mic.fill")
             .font(.system(size: voice.isRecording ? 28 : 20))
             .foregroundStyle(voice.isRecording ? palette.accent : palette.glowPrimary)

@@ -20,6 +20,7 @@ struct TodayCardView: View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
+                    // HER-291: kept as Image — runtime symbol name
                     Image(systemName: icon)
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(tint)
@@ -29,9 +30,7 @@ struct TodayCardView: View {
                         .foregroundStyle(tint)
                     Spacer()
                     Button(action: onShare) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 14))
-                            .foregroundStyle(palette.textSecondary)
+                        LVIconView(.squareAndArrowUp, size: 14, tint: palette.textSecondary)
                     }
                     .buttonStyle(.plain)
                 }

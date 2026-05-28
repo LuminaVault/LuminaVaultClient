@@ -31,9 +31,7 @@ struct ProviderRowView: View {
             }
             Spacer()
             statusBadge
-            Image(systemName: "chevron.right")
-                .font(.footnote)
-                .foregroundStyle(.tertiary)
+            LVIconView(.chevronRight, size: 13, tint: Color.secondary.opacity(0.6))
         }
         .contentShape(Rectangle())
     }
@@ -54,11 +52,9 @@ struct ProviderRowView: View {
     @ViewBuilder
     private var statusBadge: some View {
         if let dto, dto.lastFailureAt != nil {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+            LVIconView(.exclamationmarkTriangleFill, tint: .orange)
         } else if let dto, dto.verifiedAt != nil {
-            Image(systemName: "checkmark.seal.fill")
-                .foregroundStyle(.green)
+            LVIconView(.checkmarkSealFill, tint: .green)
         } else if let dto, dto.hasCredential {
             Circle().fill(.blue).frame(width: 8, height: 8)
         } else {

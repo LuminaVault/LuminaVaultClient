@@ -19,6 +19,7 @@ struct LVSelectionChip: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if let systemImage {
+                    // HER-291: kept as Image — runtime symbol name
                     Image(systemName: systemImage)
                         .font(.subheadline.weight(.semibold))
                 }

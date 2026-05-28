@@ -54,9 +54,7 @@ struct SwipeCardsView: View {
 
     private func cardView(for card: FunnelSwipeCard, isTop: Bool) -> some View {
         VStack(spacing: 16) {
-            Image(systemName: "quote.opening")
-                .font(.system(size: 28))
-                .foregroundStyle(palette.glowPrimary.opacity(0.7))
+            LVIconView(.quoteOpening, size: 28, tint: palette.glowPrimary.opacity(0.7))
             Text(card.statement)
                 .font(.system(size: 19, weight: .medium))
                 .multilineTextAlignment(.center)
@@ -85,6 +83,7 @@ struct SwipeCardsView: View {
 
     private func swipeHint(systemImage: String, label: String, tint: Color) -> some View {
         VStack(spacing: 4) {
+            // HER-291: kept as Image — runtime symbol name
             Image(systemName: systemImage)
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(tint)
@@ -96,9 +95,7 @@ struct SwipeCardsView: View {
 
     private var completion: some View {
         VStack(spacing: 12) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 36))
-                .foregroundStyle(palette.glowPrimary)
+            LVIconView(.sparkles, size: 36, tint: palette.glowPrimary)
             Text("Got it.")
                 .font(.system(size: 22, weight: .bold))
             Text("Pulling those into your Lumina view…")

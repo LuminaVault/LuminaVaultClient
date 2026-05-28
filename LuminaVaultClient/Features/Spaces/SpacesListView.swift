@@ -187,9 +187,7 @@ struct SpacesListView: View {
 
     private var searchField: some View {
         HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(palette.textSecondary)
+            LVIconView(.magnifyingglass, size: 18, tint: palette.textSecondary, weight: .medium)
             
             TextField("Search spaces", text: $vm.searchQuery)
                 .textFieldStyle(.plain)
@@ -250,9 +248,7 @@ struct SpacesListView: View {
         Button {
             presentingEditorFor = EditorPresentation(mode: .create)
         } label: {
-            Image(systemName: "plus")
-                .font(.system(size: 26, weight: .light))
-                .foregroundStyle(.black)
+            LVIconView(.plus, size: 26, tint: .black, weight: .light)
                 .frame(width: 64, height: 64)
                 .background {
                     Circle()
@@ -290,8 +286,7 @@ struct SpacesListView: View {
 
     private func errorBanner(message: String) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.caption)
+            LVIconView(.exclamationmarkTriangleFill, size: 12, tint: .red)
             Text(message)
                 .font(.caption.weight(.medium))
                 .lineLimit(2)

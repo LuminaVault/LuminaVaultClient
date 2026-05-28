@@ -52,9 +52,7 @@ private struct EmailMagicBackButton: View {
                 dismiss()
             }
         } label: {
-            Image(systemName: "chevron.left")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(palette.primary.opacity(0.8))
+            LVIconView(.chevronLeft, size: 14, tint: palette.primary.opacity(0.8), weight: .semibold)
                 .frame(width: 32, height: 32)
                 .background(Color.lvGlass)
                 .clipShape(RoundedRectangle(cornerRadius: 10))

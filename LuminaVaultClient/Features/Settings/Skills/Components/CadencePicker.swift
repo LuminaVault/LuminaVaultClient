@@ -48,8 +48,7 @@ struct CadencePicker: View {
                             .foregroundStyle(palette.textPrimary)
                         Spacer()
                         if isCurrent(preset) {
-                            Image(systemName: "checkmark")
-                                .foregroundStyle(palette.primary)
+                            LVIconView(.checkmark, tint: palette.primary)
                         }
                     }
                     .padding(.vertical, 8)

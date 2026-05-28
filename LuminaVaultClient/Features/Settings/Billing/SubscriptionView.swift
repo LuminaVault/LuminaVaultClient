@@ -130,6 +130,7 @@ struct SubscriptionView: View {
 
     private func tierBadgeRow(viewModel: SubscriptionViewModel) -> some View {
         HStack(spacing: 12) {
+            // HER-291: kept as Image — runtime symbol name
             Image(systemName: tierIcon(viewModel.currentTier))
                 .foregroundStyle(palette.glowPrimary)
                 .font(.title2)

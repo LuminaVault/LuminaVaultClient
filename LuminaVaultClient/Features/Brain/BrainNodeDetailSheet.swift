@@ -22,7 +22,7 @@ struct BrainNodeDetailSheet: View {
                         .foregroundStyle(palette.textPrimary)
 
                     HStack(spacing: 8) {
-                        Image(systemName: "clock")
+                        LVIconView(.clock, size: 13, tint: palette.textSecondary)
                         Text(node.createdAt, style: .date)
                     }
                     .font(.footnote)

@@ -29,6 +29,7 @@ struct PainPointsView: View {
     private func row(for pain: FunnelPainPoint) -> some View {
         let selected = state.selectedPains.contains(pain)
         HStack(spacing: 14) {
+            // HER-291: kept as Image — runtime symbol name (checkmark.square.fill/square not in LVIcon)
             Image(systemName: selected ? "checkmark.square.fill" : "square")
                 .font(.system(size: 20))
                 .foregroundStyle(selected ? palette.glowPrimary : .secondary)

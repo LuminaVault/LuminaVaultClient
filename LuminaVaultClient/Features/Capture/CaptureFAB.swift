@@ -19,9 +19,7 @@ struct CaptureFAB: View {
         Button {
             showingSheet = true
         } label: {
-            Image(systemName: "plus")
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(.white)
+            LVIconView(.plus, size: 22, tint: .white, weight: .semibold)
                 .frame(width: 56, height: 56)
                 .background(
                     LinearGradient(

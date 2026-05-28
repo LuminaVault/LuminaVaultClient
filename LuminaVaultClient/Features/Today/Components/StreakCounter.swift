@@ -12,8 +12,7 @@ struct StreakCounter: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "flame.fill")
-                .foregroundStyle(palette.accent)
+            LVIconView(.flameFill, tint: palette.accent)
             Text("\(days) day\(days == 1 ? "" : "s")")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(palette.textPrimary)

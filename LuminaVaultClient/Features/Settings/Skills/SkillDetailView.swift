@@ -47,6 +47,7 @@ struct SkillDetailView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
+            // HER-291: kept as Image — runtime symbol name (sparkle/puzzlepiece.fill not in LVIcon)
             Image(systemName: vm.skill.source == .builtin ? "sparkle" : "puzzlepiece.fill")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(palette.primary)

@@ -20,9 +20,7 @@ struct MFAChallengeView: View {
                         .overlay(RoundedRectangle(cornerRadius: 18)
                             .stroke(palette.accent.opacity(0.35), lineWidth: 1.5))
                         .shadow(color: palette.accent.opacity(0.18), radius: 16)
-                    Image(systemName: "lock.shield")
-                        .font(.system(size: 24))
-                        .foregroundStyle(palette.accent.opacity(0.9))
+                    LVIconView(.lockShield, size: 24, tint: palette.accent.opacity(0.9))
                 }
                 .padding(.bottom, 12)
 

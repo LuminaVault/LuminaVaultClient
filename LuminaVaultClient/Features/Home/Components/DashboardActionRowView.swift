@@ -57,6 +57,7 @@ struct DashboardActionRowView: View {
                         .tint(palette.backgroundBase)
                         .frame(height: 22)
                 } else {
+                    // HER-291: kept as Image — runtime symbol name
                     Image(systemName: icon)
                         .font(.system(size: 18, weight: .semibold))
                         .frame(height: 22)

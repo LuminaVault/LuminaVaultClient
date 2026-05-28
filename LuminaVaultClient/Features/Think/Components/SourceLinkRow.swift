@@ -11,9 +11,7 @@ struct SourceLinkRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "doc.text")
-                .font(.system(size: 13))
-                .foregroundStyle(palette.primary)
+            LVIconView(.docText, size: 13, tint: palette.primary)
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
                 Text(snippet)

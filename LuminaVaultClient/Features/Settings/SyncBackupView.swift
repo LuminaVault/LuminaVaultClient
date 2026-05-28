@@ -24,6 +24,7 @@ struct SyncBackupView: View {
         List {
             Section("Status") {
                 HStack {
+                    // HER-291: kept as Image — runtime symbol name
                     Image(systemName: stateIcon)
                         .foregroundStyle(stateColor)
                     Text(stateText)

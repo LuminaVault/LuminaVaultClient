@@ -11,8 +11,7 @@ struct LuminaSuggestionsSidebar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(palette.accent)
+                LVIconView(.sparkles, tint: palette.accent)
                 Text("Lumina's Suggestions")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(palette.textPrimary)

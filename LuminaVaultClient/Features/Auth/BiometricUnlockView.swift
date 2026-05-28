@@ -11,9 +11,7 @@ struct BiometricUnlockView: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            Image(systemName: "lock.shield")
-                .font(.system(size: 52, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
+            LVIconView(.lockShield, size: 52, tint: Color.accentColor, weight: .semibold)
                 .accessibilityHidden(true)
 
             VStack(spacing: 8) {

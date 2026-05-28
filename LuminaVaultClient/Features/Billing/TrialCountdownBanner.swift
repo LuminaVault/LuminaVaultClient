@@ -57,9 +57,7 @@ struct TrialCountdownBanner: View {
 
     private var bannerContent: some View {
         HStack(spacing: 12) {
-            Image(systemName: "clock.badge.exclamationmark")
-                .font(.title3)
-                .foregroundStyle(palette.glowPrimary)
+            LVIconView(.clockBadgeExclamationmark, size: 20, tint: palette.glowPrimary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(headline)
                     .font(.system(size: 14, weight: .semibold))
@@ -69,9 +67,7 @@ struct TrialCountdownBanner: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.secondary)
+            LVIconView(.chevronRight, size: 13, tint: .secondary, weight: .semibold)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)

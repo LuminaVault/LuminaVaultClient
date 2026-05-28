@@ -42,6 +42,7 @@ struct ActiveTasksCardView: View {
 
     private func row(_ task: TaskDTO) -> some View {
         HStack(spacing: 10) {
+            // HER-291: kept as Image — runtime symbol name
             Image(systemName: icon(for: task.state))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(color(for: task.state))

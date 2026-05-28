@@ -90,9 +90,7 @@ struct ConversionFunnelContainer: View {
             Button {
                 state.goBack()
             } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                LVIconView(.chevronLeft, size: 17, tint: .secondary, weight: .semibold)
             }
             .accessibilityLabel("Back")
         }

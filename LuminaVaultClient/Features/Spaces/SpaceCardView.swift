@@ -15,6 +15,7 @@ struct SpaceCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
+                // HER-291: kept as Image — runtime symbol name
                 Image(systemName: space.icon ?? "folder.fill")
                     .font(.system(size: 32, weight: .light))
                     .foregroundStyle(palette.glowPrimary)
@@ -26,9 +27,7 @@ struct SpaceCardView: View {
                     Button("Edit", action: onEdit)
                     Button("Delete", role: .destructive, action: onDelete)
                 } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(palette.textSecondary.opacity(0.5))
+                    LVIconView(.ellipsis, size: 14, tint: palette.textSecondary.opacity(0.5), weight: .bold)
                         .padding(8)
                         .contentShape(Rectangle())
                 }

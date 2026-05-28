@@ -116,9 +116,7 @@ struct AppDemoView: View {
 
     private var finishedView: some View {
         VStack(spacing: 12) {
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 44))
-                .foregroundStyle(palette.glowPrimary)
+            LVIconView(.checkmarkSealFill, size: 44, tint: palette.glowPrimary)
             Text("Done. Lumina has what it needs.")
                 .font(.system(size: 20, weight: .bold))
         }

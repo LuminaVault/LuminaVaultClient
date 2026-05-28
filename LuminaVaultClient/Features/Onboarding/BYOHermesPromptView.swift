@@ -16,11 +16,7 @@ struct BYOHermesPromptView: View {
         VStack(spacing: 24) {
             Spacer()
 
-            Image(systemName: "server.rack")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 88, height: 88)
-                .foregroundStyle(.tint)
+            LVIconView(.serverRack, size: 88, tint: .accentColor)
                 .accessibilityHidden(true)
 
             VStack(spacing: 12) {

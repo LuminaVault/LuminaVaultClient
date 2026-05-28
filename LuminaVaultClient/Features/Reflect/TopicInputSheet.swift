@@ -78,6 +78,7 @@ struct TopicInputSheet: View {
 
     private var header: some View {
         HStack(spacing: 12) {
+            // HER-291: kept as Image — runtime symbol name
             Image(systemName: skill.iconSystemName)
                 .font(.system(size: 24, weight: .light))
                 .foregroundStyle(palette.glowPrimary)

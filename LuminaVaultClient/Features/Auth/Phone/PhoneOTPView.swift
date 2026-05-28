@@ -57,7 +57,7 @@ struct PhoneOTPView: View {
                     dismiss()
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
+                        LVIconView(.chevronLeft, tint: palette.primary)
                         Text("Back")
                     }
                     .foregroundStyle(palette.primary)
