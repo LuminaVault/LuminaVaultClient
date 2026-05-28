@@ -136,7 +136,8 @@ struct VaultFilesListView: View {
         LVEmptyState(
             mascot: .idle,
             headline: "No files in this space yet.",
-            supporting: "Capture your first memory or note from the Home tab."
+            supporting: "Capture your first memory or note from the Home tab.",
+            backgroundImage: "Lumina/Mascot/winged-scroll-vault"
         )
     }
 
