@@ -18,11 +18,11 @@ struct SSORow: View {
     }
 
     var body: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 10) {
+        VStack(spacing: LVSpacing.base) {
+            HStack(spacing: LVSpacing.md) {
                 Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
                 Text(dividerLabel)
-                    .font(.system(size: 10))
+                    .font(LVTypography.microTag.font.weight(.regular))
                     .foregroundStyle(Color.lvTextMuted)
                     .fixedSize()
                 Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
@@ -31,7 +31,7 @@ struct SSORow: View {
             SSOButton(provider: .apple, style: .primary) { onSelect(.apple) }
 
             if !thirdPartyProviders.isEmpty {
-                HStack(spacing: 8) {
+                HStack(spacing: LVSpacing.sm) {
                     ForEach(thirdPartyProviders, id: \.self) { provider in
                         SSOButton(provider: provider, style: .icon) { onSelect(provider) }
                     }

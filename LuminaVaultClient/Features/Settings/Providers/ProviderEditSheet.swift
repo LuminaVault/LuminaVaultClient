@@ -48,7 +48,7 @@ struct ProviderEditSheet: View {
                     Text(ProvidersPaneViewModel.displayName(for: provider))
                 } footer: {
                     Text(footer)
-                        .font(.footnote)
+                        .font(LVTypography.footnote.font)
                         .foregroundStyle(.secondary)
                 }
 

@@ -30,7 +30,7 @@ struct SkillsHubView: View {
             ProgressView().tint(palette.primary)
         case .failed(let message):
             Text(message)
-                .font(.system(size: 13))
+                .font(LVTypography.footnote.font)
                 .foregroundStyle(Color.lvTextMuted)
                 .padding()
         case .loaded:

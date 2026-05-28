@@ -11,24 +11,24 @@ struct LVPasteBanner: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 8) {
+            HStack(spacing: LVSpacing.sm) {
                 LVIconView(.docOnClipboard, size: 12, tint: palette.primary, weight: .semibold)
                 Text("Paste \(code)")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(LVTypography.caption.font.weight(.semibold))
                     .foregroundStyle(palette.textPrimary)
                 Spacer()
                 Text("Tap")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(LVTypography.microTag.font)
                     .foregroundStyle(palette.primary.opacity(0.7))
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.horizontal, LVSpacing.base)
+            .padding(.vertical, LVSpacing.md)
             .background(Color.lvGlass)
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: LVRadius.md)
                     .stroke(palette.primary.opacity(0.35), lineWidth: 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: LVRadius.md))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Paste code \(code) from clipboard")

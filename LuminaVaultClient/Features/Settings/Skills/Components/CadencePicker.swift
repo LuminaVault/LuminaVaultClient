@@ -35,7 +35,7 @@ struct CadencePicker: View {
     private static let cronRegex = #/^[^\s]+\s+[^\s]+\s+[^\s]+\s+[^\s]+\s+[^\s]+$/#
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
             ForEach(CadencePreset.all) { preset in
                 Button {
                     scheduleOverride = preset.cron
@@ -44,31 +44,31 @@ struct CadencePicker: View {
                 } label: {
                     HStack {
                         Text(preset.label)
-                            .font(.system(size: 14))
+                            .font(LVTypography.callout.font)
                             .foregroundStyle(palette.textPrimary)
                         Spacer()
                         if isCurrent(preset) {
                             LVIconView(.checkmark, tint: palette.primary)
                         }
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, LVSpacing.sm)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
 
             DisclosureGroup("Custom cron…", isExpanded: $showingCustom) {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: LVSpacing.sm) {
                     TextField("0 7 * * *", text: $customCron)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .font(.system(.body, design: .monospaced))
-                        .padding(8)
+                        .font(LVTypography.mono.font)
+                        .padding(LVSpacing.sm)
                         .background(palette.backgroundBase.opacity(0.6))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: LVRadius.sm))
                     if let customError {
                         Text(customError)
-                            .font(.system(size: 11))
+                            .font(LVTypography.caption.font)
                             .foregroundStyle(.red)
                     }
                     Button("Apply") {
@@ -84,7 +84,7 @@ struct CadencePicker: View {
                     .tint(palette.primary)
                     .disabled(customCron.isEmpty)
                 }
-                .padding(.top, 4)
+                .padding(.top, LVSpacing.xs)
             }
             .tint(palette.textSecondary)
         }

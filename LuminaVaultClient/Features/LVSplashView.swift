@@ -34,13 +34,13 @@ struct LVSplashView: View {
                 .opacity(pulseOpacity3)
                 .frame(width: 280, height: 280)
 
-            VStack(spacing: 16) {
-                SplashHeroRiveView(size: 220)
+            VStack(spacing: LVSpacing.base) {
+                SplashHeroRiveView(size: LVSize.mascotSmall)
                     .opacity(heroOpacity)
                     .scaleEffect(heroScale)
 
                 Text("LUMINAVAULT")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(LVTypography.button.font)
                     .tracking(4.0)
                     .foregroundStyle(LinearGradient(
                         colors: [palette.accent, palette.primary],
@@ -49,7 +49,7 @@ struct LVSplashView: View {
                     .opacity(wordmarkOpacity)
 
                 Text("Your memories, illuminated.")
-                    .font(.system(size: 11))
+                    .font(LVTypography.caption.font)
                     .foregroundStyle(palette.textSecondary)
                     .opacity(taglineOpacity)
             }

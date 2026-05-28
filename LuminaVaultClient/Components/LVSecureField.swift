@@ -32,7 +32,7 @@ struct LVSecureField: View {
             Button { revealed.toggle() } label: {
                 // HER-291: kept as Image — runtime symbol name (and eye.slash not in LVIcon)
                 Image(systemName: revealed ? "eye" : "eye.slash")
-                    .font(.system(size: 14))
+                    .font(.system(size: 14)) // TODO HER-icon-tokens: scope deferred per HER-289
                     .foregroundStyle(Color.white.opacity(0.25))
             }
             .buttonStyle(.plain)
@@ -41,9 +41,9 @@ struct LVSecureField: View {
         .padding(.vertical, 13)
         .background(Color.lvGlass)
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: LVRadius.md)
                 .stroke(focused ? palette.glowPrimary : palette.surfaceStroke, lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: LVRadius.md))
     }
 }

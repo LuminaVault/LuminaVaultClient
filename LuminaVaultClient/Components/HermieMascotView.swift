@@ -97,10 +97,10 @@ public struct LuminaHeader: View {
     }
     
     public var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: LVSpacing.md) {
             // Title
             Text(title)
-                .font(.system(size: 34, weight: .black, design: .rounded))
+                .font(LVTypography.display.font.weight(.black))
                 .foregroundStyle(
                     LinearGradient(
                         colors: [palette.glowPrimary, palette.accent],
@@ -136,8 +136,8 @@ public struct LuminaHeader: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .padding(.horizontal, LVSpacing.lg)
+        .padding(.vertical, LVSpacing.base)
         .background {
             // Glass background
             Rectangle()
@@ -176,28 +176,28 @@ public struct SciFiCardView: View {
     }
     
     public var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: LVSpacing.md) {
             // HER-291: kept as Image — runtime symbol name
             Image(systemName: icon)
-                .font(.system(size: 28, weight: .light))
+                .font(.system(size: 28, weight: .light)) // TODO HER-icon-tokens: scope deferred per HER-289
                 .foregroundStyle(color ?? palette.glowPrimary)
                 .shadow(color: (color ?? palette.glowPrimary).opacity(0.6), radius: 8)
-            
-            VStack(spacing: 4) {
+
+            VStack(spacing: LVSpacing.xs) {
                 Text(title)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(LVTypography.fieldLabel.font.weight(.bold))
                     .foregroundStyle(palette.textPrimary)
-                
+
                 Text(subtitle)
-                    .font(.system(size: 11))
+                    .font(LVTypography.caption.font)
                     .foregroundStyle(palette.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
             }
         }
-        .padding(.vertical, 20)
-        .padding(.horizontal, 12)
+        .padding(.vertical, LVSpacing.lg)
+        .padding(.horizontal, LVSpacing.md)
         .frame(maxWidth: .infinity)
-        .lvGlassCard(cornerRadius: 24, intensity: 0.7)
+        .lvGlassCard(cornerRadius: LVRadius.card, intensity: 0.7)
     }
 }

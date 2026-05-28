@@ -21,12 +21,12 @@ struct ProviderRowView: View {
 
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: LVSpacing.hairline) {
                 Text(ProvidersPaneViewModel.displayName(for: provider))
-                    .font(.body)
+                    .font(LVTypography.body.font)
                     .foregroundStyle(.primary)
                 Text(subtitle)
-                    .font(.footnote)
+                    .font(LVTypography.footnote.font)
                     .foregroundStyle(.secondary)
             }
             Spacer()

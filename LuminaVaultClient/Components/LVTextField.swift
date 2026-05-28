@@ -26,9 +26,9 @@ struct LVTextField: View {
             .padding(.vertical, 13)
             .background(Color.lvGlass)
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: LVRadius.md)
                     .stroke(focused ? palette.glowPrimary : palette.surfaceStroke, lineWidth: 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: LVRadius.md))
     }
 }

@@ -39,7 +39,7 @@ struct GrokConnectFlowView: View {
     private var content: some View {
         switch viewModel.state {
         case .idle, .starting:
-            VStack(spacing: 12) {
+            VStack(spacing: LVSpacing.md) {
                 ProgressView()
                 Text("Preparing xAI sign-in…").foregroundStyle(.secondary)
             }
@@ -56,15 +56,15 @@ struct GrokConnectFlowView: View {
             )
             .ignoresSafeArea()
         case .completing:
-            VStack(spacing: 12) {
+            VStack(spacing: LVSpacing.md) {
                 ProgressView()
                 Text("Finishing up…").foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case let .success(status):
-            VStack(spacing: 20) {
+            VStack(spacing: LVSpacing.lg) {
                 LVIconView(.checkmarkSealFill, size: 56, tint: .green)
-                Text("Connected").font(.title2.bold())
+                Text("Connected").font(LVTypography.title.font)
                 Text("Tier: \(status.tier)").foregroundStyle(.secondary)
                 Button("Done") {
                     onConnected(status)
@@ -74,9 +74,9 @@ struct GrokConnectFlowView: View {
             }
             .padding()
         case let .failed(message):
-            VStack(spacing: 20) {
+            VStack(spacing: LVSpacing.lg) {
                 LVIconView(.exclamationmarkTriangleFill, size: 56, tint: .orange)
-                Text("Couldn't connect").font(.title2.bold())
+                Text("Couldn't connect").font(LVTypography.title.font)
                 Text(message)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)

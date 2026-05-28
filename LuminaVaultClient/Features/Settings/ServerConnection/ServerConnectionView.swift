@@ -66,13 +66,13 @@ struct ServerConnectionView: View {
         ZStack {
             palette.backgroundBase.ignoresSafeArea()
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: LVSpacing.lg) {
                     modeSection
                     soulSection
                     debugSection
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 24)
+                .padding(.horizontal, LVSpacing.lg)
+                .padding(.vertical, LVSpacing.xl)
             }
         }
         .navigationTitle("Server Connection")
@@ -81,20 +81,20 @@ struct ServerConnectionView: View {
     }
 
     private var modeSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
             sectionLabel("Backend mode")
-            VStack(spacing: 8) {
+            VStack(spacing: LVSpacing.sm) {
                 ForEach(BackendMode.allCases) { mode in
                     Button {
                         vm.setMode(mode)
                     } label: {
                         HStack(alignment: .top) {
-                            VStack(alignment: .leading, spacing: 2) {
+                            VStack(alignment: .leading, spacing: LVSpacing.hairline) {
                                 Text(mode.label)
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(LVTypography.fieldLabel.font)
                                     .foregroundStyle(palette.textPrimary)
                                 Text(mode.subtitle)
-                                    .font(.system(size: 11))
+                                    .font(LVTypography.caption.font)
                                     .foregroundStyle(palette.textSecondary)
                             }
                             Spacer()
@@ -102,11 +102,11 @@ struct ServerConnectionView: View {
                                 LVIconView(.checkmarkCircleFill, tint: palette.primary)
                             }
                         }
-                        .padding(12)
+                        .padding(LVSpacing.md)
                         .background(palette.backgroundBase.opacity(0.5))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .clipShape(RoundedRectangle(cornerRadius: LVRadius.md))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12)
+                            RoundedRectangle(cornerRadius: LVRadius.md)
                                 .stroke(vm.mode == mode ? palette.primary : palette.primary.opacity(0.1), lineWidth: 1)
                         )
                     }
@@ -114,20 +114,20 @@ struct ServerConnectionView: View {
                 }
             }
             Text("Per-mode URL is configured in Advanced → Hermes Gateway (HER-218).")
-                .font(.system(size: 11))
+                .font(LVTypography.caption.font)
                 .foregroundStyle(Color.lvTextMuted)
         }
     }
 
     private var soulSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
             sectionLabel("SOUL.md")
             switch vm.state {
             case .loading:
                 ProgressView().tint(palette.primary)
             case .failed(let message):
                 Text(message)
-                    .font(.system(size: 12))
+                    .font(LVTypography.caption.font)
                     .foregroundStyle(Color.lvTextMuted)
             case .loaded:
                 TextEditor(text: Binding(
@@ -135,11 +135,11 @@ struct ServerConnectionView: View {
                     set: { vm.soulBody = $0 }
                 ))
                 .scrollContentBackground(.hidden)
-                .font(.system(.body, design: .monospaced))
+                .font(LVTypography.mono.font)
                 .frame(minHeight: 240)
-                .padding(8)
+                .padding(LVSpacing.sm)
                 .background(palette.backgroundBase.opacity(0.6))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: LVRadius.md))
                 HStack {
                     Spacer()
                     Button("Save") { Task { await vm.saveSoul() } }
@@ -152,17 +152,17 @@ struct ServerConnectionView: View {
     }
 
     private var debugSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
             sectionLabel("Diagnostics")
             Text("Tailscale reachability isn't exposed to iOS apps. If you're on Tailscale, set the host manually in Hermes Gateway.")
-                .font(.system(size: 11))
+                .font(LVTypography.caption.font)
                 .foregroundStyle(palette.textSecondary)
         }
     }
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text.uppercased())
-            .font(.system(size: 11, weight: .heavy))
+            .font(LVTypography.microTag.font.weight(.heavy))
             .tracking(0.8)
             .foregroundStyle(palette.textSecondary)
     }
