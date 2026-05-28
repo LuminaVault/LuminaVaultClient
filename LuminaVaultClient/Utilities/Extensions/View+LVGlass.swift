@@ -27,6 +27,13 @@ extension View {
     func lvAuroraGoldRing(cornerRadius: CGFloat = 20, intensity: CGFloat = 1.0) -> some View {
         modifier(LVAuroraGoldRingModifier(cornerRadius: cornerRadius, intensity: intensity))
     }
+
+    /// HER-306 — inner-rim cyan glow. A soft `palette.glowPrimary` halo painted
+    /// on the inside of a shape's edge. Pairs with `.lvGlassCard` to give
+    /// cards a "lit from within" feel.
+    func lvInnerGlow(cornerRadius: CGFloat = 20, intensity: CGFloat = LVGlow.card) -> some View {
+        modifier(LVInnerGlowModifier(cornerRadius: cornerRadius, intensity: intensity))
+    }
 }
 
 private struct LVGlassCardModifier: ViewModifier {
@@ -70,6 +77,24 @@ private struct LVGlassCardModifier: ViewModifier {
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .shadow(color: palette.glowPrimary.opacity(0.45 * intensity), radius: 22)
             .shadow(color: palette.glowSecondary.opacity(0.18 * intensity), radius: 40)
+    }
+}
+
+private struct LVInnerGlowModifier: ViewModifier {
+    @Environment(\.lvPalette) private var palette
+    let cornerRadius: CGFloat
+    let intensity: CGFloat
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(palette.glowPrimary.opacity(0.55 * intensity), lineWidth: 1)
+                .blur(radius: 6)
+                .mask(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .stroke(lineWidth: 14)
+                )
+        }
     }
 }
 
