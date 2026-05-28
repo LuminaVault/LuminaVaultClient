@@ -53,7 +53,7 @@ struct LVButton: View {
                     }
                 }
             )
-            .clipShape(RoundedRectangle(cornerRadius: 13))
+            .clipShape(RoundedRectangle(cornerRadius: LVRadius.md))
             .shadow(color: palette.primary.opacity(0.35), radius: 12, y: 4)
             .shadow(color: palette.accent.opacity(0.15), radius: 24, y: 8)
         }

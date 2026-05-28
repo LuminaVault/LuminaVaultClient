@@ -49,23 +49,23 @@ struct SSOButton: View {
             case .primary:
                 primaryContent
                     .frame(maxWidth: .infinity)
-                    .frame(height: 48)
+                    .frame(height: LVSize.buttonHeight)
                     .background(Color.lvGlass)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: LVRadius.md)
                             .stroke(primaryBorder, lineWidth: 1)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: LVRadius.md))
             case .icon:
                 providerIcon
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
                     .background(Color.lvGlass)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: LVRadius.md)
                             .stroke(palette.surfaceStroke, lineWidth: 1)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: LVRadius.md))
             }
         }
         .buttonStyle(.plain)
@@ -74,10 +74,10 @@ struct SSOButton: View {
 
     @ViewBuilder
     private var primaryContent: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: LVSpacing.md) {
             providerIcon
             Text(provider.labelText)
-                .font(.system(size: 14, weight: .semibold))
+                .font(LVTypography.fieldLabel.font)
                 .foregroundStyle(palette.textPrimary)
         }
     }
@@ -90,11 +90,11 @@ struct SSOButton: View {
         case .google:
             // Replace with Image("google_logo") once asset added to Assets.xcassets
             Text("G")
-                .font(.system(size: 16, weight: .bold))
+                .font(.system(size: 16, weight: .bold)) // TODO HER-icon-tokens: text glyph used as icon stand-in
                 .foregroundStyle(palette.textPrimary)
         case .x:
             Text("𝕏")
-                .font(.system(size: 16, weight: .bold))
+                .font(.system(size: 16, weight: .bold)) // TODO HER-icon-tokens: text glyph used as icon stand-in
                 .foregroundStyle(palette.textPrimary)
         }
     }

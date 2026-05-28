@@ -48,13 +48,13 @@ struct LVEmptyState: View {
     }
 
     var body: some View {
-        VStack(spacing: 22) {
+        VStack(spacing: LVSpacing.xl) {
             ZStack {
                 if let backgroundImage {
                     Image(backgroundImage)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 320, height: 320)
+                        .frame(width: LVSize.heroLarge, height: LVSize.heroLarge)
                         .opacity(0.18)
                         .mask {
                             RadialGradient(
@@ -66,12 +66,12 @@ struct LVEmptyState: View {
                         }
                 }
                 NeuralParticleRing()
-                    .frame(width: 220, height: 220)
+                    .frame(width: LVSize.mascotSmall, height: LVSize.mascotSmall)
                 HermieMascotView(state: mascot, size: 160)
             }
-            VStack(spacing: 8) {
+            VStack(spacing: LVSpacing.sm) {
                 Text(headline)
-                    .font(.title3.weight(.semibold))
+                    .font(LVTypography.subtitle.font)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(palette.textPrimary)
                 if let supporting {
@@ -79,42 +79,42 @@ struct LVEmptyState: View {
                         .font(.subheadline)
                         .multilineTextAlignment(.center)
                         .foregroundStyle(palette.textSecondary)
-                        .padding(.horizontal, 24)
+                        .padding(.horizontal, LVSpacing.xl)
                 }
             }
             if let cta = primaryCTA {
                 Button(action: cta.action) {
                     Text(cta.label)
-                        .font(.body.weight(.semibold))
-                        .padding(.horizontal, 22)
-                        .padding(.vertical, 12)
+                        .font(LVTypography.bodyEmphasis.font)
+                        .padding(.horizontal, LVSpacing.xl)
+                        .padding(.vertical, LVSpacing.md)
                 }
                 .buttonStyle(.plain)
-                .lvGlassCard(cornerRadius: 24, intensity: 0.8)
+                .lvGlassCard(cornerRadius: LVRadius.card, intensity: 0.8)
                 .lvGlowPress()
                 .foregroundStyle(palette.primary)
             }
             if !chips.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
+                    HStack(spacing: LVSpacing.md) {
                         ForEach(chips) { chip in
                             Button(action: chip.action) {
                                 Text(chip.label)
-                                    .font(.caption.weight(.medium))
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 8)
+                                    .font(LVTypography.caption.font.weight(.medium))
+                                    .padding(.horizontal, LVSpacing.base)
+                                    .padding(.vertical, LVSpacing.sm)
                             }
                             .buttonStyle(.plain)
-                            .lvGlassCard(cornerRadius: 14, intensity: 0.4)
+                            .lvGlassCard(cornerRadius: LVRadius.lg, intensity: 0.4)
                             .lvGlowPress()
                             .foregroundStyle(palette.textPrimary)
                         }
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, LVSpacing.lg)
                 }
             }
         }
-        .padding(.vertical, 24)
+        .padding(.vertical, LVSpacing.xl)
     }
 }
 

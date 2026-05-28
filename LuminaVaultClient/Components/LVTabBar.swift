@@ -79,7 +79,7 @@ struct LVTabBar: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 0) { // zero-gap intentional — primary items flex equal-width
             ForEach(primaryItems) { item in
                 LVTabBarButton(
                     item: item,
@@ -100,9 +100,9 @@ struct LVTabBar: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 8)
-        .padding(.bottom, 8)
+        .padding(.horizontal, LVSpacing.sm)
+        .padding(.top, LVSpacing.sm)
+        .padding(.bottom, LVSpacing.sm)
         .background {
             ZStack(alignment: .top) {
                 Rectangle().fill(.ultraThinMaterial)
@@ -189,7 +189,7 @@ private struct LVTabBarItemContent: View {
     let underlineNamespace: Namespace.ID
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: LVSpacing.xs) {
             ZStack {
                 if isActive {
                     Circle()
@@ -202,7 +202,7 @@ private struct LVTabBarItemContent: View {
             }
             .lvPulse(active: item.pulses && !reduceMotion)
             Text(item.label)
-                .font(.system(size: 10, weight: isActive ? .semibold : .regular))
+                .font(LVTypography.microTag.font.weight(isActive ? .semibold : .regular))
                 .foregroundStyle(isActive ? palette.primary : palette.textSecondary.opacity(0.85))
                 .lineLimit(1)
             ZStack {

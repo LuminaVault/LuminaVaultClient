@@ -23,13 +23,13 @@ struct OTPFieldRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: LVSpacing.sm) {
             ForEach(0..<length, id: \.self) { index in
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: LVRadius.md)
                         .fill(Color.lvGlass)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10)
+                            RoundedRectangle(cornerRadius: LVRadius.md)
                                 .stroke(
                                     index == code.count ? resolvedAccent.opacity(0.6) : palette.surfaceStroke,
                                     lineWidth: index == code.count ? 1.5 : 1

@@ -17,17 +17,17 @@ struct LVSelectionChip: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: LVSpacing.sm) {
                 if let systemImage {
                     // HER-291: kept as Image — runtime symbol name
                     Image(systemName: systemImage)
-                        .font(.subheadline.weight(.semibold))
+                        .font(LVTypography.fieldLabel.font)
                 }
                 Text(label)
-                    .font(.subheadline.weight(.semibold))
+                    .font(LVTypography.fieldLabel.font)
             }
-            .padding(.vertical, 10)
-            .padding(.horizontal, 16)
+            .padding(.vertical, LVSpacing.md)
+            .padding(.horizontal, LVSpacing.base)
             .frame(maxWidth: .infinity)
             .background {
                 Capsule(style: .continuous)
