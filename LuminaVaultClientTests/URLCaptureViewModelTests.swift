@@ -34,7 +34,7 @@ final class URLCaptureViewModelTests: XCTestCase {
         XCTAssertTrue(snapshots.isEmpty)
     }
 
-    func testValidURLEnqueuesURLSnapshot() async {
+    func testValidURLEnqueuesURLSnapshot() async throws {
         let queue = StubQueue()
         let kicked = KickFlag()
         let drainer = CaptureDrainerHandle(kick: { await kicked.set() })
@@ -47,7 +47,7 @@ final class URLCaptureViewModelTests: XCTestCase {
 
         let snapshots = await queue.snapshot()
         XCTAssertEqual(snapshots.count, 1)
-        let snap = try! XCTUnwrap(snapshots.first)
+        let snap = try XCTUnwrap(snapshots.first)
         XCTAssertEqual(snap.kind, .url)
         XCTAssertEqual(snap.urlString, "https://x.com/jack/status/123", "VM must trim whitespace")
         XCTAssertNil(snap.captionText, "no note → no captionText")

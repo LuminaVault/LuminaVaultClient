@@ -1,29 +1,23 @@
-name: TestFlight Beta
+name: App Store Release
 
 on:
   workflow_dispatch:
-    inputs:
-      changelog:
-        description: "TestFlight changelog (shown to internal testers)"
-        required: false
-        default: "Latest internal build."
   push:
     branches:
-      - development
+      - main
     paths-ignore:
       - "**.md"
       - "docs/**"
       - ".github/**"
 
 jobs:
-  beta:
+  release:
     runs-on: macos-15
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
       LANG: en_US.UTF-8
       LC_ALL: en_US.UTF-8
       BUILD_NUMBER: ${{ github.run_number }}
-      CHANGELOG: ${{ github.event.inputs.changelog || format('development @ {0}', github.sha) }}
       MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
       MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
       APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
@@ -55,5 +49,5 @@ jobs:
       - name: Resolve Swift packages
         run: xcodebuild -project LuminaVaultClient.xcodeproj -resolvePackageDependencies
 
-      - name: Build + upload to TestFlight
-        run: bundle exec fastlane beta
+      - name: Build + upload to App Store Connect
+        run: bundle exec fastlane release

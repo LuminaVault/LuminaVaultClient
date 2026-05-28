@@ -19,6 +19,7 @@ struct UsageSparklineView: View {
                 ForEach(Array(points.enumerated()), id: \.offset) { _, point in
                     let height = max(2, proxy.size.height * CGFloat(point.count) / CGFloat(maxCount))
                     Capsule()
+                        // swiftlint:disable:next empty_count
                         .fill(point.count > 0 ? palette.primary : palette.primary.opacity(0.18))
                         .frame(height: height)
                 }

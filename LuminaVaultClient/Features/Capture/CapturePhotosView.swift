@@ -43,7 +43,7 @@ struct CapturePhotosView: View {
                         if viewModel.saving {
                             ProgressView()
                         } else {
-                            Text("Save \(viewModel.loadedItems.count > 0 ? "(\(viewModel.loadedItems.count))" : "")")
+                            Text("Save \(viewModel.loadedItems.isEmpty ? "" : "(\(viewModel.loadedItems.count))")")
                                 .fontWeight(.semibold)
                         }
                     }

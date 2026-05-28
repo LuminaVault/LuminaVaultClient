@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, development]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  push:
+    branches: [main, development]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+
+jobs:
+  lint:
+    name: SwiftLint
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SwiftLint
+        run: brew install swiftlint
+      - name: SwiftLint
+        run: swiftlint lint --reporter github-actions-logging
+
+  test:
+    name: Run Tests
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Cache SPM packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('LuminaVaultClient.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Resolve Swift packages
+        run: xcodebuild -project LuminaVaultClient.xcodeproj -resolvePackageDependencies
+
+      - name: Install iOS simulator runtime
+        run: |
+          # Xcode 26.x runners ship without the iOS Simulator runtime
+          # preinstalled — only visionOS. Download it on demand.
+          sudo xcodebuild -downloadPlatform iOS
+
+      - name: Pick an available iPhone simulator
+        id: sim
+        run: |
+          # Newest iOS runtime → first available iPhone in that runtime.
+          sim=$(xcrun simctl list devices available --json \
+            | jq -r '.devices | to_entries
+                     | map(select(.key | test("iOS")))
+                     | sort_by(.key) | reverse
+                     | .[].value[]
+                     | select(.isAvailable == true and (.name | test("iPhone")))
+                     | .name' \
+            | head -n 1)
+          if [ -z "$sim" ]; then
+            echo "::error::no iPhone simulator available on runner"
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "name=$sim" >> "$GITHUB_OUTPUT"
+          echo "Selected simulator: $sim"
+
+      - name: Run unit tests (Debug, with coverage)
+        run: |
+          xcodebuild test \
+            -project LuminaVaultClient.xcodeproj \
+            -scheme LuminaVaultClient \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,OS=latest,name=${{ steps.sim.outputs.name }}" \
+            -only-testing:LuminaVaultClientTests \
+            -enableCodeCoverage YES \
+            -resultBundlePath TestResults.xcresult
+
+      - name: Export coverage JSON
+        if: always()
+        run: |
+          set -euo pipefail
+          if [[ -d TestResults.xcresult ]]; then
+            xcrun xccov view --report --json TestResults.xcresult > coverage.json || true
+          else
+            echo "::notice::no xcresult bundle; skipping coverage export"
+            : > coverage.json
+          fi
+
+      - name: Upload coverage artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-json
+          path: coverage.json
+          if-no-files-found: ignore

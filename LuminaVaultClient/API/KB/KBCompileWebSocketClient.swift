@@ -115,7 +115,7 @@ actor KBCompileWebSocketClient: KBCompileWebSocketClientProtocol {
         case "http": c.scheme = "ws"
         default: break
         }
-        c.path = c.path + "/v1/ws"
+        c.path += "/v1/ws"
         return c.url
     }
 }
