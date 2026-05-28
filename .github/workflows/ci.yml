@@ -55,22 +55,53 @@ jobs:
       - name: Pick an available iPhone simulator
         id: sim
         run: |
-          # Newest iOS runtime → first available iPhone in that runtime.
-          sim=$(xcrun simctl list devices available --json \
-            | jq -r '.devices | to_entries
-                     | map(select(.key | test("iOS")))
-                     | sort_by(.key) | reverse
-                     | .[].value[]
-                     | select(.isAvailable == true and (.name | test("iPhone")))
-                     | .name' \
-            | head -n 1)
-          if [ -z "$sim" ]; then
-            echo "::error::no iPhone simulator available on runner"
-            xcrun simctl list devices available
+          # Pick newest iOS runtime, then first available iPhone in it.
+          # Return UDID — xcodebuild cannot resolve name+OS=latest when the
+          # newest runtime has no pre-created simulator instance.
+          devices_json=$(xcrun simctl list devices available --json)
+          newest_runtime=$(echo "$devices_json" \
+            | jq -r '.devices | keys[] | select(test("iOS"))' \
+            | sort -V | tail -n 1)
+          if [ -z "$newest_runtime" ]; then
+            echo "::error::no iOS runtime installed"
+            xcrun simctl list runtimes
             exit 1
           fi
-          echo "name=$sim" >> "$GITHUB_OUTPUT"
-          echo "Selected simulator: $sim"
+          udid=$(echo "$devices_json" \
+            | jq -r --arg rt "$newest_runtime" \
+                '.devices[$rt][]
+                 | select(.isAvailable == true and (.name | test("iPhone")))
+                 | .udid' \
+            | head -n 1)
+          name=$(echo "$devices_json" \
+            | jq -r --arg rt "$newest_runtime" \
+                '.devices[$rt][]
+                 | select(.isAvailable == true and (.name | test("iPhone")))
+                 | .name' \
+            | head -n 1)
+          if [ -z "$udid" ]; then
+            # Newest iOS runtime has no iPhone — create one.
+            device_type=$(xcrun simctl list devicetypes --json \
+              | jq -r '.devicetypes[] | select(.name | test("iPhone")) | .identifier' \
+              | sort -V | tail -n 1)
+            runtime_id=$(xcrun simctl list runtimes --json \
+              | jq -r --arg rt "$newest_runtime" \
+                  '.runtimes[] | select(.name == $rt and .isAvailable == true) | .identifier')
+            if [ -z "$device_type" ] || [ -z "$runtime_id" ]; then
+              echo "::error::cannot create simulator; missing device type or runtime"
+              xcrun simctl list devices available
+              xcrun simctl list runtimes
+              exit 1
+            fi
+            udid=$(xcrun simctl create "CI iPhone" "$device_type" "$runtime_id")
+            name=$(xcrun simctl list devices --json \
+              | jq -r --arg u "$udid" \
+                  '.devices[][] | select(.udid == $u) | .name')
+            echo "Created simulator: $name ($udid) in $newest_runtime"
+          fi
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "Selected simulator: $name ($udid) in $newest_runtime"
 
       - name: Run unit tests (Debug, with coverage)
         run: |
@@ -78,7 +109,7 @@ jobs:
             -project LuminaVaultClient.xcodeproj \
             -scheme LuminaVaultClient \
             -configuration Debug \
-            -destination "platform=iOS Simulator,OS=latest,name=${{ steps.sim.outputs.name }}" \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -only-testing:LuminaVaultClientTests \
             -enableCodeCoverage YES \
             -resultBundlePath TestResults.xcresult
