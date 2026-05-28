@@ -29,7 +29,7 @@ struct AutomationsView: View {
             ProgressView().tint(palette.primary)
         case .failed(let message):
             Text(message)
-                .font(.system(size: 13))
+                .font(LVTypography.footnote.font)
                 .foregroundStyle(Color.lvTextMuted)
                 .padding()
         case .loaded:
@@ -44,15 +44,15 @@ struct AutomationsView: View {
     }
 
     private func skillRow(_ skill: LuminaVaultShared.SkillDTO) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
+            HStack(spacing: LVSpacing.md) {
                 badge(for: skill.source)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: LVSpacing.hairline) {
                     Text(skill.name)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(LVTypography.fieldLabel.font)
                         .foregroundStyle(palette.textPrimary)
                     Text(skill.descriptionText)
-                        .font(.system(size: 12))
+                        .font(LVTypography.caption.font)
                         .foregroundStyle(palette.textSecondary)
                         .lineLimit(2)
                 }
@@ -74,33 +74,33 @@ struct AutomationsView: View {
                     Button("Daily 9am") { Task { await vm.setCadence(skill, cron: "0 9 * * *") } }
                     Button("Weekly Sun 6pm") { Task { await vm.setCadence(skill, cron: "0 18 * * 0") } }
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: LVSpacing.xs) {
                         LVIconView(.clockFill, size: 11, tint: palette.primary, weight: .semibold)
                         Text(cadenceLabel(skill))
                         LVIconView(.chevronUpChevronDown, size: 11, tint: palette.primary, weight: .semibold)
                     }
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(LVTypography.microTag.font)
                     .foregroundStyle(palette.primary)
                 }
             }
 
             DisclosureGroup("What does this do?") {
                 Text(skill.bodyExcerpt)
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(LVTypography.caption.font.monospaced())
                     .foregroundStyle(palette.textSecondary)
-                    .padding(.top, 4)
+                    .padding(.top, LVSpacing.xs)
             }
-            .font(.system(size: 12))
+            .font(LVTypography.caption.font)
             .tint(palette.textSecondary)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, LVSpacing.sm)
     }
 
     private func badge(for source: SkillSource) -> some View {
         Text(source == .builtin ? "Default" : "Custom")
-            .font(.system(size: 9, weight: .heavy))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
+            .font(LVTypography.microTag.font)
+            .padding(.horizontal, LVSpacing.sm)
+            .padding(.vertical, LVSpacing.xs)
             .background((source == .builtin ? palette.accent : palette.primary).opacity(0.18))
             .foregroundStyle(source == .builtin ? palette.accent : palette.primary)
             .clipShape(Capsule())
@@ -110,9 +110,9 @@ struct AutomationsView: View {
     private func lastRunPill(_ skill: LuminaVaultShared.SkillDTO) -> some View {
         if let status = skill.lastStatus {
             Text(status.rawValue.capitalized)
-                .font(.system(size: 10, weight: .semibold))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
+                .font(LVTypography.microTag.font)
+                .padding(.horizontal, LVSpacing.sm)
+                .padding(.vertical, LVSpacing.hairline)
                 .background(color(status).opacity(0.18))
                 .foregroundStyle(color(status))
                 .clipShape(Capsule())
