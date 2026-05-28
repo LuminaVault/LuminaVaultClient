@@ -1,89 +1,89 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Capture/URLCaptureView.swift
 //
-// HER-257 — link capture surface. Mirrors TextCaptureView shape;
-// reuses the photo flow's Space picker pattern (HER-CaptureTab).
+// HER-257 / HER-305 — Link mode body. Glass cards for URL, optional
+// note, and Space picker. URL field uses the monospaced typography
+// token so links read as code-style data, not body copy.
 
-import SwiftUI
 import LuminaVaultShared
+import SwiftUI
 
 struct URLCaptureView: View {
+    @Environment(\.lvPalette) private var palette
     @State private var viewModel: URLCaptureViewModel
-    @Environment(\.dismiss) private var dismiss
+    @FocusState private var urlFocused: Bool
 
     init(viewModel: URLCaptureViewModel) {
         _viewModel = State(initialValue: viewModel)
     }
 
     var body: some View {
-        NavigationStack {
-            List {
-                urlSection
-                noteSection
-                spaceSection
+        ScrollView {
+            VStack(spacing: LVSpacing.lg) {
+                urlCard
+                noteCard
+                spaceCard
             }
-            .task { await viewModel.loadSpacesIfNeeded() }
-            .navigationTitle("New link")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task {
-                            await viewModel.save()
-                            if viewModel.toast != nil { dismiss() }
-                        }
-                    } label: {
-                        if viewModel.saving {
-                            ProgressView()
-                        } else {
-                            Text("Save").fontWeight(.semibold)
-                        }
-                    }
-                    .disabled(!viewModel.canSave)
-                }
-            }
+            .padding(.horizontal, LVSpacing.base)
+            .padding(.top, LVSpacing.sm)
+            .padding(.bottom, LVSpacing.xxl)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .task { await viewModel.loadSpacesIfNeeded() }
+        .onAppear { urlFocused = true }
     }
 
-    @ViewBuilder
-    private var urlSection: some View {
-        Section {
+    private var urlCard: some View {
+        CaptureCard(
+            eyebrowIcon: .linkCircle,
+            eyebrowTitle: "Link",
+            footer: "Paste an article, X post, or YouTube link. The server resolves OG / oEmbed metadata asynchronously."
+        ) {
             TextField("https://…", text: $viewModel.urlString)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .keyboardType(.URL)
-        } footer: {
-            Text("Paste an article, X post, or YouTube link. The server resolves OG / oEmbed metadata asynchronously.")
+                .lvFont(.mono)
+                .foregroundStyle(palette.textPrimary)
+                .tint(palette.glowPrimary)
+                .focused($urlFocused)
+        }
+    }
+
+    private var noteCard: some View {
+        CaptureCard(eyebrowIcon: .docText, eyebrowTitle: "Note") {
+            TextField(
+                "Add a note (optional)",
+                text: $viewModel.note,
+                axis: .vertical
+            )
+            .lineLimit(2 ... 5)
+            .textInputAutocapitalization(.sentences)
+            .lvFont(.body)
+            .foregroundStyle(palette.textPrimary)
+            .tint(palette.glowPrimary)
         }
     }
 
     @ViewBuilder
-    private var noteSection: some View {
-        Section {
-            TextField("Add a note (optional)", text: $viewModel.note, axis: .vertical)
-                .lineLimit(1 ... 4)
-                .textInputAutocapitalization(.sentences)
-        }
-    }
-
-    /// HER-CaptureTab — same Space picker pattern as the photo flow.
-    @ViewBuilder
-    private var spaceSection: some View {
+    private var spaceCard: some View {
         if let spaces = viewModel.availableSpaces, !spaces.isEmpty {
-            Section {
+            CaptureCard(
+                eyebrowIcon: .folder,
+                eyebrowTitle: "Space",
+                footer: "Pick a Space to file this link into. Unfiled links land at the vault root."
+            ) {
                 Picker(selection: $viewModel.selectedSpaceID) {
                     Text("Unfiled").tag(UUID?.none)
                     ForEach(spaces, id: \.id) { space in
                         Text(space.name).tag(UUID?.some(space.id))
                     }
                 } label: {
-                    Label("Space", systemImage: "folder")
+                    Text("Space")
+                        .lvFont(.body)
+                        .foregroundStyle(palette.textPrimary)
                 }
                 .pickerStyle(.menu)
-            } footer: {
-                Text("Pick a Space to file this link into. Unfiled links land at the vault root.")
+                .tint(palette.glowPrimary)
             }
         }
     }

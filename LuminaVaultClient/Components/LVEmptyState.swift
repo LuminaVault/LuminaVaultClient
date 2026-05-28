@@ -51,17 +51,20 @@ struct LVEmptyState: View {
         VStack(spacing: LVSpacing.xl) {
             ZStack {
                 if let backgroundImage {
+                    // HER-305 — softer, larger background art so the
+                    // mascot reads as the hero with the illustration
+                    // breathing around it rather than confined to a disc.
                     Image(backgroundImage)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: LVSize.heroLarge, height: LVSize.heroLarge)
+                        .frame(width: 340, height: 340)
                         .opacity(0.18)
                         .mask {
                             RadialGradient(
-                                colors: [Color.white, .clear],
+                                colors: [Color.white, Color.white.opacity(0.6), .clear],
                                 center: .center,
                                 startRadius: 0,
-                                endRadius: 160
+                                endRadius: 200
                             )
                         }
                 }
