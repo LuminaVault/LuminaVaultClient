@@ -26,6 +26,10 @@ struct HomeView: View {
     var skillsDestination: AnyView? = nil
     var todayDestination: AnyView? = nil
     var visualSearchDestination: AnyView? = nil
+    /// HER-118 — Health card pushes the sparkline dashboard. Optional so
+    /// older call sites (tests, previews) keep compiling without wiring
+    /// the new screen.
+    var healthDestination: AnyView? = nil
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -108,8 +112,10 @@ struct HomeView: View {
                 SciFiCardView(icon: "brain.head.profile", title: "AI", subtitle: "Neural brain")
             }
             
-            NavigationLink { sessionsDestination } label: {
-                SciFiCardView(icon: "heart.fill", title: "Health", subtitle: "Winged heart")
+            NavigationLink {
+                healthDestination ?? sessionsDestination
+            } label: {
+                SciFiCardView(icon: "heart.fill", title: "Health", subtitle: "Sparklines")
             }
             
             // Row 2: Ideas, Stocks, Work

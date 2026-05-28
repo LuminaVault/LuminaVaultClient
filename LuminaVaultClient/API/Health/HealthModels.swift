@@ -8,6 +8,11 @@ import Foundation
 typealias HealthEventInput = LuminaVaultShared.HealthEventInput
 typealias HealthIngestedRef = LuminaVaultShared.HealthIngestedRef
 typealias HealthIngestResponse = LuminaVaultShared.HealthIngestResponse
+// HER-118: read-side wire types for the dashboard.
+typealias HealthEventDTO = LuminaVaultShared.HealthEventDTO
+typealias HealthListResponse = LuminaVaultShared.HealthListResponse
+typealias HealthDayAggregateDTO = LuminaVaultShared.HealthDayAggregateDTO
+typealias HealthDailyResponse = LuminaVaultShared.HealthDailyResponse
 
 struct HealthIngestRequest: Codable, Sendable {
     let events: [HealthEventInput]
