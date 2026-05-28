@@ -2,7 +2,23 @@
 
 This document is the source of truth for LuminaVault's iOS visual language. The code in `LuminaVaultClient/Utilities/` and `LuminaVaultClient/Components/` is canonical — this file documents what already exists and how to use it. There is no Figma library; SwiftUI is the design system.
 
-Linear: [HER-59 — DES-003 Define full design system](https://linear.app/luminavault/issue/HER-59)
+Linear:
+- [HER-59 — DES-003 Define full design system](https://linear.app/luminavault/issue/HER-59)
+- [HER-299 — Cinematic redesign (parent)](https://linear.app/luminavault/issue/HER-299/redesign-app)
+- [HER-300 — (a) Overall design system direction](https://linear.app/luminavault/issue/HER-300/a-overall-design-system-direction) — §13 below
+- [HER-301 — (b) Icon system](https://linear.app/luminavault/issue/HER-301/b-icon-system) — §12 updates
+
+## Visual direction at a glance
+
+LuminaVault feels **cinematic, magical, sci-fi**, never sterile. The reference language (HER-299 Stitch frames):
+
+- **Deep cosmic backdrop** — black → cyan aurora → amber bottom-leading wash → starfield.
+- **Volumetric glow** on every interactive surface; cyan is primary, amber is reserved for premium CTAs.
+- **Glassmorphism** for content surfaces — translucent fills, hairline gradient strokes, subtle inner highlights.
+- **Mascot as hero** — Hermie renders large on Home, Onboarding, and empty states; small on chat assistant rows.
+- **Custom illustrated icons** (`Lumina/Icons/*`) for product chrome; SF Symbols only for system-affordance affordances.
+
+Subtask plans (c–i under HER-299) consume the conventions documented here. See §13 "Cinematic Conventions" before designing a new screen.
 
 ---
 
@@ -159,6 +175,36 @@ VStack { ... }.padding().lvGlassCard()
 - Stroke + double-layer shadow in palette glow colors.
 - Use for pills, capsules, focus rings.
 
+### `lvAuroraGoldRing(cornerRadius:intensity:)` — premium-CTA gold ring
+
+`View+LVGlass.swift` (HER-300)
+
+- 1.5pt linear-gradient stroke `palette.accent → palette.glowPrimary.opacity(0.5) → palette.accent`.
+- Outer shadow stack: `palette.accent @ 0.4 × intensity` @ 12pt, `palette.glowPrimary @ 0.18 × intensity` @ 28pt.
+- **Reserve for the single most important CTA on a screen** (Home "Sync & Learn", Onboarding "Start", paywall "Continue"). Multiple gold rings per screen flattens the hierarchy.
+- Defaults: `cornerRadius: 20`, `intensity: 1.0`.
+- Composes with `palette.surface` fill underneath; does not paint the fill itself.
+
+```swift
+Text("Sync & Learn")
+    .padding(.horizontal, LVSpacing.xxl)
+    .padding(.vertical, LVSpacing.base)
+    .background(palette.surface)
+    .lvAuroraGoldRing()
+```
+
+### `lvParticleBackground(intensity:)` — neural-network particle overlay
+
+`View+LVParticleBackground.swift` (HER-300)
+
+- Layers `Lumina/Backgrounds/neural-network` PNG with `.screen` blend on top of `lvBackground()`.
+- `LVParticleIntensity.subtle` (0.10) / `.standard` (0.18) / `.hero` (0.28).
+- **Reserve for hero surfaces** — Home empty-state, Onboarding, splash, full-screen mascot moments. Avoid on scroll surfaces; competes with copy.
+
+```swift
+ZStack { ... }.lvBackground().lvParticleBackground(intensity: .hero)
+```
+
 ### `lvPulse(active:)` — breathing scale + glow loop
 
 `View+LVPulse.swift`
@@ -176,17 +222,15 @@ VStack { ... }.padding().lvGlassCard()
 
 ## 6. Component Inventory
 
-Prefix convention:
-- `HV*` — primitive inputs (Hermes Vault era prefix; kept for stability).
-- `LV*` — LuminaVault composite components and chrome.
+Prefix convention: all SwiftUI components are `LV*`. (Earlier `HV*` files were renamed under HER-292.)
 
 ### Inputs
 
 | Component       | File                                            | Notes |
 |-----------------|-------------------------------------------------|-------|
-| `HVButton`      | `Components/HVButton.swift`                     | Primary CTA. Heavy-weight label. Apply `.lvGlowPress()` for tap feedback. |
-| `HVTextField`   | `Components/HVTextField.swift`                  | Standard text input with floating-style label (12pt). |
-| `HVSecureField` | `Components/HVSecureField.swift`                | Password input, same chrome as `HVTextField`. |
+| `LVButton`      | `Components/LVButton.swift`                     | Primary CTA. Heavy-weight label. Apply `.lvGlowPress()` for tap feedback. |
+| `LVTextField`   | `Components/LVTextField.swift`                  | Standard text input with floating-style label (12pt). |
+| `LVSecureField` | `Components/LVSecureField.swift`                | Password input, same chrome as `LVTextField`. |
 | `OTPFieldRow`   | `Components/OTPFieldRow.swift`                  | 6-digit OTP entry — used in phone auth + password reset. |
 | `SSOButton`     | `Components/SSOButton.swift`                    | Single SSO provider button. |
 | `SSORow`        | `Components/SSORow.swift`                       | Horizontal group of SSO buttons. |
@@ -197,7 +241,7 @@ Prefix convention:
 
 | Component            | File                                       | Notes |
 |----------------------|--------------------------------------------|-------|
-| `HVLogoMark`         | `Components/HVLogoMark.swift`              | Static logo glyph. |
+| `LVLogoMark`         | `Components/LVLogoMark.swift`              | Static logo glyph. |
 | `LVNavigationBrand`  | `Components/LVNavigationBrand.swift`       | Brand mark + wordmark for nav bar. |
 | `LVTabBar`           | `Components/LVTabBar.swift`                | Custom 5-tab bar. Home tab uses `.lvPulse` gated on pending insights. Tab icons resolve via `LVIcon` (§12). |
 | `LVIconView`         | `Utilities/LVIcon.swift`                   | Renders an `LVIcon` token with theme tint + size (§12). Custom-asset fallback transparent. |
@@ -307,7 +351,8 @@ VStack(spacing: LVSpacing.md) { ... }
 - ~~No icon token system — features use SF Symbols directly with palette tints.~~ Closed by HER-291 — see §12.
 - Snapshot test coverage uneven — HermesGateways suite is the reference pattern; expand to other components incrementally.
 - Many feature views still contain ad-hoc `.font(.system(size:))` and raw point literals — migrate incrementally as files are touched.
-- LVIcon migration is exemplar-only — `LVTabBar`, `MainTabView`, `SettingsRootView`, `AuthLandingView`, `ChatView` use it; ~150 other call sites still pass raw SF Symbol strings.
+- LVIcon migration is exemplar-only — `LVTabBar`, `MainTabView`, `SettingsRootView`, `AuthLandingView`, `ChatView` use it; ~150 other call sites still pass raw SF Symbol strings. HER-301 (b) closes the asset-wiring gap; per-surface call-site conversions track in subtasks c–i under [HER-299](https://linear.app/luminavault/issue/HER-299).
+- Cinematic conventions documented in §13 are adopted by `lvBackground` + `lvGlassCard` everywhere, but the new `lvAuroraGoldRing` + `lvParticleBackground` modifiers have no consumers yet — they roll out as the per-surface subtasks (c–i) land.
 
 ---
 
@@ -395,3 +440,100 @@ For each ad-hoc `Image(systemName:)` or `Label(_:systemImage:)`:
 3. (Optional) Map a custom asset path in `customAssetName`.
 4. Add a row to the table above.
 5. Bump this section in the same PR.
+
+---
+
+## 13. Cinematic Conventions (HER-300)
+
+Shipped by HER-300 (a) under HER-299. Every new surface or redesigned surface adopts these conventions; the per-surface subtasks (c–i) consume them. If a screen feels "flat" or "AI-generated default", it is missing one of the layers below.
+
+### 13.1 Layer stack
+
+Every full-screen surface stacks the same way, top to bottom:
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Content (text, controls, cards)                     │  ← reads palette tokens
+├──────────────────────────────────────────────────────┤
+│  Glass cards / pills           lvGlassCard           │  ← surface fill + stroke
+├──────────────────────────────────────────────────────┤
+│  Particle field (hero only)    lvParticleBackground  │  ← optional, .screen blend
+├──────────────────────────────────────────────────────┤
+│  Aurora gradients              lvBackground          │  ← cyan + amber radial wash
+├──────────────────────────────────────────────────────┤
+│  Starfield (dark only)         lvBackground          │  ← 55 deterministic pinpricks
+├──────────────────────────────────────────────────────┤
+│  palette.backgroundBase        lvBackground          │  ← root color
+└──────────────────────────────────────────────────────┘
+```
+
+Apply `.lvBackground()` once at the scene root of every full-screen view. Add `.lvParticleBackground(intensity:)` only on hero surfaces (§13.4). Cards reach for `.lvGlassCard()`; the single most important CTA reaches for `.lvAuroraGoldRing()`.
+
+### 13.2 Mascot placement
+
+`HermieMascotView` is the brand. Place by surface importance:
+
+| Surface kind                          | Size        | Example                                  |
+|---------------------------------------|-------------|------------------------------------------|
+| Splash / onboarding hero              | 240–320 pt  | `AuthLandingView`, splash screen          |
+| Home dashboard greeting               | 160–220 pt  | `HomeView` empty-state, dashboard header |
+| Chat assistant turn / pending bubble  | 32–80 pt    | `ChatView` `AssistantAvatar`             |
+| Empty-state illustration              | 96–160 pt   | `LVEmptyState`, dev-menu placeholders    |
+| Inline chrome (toolbar, avatar)       | 24–32 pt    | `LuminaHeader`, navigation accessories   |
+
+Never crop the mascot's wings. Pair with `.lvPulse(active:)` while loading / thinking; idle when finalized. Reduce-Motion freezes the pulse — keep the static frame readable.
+
+### 13.3 Gold-ring CTA spec
+
+The accent amber is reserved. **One gold ring per screen, on the most important action**. Anything else uses `lvGlowStroke` (cyan). The Stitch frames hold this rule strictly — Home's "Sync & Learn" is the only gold; Settings has none.
+
+Implementation: `.lvAuroraGoldRing(cornerRadius:intensity:)` (§5). The ring paints only the stroke + glow; the fill is your responsibility (`palette.surface`, `palette.accent.opacity(0.15)`, or a transparent button background, depending on weight).
+
+Anti-patterns:
+
+- Multiple gold rings per screen → flattens hierarchy.
+- Gold on destructive actions → conflicts with `palette.warningGlow` (red).
+- Gold ring on a primary action that already uses `LVButton` (the button has its own treatment).
+
+### 13.4 Particle background placement
+
+`.lvParticleBackground(intensity:)` is expensive and opinionated. Use sparingly.
+
+| Surface                       | Use?           | Intensity   |
+|-------------------------------|----------------|-------------|
+| Splash + Onboarding           | ✅ always      | `.hero`     |
+| Home dashboard empty-state    | ✅             | `.standard` |
+| Home dashboard with content   | ✅ at top only | `.subtle`   |
+| Chat (full surface)           | ❌ scrolling — competes | —    |
+| Settings list                 | ❌ dense copy  | —           |
+| Spaces grid                   | ✅ at top only | `.subtle`   |
+| Modal sheets                  | ❌             | —           |
+
+The asset is `Lumina/Backgrounds/neural-network` rendered with `.screen` blend so it sits on top of the aurora gradients without crushing them. It does not animate yet — that's a future ticket (animated particle drift is a separate Rive integration).
+
+### 13.5 Wordmark treatment
+
+"LuminaVault" the wordmark only appears on top-of-funnel surfaces (splash, onboarding, paywall, About). Format:
+
+```swift
+Text("LuminaVault")
+    .font(LVTypography.display.font)
+    .foregroundStyle(.white)
+    .shadow(color: palette.glowPrimary.opacity(0.8), radius: 12)
+```
+
+In-app chrome (headers, tab bars, settings rows) uses `LVNavigationBrand` (small mark + small wordmark) or just the mark. Never repeat the full wordmark inside the main app surfaces — it becomes noise.
+
+### 13.6 Icon style hierarchy
+
+Three tiers, in priority order — pick the highest tier that has an asset for your case:
+
+1. **Premium custom glyph** — `Lumina/Icons/*_premium` (`brain_premium`, `winged_lock_premium`, `winged_scroll_premium`, `skeleton_key_premium`). Use for paywall, identity, hero moments.
+2. **Standard custom glyph** — `Lumina/Icons/*` (cyan-gradient illustrations). Use for product chrome wherever an asset exists. Wired through `LVIcon` (§12) — call sites get the asset transparently via `LVIconView`.
+3. **SF Symbol** — fallback for chrome that doesn't have a branded glyph yet. Always go through `LVIcon` so a future asset drop-in is one file edit.
+
+The per-surface subtasks (c–i) replace SF-Symbol-only `Image(systemName:)` calls with `LVIconView(.someCase)`; do not bulk-migrate ahead of those tickets.
+
+### 13.7 Inspiration
+
+Reference frames live on [HER-299](https://linear.app/luminavault/issue/HER-299/redesign-app). When a tradeoff is ambiguous (how much glow? how dense the particles? how big the mascot?), the Stitch frames are the source of truth. Match the energy of the frame for the surface you're building.
