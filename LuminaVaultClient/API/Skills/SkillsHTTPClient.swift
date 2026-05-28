@@ -9,6 +9,8 @@ protocol SkillsClientProtocol: Sendable {
     func list() async throws -> SkillListResponse
     func patch(name: String, body: SkillPatchRequest) async throws -> LuminaVaultShared.SkillDTO
     func runs(name: String, limit: Int?) async throws -> SkillRunsResponse
+    /// HER-194 — manual run dispatch used by the Reflect tab.
+    func run(name: String, request: SkillRunRequest) async throws -> SkillRunResponse
 }
 
 final class SkillsHTTPClient: SkillsClientProtocol {
@@ -25,5 +27,9 @@ final class SkillsHTTPClient: SkillsClientProtocol {
 
     func runs(name: String, limit: Int? = 50) async throws -> SkillRunsResponse {
         try await client.execute(SkillsEndpoints.Runs(name: name, limit: limit))
+    }
+
+    func run(name: String, request: SkillRunRequest) async throws -> SkillRunResponse {
+        try await client.execute(SkillsEndpoints.Run(name: name, request: request))
     }
 }

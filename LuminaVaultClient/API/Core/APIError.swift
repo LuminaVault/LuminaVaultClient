@@ -16,6 +16,12 @@ enum APIError: Error, LocalizedError {
     /// bare 402, in which case the gate falls back to the local `BillingService`
     /// tier and the `default` offering.
     case paymentRequired(paywallID: String?, requiredTier: UserTier?)
+    /// HER-194 — server returned `429 Too Many Requests`. `retryAfter` is
+    /// the `Retry-After` header value when present (seconds form only;
+    /// HTTP-date form is not parsed). Call sites surface a friendly
+    /// daily-cap message; the optional interval lets the UI compute a
+    /// countdown when available.
+    case rateLimited(retryAfter: TimeInterval?)
 
     var errorDescription: String? {
         switch self {
@@ -30,6 +36,8 @@ enum APIError: Error, LocalizedError {
                 return "This feature requires the \(tier.rawValue.capitalized) plan."
             }
             return "This feature requires an upgraded plan."
+        case .rateLimited:
+            return "You've hit today's limit. Try again later."
         }
     }
 }

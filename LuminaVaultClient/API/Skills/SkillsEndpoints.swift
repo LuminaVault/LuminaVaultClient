@@ -31,4 +31,18 @@ enum SkillsEndpoints {
         }
         var method: HTTPMethod { .get }
     }
+
+    /// HER-194 — POST /v1/skills/{name}/run. Carries the user-supplied
+    /// topic in `input`; `save: false` keeps the server from persisting
+    /// to the vault so the Reflect UI can preview the rendered output
+    /// and let the user decide whether to Save (cached upload — no
+    /// second LLM call).
+    struct Run: Endpoint {
+        typealias Response = LuminaVaultShared.SkillRunResponse
+        let name: String
+        let request: SkillRunRequest
+        var path: String { "/v1/skills/\(name)/run" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { request }
+    }
 }

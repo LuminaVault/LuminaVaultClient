@@ -106,6 +106,13 @@ final class BaseHTTPClient: Sendable {
                 await onPaymentRequired?(hints?.paywallID, hints?.requiredTier)
                 throw APIError.paymentRequired(paywallID: hints?.paywallID, requiredTier: hints?.requiredTier)
             }
+            if http.statusCode == 429 {
+                // HER-194 — daily-cap / rate-limit surface. Parse the
+                // seconds form of `Retry-After`; ignore HTTP-date form
+                // (no current server endpoint emits it).
+                let retryAfter = http.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
+                throw APIError.rateLimited(retryAfter: retryAfter)
+            }
             guard (200..<300).contains(http.statusCode) else {
                 throw APIError.httpError(statusCode: http.statusCode, data: data)
             }

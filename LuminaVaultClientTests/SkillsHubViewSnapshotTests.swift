@@ -36,6 +36,9 @@ final class SkillsHubViewSnapshotTests: XCTestCase {
         func runs(name: String, limit: Int?) async throws -> SkillRunsResponse {
             SkillRunsResponse(runs: [], sparkline: [], nextCursor: nil)
         }
+        func run(name: String, request: SkillRunRequest) async throws -> SkillRunResponse {
+            throw APIError.networkFailure(URLError(.timedOut))
+        }
     }
 
     private static func stubSkill(
