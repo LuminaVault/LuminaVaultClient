@@ -1,9 +1,9 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Settings/SettingsRootView.swift
 //
-// HER-212 — Settings root index. Currently surfaces:
-//   * Privacy & Data (HER-212) — export + delete account.
-//   * Advanced → Hermes Gateway (HER-218) — BYO Hermes pane.
-// Future panes (theme, account, notifications, etc.) plug in as more rows.
+// HER-212 / HER-303 — Settings root index. Cinematic hero band +
+// reusable `LVSectionCard` + `LVSettingsRow` components. Visual
+// rebuild only; every destination view and the trial banner stay
+// exactly where they were.
 
 import SwiftData
 import SwiftUI
@@ -15,153 +15,115 @@ struct SettingsRootView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
-                // Cosmic Background
                 Color.black.ignoresSafeArea()
-                
+
                 RadialGradient(
                     colors: [palette.glowPrimary.opacity(0.15), .clear],
                     center: .topTrailing,
                     startRadius: 0,
                     endRadius: 600
                 ).ignoresSafeArea()
-                
+
                 RadialGradient(
                     colors: [palette.accent.opacity(0.1), .clear],
                     center: .bottomLeading,
                     startRadius: 0,
                     endRadius: 500
                 ).ignoresSafeArea()
-                
+
                 ScrollView {
-                    VStack(spacing: 24) {
+                    VStack(spacing: LVSpacing.xl) {
+                        SettingsHeroBand()
+
                         // HER-211 — trial countdown banner.
                         TrialCountdownBanner()
-                            .padding(.top, 10)
 
                         // HER-255 — Theme + light/dark switch
-                        glassSection(title: "Appearance") {
+                        LVSectionCard("Appearance") {
                             LVAppearanceSection()
                         }
 
-                        // Sync & Privacy
-                        glassSection(title: "Account & Data") {
-                            settingsRow(
-                                title: "Sync & Backup",
-                                icon: .arrowTriangle2Circlepath,
-                                destination: AnyView(SyncBackupView().modelContainer(appState.modelContainer))
-                            )
-                            settingsDivider
-                            settingsRow(
-                                title: "Privacy & Data",
-                                icon: .lockShield,
-                                destination: AnyView(PrivacyDataView(
+                        LVSectionCard("Account & Data") {
+                            LVSettingsRow("Sync & Backup", icon: .arrowTriangle2Circlepath) {
+                                SyncBackupView()
+                                    .modelContainer(appState.modelContainer)
+                            }
+                            LVSettingsDivider()
+                            LVSettingsRow("Privacy & Data", icon: .lockShield) {
+                                PrivacyDataView(
                                     viewModel: PrivacyDataViewModel(
                                         vaultClient: vaultClient,
                                         accountClient: accountClient,
                                         appState: appState
                                     ),
                                     securityViewModel: SecuritySettingsViewModel(keychain: appState.keychain)
-                                ))
-                            )
-                        }
-
-                        // Connections
-                        glassSection(title: "Connections") {
-                            settingsRow(
-                                title: "Linked Accounts",
-                                icon: .linkCircle,
-                                destination: AnyView(LinkedAccountsView(client: integrationsClient))
-                            )
-                            settingsDivider
-                            settingsRow(
-                                title: "LLM Providers",
-                                icon: .brain,
-                                destination: AnyView(ProvidersPaneView(client: providersClient))
-                            )
-                        }
-
-                        // Automation & Notifications
-                        glassSection(title: "Automation & Alerts") {
-                            settingsRow(
-                                title: "Skills",
-                                icon: .sparkles,
-                                destination: AnyView(SkillsHubView(vm: SkillsHubViewModel(client: skillsClient), detailClient: skillsClient))
-                            )
-                            settingsDivider
-                            settingsRow(
-                                title: "Automations",
-                                icon: .clockBadgeCheckmark,
-                                destination: AnyView(AutomationsView(vm: AutomationsViewModel(client: skillsClient)))
-                            )
-                            settingsDivider
-                            settingsRow(
-                                title: "Notifications",
-                                icon: .bellBadge,
-                                destination: AnyView(NotificationsPaneView(vm: NotificationsPaneViewModel(client: apnsPrefsClient)))
-                            )
-                        }
-
-                        // Subscription & About
-                        glassSection(title: "App") {
-                            settingsRow(
-                                title: "Subscription",
-                                icon: .creditcard,
-                                destination: AnyView(SubscriptionView())
-                            )
-                            settingsDivider
-                            settingsRow(
-                                title: "About LuminaVault",
-                                icon: .infoCircle,
-                                destination: AnyView(AboutView())
-                            )
-                        }
-
-                        // Server & Advanced
-                        glassSection(title: "System & Advanced") {
-                            settingsRow(
-                                title: "Server Connection",
-                                icon: .serverRack,
-                                destination: AnyView(ServerConnectionView(vm: ServerConnectionViewModel(soulClient: soulClient)))
-                            )
-                            settingsDivider
-
-                            // Hermes Gateway with connection badge
-                            NavigationLink {
-                                HermesGatewayPaneView(client: settingsClient)
-                            } label: {
-                                HStack(spacing: 16) {
-                                    LVIconView(.network, size: 18, tint: palette.glowPrimary, weight: .medium)
-                                        .frame(width: 24)
-                                    Text("Hermes Gateway")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundStyle(palette.textPrimary)
-                                    Spacer()
-                                    ConnectionBadge(state: .unknown)
-                                    LVIconView(.chevronRight, size: 12, tint: palette.textSecondary.opacity(0.5), weight: .semibold)
-                                }
-                                .padding(.vertical, 14)
-                                .padding(.horizontal, 16)
-                                .contentShape(Rectangle())
+                                )
                             }
-                            .buttonStyle(.plain)
+                        }
 
-                            settingsDivider
-                            settingsRow(
-                                title: "Messaging Gateways",
-                                icon: .bubbleLeftAndBubbleRight,
-                                destination: AnyView(HermesGatewaysPaneView(client: hermesGatewaysClient))
+                        LVSectionCard("Connections") {
+                            LVSettingsRow("Linked Accounts", icon: .linkCircle) {
+                                LinkedAccountsView(client: integrationsClient)
+                            }
+                            LVSettingsDivider()
+                            LVSettingsRow("LLM Providers", icon: .brain) {
+                                ProvidersPaneView(client: providersClient)
+                            }
+                        }
+
+                        LVSectionCard("Automation & Alerts") {
+                            LVSettingsRow("Skills", icon: .sparkles) {
+                                SkillsHubView(
+                                    vm: SkillsHubViewModel(client: skillsClient),
+                                    detailClient: skillsClient
+                                )
+                            }
+                            LVSettingsDivider()
+                            LVSettingsRow("Automations", icon: .clockBadgeCheckmark) {
+                                AutomationsView(vm: AutomationsViewModel(client: skillsClient))
+                            }
+                            LVSettingsDivider()
+                            LVSettingsRow("Notifications", icon: .bellBadge) {
+                                NotificationsPaneView(
+                                    vm: NotificationsPaneViewModel(client: apnsPrefsClient)
+                                )
+                            }
+                        }
+
+                        LVSectionCard("App") {
+                            LVSettingsRow("Subscription", icon: .creditcard) {
+                                SubscriptionView()
+                            }
+                            LVSettingsDivider()
+                            LVSettingsRow("About LuminaVault", icon: .infoCircle) {
+                                AboutView()
+                            }
+                        }
+
+                        LVSectionCard("System & Advanced") {
+                            LVSettingsRow("Server Connection", icon: .serverRack) {
+                                ServerConnectionView(vm: ServerConnectionViewModel(soulClient: soulClient))
+                            }
+                            LVSettingsDivider()
+                            LVSettingsRow(
+                                "Hermes Gateway",
+                                icon: .network,
+                                trailing: { ConnectionBadge(state: .unknown) },
+                                destination: { HermesGatewayPaneView(client: settingsClient) }
                             )
-                            settingsDivider
-                            settingsRow(
-                                title: "Model Preferences",
-                                icon: .sliderHorizontal3,
-                                destination: AnyView(LLMPreferencesPaneView(client: llmPreferencesClient))
-                            )
+                            LVSettingsDivider()
+                            LVSettingsRow("Messaging Gateways", icon: .bubbleLeftAndBubbleRight) {
+                                HermesGatewaysPaneView(client: hermesGatewaysClient)
+                            }
+                            LVSettingsDivider()
+                            LVSettingsRow("Model Preferences", icon: .sliderHorizontal3) {
+                                LLMPreferencesPaneView(client: llmPreferencesClient)
+                            }
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 40)
-                    .padding(.bottom, 140)
+                    .padding(.horizontal, LVSpacing.lg)
+                    .padding(.top, LVSpacing.xl)
+                    .padding(.bottom, LVSpacing.hero + LVSpacing.xxl)
                 }
             }
             .safeAreaInset(edge: .top) {
@@ -172,60 +134,7 @@ struct SettingsRootView: View {
         }
     }
 
-    private var headerSection: some View {
-        HStack {
-            Text("Settings")
-                .font(.system(size: 38, weight: .black, design: .rounded))
-                .foregroundStyle(palette.textPrimary)
-                .shadow(color: palette.glowPrimary.opacity(0.8), radius: 12)
-            Spacer()
-        }
-    }
-
-    private func glassSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title.uppercased())
-                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .foregroundStyle(palette.textSecondary)
-                .tracking(2)
-                .padding(.leading, 8)
-            
-            VStack(spacing: 0) {
-                content()
-            }
-            .lvGlassCard(cornerRadius: 24, intensity: 0.5)
-        }
-    }
-
-    private func settingsRow(title: String, icon: LVIcon, destination: AnyView) -> some View {
-        NavigationLink {
-            destination
-        } label: {
-            HStack(spacing: 16) {
-                LVIconView(icon, size: 18, tint: palette.glowPrimary, weight: .medium)
-                    .frame(width: 24)
-
-                Text(title)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(palette.textPrimary)
-
-                Spacer()
-
-                LVIconView(.chevronRight, size: 12, tint: palette.textSecondary.opacity(0.5), weight: .semibold)
-            }
-            .padding(.vertical, 14)
-            .padding(.horizontal, 16)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var settingsDivider: some View {
-        Divider()
-            .background(palette.surfaceStroke)
-            .padding(.leading, 56)
-    }
-
+    // MARK: - Client wiring (mirrors MainTabView's per-tab factories)
 
     private var apnsPrefsClient: any APNSPrefsClientProtocol {
         APNSPrefsHTTPClient(client: appState.makeHTTPClient())
@@ -238,8 +147,6 @@ struct SettingsRootView: View {
     private var soulClient: any SoulClientProtocol {
         SoulHTTPClient(client: appState.makeHTTPClient())
     }
-
-    // MARK: - Client wiring (mirrors MainTabView's per-tab factories)
 
     private var vaultClient: any VaultClientProtocol {
         VaultHTTPClient(client: appState.makeHTTPClient())
