@@ -160,27 +160,46 @@ public struct LuminaHeader: View {
     }
 }
 
-public struct SciFiCardView: View {
+// HER-304 — SciFiCardView is single-module only (used by Home + Reflect).
+// Dropped the `public` decoration so the new LVIcon-token init can stay
+// internal-scope alongside its parameter type.
+struct SciFiCardView: View {
     @Environment(\.lvPalette) private var palette
-    
-    public let icon: String
-    public let title: String
-    public let subtitle: String
-    public let color: SwiftUI.Color?
-    
-    public init(icon: String, title: String, subtitle: String, color: SwiftUI.Color? = nil) {
-        self.icon = icon
+
+    /// HER-304 — icon resolution. `.sfSymbol(_)` keeps the legacy path
+    /// (Reflect feature still passes raw SF Symbol strings). `.token(_)`
+    /// renders through `LVIconView` so any `LVIcon` case with a
+    /// `customAssetName` picks up its branded glyph for free.
+    enum IconKind {
+        case sfSymbol(String)
+        case token(LVIcon)
+    }
+
+    let iconKind: IconKind
+    let title: String
+    let subtitle: String
+    let color: SwiftUI.Color?
+
+    init(icon: String, title: String, subtitle: String, color: SwiftUI.Color? = nil) {
+        self.iconKind = .sfSymbol(icon)
         self.title = title
         self.subtitle = subtitle
         self.color = color
     }
-    
-    public var body: some View {
+
+    /// HER-304 — preferred init. Pass an `LVIcon` token; the view picks up
+    /// the branded `Lumina/Icons/*` PNG (HER-301) when one exists,
+    /// otherwise falls back to the token's SF Symbol.
+    init(icon: LVIcon, title: String, subtitle: String, color: SwiftUI.Color? = nil) {
+        self.iconKind = .token(icon)
+        self.title = title
+        self.subtitle = subtitle
+        self.color = color
+    }
+
+    var body: some View {
         VStack(spacing: LVSpacing.md) {
-            // HER-291: kept as Image — runtime symbol name
-            Image(systemName: icon)
-                .font(.system(size: 28, weight: .light)) // TODO HER-icon-tokens: scope deferred per HER-289
-                .foregroundStyle(color ?? palette.glowPrimary)
+            iconView
                 .shadow(color: (color ?? palette.glowPrimary).opacity(0.6), radius: 8)
 
             VStack(spacing: LVSpacing.xs) {
@@ -199,5 +218,18 @@ public struct SciFiCardView: View {
         .padding(.horizontal, LVSpacing.md)
         .frame(maxWidth: .infinity)
         .lvGlassCard(cornerRadius: LVRadius.card, intensity: 0.7)
+    }
+
+    @ViewBuilder
+    private var iconView: some View {
+        switch iconKind {
+        case .sfSymbol(let name):
+            // HER-291: kept as Image — runtime symbol name
+            Image(systemName: name)
+                .font(.system(size: 28, weight: .light))
+                .foregroundStyle(color ?? palette.glowPrimary)
+        case .token(let icon):
+            LVIconView(icon, size: 32, tint: color ?? palette.glowPrimary, weight: .light)
+        }
     }
 }

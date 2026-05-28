@@ -58,15 +58,29 @@ struct HomeView: View {
                     endRadius: 600
                 ).ignoresSafeArea()
                 
+                // HER-304 — subtle neural-network particle field anchored
+                // to the top half of the screen. Reads §13.4 placement rule:
+                // hero surface, subtle intensity, no scroll interaction.
+                Color.clear
+                    .lvParticleBackground(intensity: .subtle)
+                    .frame(maxHeight: 420)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .allowsHitTesting(false)
+
                 ScrollView {
                     VStack(spacing: 40) {
+                        // HER-304 — Mascot hero. Stitch reference places the
+                        // mascot prominently below the wordmark; previously
+                        // the Home tab had no mascot at all.
+                        MascotHero()
+
                         VStack(spacing: 24) {
                             quickActionsHeader
                             cardGrid
                         }
-                        
+
                         syncAndLearnButton
-                        
+
                         // Extra spacing at bottom for tab bar
                         Spacer().frame(height: 120)
                     }
@@ -102,33 +116,35 @@ struct HomeView: View {
     }
 
     private var cardGrid: some View {
+        // HER-304 — every card now ships an LVIcon token that resolves to
+        // a Lumina/Icons/* PNG (HER-301) for the brand-glyph look.
         LazyVGrid(columns: columns, spacing: 16) {
             // Row 1: Spaces, AI, Health
             NavigationLink { workspacesView } label: {
-                SciFiCardView(icon: "doc.text.fill", title: "Spaces", subtitle: "Winged docs")
+                SciFiCardView(icon: .scrollWinged, title: "Spaces", subtitle: "Winged docs")
             }
-            
+
             NavigationLink { sessionsDestination } label: {
-                SciFiCardView(icon: "brain.head.profile", title: "AI", subtitle: "Neural brain")
+                SciFiCardView(icon: .brainHeadProfile, title: "AI", subtitle: "Neural brain")
             }
-            
+
             NavigationLink {
                 healthDestination ?? sessionsDestination
             } label: {
-                SciFiCardView(icon: "heart.fill", title: "Health", subtitle: "Sparklines")
+                SciFiCardView(icon: .heartWinged, title: "Health", subtitle: "Sparklines")
             }
-            
+
             // Row 2: Ideas, Stocks, Work
             NavigationLink { insightsDestination } label: {
-                SciFiCardView(icon: "lightbulb.fill", title: "Ideas", subtitle: "Glowing light")
+                SciFiCardView(icon: .lightbulbFill, title: "Ideas", subtitle: "Glowing light")
             }
-            
+
             NavigationLink { sessionsDestination } label: {
-                SciFiCardView(icon: "chart.xyaxis.line", title: "Stocks", subtitle: "Market flow")
+                SciFiCardView(icon: .chartUp, title: "Stocks", subtitle: "Market flow")
             }
-            
+
             NavigationLink { visualSearchDestination ?? AnyView(EmptyView()) } label: {
-                SciFiCardView(icon: "briefcase.fill", title: "Work", subtitle: "Core tasks")
+                SciFiCardView(icon: .briefcase, title: "Work", subtitle: "Core tasks")
             }
         }
     }
@@ -159,28 +175,19 @@ struct HomeView: View {
             .padding(.vertical, 30)
             .frame(maxWidth: .infinity)
             .background {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 28)
-                        .fill(
-                            LinearGradient(
-                                colors: [palette.glowPrimary, palette.secondary],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+                // HER-304 — single cyan→secondary gradient fill (the white
+                // inner stroke was removed; cinematic gold ring carries the
+                // premium-CTA spec from DESIGN_SYSTEM §13.3).
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(
+                        LinearGradient(
+                            colors: [palette.glowPrimary, palette.secondary],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
-                    
-                    // Volumetric highlight
-                    RoundedRectangle(cornerRadius: 28)
-                        .stroke(
-                            LinearGradient(
-                                colors: [.white.opacity(0.6), .clear, .white.opacity(0.2)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1.5
-                        )
-                }
+                    )
             }
+            .lvAuroraGoldRing(cornerRadius: 28)
             .shadow(color: palette.glowPrimary.opacity(0.7), radius: 20)
             .shadow(color: palette.secondary.opacity(0.4), radius: 30)
             .lvGlowPress()
@@ -188,13 +195,37 @@ struct HomeView: View {
         .padding(.top, 10)
     }
     
-    // Helper to get Workspaces destination if needed, 
+    // Helper to get Workspaces destination if needed,
     // though in MainTabView it's already defined as a tab.
-    // For the "Spaces" card, we'll just navigate to a placeholder 
+    // For the "Spaces" card, we'll just navigate to a placeholder
     // or the existing sessions for now if not explicitly passed.
     private var workspacesView: AnyView {
         // Ideally we'd pass the spacesDestination but HomeView didn't have it.
         // I'll just use sessionsDestination as a placeholder if it's not provided.
         sessionsDestination
+    }
+}
+
+// MARK: - Mascot hero (HER-304)
+
+/// Large mascot anchor at the top of Home. Sits below `LuminaHeader`
+/// and above Quick Actions. Stitch reference puts the mascot here at
+/// roughly 200pt with a subtle particle halo (the halo is the parent
+/// `lvParticleBackground` underlayer, not painted by this view).
+private struct MascotHero: View {
+    @Environment(\.lvPalette) private var palette
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HermieMascotView(state: .idle, size: 200, fallbackImageName: "hermie-hero")
+                .shadow(color: palette.glowPrimary.opacity(0.55), radius: 28)
+                .shadow(color: palette.accent.opacity(0.25), radius: 48)
+                .accessibilityHidden(true)
+
+            Text("Your second brain is online.")
+                .font(LVTypography.callout.font)
+                .foregroundStyle(palette.textSecondary)
+        }
+        .padding(.top, 4)
     }
 }
