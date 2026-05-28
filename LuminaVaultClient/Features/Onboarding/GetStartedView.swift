@@ -29,7 +29,7 @@ struct GetStartedView: View {
                     .opacity(mascotOpacity)
 
                 VStack(spacing: LVSpacing.sm) {
-                    Text("Welcome to LuminaVault")
+                    Text("Your Knowledge, Transcended")
                         .lvFont(.display)
                         .foregroundStyle(
                             LinearGradient(
@@ -55,7 +55,7 @@ struct GetStartedView: View {
 
                 Spacer(minLength: LVSpacing.base)
 
-                LVButton("Get Started") {
+                LVButton("Begin Journey") {
                     onContinue()
                 }
                 .padding(.horizontal, LVSpacing.xl)

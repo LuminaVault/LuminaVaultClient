@@ -43,6 +43,7 @@ struct SpaceCardView: View {
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .lvGlassCard(cornerRadius: 24, intensity: 0.7)
+        .lvGlowStroke(cornerRadius: 24, intensity: LVGlow.card)
         .contextMenu {
             Button {
                 onEdit()

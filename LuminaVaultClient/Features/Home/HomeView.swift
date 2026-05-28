@@ -217,7 +217,7 @@ private struct MascotHero: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            HermieMascotView(state: .idle, size: 200, fallbackImageName: "hermie-hero")
+            HermieMascotView(state: .idle, size: 200, fallbackImageName: "Lumina/Mascot/hermie-hero")
                 .shadow(color: palette.glowPrimary.opacity(0.55), radius: 28)
                 .shadow(color: palette.accent.opacity(0.25), radius: 48)
                 .accessibilityHidden(true)

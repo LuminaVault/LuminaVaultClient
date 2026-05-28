@@ -55,7 +55,7 @@ struct SettingsHeroBand: View {
                 .allowsHitTesting(false)
 
             HermieMascotView(state: .idle, size: mascotSize,
-                             fallbackImageName: "hermie-hero")
+                             fallbackImageName: "Lumina/Mascot/hermie-hero")
                 .frame(width: mascotSize, height: mascotSize)
                 .clipShape(Circle())
                 .overlay {
