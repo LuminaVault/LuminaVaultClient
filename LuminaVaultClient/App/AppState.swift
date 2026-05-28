@@ -311,6 +311,24 @@ final class AppState {
         OnboardingHTTPClient(client: makeHTTPClient())
     }
 
+    /// HER-300 — LLM preferences client factory (`GET`/`PUT
+    /// /v1/me/preferences/llm`). The Choose-Your-Brain onboarding gate
+    /// and the Settings → Intelligence pane both build off this; sharing
+    /// the factory keeps the refresh-coordinator-aware HTTP client
+    /// consistent.
+    func makeLLMPreferencesClient() -> LLMPreferencesHTTPClient {
+        LLMPreferencesHTTPClient(client: makeHTTPClient())
+    }
+
+    /// HER-300 — Providers client factory (per-user credential CRUD for
+    /// the BYOK flow). Used by the Choose-Your-Brain gate to push the
+    /// existing `ProvidersPaneView` when the user selects "Use my own
+    /// API key", so onboarding can reuse the live Settings surface
+    /// instead of duplicating credential UI.
+    func makeProvidersClient() -> any ProvidersClientProtocol {
+        ProvidersHTTPClient(client: makeHTTPClient())
+    }
+
     /// HER-100 — SOUL.md client factory. Mirrors the existing
     /// `SoulHTTPClient` wiring used by Settings → Server Connection so
     /// the quiz confirm step can `PUT /v1/soul` against the same

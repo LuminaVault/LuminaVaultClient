@@ -231,6 +231,30 @@ struct LuminaVaultClientApp: App {
                                             }
                                         }
                                     }
+                                } else if !(appState.onboardingState?.brainConfiguredCompleted == true) {
+                                    // HER-300 ticket 4 — brain-choice gate sits
+                                    // AFTER the SOUL quiz and BEFORE the main
+                                    // shell. The user picks managed default
+                                    // (Qwen2.5-72B) or BYOK; either path
+                                    // latches `brainConfiguredCompleted`
+                                    // server-side so the gate never re-fires
+                                    // once cleared. A nil onboarding ladder
+                                    // (cold-launch race) is treated as
+                                    // "uncompleted" so the gate is the
+                                    // conservative default; the next
+                                    // `loadOnboardingState()` re-renders into
+                                    // MainTabView if the latch is already
+                                    // true.
+                                    ChooseYourBrainScreen(
+                                        viewModel: ChooseYourBrainViewModel(
+                                            preferencesClient: appState.makeLLMPreferencesClient(),
+                                            onboardingClient: appState.makeOnboardingClient(),
+                                            onCompleted: {
+                                                Task { await appState.loadOnboardingState() }
+                                            }
+                                        ),
+                                        makeProvidersClient: { appState.makeProvidersClient() }
+                                    )
                                 } else {
                                     MainTabView()
                                         .environment(\.captureCoordinator, captureCoordinator)
