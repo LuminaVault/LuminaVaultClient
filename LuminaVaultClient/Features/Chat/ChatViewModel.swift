@@ -85,6 +85,14 @@ final class ChatViewModel {
     private let chatClient: any ChatClientProtocol
     private let memoryClient: any MemoryClientProtocol
     private let historyStore: ChatHistoryStore?
+    /// HER-153 — owns the hold-to-talk recording state and Lumina's
+    /// spoken-reply pipeline. Lazily wired through the init chain so
+    /// existing call sites and previews don't need to know about it.
+    let voice: VoiceModeController
+    /// HER-153 — set true when the user's prompt came from the mic
+    /// (`sendVoiceTranscript`). On `.done`, the assistant reply is
+    /// auto-spoken iff this flag is set. Reset after each finalize.
+    private var lastInputWasVoice = false
     private(set) var conversationID: UUID?
     private var streamTask: Task<Void, Never>?
     private var mascotDecayTask: Task<Void, Never>?
@@ -97,11 +105,16 @@ final class ChatViewModel {
         chatClient: any ChatClientProtocol,
         memoryClient: any MemoryClientProtocol,
         historyStore: ChatHistoryStore? = nil,
+        voice: VoiceModeController = VoiceModeController(),
     ) {
         self.conversationsClient = conversationsClient
         self.chatClient = chatClient
         self.memoryClient = memoryClient
         self.historyStore = historyStore
+        self.voice = voice
+        self.voice.onFinalTranscript = { [weak self] transcript in
+            self?.sendVoiceTranscript(transcript)
+        }
     }
 
     /// Back-compat overload for callers that only need memory-grounded
@@ -159,6 +172,19 @@ final class ChatViewModel {
     /// Programmatic seed — used by empty-state suggestion chips.
     func sendSuggestion(_ text: String) {
         composer = text
+        send()
+    }
+
+    /// HER-153 — entry point from `VoiceModeController.onFinalTranscript`.
+    /// Seeds the composer with the recognized text, flags the next
+    /// reply as voice-originated, and triggers a normal send. Marker
+    /// is consumed in `finalizeAssistantTurn` to decide whether to
+    /// auto-speak.
+    func sendVoiceTranscript(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        composer = trimmed
+        lastInputWasVoice = true
         send()
     }
 
@@ -376,16 +402,25 @@ final class ChatViewModel {
             sources: pendingSources,
         )
         messages.append(assistant)
+        let spokenBody = pendingAssistant
         pendingAssistant = ""
         pendingSources = []
         schedulePersist()
+        // HER-153 — speak reply iff the user's prompt was voice. Typed
+        // prompts stay silent regardless of voice availability.
+        if lastInputWasVoice {
+            voice.speak(spokenBody)
+        }
+        lastInputWasVoice = false
     }
 
     /// Cancel the in-flight stream. Partial text already streamed is
     /// preserved as a complete assistant turn so the user can read it.
+    /// Also silences Lumina mid-utterance if she's currently speaking.
     func cancel() {
         streamTask?.cancel()
         streamTask = nil
+        if voice.isSpeaking { voice.stopSpeaking() }
     }
 
     /// Wipe the conversation client-side and forget the server id. Also
