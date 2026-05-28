@@ -32,7 +32,7 @@ struct ProvidersPaneView: View {
                 }
             } footer: {
                 Text("Falls back through your chain automatically when a provider runs out of credits or rate-limits.")
-                    .font(.footnote)
+                    .font(LVTypography.footnote.font)
                     .foregroundStyle(.secondary)
             }
         }
@@ -88,16 +88,16 @@ struct ProviderTestToast: View {
     let providerName: String
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: LVSpacing.sm) {
             // HER-291: kept as Image — runtime symbol name
             Image(systemName: icon)
                 .foregroundStyle(tint)
             Text(message)
-                .font(.callout)
+                .font(LVTypography.callout.font)
                 .foregroundStyle(.primary)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, LVSpacing.base)
+        .padding(.vertical, LVSpacing.md)
         .background(.thinMaterial, in: Capsule())
         .shadow(radius: 2)
     }
