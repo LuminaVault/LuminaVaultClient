@@ -1,4 +1,4 @@
-// LuminaVaultClient/LuminaVaultClient/Components/HVLogoMark.swift
+// LuminaVaultClient/LuminaVaultClient/Components/LVLogoMark.swift
 //
 // Renders the LuminaVault winged-scroll brand mark with a layered cosmic
 // halo, optional sparkle particles, and a Rive-backed wing animation

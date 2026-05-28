@@ -46,7 +46,7 @@ enum LVTypography {
     /// `.caption2` weight `.semibold` — micro tags, env badges.
     case microTag
 
-    /// 13pt weight `.heavy` — primary CTA button labels (`HVButton`).
+    /// 13pt weight `.heavy` — primary CTA button labels (`LVButton`).
     case button
 
     /// 18pt weight `.bold`, monospaced digit — OTP entry, code displays.

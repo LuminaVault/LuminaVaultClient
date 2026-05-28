@@ -39,7 +39,7 @@ enum LVSpacing {
 /// Component sizing tokens — for surfaces whose dimensions are part of the
 /// design language (button heights, tab-bar heights, icon sizes).
 enum LVSize {
-    /// 48pt — primary CTA button height (`HVButton`).
+    /// 48pt — primary CTA button height (`LVButton`).
     public static let buttonHeight: CGFloat = 48
 
     /// 56pt — secondary surface height (large CTA, search bar).
