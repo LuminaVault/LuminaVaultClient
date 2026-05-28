@@ -13,6 +13,7 @@
 // remembered and the anchored queries are incremental.
 
 import Foundation
+import HealthKit
 import OSLog
 
 private let log = Logger(subsystem: "com.luminavault", category: "healthkit.coordinator")
@@ -58,5 +59,50 @@ final class HealthKitCoordinator {
         await service.disableBackgroundDelivery()
         isStarted = false
         log.info("HealthKit stopped")
+    }
+
+    /// HER-118 — coarse permission probe for the dashboard empty state.
+    /// HealthKit reports `sharingAuthorizationStatus` per type; we collapse
+    /// the matrix into a 3-value summary (denied if ANY metric is denied;
+    /// notDetermined if ANY is not yet asked; granted otherwise).
+    func currentPermissionState() async -> PermissionState {
+        guard HKHealthStore.isHealthDataAvailable() else { return .denied }
+        let store = HKHealthStore()
+        let types: [HKObjectType] = [
+            HKObjectType.quantityType(forIdentifier: .stepCount)!,
+            HKObjectType.quantityType(forIdentifier: .heartRate)!,
+            HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!,
+            HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!,
+        ]
+        var hasDenied = false
+        var hasNotDetermined = false
+        for type in types {
+            switch store.authorizationStatus(for: type) {
+            case .sharingDenied: hasDenied = true
+            case .notDetermined: hasNotDetermined = true
+            case .sharingAuthorized: continue
+            @unknown default: continue
+            }
+        }
+        if hasDenied { return .denied }
+        if hasNotDetermined { return .notDetermined }
+        return .granted
+    }
+
+    /// HER-118 — explicit re-authorization trigger for the dashboard's
+    /// "Connect HealthKit" CTA. Idempotent; safe to call repeatedly.
+    func requestAuthorizationIfNeeded() async {
+        do {
+            try await service.requestAuthorization()
+            await service.enableBackgroundDelivery()
+        } catch {
+            log.error("HealthKit reauth failed: \(error.localizedDescription)")
+        }
+    }
+
+    enum PermissionState: Equatable {
+        case granted
+        case denied
+        case notDetermined
     }
 }

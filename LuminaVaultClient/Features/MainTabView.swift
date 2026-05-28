@@ -272,6 +272,12 @@ struct MainTabView: View {
                     telemetry: LoggerTelemetry(),
                 ))
             ),
+            healthDestination: AnyView(
+                HealthDashboardScreen(
+                    httpClient: appState.makeHTTPClient(),
+                    coordinator: appState.healthKit,
+                )
+            ),
         )
     }
 
