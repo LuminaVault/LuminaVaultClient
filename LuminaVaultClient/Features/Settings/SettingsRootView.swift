@@ -47,13 +47,13 @@ struct SettingsRootView: View {
                         glassSection(title: "Account & Data") {
                             settingsRow(
                                 title: "Sync & Backup",
-                                icon: "arrow.triangle.2.circlepath",
+                                icon: .arrowTriangle2Circlepath,
                                 destination: AnyView(SyncBackupView().modelContainer(appState.modelContainer))
                             )
                             settingsDivider
                             settingsRow(
                                 title: "Privacy & Data",
-                                icon: "lock.shield",
+                                icon: .lockShield,
                                 destination: AnyView(PrivacyDataView(
                                     viewModel: PrivacyDataViewModel(
                                         vaultClient: vaultClient,
@@ -69,13 +69,13 @@ struct SettingsRootView: View {
                         glassSection(title: "Connections") {
                             settingsRow(
                                 title: "Linked Accounts",
-                                icon: "link.circle",
+                                icon: .linkCircle,
                                 destination: AnyView(LinkedAccountsView(client: integrationsClient))
                             )
                             settingsDivider
                             settingsRow(
                                 title: "LLM Providers",
-                                icon: "brain",
+                                icon: .brain,
                                 destination: AnyView(ProvidersPaneView(client: providersClient))
                             )
                         }
@@ -84,19 +84,19 @@ struct SettingsRootView: View {
                         glassSection(title: "Automation & Alerts") {
                             settingsRow(
                                 title: "Skills",
-                                icon: "sparkles",
+                                icon: .sparkles,
                                 destination: AnyView(SkillsHubView(vm: SkillsHubViewModel(client: skillsClient), detailClient: skillsClient))
                             )
                             settingsDivider
                             settingsRow(
                                 title: "Automations",
-                                icon: "clock.badge.checkmark",
+                                icon: .clockBadgeCheckmark,
                                 destination: AnyView(AutomationsView(vm: AutomationsViewModel(client: skillsClient)))
                             )
                             settingsDivider
                             settingsRow(
                                 title: "Notifications",
-                                icon: "bell.badge",
+                                icon: .bellBadge,
                                 destination: AnyView(NotificationsPaneView(vm: NotificationsPaneViewModel(client: apnsPrefsClient)))
                             )
                         }
@@ -105,13 +105,13 @@ struct SettingsRootView: View {
                         glassSection(title: "App") {
                             settingsRow(
                                 title: "Subscription",
-                                icon: "creditcard",
+                                icon: .creditcard,
                                 destination: AnyView(SubscriptionView())
                             )
                             settingsDivider
                             settingsRow(
                                 title: "About LuminaVault",
-                                icon: "info.circle",
+                                icon: .infoCircle,
                                 destination: AnyView(AboutView())
                             )
                         }
@@ -120,45 +120,41 @@ struct SettingsRootView: View {
                         glassSection(title: "System & Advanced") {
                             settingsRow(
                                 title: "Server Connection",
-                                icon: "server.rack",
+                                icon: .serverRack,
                                 destination: AnyView(ServerConnectionView(vm: ServerConnectionViewModel(soulClient: soulClient)))
                             )
                             settingsDivider
-                            
+
                             // Hermes Gateway with connection badge
                             NavigationLink {
                                 HermesGatewayPaneView(client: settingsClient)
                             } label: {
                                 HStack(spacing: 16) {
-                                    Image(systemName: "network")
-                                        .font(.system(size: 18, weight: .medium))
-                                        .foregroundStyle(palette.glowPrimary)
+                                    LVIconView(.network, size: 18, tint: palette.glowPrimary, weight: .medium)
                                         .frame(width: 24)
                                     Text("Hermes Gateway")
                                         .font(.system(size: 16, weight: .medium))
                                         .foregroundStyle(palette.textPrimary)
                                     Spacer()
                                     ConnectionBadge(state: .unknown)
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundStyle(palette.textSecondary.opacity(0.5))
+                                    LVIconView(.chevronRight, size: 12, tint: palette.textSecondary.opacity(0.5), weight: .semibold)
                                 }
                                 .padding(.vertical, 14)
                                 .padding(.horizontal, 16)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
-                            
+
                             settingsDivider
                             settingsRow(
                                 title: "Messaging Gateways",
-                                icon: "bubble.left.and.bubble.right",
+                                icon: .bubbleLeftAndBubbleRight,
                                 destination: AnyView(HermesGatewaysPaneView(client: hermesGatewaysClient))
                             )
                             settingsDivider
                             settingsRow(
                                 title: "Model Preferences",
-                                icon: "slider.horizontal.3",
+                                icon: .sliderHorizontal3,
                                 destination: AnyView(LLMPreferencesPaneView(client: llmPreferencesClient))
                             )
                         }
@@ -201,25 +197,21 @@ struct SettingsRootView: View {
         }
     }
 
-    private func settingsRow(title: String, icon: String, destination: AnyView) -> some View {
+    private func settingsRow(title: String, icon: LVIcon, destination: AnyView) -> some View {
         NavigationLink {
             destination
         } label: {
             HStack(spacing: 16) {
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(palette.glowPrimary)
+                LVIconView(icon, size: 18, tint: palette.glowPrimary, weight: .medium)
                     .frame(width: 24)
-                
+
                 Text(title)
                     .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(palette.textPrimary)
-                
+
                 Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(palette.textSecondary.opacity(0.5))
+
+                LVIconView(.chevronRight, size: 12, tint: palette.textSecondary.opacity(0.5), weight: .semibold)
             }
             .padding(.vertical, 14)
             .padding(.horizontal, 16)

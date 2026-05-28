@@ -10,16 +10,20 @@
 import SwiftUI
 
 /// One entry in the LuminaVault tab bar.
+///
+/// HER-291: `icon` is now an `LVIcon` token. The token carries both
+/// the SF Symbol fallback and the optional `Lumina/Tab/*` branded asset
+/// path, so callers no longer pair `systemImage:` + `customImageName:`
+/// by hand.
 struct LVTabItem: Identifiable, Equatable {
     /// Stable identity — used as the TabView selection value.
     let id: String
     /// Display label below the icon.
     let label: String
-    /// SF Symbol fallback shown when no custom imageset is provided or when
-    /// the imageset is missing in the catalog.
-    let systemImage: String
-    /// Optional namespaced imageset under `Lumina/Tab/` (e.g. `spaces`).
-    let customImageName: String?
+    /// Token-resolved icon. Tab-flavoured cases (`.tabHome`, `.tabSpaces`,
+    /// …) carry a `Lumina/Tab/*` custom asset; other cases fall through
+    /// to their SF Symbol.
+    let icon: LVIcon
     /// When true, the tab pulses softly to invite attention. The Home tab
     /// uses this for "you have new insights waiting".
     let pulses: Bool
@@ -27,14 +31,12 @@ struct LVTabItem: Identifiable, Equatable {
     init(
         id: String,
         label: String,
-        systemImage: String,
-        customImageName: String? = nil,
+        icon: LVIcon,
         pulses: Bool = false
     ) {
         self.id = id
         self.label = label
-        self.systemImage = systemImage
-        self.customImageName = customImageName
+        self.icon = icon
         self.pulses = pulses
     }
 }
@@ -70,11 +72,10 @@ struct LVTabBar: View {
             return LVTabItem(
                 id: "lv.tab.more",
                 label: active.label,
-                systemImage: active.systemImage,
-                customImageName: active.customImageName,
+                icon: active.icon,
             )
         }
-        return LVTabItem(id: "lv.tab.more", label: "More", systemImage: "ellipsis")
+        return LVTabItem(id: "lv.tab.more", label: "More", icon: .ellipsis)
     }
 
     var body: some View {
@@ -160,7 +161,7 @@ private struct LVTabBarMoreButton: View {
                         selection = overflowItem.id
                     }
                 } label: {
-                    Label(overflowItem.label, systemImage: overflowItem.systemImage)
+                    Label(overflowItem.label, systemImage: overflowItem.icon.sfSymbol)
                 }
             }
         } label: {
@@ -219,19 +220,26 @@ private struct LVTabBarItemContent: View {
         .contentShape(Rectangle())
     }
 
+    // HER-291 — name + custom-asset resolution comes from `LVIcon`,
+    // but rendering stays tab-specific: branded `Lumina/Tab/*` glyphs
+    // load with `renderingMode(.original)` so the full-colour artwork
+    // shows through, with saturation damping on inactive tabs.
+    // `LVIconView` is intentionally NOT used here — it forces template
+    // rendering, which would flatten the brand artwork to a single
+    // tint and break the existing tab-bar look.
     @ViewBuilder
     private var iconView: some View {
-        if let custom = item.customImageName,
-           UIImage(named: "Lumina/Tab/\(custom)") != nil {
-            Image("Lumina/Tab/\(custom)")
+        if let assetName = item.icon.customAssetName,
+           UIImage(named: assetName) != nil {
+            Image(assetName)
                 .resizable()
                 .renderingMode(.original)
                 .aspectRatio(contentMode: .fit)
                 .saturation(isActive ? 1.0 : 0.55)
                 .opacity(isActive ? 1.0 : 0.75)
         } else {
-            Image(systemName: item.systemImage)
-                .font(.system(size: 22, weight: .medium))
+            Image(systemName: item.icon.sfSymbol)
+                .font(.system(size: LVSize.tabBarGlyph, weight: .medium))
                 .foregroundStyle(isActive ? palette.primary : palette.textSecondary.opacity(0.85))
         }
     }

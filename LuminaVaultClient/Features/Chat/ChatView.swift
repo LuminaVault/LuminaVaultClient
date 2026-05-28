@@ -60,9 +60,7 @@ struct ChatView: View {
                                 Button {
                                     viewModel.reset()
                                 } label: {
-                                    Image(systemName: "trash")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(.secondary)
+                                    LVIconView(.trash, size: 14, tint: .secondary)
                                 }
                             }
                             .padding(.bottom, 8)
@@ -172,9 +170,7 @@ private struct EmptyStateHero: View {
                 
                 Spacer()
                 
-                Image(systemName: "person.circle.fill")
-                    .font(.system(size: 32, weight: .light))
-                    .foregroundStyle(palette.glowPrimary)
+                LVIconView(.personCircleFill, size: 32, tint: palette.glowPrimary, weight: .light)
                     .shadow(color: palette.glowPrimary.opacity(0.6), radius: 8)
             }
             
@@ -390,8 +386,7 @@ private struct SavedToast: View {
     let text: String
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+            LVIconView(.checkmarkCircleFill, size: 17, tint: .green)
             Text(text)
                 .font(.footnote)
                 .foregroundStyle(.primary)
@@ -425,8 +420,7 @@ private struct VoiceErrorToast: View {
     let text: String
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+            LVIconView(.exclamationmarkTriangleFill, size: 14, tint: .orange)
             Text(text)
                 .font(.footnote)
                 .foregroundStyle(.primary)
@@ -446,8 +440,7 @@ private struct ErrorRow: View {
     let message: String
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+            LVIconView(.exclamationmarkTriangleFill, size: 14, tint: .orange)
             Text(message)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -473,9 +466,7 @@ private struct ComposerBar: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(palette.glowPrimary)
+            LVIconView(.magnifyingglass, size: 18, tint: palette.glowPrimary, weight: .bold)
 
             ZStack(alignment: .leading) {
                 TextField("Ask Hermie anything...", text: $text, axis: .vertical)
@@ -498,18 +489,14 @@ private struct ComposerBar: View {
 
             if isStreaming {
                 Button(action: onCancel) {
-                    Image(systemName: "stop.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(palette.accent)
+                    LVIconView(.stopCircleFill, size: 24, tint: palette.accent)
                 }
             } else {
                 MicHoldButton(voice: voice)
 
                 if !text.isEmpty && canSend {
                     Button(action: onSend) {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(palette.glowPrimary)
+                        LVIconView(.arrowUpCircleFill, size: 28, tint: palette.glowPrimary)
                             .shadow(color: palette.glowPrimary.opacity(0.6), radius: 8)
                     }
                 }

@@ -199,7 +199,8 @@ Prefix convention:
 |----------------------|--------------------------------------------|-------|
 | `HVLogoMark`         | `Components/HVLogoMark.swift`              | Static logo glyph. |
 | `LVNavigationBrand`  | `Components/LVNavigationBrand.swift`       | Brand mark + wordmark for nav bar. |
-| `LVTabBar`           | `Components/LVTabBar.swift`                | Custom 5-tab bar. Home tab uses `.lvPulse` gated on pending insights. |
+| `LVTabBar`           | `Components/LVTabBar.swift`                | Custom 5-tab bar. Home tab uses `.lvPulse` gated on pending insights. Tab icons resolve via `LVIcon` (§12). |
+| `LVIconView`         | `Utilities/LVIcon.swift`                   | Renders an `LVIcon` token with theme tint + size (§12). Custom-asset fallback transparent. |
 | `EnvironmentTagView` | `Components/EnvironmentTagView.swift`      | Dev/staging/prod environment badge. |
 | `LVPasteBanner`      | `Components/LVPasteBanner.swift`           | Clipboard-paste prompt banner. |
 | `LVEmptyState`       | `Components/LVEmptyState.swift`            | Empty list illustration + CTA. |
@@ -303,6 +304,94 @@ VStack(spacing: LVSpacing.md) { ... }
 
 ## 11. Known Gaps
 
-- No icon token system — features use SF Symbols directly with palette tints.
+- ~~No icon token system — features use SF Symbols directly with palette tints.~~ Closed by HER-291 — see §12.
 - Snapshot test coverage uneven — HermesGateways suite is the reference pattern; expand to other components incrementally.
 - Many feature views still contain ad-hoc `.font(.system(size:))` and raw point literals — migrate incrementally as files are touched.
+- LVIcon migration is exemplar-only — `LVTabBar`, `MainTabView`, `SettingsRootView`, `AuthLandingView`, `ChatView` use it; ~150 other call sites still pass raw SF Symbol strings.
+
+---
+
+## 12. Icons (`LVIcon`)
+
+`LuminaVaultClient/Utilities/LVIcon.swift` is the fourth token tier alongside `LVPalette`, `LVTypography`, and `LVSpacing`/`LVSize`/`LVRadius`. It is the source of truth for every icon used in the app and the only place SF Symbol strings live.
+
+```swift
+LVIconView(.lockShield, size: 18, tint: palette.glowPrimary, weight: .medium)
+    .frame(width: 24)
+```
+
+### Why a token tier
+
+Three concrete wins over raw `Image(systemName:)`:
+
+1. **Single source of truth.** Symbol strings live in one enum. Renaming or swapping an icon is one file edit.
+2. **Automatic custom-asset fallback.** Cases that have a branded glyph under `Assets.xcassets/Lumina/Tab/` or `Lumina/Icons/` use the custom asset transparently — designers drop a PNG in, call sites get the upgrade for free.
+3. **Themed by default.** `LVIconView` reads palette tints and `LVSize` tokens, so icons stay consistent with the rest of the design language.
+
+### `LVIcon` cases
+
+Cases are grouped semantically in the source file. The full list is browsable in `LVIcon.swift`; key entries:
+
+| Case                       | SF Symbol                              | Custom asset (if any)         |
+|----------------------------|----------------------------------------|-------------------------------|
+| `.tabHome`                 | `sparkles`                             | `Lumina/Tab/home`             |
+| `.tabSpaces`               | `folder.fill`                          | `Lumina/Tab/spaces`           |
+| `.tabThink`                | `bubble.left.and.text.bubble.right`    | `Lumina/Tab/think`            |
+| `.tabSettings`             | `gear`                                 | `Lumina/Tab/settings`         |
+| `.tabVisualSearch`         | `photo.on.rectangle.angled`            | `Lumina/Tab/visualsearch`     |
+| `.apple`                   | `apple.logo`                           | —                             |
+| `.keyFill`                 | `key.fill`                             | —                             |
+| `.lockShield`              | `lock.shield`                          | —                             |
+| `.chevronRight`            | `chevron.right`                        | —                             |
+| `.magnifyingglass`         | `magnifyingglass`                      | —                             |
+| `.checkmarkCircleFill`     | `checkmark.circle.fill`                | —                             |
+| `.arrowUpCircleFill`       | `arrow.up.circle.fill`                 | —                             |
+| `.stopCircleFill`          | `stop.circle.fill`                     | —                             |
+| `.brain`                   | `brain`                                | —                             |
+| `.sparkles`                | `sparkles`                             | —                             |
+
+(Trimmed — see `LVIcon.swift` for the full set.)
+
+### Rendering — `LVIconView`
+
+```swift
+LVIconView(
+    _ icon: LVIcon,
+    size: CGFloat = LVSize.rowGlyph,   // 28pt default
+    tint: Color? = nil,                // default Color.primary
+    weight: Font.Weight = .regular,
+)
+```
+
+- **Default size** is `LVSize.rowGlyph` (28pt) — list-row leading glyphs. Pass `LVSize.tabBarGlyph` (22pt) inside tab bars. For inline body glyphs (composer search icon, etc.) pass an explicit pt value.
+- Custom assets render with `.template` mode + tint — the same `LVIcon` case looks consistent everywhere it's used outside the tab bar.
+- Glow / pulse / press effects stay on the wrapper view (`.lvPulse()`, `.lvGlowStroke()`, `.shadow(...)`). `LVIconView` only resolves name + tint.
+
+### `LVTabBar` is special
+
+`LVTabBar` resolves names via `LVIcon` but renders custom assets with `.original` mode + saturation damping — that preserves the full-colour brand artwork on the active tab and fades it to ~55% saturation on inactive tabs. `LVIconView` is intentionally not used inside the tab bar.
+
+### Migration recipe
+
+For each ad-hoc `Image(systemName:)` or `Label(_:systemImage:)`:
+
+1. Find the SF Symbol string.
+2. Find or add the matching `LVIcon` case in `LVIcon.swift` (alphabetical inside its semantic group).
+3. Rewrite the call site:
+
+| Old                                                                                 | New                                                                          |
+|-------------------------------------------------------------------------------------|------------------------------------------------------------------------------|
+| `Image(systemName: "key.fill")`                                                     | `LVIconView(.keyFill)`                                                       |
+| `Image(systemName: "key.fill").foregroundStyle(palette.accent)`                     | `LVIconView(.keyFill, tint: palette.accent)`                                 |
+| `Image(systemName: "lock.shield").font(.system(size: 18, weight: .medium))`         | `LVIconView(.lockShield, size: 18, weight: .medium)`                         |
+| `Label("X", systemImage: "key.fill")` (stays valid SwiftUI — leave it)              | `Label("X", systemImage: LVIcon.keyFill.sfSymbol)` if a token is needed      |
+
+`Label(_:systemImage:)` is left in place by default — SwiftUI menus and toolbars take the string form, and a wrapped `Label { } icon: { LVIconView(...) }` is heavier than the value of forcing the migration. Wrap manually when a custom-asset fallback is required.
+
+### Adding a new icon
+
+1. Append the case to `LVIcon.swift` inside its semantic group (alphabetical).
+2. Return its SF Symbol from `sfSymbol`.
+3. (Optional) Map a custom asset path in `customAssetName`.
+4. Add a row to the table above.
+5. Bump this section in the same PR.

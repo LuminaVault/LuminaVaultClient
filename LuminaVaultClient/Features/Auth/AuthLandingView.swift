@@ -280,13 +280,14 @@ private struct AuthLandingButton: View {
         .accessibilityAddTraits(isPreferred ? [.isSelected] : [])
     }
 
+    // HER-291 — provider glyphs resolve via `LVIcon`. Apple keeps its
+    // text-tone tint; passkey/phone/email use `palette.primary`. Google
+    // and X stay as text glyphs (no SF Symbol counterpart).
     @ViewBuilder
     private var iconView: some View {
         switch option {
         case .apple:
-            Image(systemName: "apple.logo")
-                .font(.system(size: 18))
-                .foregroundStyle(palette.textPrimary)
+            LVIconView(.apple, size: 18, tint: palette.textPrimary)
         case .google:
             Text("G")
                 .font(.system(size: 16, weight: .bold))
@@ -296,17 +297,11 @@ private struct AuthLandingButton: View {
                 .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(palette.textPrimary)
         case .passkey:
-            Image(systemName: "key.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(palette.primary)
+            LVIconView(.keyFill, size: 16, tint: palette.primary, weight: .semibold)
         case .phone:
-            Image(systemName: "phone.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(palette.primary)
+            LVIconView(.phoneFill, size: 16, tint: palette.primary, weight: .semibold)
         case .email:
-            Image(systemName: "envelope.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(palette.primary)
+            LVIconView(.envelopeFill, size: 16, tint: palette.primary, weight: .semibold)
         }
     }
 }
