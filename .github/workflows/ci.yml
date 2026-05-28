@@ -103,6 +103,18 @@ jobs:
           echo "name=$name" >> "$GITHUB_OUTPUT"
           echo "Selected simulator: $name ($udid) in $newest_runtime"
 
+      - name: Boot simulator and verify Xcode sees it
+        run: |
+          set -euo pipefail
+          udid="${{ steps.sim.outputs.udid }}"
+          echo "Booting $udid..."
+          xcrun simctl boot "$udid" || true
+          xcrun simctl bootstatus "$udid" -b
+          echo "--- xcodebuild -showdestinations ---"
+          xcodebuild -project LuminaVaultClient.xcodeproj \
+            -scheme LuminaVaultClient \
+            -showdestinations 2>&1 | grep -i "ios simulator" || true
+
       - name: Run unit tests (Debug, with coverage)
         run: |
           xcodebuild test \
