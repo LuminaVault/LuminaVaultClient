@@ -29,17 +29,17 @@ struct ConnectionBadge: View {
     let state: ConnectionState
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: LVSpacing.sm) {
             Circle()
                 .fill(state.tint)
                 .frame(width: 8, height: 8)
                 .shadow(color: state.tint.opacity(0.6), radius: 4)
             Text(state.label)
-                .font(.caption.weight(.medium))
+                .font(LVTypography.caption.font.weight(.medium))
                 .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.horizontal, LVSpacing.sm)
+        .padding(.vertical, LVSpacing.xs)
         .background {
             Capsule()
                 .fill(state.tint.opacity(0.12))

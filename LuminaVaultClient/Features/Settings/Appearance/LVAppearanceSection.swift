@@ -11,19 +11,19 @@ struct LVAppearanceSection: View {
 
     var body: some View {
         @Bindable var bindable = manager
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: LVSpacing.base) {
             Text("Theme")
-                .font(.subheadline.weight(.semibold))
+                .font(LVTypography.fieldLabel.font)
                 .foregroundStyle(.secondary)
             LVThemePicker(selection: $bindable.theme)
 
             Text("Mode")
-                .font(.subheadline.weight(.semibold))
+                .font(LVTypography.fieldLabel.font)
                 .foregroundStyle(.secondary)
             LVAppearancePicker(selection: $bindable.appearance)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.horizontal, LVSpacing.base)
+        .padding(.vertical, LVSpacing.base)
     }
 }
 
@@ -32,7 +32,7 @@ struct LVThemePicker: View {
     @Binding var selection: LVTheme
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: LVSpacing.base) {
             ForEach(LVTheme.allCases) { theme in
                 LVThemeSwatch(
                     theme: theme,
@@ -56,7 +56,7 @@ private struct LVThemeSwatch: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 8) {
+            VStack(spacing: LVSpacing.sm) {
                 ZStack {
                     Circle()
                         .fill(
@@ -76,7 +76,7 @@ private struct LVThemeSwatch: View {
                     }
                 }
                 Text(theme.displayName)
-                    .font(.caption2.weight(isSelected ? .semibold : .regular))
+                    .font(LVTypography.microTag.font.weight(isSelected ? .semibold : .regular))
                     .foregroundStyle(isSelected ? .primary : .secondary)
             }
             .frame(width: 76)
