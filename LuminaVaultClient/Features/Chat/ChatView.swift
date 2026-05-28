@@ -126,11 +126,15 @@ struct ChatView: View {
                 if let notice = viewModel.fallbackNotice {
                     FallbackBanner(notice: notice)
                 }
-                
+                if let voiceError = viewModel.voice.errorMessage {
+                    VoiceErrorToast(text: voiceError)
+                }
+
                 ComposerBar(
                     text: $viewModel.composer,
                     canSend: viewModel.canSend,
                     isStreaming: viewModel.isStreaming,
+                    voice: viewModel.voice,
                     onSend: {
                         composerFocused = false
                         viewModel.send()
@@ -413,6 +417,31 @@ private struct FallbackBanner: View {
     }
 }
 
+/// HER-153 — transient banner above the composer surfacing voice mode
+/// failures (mic denied, no speech detected, recognizer unavailable).
+/// Auto-decays via `VoiceModeController.errorMessage` after 3.5s.
+private struct VoiceErrorToast: View {
+    @Environment(\.lvPalette) private var palette
+    let text: String
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(.primary)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(palette.surface)
+        .clipShape(.rect(cornerRadius: 10))
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+}
+
 private struct ErrorRow: View {
     let message: String
     var body: some View {
@@ -438,6 +467,7 @@ private struct ComposerBar: View {
     @Binding var text: String
     let canSend: Bool
     let isStreaming: Bool
+    @Bindable var voice: VoiceModeController
     let onSend: () -> Void
     let onCancel: () -> Void
 
@@ -446,14 +476,26 @@ private struct ComposerBar: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(palette.glowPrimary)
-            
-            TextField("Ask Hermie anything...", text: $text, axis: .vertical)
-                .textFieldStyle(.plain)
-                .lineLimit(1...6)
-                .foregroundStyle(.white)
-            
+
+            ZStack(alignment: .leading) {
+                TextField("Ask Hermie anything...", text: $text, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .lineLimit(1...6)
+                    .foregroundStyle(.white)
+                    .disabled(voice.isRecording)
+                    .opacity(voice.isRecording ? 0 : 1)
+                if voice.isRecording {
+                    Text(voice.liveTranscript.isEmpty ? "Listening…" : voice.liveTranscript)
+                        .font(.system(size: 16))
+                        .foregroundStyle(voice.liveTranscript.isEmpty ? .white.opacity(0.5) : .white)
+                        .lineLimit(3)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.18), value: voice.isRecording)
+
             Spacer()
-            
+
             if isStreaming {
                 Button(action: onCancel) {
                     Image(systemName: "stop.circle.fill")
@@ -461,14 +503,8 @@ private struct ComposerBar: View {
                         .foregroundStyle(palette.accent)
                 }
             } else {
-                Button {
-                    // Speech recognition trigger would go here
-                } label: {
-                    Image(systemName: "mic.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(palette.glowPrimary)
-                }
-                
+                MicHoldButton(voice: voice)
+
                 if !text.isEmpty && canSend {
                     Button(action: onSend) {
                         Image(systemName: "arrow.up.circle.fill")

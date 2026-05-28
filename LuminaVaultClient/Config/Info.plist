@@ -77,6 +77,10 @@
 	<string>LuminaVault tags captures with the place you saved them — only when you toggle Location on for that capture.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>LuminaVault reads photos you pick to save them to your vault. Selection is one-shot and limited to the photos you choose.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Lumina listens to your question so you can ask hands-free.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Speech recognition turns your spoken question into text before sending it.</string>
 
 	<!-- Scene / orientation / launch flags. -->
 	<key>UIApplicationSceneManifest</key>

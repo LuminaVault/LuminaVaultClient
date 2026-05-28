@@ -98,7 +98,7 @@ final class HomeViewModelTests: XCTestCase {
     }
 
     func testTriggerCompileDelegatesAndReloadsStats() async {
-        compileClient.compileResult = .success(.init(memoriesIngested: 3, memoriesUpdated: 0, durationMs: 100))
+        compileClient.compileResult = .success(.init(memoriesIngested: 3, memoriesUpdated: 0, durationMs: 100, runId: UUID()))
         statsClient.result = .success(.stub(today: 1))
 
         await sut.triggerCompile()
