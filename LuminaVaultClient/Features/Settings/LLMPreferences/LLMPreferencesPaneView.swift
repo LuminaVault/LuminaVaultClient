@@ -1,77 +1,52 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Settings/LLMPreferences/LLMPreferencesPaneView.swift
 //
-// HER-252 — Settings → Advanced → Model Preferences. Picks the user's
-// primary (provider, model) and an ordered fallback chain. Free-form
-// model TextField for now; provider-specific autocomplete is a
-// follow-up.
+// HER-252 — Settings → Intelligence pane (formerly "Model Preferences").
+// Picks the user's primary (provider, model) and an ordered fallback
+// chain.
+//
+// HER-300 ticket 5 — the pane now surfaces the active LLM brain
+// (managed vs BYOK) at the top, exposes a segmented picker to switch
+// modes, and renders the primary + fallback editor in a disabled,
+// muted state when on Managed (so users can preview what their BYOK
+// config would look like without accidentally editing it). On BYOK we
+// add a "Manage API Keys →" entry that pushes the existing
+// `ProvidersPaneView`. Save persists the chosen `mode`; managed mode
+// always pins the canonical OpenRouter/Qwen pair on the wire.
 
 import LuminaVaultShared
 import SwiftUI
 
 struct LLMPreferencesPaneView: View {
+    @Environment(\.lvPalette) private var palette
     @State private var viewModel: LLMPreferencesPaneViewModel
 
-    init(client: LLMPreferencesClientProtocol) {
+    /// HER-300 — used to push the live BYOK key manager from the BYOK
+    /// branch. Injected so this pane doesn't reach into `AppState` for
+    /// its own factory.
+    private let providersClient: ProvidersClientProtocol
+
+    init(
+        client: LLMPreferencesClientProtocol,
+        providersClient: ProvidersClientProtocol
+    ) {
         _viewModel = State(initialValue: LLMPreferencesPaneViewModel(client: client))
+        self.providersClient = providersClient
     }
 
     var body: some View {
         Form {
-            Section {
-                Picker("Provider", selection: Binding(
-                    get: { viewModel.primaryProvider },
-                    set: { newValue in
-                        viewModel.primaryProvider = newValue
-                        viewModel.markDirty()
-                    },
-                )) {
-                    ForEach(ProviderID.allCases, id: \.self) { provider in
-                        Text(ProvidersPaneViewModel.displayName(for: provider)).tag(provider)
-                    }
-                }
-                TextField("Model", text: Binding(
-                    get: { viewModel.primaryModel },
-                    set: { newValue in
-                        viewModel.primaryModel = newValue
-                        viewModel.markDirty()
-                    },
-                ))
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-            } header: {
-                Text("Primary")
-            } footer: {
-                Text("Tried first on every chat / query / kb-compile call.")
-                    .font(.footnote)
+            currentlyPoweringSection
+
+            modePickerSection
+
+            primaryEditorSection
+            fallbackEditorSection
+
+            if viewModel.mode == .byok {
+                manageKeysSection
             }
 
-            Section {
-                FallbackChainEditor(viewModel: viewModel)
-                Button {
-                    viewModel.addFallback()
-                } label: {
-                    Label("Add fallback", systemImage: "plus.circle.fill")
-                }
-            } header: {
-                Text("Fallback chain")
-            } footer: {
-                Text("Walked in order when the primary returns credit-exhausted, rate-limit, or upstream-error.")
-                    .font(.footnote)
-            }
-
-            Section {
-                Button {
-                    Task { await viewModel.save() }
-                } label: {
-                    HStack {
-                        Spacer()
-                        Text("Save")
-                            .fontWeight(.semibold)
-                        Spacer()
-                    }
-                }
-                .disabled(!viewModel.hasUnsavedChanges || viewModel.primaryModel.isEmpty)
-            }
+            saveSection
 
             if case let .failed(message) = viewModel.state {
                 Section {
@@ -81,10 +56,188 @@ struct LLMPreferencesPaneView: View {
                 }
             }
         }
-        .navigationTitle("Model Preferences")
+        .navigationTitle("Intelligence")
         .navigationBarTitleDisplayMode(.inline)
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
+    }
+
+    // MARK: - Sections
+
+    /// HER-300 — "Currently powering you" card. Surfaces the live brain
+    /// so the user knows what's actually serving their requests; the
+    /// managed copy spells out that LuminaVault foots the bill.
+    private var currentlyPoweringSection: some View {
+        Section {
+            HStack(alignment: .top, spacing: LVSpacing.base) {
+                LVIconView(.brainPremium, size: 28, tint: palette.accent, weight: .medium)
+                    .frame(width: LVSize.rowGlyph)
+
+                VStack(alignment: .leading, spacing: LVSpacing.xs) {
+                    Text("Currently powering you")
+                        .lvFont(.microTag)
+                        .tracking(1.5)
+                        .foregroundStyle(palette.textSecondary)
+                    Text(currentlyPoweringTitle)
+                        .lvFont(.bodyEmphasis)
+                        .foregroundStyle(palette.textPrimary)
+                    Text(currentlyPoweringSubtitle)
+                        .lvFont(.footnote)
+                        .foregroundStyle(palette.textSecondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, LVSpacing.xs)
+        }
+    }
+
+    private var currentlyPoweringTitle: String {
+        switch viewModel.mode {
+        case .managed:
+            return "Qwen2.5-72B"
+        case .byok:
+            if viewModel.primaryModel.isEmpty {
+                return ProvidersPaneViewModel.displayName(for: viewModel.primaryProvider)
+            }
+            return viewModel.primaryModel
+        }
+    }
+
+    private var currentlyPoweringSubtitle: String {
+        switch viewModel.mode {
+        case .managed:
+            return "Managed by LuminaVault · no API key needed"
+        case .byok:
+            return "Your \(ProvidersPaneViewModel.displayName(for: viewModel.primaryProvider)) key"
+        }
+    }
+
+    /// HER-300 — segmented mode picker. Segmented (vs menu) so both
+    /// options are visible at a glance; this is the single most
+    /// important toggle on the screen and shouldn't be hidden behind
+    /// a tap.
+    private var modePickerSection: some View {
+        Section {
+            Picker("Brain", selection: Binding(
+                get: { viewModel.mode },
+                set: { newValue in
+                    viewModel.mode = newValue
+                    viewModel.markDirty()
+                },
+            )) {
+                Text("Managed").tag(LLMBrainMode.managed)
+                Text("My API Keys").tag(LLMBrainMode.byok)
+            }
+            .pickerStyle(.segmented)
+        } header: {
+            Text("Brain")
+        } footer: {
+            Text(modePickerFooter)
+                .font(.footnote)
+        }
+    }
+
+    private var modePickerFooter: String {
+        switch viewModel.mode {
+        case .managed:
+            return "LuminaVault funds Qwen2.5-72B for every chat, query, and kb-compile call."
+        case .byok:
+            return "Routes traffic through your own provider keys. Manage them below."
+        }
+    }
+
+    private var isEditorDisabled: Bool { viewModel.mode == .managed }
+
+    private var primaryEditorSection: some View {
+        Section {
+            Picker("Provider", selection: Binding(
+                get: { viewModel.primaryProvider },
+                set: { newValue in
+                    viewModel.primaryProvider = newValue
+                    viewModel.markDirty()
+                },
+            )) {
+                ForEach(ProviderID.allCases, id: \.self) { provider in
+                    Text(ProvidersPaneViewModel.displayName(for: provider)).tag(provider)
+                }
+            }
+            TextField("Model", text: Binding(
+                get: { viewModel.primaryModel },
+                set: { newValue in
+                    viewModel.primaryModel = newValue
+                    viewModel.markDirty()
+                },
+            ))
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+        } header: {
+            Text("Primary")
+        } footer: {
+            if isEditorDisabled {
+                Text("Switch to **My API Keys** to edit your primary provider.")
+                    .font(.footnote)
+            } else {
+                Text("Tried first on every chat / query / kb-compile call.")
+                    .font(.footnote)
+            }
+        }
+        .disabled(isEditorDisabled)
+        .opacity(isEditorDisabled ? 0.5 : 1.0)
+    }
+
+    private var fallbackEditorSection: some View {
+        Section {
+            FallbackChainEditor(viewModel: viewModel)
+            Button {
+                viewModel.addFallback()
+            } label: {
+                Label("Add fallback", systemImage: "plus.circle.fill")
+            }
+        } header: {
+            Text("Fallback chain")
+        } footer: {
+            if isEditorDisabled {
+                Text("Available when **My API Keys** is selected.")
+                    .font(.footnote)
+            } else {
+                Text("Walked in order when the primary returns credit-exhausted, rate-limit, or upstream-error.")
+                    .font(.footnote)
+            }
+        }
+        .disabled(isEditorDisabled)
+        .opacity(isEditorDisabled ? 0.5 : 1.0)
+    }
+
+    private var manageKeysSection: some View {
+        Section {
+            NavigationLink {
+                ProvidersPaneView(client: providersClient)
+            } label: {
+                HStack {
+                    Label("Manage API Keys", systemImage: "key.fill")
+                    Spacer()
+                }
+            }
+        } footer: {
+            Text("Add, rotate, or remove the API keys your BYOK chain uses.")
+                .font(.footnote)
+        }
+    }
+
+    private var saveSection: some View {
+        Section {
+            Button {
+                Task { await viewModel.save() }
+            } label: {
+                HStack {
+                    Spacer()
+                    Text("Save")
+                        .fontWeight(.semibold)
+                    Spacer()
+                }
+            }
+            .disabled(!viewModel.canSave)
+        }
     }
 }
 

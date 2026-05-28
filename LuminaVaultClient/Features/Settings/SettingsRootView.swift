@@ -66,8 +66,15 @@ struct SettingsRootView: View {
                                 LinkedAccountsView(client: integrationsClient)
                             }
                             LVSettingsDivider()
-                            LVSettingsRow("LLM Providers", icon: .brain) {
-                                ProvidersPaneView(client: providersClient)
+                            // HER-300/5 — renamed from "LLM Providers". The
+                            // destination is now the Intelligence pane (Managed
+                            // vs BYOK toggle + primary/fallback editor + nested
+                            // "Manage API Keys" link into ProvidersPaneView).
+                            LVSettingsRow("Intelligence", icon: .brain) {
+                                LLMPreferencesPaneView(
+                                    client: llmPreferencesClient,
+                                    providersClient: providersClient
+                                )
                             }
                         }
 
@@ -115,10 +122,8 @@ struct SettingsRootView: View {
                             LVSettingsRow("Messaging Gateways", icon: .bubbleLeftAndBubbleRight) {
                                 HermesGatewaysPaneView(client: hermesGatewaysClient)
                             }
-                            LVSettingsDivider()
-                            LVSettingsRow("Model Preferences", icon: .sliderHorizontal3) {
-                                LLMPreferencesPaneView(client: llmPreferencesClient)
-                            }
+                            // HER-300/5 — "Model Preferences" was folded into
+                            // the new "Intelligence" row under Connections.
                         }
                     }
                     .padding(.horizontal, LVSpacing.lg)
