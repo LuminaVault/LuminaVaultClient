@@ -6,16 +6,32 @@ public enum HermieMascotState: String, CaseIterable, Sendable {
     case idle
     case thinking
     case happy
+    /// HER-152 — mascot dims/slumps when a capture or kb-compile fails.
+    case sad
+    /// HER-152 — idle-timeout state; mascot drifts to sleep after the
+    /// app sits untouched. Driven from the app's inactivity timer.
+    case sleeping
+    /// HER-152 — pulses while a kb-compile / embedding job runs so the
+    /// mascot reads as "absorbing" the new memo.
+    case learning
     /// HER-179 — fires for ~3 seconds when an APNS digest is delivered
     /// in-app. Maps to the existing `.happy` Rive trigger until a
     /// dedicated celebrate animation ships in the .riv file.
     case celebrating
 
-    /// Rive trigger name fired on the state machine. `.celebrating`
-    /// re-uses `.happy` until artwork lands.
+    /// Rive trigger name fired on the state machine.
+    ///
+    /// HER-152 — `sad`, `sleeping`, `learning` and `celebrating` map onto
+    /// the four triggers that exist in `hermie.riv` today (`idle`,
+    /// `thinking`, `happy`) so the mascot degrades gracefully. Once the
+    /// Rive Pro file ships dedicated inputs per state (see acceptance),
+    /// drop the overrides and let each case fire its own `rawValue`.
     var riveTrigger: String {
         switch self {
         case .celebrating: "happy"
+        case .learning: "thinking"
+        case .sleeping: "idle"
+        case .sad: "idle"
         default: rawValue
         }
     }
