@@ -33,6 +33,13 @@ struct PaywallView: View {
     /// can fire it on every successful purchase without local tracking.
     @Environment(\.requestReview) private var requestReview
 
+    /// HER-297 — latched on a successful purchase so the mascot plays its
+    /// `.celebrating` Rive trigger while the sheet unwinds. Owned by the
+    /// view, so it dies with the sheet and the mascot reverts to `.idle`
+    /// on the next presentation. Never set on cancel/restore, so cancelled
+    /// purchases don't celebrate.
+    @State private var celebrating = false
+
     init(paywallID: String? = nil) {
         self.paywallID = paywallID
     }
@@ -53,6 +60,10 @@ struct PaywallView: View {
                         // unwind + the celebration mascot (HER-297) land,
                         // then surface the review prompt at the moment
                         // the user's just paid (highest 5-star yield).
+                        // HER-297 — celebrate immediately so the mascot
+                        // animates through the ~2 s unwind window before
+                        // the sheet dismisses.
+                        celebrating = true
                         Task { @MainActor in
                             await appState.billingService?.refreshFromServer()
                             try? await Task.sleep(nanoseconds: 2_000_000_000)
@@ -72,6 +83,9 @@ struct PaywallView: View {
     /// sheet is up and StoreKit is exchanging receipts), `.celebrating`
     /// briefly after a successful purchase, otherwise `.idle`.
     private var mascotState: HermieMascotState {
+        if celebrating {
+            return .celebrating
+        }
         if appState.billingService?.isPurchaseInFlight == true {
             return .thinking
         }
