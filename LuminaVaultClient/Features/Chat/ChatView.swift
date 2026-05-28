@@ -50,20 +50,21 @@ struct ChatView: View {
                             suggestions: emptyStateSuggestions,
                             onSuggestion: { viewModel.sendSuggestion($0) },
                         )
-                        .padding(.horizontal, 20)
-                        .padding(.top, 24)
+                        .padding(.horizontal, LVSpacing.lg)
+                        .padding(.top, LVSpacing.xl)
                     } else {
-                        LazyVStack(alignment: .leading, spacing: 16) {
+                        LazyVStack(alignment: .leading, spacing: LVSpacing.base) {
                             // Header for active chat (compact view)
                             HStack {
                                 Spacer()
                                 Button {
                                     viewModel.reset()
                                 } label: {
-                                    LVIconView(.trash, size: 14, tint: .secondary)
+                                    LVIconView(.trash, size: 14, tint: palette.textSecondary)
                                 }
+                                .lvGlowPress()
                             }
-                            .padding(.bottom, 8)
+                            .padding(.bottom, LVSpacing.sm)
 
                             ForEach(viewModel.messages) { message in
                                 MessageRow(
@@ -96,8 +97,8 @@ struct ChatView: View {
                                 ErrorRow(message: message)
                             }
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 20)
+                        .padding(.horizontal, LVSpacing.lg)
+                        .padding(.vertical, LVSpacing.lg)
                     }
                 }
                 .onChange(of: viewModel.pendingAssistant) { _, _ in
@@ -159,51 +160,75 @@ private struct EmptyStateHero: View {
     let suggestions: [String]
     let onSuggestion: (String) -> Void
 
+    private let mascotSize: CGFloat = 240
+
     var body: some View {
-        VStack(spacing: 30) {
-            // Header Row
+        VStack(spacing: LVSpacing.xxl) {
+            // Header row
             HStack(alignment: .top) {
                 Text(headline)
                     .font(.system(size: 44, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                    .shadow(color: palette.glowPrimary.opacity(0.8), radius: 12)
-                
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [palette.glowPrimary, palette.accent],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .shadow(color: palette.glowPrimary.opacity(0.75), radius: 14)
+
                 Spacer()
-                
+
                 LVIconView(.personCircleFill, size: 32, tint: palette.glowPrimary, weight: .light)
                     .shadow(color: palette.glowPrimary.opacity(0.6), radius: 8)
             }
-            
-            // Mascot with Electricity effects (simulated with shadow/glow)
-            HermieMascotView(state: mascotState, size: 240, fallbackImageName: "OnboardingMascot")
-                .shadow(color: palette.glowPrimary.opacity(0.4), radius: 40)
-                .overlay {
-                    // Subtle electricity "wires" glow effect could be added here
-                    // if we had a specific view for it.
-                }
+
+            // HER-302 — mascot with halo + sparkle dust.
+            ZStack {
+                LVHaloBackdrop(focalSize: mascotSize, intensity: LVGlow.hero, particleCount: 12)
+                    .frame(width: mascotSize * 2.2, height: mascotSize * 2.2)
+                    .allowsHitTesting(false)
+
+                SparkleField(density: 14, maxRadius: 1.4)
+                    .frame(width: mascotSize * 1.6, height: mascotSize * 1.6)
+                    .opacity(0.5)
+                    .blendMode(.screen)
+                    .allowsHitTesting(false)
+
+                HermieMascotView(state: mascotState, size: mascotSize,
+                                 fallbackImageName: "OnboardingMascot")
+                    .shadow(color: palette.glowPrimary.opacity(0.55), radius: 40)
+            }
+            .frame(maxWidth: .infinity)
+
+            if !supporting.isEmpty {
+                Text(supporting)
+                    .lvFont(.callout)
+                    .foregroundStyle(palette.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, LVSpacing.lg)
+            }
 
             if !suggestions.isEmpty {
-                VStack(alignment: .trailing, spacing: 12) {
+                VStack(alignment: .trailing, spacing: LVSpacing.md) {
                     ForEach(suggestions.prefix(3), id: \.self) { suggestion in
                         Button {
                             onSuggestion(suggestion)
                         } label: {
                             Text(suggestion)
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 10)
-                                .background {
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .fill(palette.surface)
-                                        .overlay {
-                                            RoundedRectangle(cornerRadius: 14)
-                                                .stroke(palette.glowPrimary.opacity(0.6), lineWidth: 1.5)
-                                        }
-                                }
-                                .shadow(color: palette.glowPrimary.opacity(0.3), radius: 8)
+                                .lvFont(.bodyEmphasis)
+                                .foregroundStyle(palette.textPrimary)
+                                .padding(.horizontal, LVSpacing.base)
+                                .padding(.vertical, LVSpacing.md)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
                         }
                         .buttonStyle(.plain)
+                        .background(
+                            Capsule().fill(palette.surface)
+                        )
+                        .lvGlowStroke(cornerRadius: LVRadius.pill, intensity: LVGlow.subtle)
+                        .lvGlowPress()
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -225,46 +250,46 @@ private struct MessageRow: View {
     let memoryClient: (any MemoryClientProtocol)?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: LVSpacing.sm) {
             if message.role == .user {
-                Spacer(minLength: 40)
+                Spacer(minLength: LVSpacing.hero)
                 bubble
             } else {
                 AssistantAvatar(state: mascotState)
-                    .padding(.top, 4)
+                    .padding(.top, LVSpacing.xs)
                 bubble
-                Spacer(minLength: 40)
+                Spacer(minLength: LVSpacing.hero)
             }
         }
     }
 
+    @ViewBuilder
     private var bubble: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        let content = VStack(alignment: .leading, spacing: LVSpacing.xs) {
             bubbleBody
             if !message.sources.isEmpty {
                 SourceChipRow(sources: message.sources)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background {
-            if message.role == .user {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(palette.glowPrimary.opacity(0.15))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(palette.glowPrimary.opacity(0.4), lineWidth: 1)
-                    }
-            } else {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(palette.surface)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(palette.surfaceStroke, lineWidth: 1)
-                    }
-            }
+        .padding(.horizontal, LVSpacing.base)
+        .padding(.vertical, LVSpacing.md)
+
+        if message.role == .user {
+            content
+                .background {
+                    RoundedRectangle(cornerRadius: LVRadius.card, style: .continuous)
+                        .fill(palette.glowPrimary.opacity(0.18))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: LVRadius.card, style: .continuous)
+                                .stroke(palette.glowPrimary.opacity(0.5), lineWidth: 1)
+                        }
+                }
+                .shadow(color: palette.glowPrimary.opacity(0.25), radius: 10)
+        } else {
+            content
+                .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.card)
+                .lvInnerGlow(cornerRadius: LVRadius.card, intensity: LVGlow.subtle)
         }
-        .shadow(color: (message.role == .user ? palette.glowPrimary : Color.clear).opacity(0.2), radius: 8)
     }
 
     @ViewBuilder
@@ -284,7 +309,7 @@ private struct MessageRow: View {
             .foregroundStyle(palette.textPrimary)
         } else {
             Text(message.content)
-                .font(.system(size: 15))
+                .lvFont(.body)
                 .foregroundStyle(palette.textPrimary)
                 .multilineTextAlignment(.leading)
         }
@@ -299,16 +324,16 @@ private struct PendingAssistantRow: View {
     let mascotState: HermieMascotState
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: LVSpacing.sm) {
             AssistantAvatar(state: mascotState)
-                .padding(.top, 4)
-            VStack(alignment: .leading, spacing: 6) {
+                .padding(.top, LVSpacing.xs)
+            VStack(alignment: .leading, spacing: LVSpacing.xs) {
                 if text.isEmpty && isStreaming {
                     StreamingCaret()
                 } else {
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: LVSpacing.xs) {
                         Text(text)
-                            .font(.system(size: 15))
+                            .lvFont(.body)
                             .foregroundStyle(palette.textPrimary)
                             .multilineTextAlignment(.leading)
                         if isStreaming { StreamingCaret() }
@@ -318,17 +343,13 @@ private struct PendingAssistantRow: View {
                     SourceChipRow(sources: sources)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(palette.surface)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(palette.surfaceStroke, lineWidth: 1)
-                    }
-            }
-            Spacer(minLength: 40)
+            .padding(.horizontal, LVSpacing.base)
+            .padding(.vertical, LVSpacing.md)
+            .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.card)
+            .lvInnerGlow(cornerRadius: LVRadius.card,
+                         intensity: isStreaming ? LVGlow.focused : LVGlow.subtle)
+            .lvPulse(active: isStreaming)
+            Spacer(minLength: LVSpacing.hero)
         }
     }
 }
@@ -346,11 +367,13 @@ private struct AssistantAvatar: View {
 }
 
 private struct StreamingCaret: View {
+    @Environment(\.lvPalette) private var palette
     @State private var visible = true
     var body: some View {
         Rectangle()
-            .fill(Color.primary)
+            .fill(palette.glowPrimary)
             .frame(width: 2, height: 14)
+            .shadow(color: palette.glowPrimary.opacity(0.8), radius: 4)
             .opacity(visible ? 1 : 0)
             .onAppear {
                 withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
@@ -361,19 +384,25 @@ private struct StreamingCaret: View {
 }
 
 private struct SourceChipRow: View {
+    @Environment(\.lvPalette) private var palette
     let sources: [QueryHitDTO]
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: LVSpacing.sm) {
                 ForEach(sources) { hit in
                     Text(hit.content.prefix(40))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .lvFont(.microTag)
+                        .foregroundStyle(palette.textSecondary)
                         .lineLimit(1)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(.tertiarySystemBackground))
-                        .clipShape(.capsule)
+                        .padding(.horizontal, LVSpacing.sm)
+                        .padding(.vertical, LVSpacing.xs)
+                        .background(
+                            Capsule().fill(palette.surface)
+                        )
+                        .overlay {
+                            Capsule()
+                                .stroke(palette.glowPrimary.opacity(0.25), lineWidth: 1)
+                        }
                 }
             }
         }
@@ -465,20 +494,26 @@ private struct ComposerBar: View {
     let onCancel: () -> Void
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: LVSpacing.md) {
             LVIconView(.magnifyingglass, size: 18, tint: palette.glowPrimary, weight: .bold)
 
             ZStack(alignment: .leading) {
                 TextField("Ask Hermie anything...", text: $text, axis: .vertical)
                     .textFieldStyle(.plain)
-                    .lineLimit(1...6)
-                    .foregroundStyle(.white)
+                    .lineLimit(1 ... 6)
+                    .lvFont(.body)
+                    .foregroundStyle(palette.textPrimary)
+                    .tint(palette.glowPrimary)
                     .disabled(voice.isRecording)
                     .opacity(voice.isRecording ? 0 : 1)
                 if voice.isRecording {
                     Text(voice.liveTranscript.isEmpty ? "Listening…" : voice.liveTranscript)
-                        .font(.system(size: 16))
-                        .foregroundStyle(voice.liveTranscript.isEmpty ? .white.opacity(0.5) : .white)
+                        .lvFont(.body)
+                        .foregroundStyle(
+                            voice.liveTranscript.isEmpty
+                                ? palette.textSecondary
+                                : palette.textPrimary
+                        )
                         .lineLimit(3)
                         .transition(.opacity)
                 }
@@ -490,37 +525,28 @@ private struct ComposerBar: View {
             if isStreaming {
                 Button(action: onCancel) {
                     LVIconView(.stopCircleFill, size: 24, tint: palette.accent)
+                        .shadow(color: palette.accent.opacity(0.6), radius: 8)
                 }
+                .lvPulse(active: true)
             } else {
                 MicHoldButton(voice: voice)
 
                 if !text.isEmpty && canSend {
                     Button(action: onSend) {
                         LVIconView(.arrowUpCircleFill, size: 28, tint: palette.glowPrimary)
-                            .shadow(color: palette.glowPrimary.opacity(0.6), radius: 8)
+                            .shadow(color: palette.glowPrimary.opacity(0.75), radius: 10)
                     }
+                    .lvGlowPress()
+                    .transition(.scale.combined(with: .opacity))
                 }
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-        .background {
-            RoundedRectangle(cornerRadius: 18)
-                .fill(palette.surface)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(
-                            LinearGradient(
-                                colors: [palette.glowPrimary.opacity(0.8), .clear, palette.glowPrimary.opacity(0.4)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1.5
-                        )
-                }
-        }
-        .shadow(color: palette.glowPrimary.opacity(0.2), radius: 10)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.horizontal, LVSpacing.base)
+        .padding(.vertical, LVSpacing.md)
+        .lvGlassCard(cornerRadius: LVRadius.lg, intensity: LVGlow.card)
+        .lvInnerGlow(cornerRadius: LVRadius.lg, intensity: LVGlow.subtle)
+        .padding(.horizontal, LVSpacing.lg)
+        .padding(.vertical, LVSpacing.md)
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: canSend && !text.isEmpty)
     }
 }
