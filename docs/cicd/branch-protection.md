@@ -18,8 +18,9 @@ Standard flow:
   - Required approvals: **0** (solo dev — CI is the gate)
   - Dismiss stale approvals when new commits are pushed: ON
 - **Require status checks to pass before merging**: ON
-  - Required checks: `lint`, `test` (job names from `.github/workflows/ci.yml`)
+  - Required checks: `lint` (job names from `.github/workflows/ci.yml`)
   - Require branches to be up to date before merging: ON
+  - **`test` is NOT yet required** — GitHub-hosted macos-15 runners ship Xcode 26.x with no iOS Simulator runtime preinstalled, and `xcodebuild -downloadPlatform iOS` doesn't fully resolve scheme/destination mismatches. Promote `test` to required once a working iOS simulator runtime is available on the runner image (or a self-hosted macOS runner with Xcode 26.4 + iOS 26 sims is wired up). Add `"test"` back to the JSON `contexts` array when stable.
 - **Require conversation resolution before merging**: ON
 - **Allow force pushes**: OFF
 - **Allow deletions**: OFF
