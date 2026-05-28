@@ -18,6 +18,7 @@ struct DashboardCardShell<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
+                // HER-291: kept as Image — runtime symbol name
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(palette.primary)

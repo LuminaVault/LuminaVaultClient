@@ -99,8 +99,7 @@ struct ServerConnectionView: View {
                             }
                             Spacer()
                             if vm.mode == mode {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(palette.primary)
+                                LVIconView(.checkmarkCircleFill, tint: palette.primary)
                             }
                         }
                         .padding(12)

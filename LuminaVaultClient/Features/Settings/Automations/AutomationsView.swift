@@ -75,9 +75,9 @@ struct AutomationsView: View {
                     Button("Weekly Sun 6pm") { Task { await vm.setCadence(skill, cron: "0 18 * * 0") } }
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "clock.fill")
+                        LVIconView(.clockFill, size: 11, tint: palette.primary, weight: .semibold)
                         Text(cadenceLabel(skill))
-                        Image(systemName: "chevron.up.chevron.down")
+                        LVIconView(.chevronUpChevronDown, size: 11, tint: palette.primary, weight: .semibold)
                     }
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(palette.primary)

@@ -86,13 +86,10 @@ struct ComparisonTableView: View {
     private func checkmark(_ on: Bool, positive: Bool) -> some View {
         Group {
             if on {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                LVIconView(.checkmarkCircleFill, size: 18, tint: .green)
             } else {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.red.opacity(0.65))
+                LVIconView(.xmarkCircleFill, size: 18, tint: .red.opacity(0.65))
             }
         }
-        .font(.system(size: 18))
     }
 }

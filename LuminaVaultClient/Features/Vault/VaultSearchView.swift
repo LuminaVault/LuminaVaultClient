@@ -36,8 +36,7 @@ struct VaultSearchView: View {
 
     private var searchBar: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(palette.textSecondary)
+            LVIconView(.magnifyingglass, tint: palette.textSecondary)
             TextField("Ask Lumina or find a file…", text: $vm.query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
@@ -48,8 +47,7 @@ struct VaultSearchView: View {
                 Button {
                     vm.clear()
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(Color.lvTextMuted)
+                    LVIconView(.xmarkCircleFill, tint: Color.lvTextMuted)
                 }
             }
         }
@@ -177,9 +175,7 @@ struct VaultSearchView: View {
 
     private var empty: some View {
         VStack(spacing: 12) {
-            Image(systemName: "questionmark.app.dashed")
-                .font(.system(size: 40))
-                .foregroundStyle(Color.lvTextMuted)
+            LVIconView(.questionmarkAppDashed, size: 40, tint: Color.lvTextMuted)
             Text("Nothing found")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(palette.textPrimary)

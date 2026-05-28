@@ -56,9 +56,7 @@ struct SavedReflectionsListView: View {
                     .foregroundStyle(palette.textSecondary)
             }
             Spacer()
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12))
-                .foregroundStyle(palette.textSecondary)
+            LVIconView(.chevronRight, size: 12, tint: palette.textSecondary)
         }
         .padding(12)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))

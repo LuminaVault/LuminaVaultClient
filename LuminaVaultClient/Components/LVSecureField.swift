@@ -30,6 +30,7 @@ struct LVSecureField: View {
             .textInputAutocapitalization(.never)
 
             Button { revealed.toggle() } label: {
+                // HER-291: kept as Image — runtime symbol name (and eye.slash not in LVIcon)
                 Image(systemName: revealed ? "eye" : "eye.slash")
                     .font(.system(size: 14))
                     .foregroundStyle(Color.white.opacity(0.25))

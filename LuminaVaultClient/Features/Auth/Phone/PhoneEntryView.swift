@@ -65,9 +65,7 @@ struct PhoneEntryView: View {
                     Text(vm.phoneCountry.dialCode)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(palette.textPrimary)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(palette.textSecondary)
+                    LVIconView(.chevronDown, size: 10, tint: palette.textSecondary, weight: .semibold)
                 }
                 .padding(.horizontal, 12).padding(.vertical, 12)
                 .background(Color.lvGlass)

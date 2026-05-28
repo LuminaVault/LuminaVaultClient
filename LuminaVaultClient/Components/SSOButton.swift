@@ -86,9 +86,7 @@ struct SSOButton: View {
     private var providerIcon: some View {
         switch provider {
         case .apple:
-            Image(systemName: "apple.logo")
-                .font(.system(size: 18))
-                .foregroundStyle(palette.textPrimary)
+            LVIconView(.apple, size: 18, tint: palette.textPrimary)
         case .google:
             // Replace with Image("google_logo") once asset added to Assets.xcassets
             Text("G")

@@ -35,9 +35,7 @@ struct GatewaysSetupView: View {
 
     private var header: some View {
         VStack(spacing: 8) {
-            Image(systemName: "bubble.left.and.bubble.right.fill")
-                .font(.system(size: 44))
-                .foregroundStyle(.tint)
+            LVIconView(.bubbleLeftAndBubbleRightFill, size: 44, tint: .accentColor)
                 .accessibilityHidden(true)
             Text("Connect a messaging app")
                 .font(.title2.weight(.semibold))
@@ -90,6 +88,7 @@ struct GatewaysSetupView: View {
     private func card(entry: HermesGatewayCatalogEntry) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
+                // HER-291: kept as Image — runtime symbol name
                 Image(systemName: icon(for: entry.id))
                     .font(.title2)
                     .foregroundStyle(.tint)

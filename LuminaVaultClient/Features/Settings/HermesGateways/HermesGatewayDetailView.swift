@@ -127,7 +127,7 @@ struct HermesGatewayDetailView: View {
                     Button {
                         UIPasteboard.general.string = viewModel.manualCliCommand
                     } label: {
-                        Image(systemName: "doc.on.doc")
+                        LVIconView(.docOnDoc)
                     }
                     .buttonStyle(.borderless)
                 }

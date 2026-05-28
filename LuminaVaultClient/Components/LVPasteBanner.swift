@@ -12,9 +12,7 @@ struct LVPasteBanner: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 8) {
-                Image(systemName: "doc.on.clipboard")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(palette.primary)
+                LVIconView(.docOnClipboard, size: 12, tint: palette.primary, weight: .semibold)
                 Text("Paste \(code)")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(palette.textPrimary)

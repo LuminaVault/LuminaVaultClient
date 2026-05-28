@@ -17,6 +17,7 @@ struct SyncStatusBanner: View {
     var body: some View {
         if let label = bannerLabel {
             HStack(spacing: 8) {
+                // HER-291: kept as Image — runtime symbol name
                 Image(systemName: label.icon)
                     .font(.caption)
                 Text(label.text)

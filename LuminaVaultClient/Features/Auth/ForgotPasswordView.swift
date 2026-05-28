@@ -18,9 +18,7 @@ struct ForgotPasswordView: View {
                         .frame(width: 44, height: 44)
                         .overlay(Circle().stroke(palette.primary.opacity(0.40), lineWidth: 1.5))
                         .shadow(color: palette.primary.opacity(0.35), radius: 14)
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(palette.primary)
+                    LVIconView(.lockFill, size: 18, tint: palette.primary, weight: .semibold)
                 }
                 .padding(.bottom, 14)
 
@@ -50,9 +48,7 @@ private struct LVBackButton: View {
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         Button { dismiss() } label: {
-            Image(systemName: "chevron.left")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(palette.primary.opacity(0.8))
+            LVIconView(.chevronLeft, size: 14, tint: palette.primary.opacity(0.8), weight: .semibold)
                 .frame(width: 32, height: 32)
                 .background(Color.lvGlass)
                 .clipShape(RoundedRectangle(cornerRadius: 10))

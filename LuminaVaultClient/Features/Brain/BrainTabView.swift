@@ -30,7 +30,7 @@ struct BrainTabView: View {
                         Button {
                             Task { await vm.load() }
                         } label: {
-                            Image(systemName: "arrow.clockwise")
+                            LVIconView(.arrowClockwise)
                         }
                         .disabled(isLoading)
                     }
@@ -92,9 +92,7 @@ struct BrainTabView: View {
 
     private func errorState(_ message: String) -> some View {
         VStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 42))
-                .foregroundStyle(palette.accent)
+            LVIconView(.exclamationmarkTriangleFill, size: 42, tint: palette.accent)
             Text("Couldn't load your brain")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(palette.textPrimary)

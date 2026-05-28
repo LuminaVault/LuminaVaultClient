@@ -67,7 +67,7 @@ struct PasskeysPaneView: View {
                     Task { await vm.enrol(username: username) }
                 } label: {
                     HStack {
-                        Image(systemName: "key.fill")
+                        LVIconView(.keyFill)
                         Text("Add a passkey")
                     }
                 }

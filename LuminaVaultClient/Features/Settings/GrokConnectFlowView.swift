@@ -63,9 +63,7 @@ struct GrokConnectFlowView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case let .success(status):
             VStack(spacing: 20) {
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 56))
-                    .foregroundStyle(.green)
+                LVIconView(.checkmarkSealFill, size: 56, tint: .green)
                 Text("Connected").font(.title2.bold())
                 Text("Tier: \(status.tier)").foregroundStyle(.secondary)
                 Button("Done") {
@@ -77,9 +75,7 @@ struct GrokConnectFlowView: View {
             .padding()
         case let .failed(message):
             VStack(spacing: 20) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 56))
-                    .foregroundStyle(.orange)
+                LVIconView(.exclamationmarkTriangleFill, size: 56, tint: .orange)
                 Text("Couldn't connect").font(.title2.bold())
                 Text(message)
                     .multilineTextAlignment(.center)

@@ -46,6 +46,7 @@ struct HermesGatewaysPaneView: View {
     @ViewBuilder
     private func row(for entry: HermesGatewayCatalogEntry) -> some View {
         HStack {
+            // HER-291: kept as Image — runtime symbol name
             Image(systemName: icon(for: entry.id))
                 .font(.title3)
                 .foregroundStyle(.tint)

@@ -42,6 +42,7 @@ struct SkillRowView: View {
             Circle()
                 .fill(palette.primary.opacity(0.18))
                 .frame(width: 30, height: 30)
+            // HER-291: kept as Image — runtime symbol name (sparkle/puzzlepiece.fill not in LVIcon)
             Image(systemName: skill.source == .builtin ? "sparkle" : "puzzlepiece.fill")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(palette.primary)

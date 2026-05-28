@@ -66,8 +66,7 @@ struct ValueDeliveryView: View {
     private var luminaQueryCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(palette.glowPrimary)
+                LVIconView(.sparkles, tint: palette.glowPrimary)
                 Text("Try a question →")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.secondary)
