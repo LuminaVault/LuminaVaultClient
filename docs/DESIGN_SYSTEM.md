@@ -243,6 +243,7 @@ Prefix convention: all SwiftUI components are `LV*`. (Earlier `HV*` files were r
 |----------------------|--------------------------------------------|-------|
 | `LVLogoMark`         | `Components/LVLogoMark.swift`              | Static logo glyph. |
 | `LVNavigationBrand`  | `Components/LVNavigationBrand.swift`       | Brand mark + wordmark for nav bar. |
+| `LVFAB`              | `Components/LVFAB.swift`                   | HER-301 — floating capture button. Cyan glow + gold ring. Drops the `LVIcon.plusCircleFill` brand glyph into a circular surface with haptic on tap. |
 | `LVTabBar`           | `Components/LVTabBar.swift`                | Custom 5-tab bar. Home tab uses `.lvPulse` gated on pending insights. Tab icons resolve via `LVIcon` (§12). |
 | `LVIconView`         | `Utilities/LVIcon.swift`                   | Renders an `LVIcon` token with theme tint + size (§12). Custom-asset fallback transparent. |
 | `EnvironmentTagView` | `Components/EnvironmentTagView.swift`      | Dev/staging/prod environment badge. |
@@ -351,7 +352,7 @@ VStack(spacing: LVSpacing.md) { ... }
 - ~~No icon token system — features use SF Symbols directly with palette tints.~~ Closed by HER-291 — see §12.
 - Snapshot test coverage uneven — HermesGateways suite is the reference pattern; expand to other components incrementally.
 - Many feature views still contain ad-hoc `.font(.system(size:))` and raw point literals — migrate incrementally as files are touched.
-- LVIcon migration is exemplar-only — `LVTabBar`, `MainTabView`, `SettingsRootView`, `AuthLandingView`, `ChatView` use it; ~150 other call sites still pass raw SF Symbol strings. HER-301 (b) closes the asset-wiring gap; per-surface call-site conversions track in subtasks c–i under [HER-299](https://linear.app/luminavault/issue/HER-299).
+- LVIcon migration is exemplar-only — `LVTabBar`, `MainTabView`, `SettingsRootView`, `AuthLandingView`, `ChatView` use it; ~150 other call sites still pass raw SF Symbol strings. ~~HER-301 (b) closes the asset-wiring gap.~~ **Closed by HER-301** — 24 cases now ship a `Lumina/*` PNG override; per-surface call-site conversions track in subtasks c–i under [HER-299](https://linear.app/luminavault/issue/HER-299).
 - Cinematic conventions documented in §13 are adopted by `lvBackground` + `lvGlassCard` everywhere, but the new `lvAuroraGoldRing` + `lvParticleBackground` modifiers have no consumers yet — they roll out as the per-surface subtasks (c–i) land.
 
 ---
@@ -375,27 +376,48 @@ Three concrete wins over raw `Image(systemName:)`:
 
 ### `LVIcon` cases
 
-Cases are grouped semantically in the source file. The full list is browsable in `LVIcon.swift`; key entries:
+Cases are grouped semantically in the source file. **24 cases ship a `Lumina/*` custom asset** that overrides the SF Symbol fallback transparently (HER-301). The full list is browsable in `LVIcon.swift`; key entries:
 
-| Case                       | SF Symbol                              | Custom asset (if any)         |
+| Case                       | SF Symbol fallback                     | Custom asset (Lumina/*)       |
 |----------------------------|----------------------------------------|-------------------------------|
-| `.tabHome`                 | `sparkles`                             | `Lumina/Tab/home`             |
-| `.tabSpaces`               | `folder.fill`                          | `Lumina/Tab/spaces`           |
-| `.tabThink`                | `bubble.left.and.text.bubble.right`    | `Lumina/Tab/think`            |
-| `.tabSettings`             | `gear`                                 | `Lumina/Tab/settings`         |
-| `.tabVisualSearch`         | `photo.on.rectangle.angled`            | `Lumina/Tab/visualsearch`     |
-| `.apple`                   | `apple.logo`                           | —                             |
-| `.keyFill`                 | `key.fill`                             | —                             |
-| `.lockShield`              | `lock.shield`                          | —                             |
-| `.chevronRight`            | `chevron.right`                        | —                             |
-| `.magnifyingglass`         | `magnifyingglass`                      | —                             |
-| `.checkmarkCircleFill`     | `checkmark.circle.fill`                | —                             |
-| `.arrowUpCircleFill`       | `arrow.up.circle.fill`                 | —                             |
-| `.stopCircleFill`          | `stop.circle.fill`                     | —                             |
-| `.brain`                   | `brain`                                | —                             |
-| `.sparkles`                | `sparkles`                             | —                             |
+| `.tabHome`                 | `sparkles`                             | `Tab/home`                    |
+| `.tabSpaces`               | `folder.fill`                          | `Tab/spaces`                  |
+| `.tabThink`                | `bubble.left.and.text.bubble.right`    | `Tab/think`                   |
+| `.tabSettings`             | `gear`                                 | `Tab/settings`                |
+| `.tabVisualSearch`         | `photo.on.rectangle.angled`            | `Tab/visualsearch`            |
+| `.brain`                   | `brain`                                | `Icons/brain`                 |
+| `.brainHeadProfile`        | `brain.head.profile`                   | `Icons/brain-neural`          |
+| `.cameraAperture`          | `camera.aperture`                      | `Icons/camera`                |
+| `.gear`                    | `gear`                                 | `Icons/gear`                  |
+| `.lightbulbFill`           | `lightbulb.fill`                       | `Icons/lightbulb`             |
+| `.linkCircle`              | `link.circle`                          | `Icons/link`                  |
+| `.magnifyingglass`         | `magnifyingglass`                      | `Icons/magnify`               |
+| `.micFill`                 | `mic.fill`                             | `Icons/mic`                   |
+| `.photoOnRectangleAngled`  | `photo.on.rectangle.angled`            | `Icons/gallery`               |
+| `.plusCircleFill`          | `plus.circle.fill`                     | `Icons/plus-circle`           |
+| **HER-301 new cases** (no clean SF Symbol equivalent) | | |
+| `.brainPremium`            | `brain.head.profile`                   | `Icons/brain_premium`         |
+| `.briefcase`               | `briefcase.fill`                       | `Icons/briefcase`             |
+| `.chartUp`                 | `chart.line.uptrend.xyaxis`            | `Icons/chart-up`              |
+| `.cloudWinged`             | `cloud.fill`                           | `Icons/cloud-winged`          |
+| `.door`                    | `door.left.hand.open`                  | `Icons/door`                  |
+| `.heartWinged`             | `heart.fill`                           | `Icons/heart-winged`          |
+| `.homeGlow`                | `house.fill`                           | `Icons/home`                  |
+| `.layers`                  | `square.3.layers.3d`                   | `Icons/layers`                |
+| `.scrollWinged`            | `scroll.fill`                          | `Icons/scroll-winged`         |
+| `.shieldBrain`             | `lock.shield.fill`                     | `Icons/shield-brain`          |
+| `.skeletonKeyPremium`      | `key.fill`                             | `Icons/skeleton_key_premium`  |
+| `.wandSparkle`             | `wand.and.stars`                       | `Icons/wand-sparkle`          |
+| `.wingedLockPremium`       | `lock.shield`                          | `Icons/winged_lock_premium`   |
+| `.wingedScrollPremium`     | `scroll.fill`                          | `Icons/winged_scroll_premium` |
 
-(Trimmed — see `LVIcon.swift` for the full set.)
+Identity / auth / navigation / status cases (`.apple`, `.lockShield`, `.chevronRight`, `.checkmarkCircleFill`, …) intentionally stay SF-Symbol-only — they should match iOS system affordances, not the brand glyph language. See `LVIcon.swift` for the full enum (browsable via Xcode quick-help).
+
+### Asset-resolution test
+
+`LuminaVaultClientTests/LVIconAssetTests.swift` iterates `LVIcon.allCases` and asserts every `customAssetName` resolves to a real `UIImage`. Catches typos and missing imagesets before they ship as silent SF-Symbol fallbacks. Run any time the table above changes.
+
+(Trimmed — see `LVIcon.swift` for the full enum.)
 
 ### Rendering — `LVIconView`
 

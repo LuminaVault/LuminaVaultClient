@@ -102,19 +102,33 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
     case bellBadge
     case brain
     case brainHeadProfile
+    case brainPremium                       // HER-301 — premium variant for paywall / hero
     case infoCircle
     case lightbulbFill
     case sparkles
     case sparklesRectangleStack
+    case wandSparkle                        // HER-301
+
+    // MARK: Identity premium (HER-301 — paywall / hero / onboarding)
+    case skeletonKeyPremium
+    case wingedLockPremium
+    case wingedScrollPremium
 
     // MARK: System / infrastructure
     case boltHorizontal
+    case briefcase                          // HER-301 — work / capture sources
     case cameraAperture
+    case chartUp                            // HER-301 — growth / metrics
+    case cloudWinged                        // HER-301 — sync / cloud
     case creditcard
     case creditcardAnd123
+    case door                               // HER-301 — sign-in / exit moments
     case gear
     case globe
     case handRaised
+    case heartWinged                        // HER-301 — health / favorite
+    case homeGlow                           // HER-301 — non-tab home glyph
+    case layers                             // HER-301 — spaces / stacks
     case linkCircle
     case location
     case magnifyingglass
@@ -123,7 +137,9 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
     case personCircleFill
     case photoOnRectangleAngled
     case questionmarkAppDashed
+    case scrollWinged                       // HER-301 — vault / notes
     case serverRack
+    case shieldBrain                        // HER-301 — secure intelligence
     case sliderHorizontal3
     case speakerWave2
     case star
@@ -198,18 +214,31 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
         case .bellBadge:                        return "bell.badge"
         case .brain:                            return "brain"
         case .brainHeadProfile:                 return "brain.head.profile"
+        case .brainPremium:                     return "brain.head.profile"
         case .infoCircle:                       return "info.circle"
         case .lightbulbFill:                    return "lightbulb.fill"
         case .sparkles:                         return "sparkles"
         case .sparklesRectangleStack:           return "sparkles.rectangle.stack"
+        case .wandSparkle:                      return "wand.and.stars"
+
+        case .skeletonKeyPremium:               return "key.fill"
+        case .wingedLockPremium:                return "lock.shield"
+        case .wingedScrollPremium:              return "scroll.fill"
 
         case .boltHorizontal:                   return "bolt.horizontal"
+        case .briefcase:                        return "briefcase.fill"
         case .cameraAperture:                   return "camera.aperture"
+        case .chartUp:                          return "chart.line.uptrend.xyaxis"
+        case .cloudWinged:                      return "cloud.fill"
         case .creditcard:                       return "creditcard"
         case .creditcardAnd123:                 return "creditcard.and.123"
+        case .door:                             return "door.left.hand.open"
         case .gear:                             return "gear"
         case .globe:                            return "globe"
         case .handRaised:                       return "hand.raised"
+        case .heartWinged:                      return "heart.fill"
+        case .homeGlow:                         return "house.fill"
+        case .layers:                           return "square.3.layers.3d"
         case .linkCircle:                       return "link.circle"
         case .location:                         return "location"
         case .magnifyingglass:                  return "magnifyingglass"
@@ -218,7 +247,9 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
         case .personCircleFill:                 return "person.circle.fill"
         case .photoOnRectangleAngled:           return "photo.on.rectangle.angled"
         case .questionmarkAppDashed:            return "questionmark.app.dashed"
+        case .scrollWinged:                     return "scroll.fill"
         case .serverRack:                       return "server.rack"
+        case .shieldBrain:                      return "lock.shield.fill"
         case .sliderHorizontal3:                return "slider.horizontal.3"
         case .speakerWave2:                     return "speaker.wave.2"
         case .star:                             return "star"
@@ -234,12 +265,44 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
     /// gives the same name a consistent look outside the tab bar.
     var customAssetName: String? {
         switch self {
-        case .tabHome:         return "Lumina/Tab/home"
-        case .tabSpaces:       return "Lumina/Tab/spaces"
-        case .tabThink:        return "Lumina/Tab/think"
-        case .tabSettings:     return "Lumina/Tab/settings"
-        case .tabVisualSearch: return "Lumina/Tab/visualsearch"
-        default:               return nil
+        // Tab chrome — full-colour brand glyphs, rendered .original by LVTabBar.
+        case .tabHome:                 return "Lumina/Tab/home"
+        case .tabSpaces:               return "Lumina/Tab/spaces"
+        case .tabThink:                return "Lumina/Tab/think"
+        case .tabSettings:             return "Lumina/Tab/settings"
+        case .tabVisualSearch:         return "Lumina/Tab/visualsearch"
+
+        // HER-301 — existing semantic cases that now ship a Lumina/Icons/* PNG.
+        // LVIconView renders these .template + palette tint; LVTabBar is the
+        // only call site that uses .original mode.
+        case .brain:                   return "Lumina/Icons/brain"
+        case .brainHeadProfile:        return "Lumina/Icons/brain-neural"
+        case .cameraAperture:          return "Lumina/Icons/camera"
+        case .gear:                    return "Lumina/Icons/gear"
+        case .lightbulbFill:           return "Lumina/Icons/lightbulb"
+        case .linkCircle:              return "Lumina/Icons/link"
+        case .magnifyingglass:         return "Lumina/Icons/magnify"
+        case .micFill:                 return "Lumina/Icons/mic"
+        case .photoOnRectangleAngled:  return "Lumina/Icons/gallery"
+        case .plusCircleFill:          return "Lumina/Icons/plus-circle"
+
+        // HER-301 — new cinematic-only cases (no clean SF Symbol equivalent).
+        case .brainPremium:            return "Lumina/Icons/brain_premium"
+        case .briefcase:               return "Lumina/Icons/briefcase"
+        case .chartUp:                 return "Lumina/Icons/chart-up"
+        case .cloudWinged:             return "Lumina/Icons/cloud-winged"
+        case .door:                    return "Lumina/Icons/door"
+        case .heartWinged:             return "Lumina/Icons/heart-winged"
+        case .homeGlow:                return "Lumina/Icons/home"
+        case .layers:                  return "Lumina/Icons/layers"
+        case .scrollWinged:            return "Lumina/Icons/scroll-winged"
+        case .shieldBrain:             return "Lumina/Icons/shield-brain"
+        case .skeletonKeyPremium:      return "Lumina/Icons/skeleton_key_premium"
+        case .wandSparkle:             return "Lumina/Icons/wand-sparkle"
+        case .wingedLockPremium:       return "Lumina/Icons/winged_lock_premium"
+        case .wingedScrollPremium:     return "Lumina/Icons/winged_scroll_premium"
+
+        default:                       return nil
         }
     }
 }
