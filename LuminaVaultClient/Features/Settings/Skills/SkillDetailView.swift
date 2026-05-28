@@ -17,7 +17,7 @@ struct SkillDetailView: View {
         ZStack {
             palette.backgroundBase.ignoresSafeArea()
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: LVSpacing.lg) {
                     header
                     descriptionSection
                     cadenceSection
@@ -25,8 +25,8 @@ struct SkillDetailView: View {
                     usageSection
                     recentRunsSection
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .padding(.horizontal, LVSpacing.lg)
+                .padding(.vertical, LVSpacing.base)
             }
         }
         .lvBackground()
@@ -46,13 +46,13 @@ struct SkillDetailView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: LVSpacing.md) {
             // HER-291: kept as Image — runtime symbol name (sparkle/puzzlepiece.fill not in LVIcon)
             Image(systemName: vm.skill.source == .builtin ? "sparkle" : "puzzlepiece.fill")
-                .font(.system(size: 18, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold)) // TODO HER-icon-tokens: scope deferred per HER-289
                 .foregroundStyle(palette.primary)
             Text(vm.skill.source == .builtin ? "Built-in" : "Custom")
-                .font(.system(size: 12, weight: .semibold))
+                .font(LVTypography.caption.font.weight(.semibold))
                 .foregroundStyle(palette.textSecondary)
                 .textCase(.uppercase)
                 .tracking(0.6)
@@ -62,12 +62,12 @@ struct SkillDetailView: View {
 
     private var descriptionSection: some View {
         Text(vm.skill.descriptionText)
-            .font(.system(size: 14))
+            .font(LVTypography.callout.font)
             .foregroundStyle(palette.textPrimary)
     }
 
     private var cadenceSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
             sectionLabel("Cadence")
             CadencePicker(
                 scheduleOverride: Binding(
@@ -78,14 +78,14 @@ struct SkillDetailView: View {
             )
             if let manifest = vm.skill.schedule {
                 Text("Manifest default: `\(manifest)`")
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(LVTypography.caption.font.monospaced())
                     .foregroundStyle(Color.lvTextMuted)
             }
         }
     }
 
     private var channelSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
             sectionLabel("Notification channel")
             Picker("", selection: Binding(
                 get: { vm.skill.apnsCategory ?? .digest },
@@ -100,28 +100,28 @@ struct SkillDetailView: View {
     }
 
     private var usageSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
             sectionLabel("Usage (14 days)")
             UsageSparklineView(points: vm.sparkline)
         }
     }
 
     private var recentRunsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
             sectionLabel("Recent runs")
             switch vm.runsState {
             case .loading:
                 ProgressView().tint(palette.primary)
             case .failed(let message):
                 Text(message)
-                    .font(.system(size: 12))
+                    .font(LVTypography.caption.font)
                     .foregroundStyle(Color.lvTextMuted)
             case .loaded where vm.runs.isEmpty:
                 Text("No runs yet.")
-                    .font(.system(size: 13))
+                    .font(LVTypography.footnote.font)
                     .foregroundStyle(Color.lvTextMuted)
             case .loaded:
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: LVSpacing.sm) {
                     ForEach(vm.runs.prefix(15)) { run in
                         runRow(run)
                     }
@@ -131,19 +131,19 @@ struct SkillDetailView: View {
     }
 
     private func runRow(_ run: SkillRunDTO) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: LVSpacing.sm) {
             Circle()
                 .fill(color(for: run.status))
                 .frame(width: 6, height: 6)
             Text(Self.formatter.localizedString(for: run.startedAt, relativeTo: Date()))
-                .font(.system(size: 12))
+                .font(LVTypography.caption.font)
                 .foregroundStyle(palette.textSecondary)
             Spacer()
             Text(run.status.rawValue)
-                .font(.system(size: 11, weight: .semibold))
+                .font(LVTypography.microTag.font)
                 .foregroundStyle(color(for: run.status))
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, LVSpacing.xs)
     }
 
     private func color(for status: SkillRunStatus) -> Color {
@@ -156,7 +156,7 @@ struct SkillDetailView: View {
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 12, weight: .semibold))
+            .font(LVTypography.caption.font.weight(.semibold))
             .foregroundStyle(palette.textSecondary)
             .textCase(.uppercase)
             .tracking(0.6)

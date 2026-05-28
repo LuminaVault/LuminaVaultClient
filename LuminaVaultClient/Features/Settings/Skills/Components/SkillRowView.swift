@@ -13,15 +13,15 @@ struct SkillRowView: View {
     let onToggle: (Bool) -> Void
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: LVSpacing.md) {
             icon
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: LVSpacing.xs) {
                 Text(skill.name)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(LVTypography.fieldLabel.font)
                     .foregroundStyle(palette.textPrimary)
                     .lineLimit(1)
                 Text(skill.descriptionText)
-                    .font(.system(size: 12))
+                    .font(LVTypography.caption.font)
                     .foregroundStyle(palette.textSecondary)
                     .lineLimit(2)
                 lastRunFooter
@@ -34,7 +34,7 @@ struct SkillRowView: View {
             .labelsHidden()
             .tint(palette.primary)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, LVSpacing.sm)
     }
 
     private var icon: some View {
@@ -44,7 +44,7 @@ struct SkillRowView: View {
                 .frame(width: 30, height: 30)
             // HER-291: kept as Image — runtime symbol name (sparkle/puzzlepiece.fill not in LVIcon)
             Image(systemName: skill.source == .builtin ? "sparkle" : "puzzlepiece.fill")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold)) // TODO HER-icon-tokens: scope deferred per HER-289
                 .foregroundStyle(palette.primary)
         }
     }
@@ -52,15 +52,15 @@ struct SkillRowView: View {
     @ViewBuilder
     private var lastRunFooter: some View {
         if let lastRunAt = skill.lastRunAt {
-            HStack(spacing: 6) {
+            HStack(spacing: LVSpacing.sm) {
                 statusPill
                 Text("· \(Self.formatter.localizedString(for: lastRunAt, relativeTo: Date()))")
-                    .font(.system(size: 11))
+                    .font(LVTypography.caption.font)
                     .foregroundStyle(Color.lvTextMuted)
             }
         } else {
             Text("Never run")
-                .font(.system(size: 11))
+                .font(LVTypography.caption.font)
                 .foregroundStyle(Color.lvTextMuted)
         }
     }
@@ -69,9 +69,9 @@ struct SkillRowView: View {
     private var statusPill: some View {
         if let status = skill.lastStatus {
             Text(status.rawValue.capitalized)
-                .font(.system(size: 10, weight: .semibold))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
+                .font(LVTypography.microTag.font)
+                .padding(.horizontal, LVSpacing.sm)
+                .padding(.vertical, LVSpacing.hairline)
                 .background(pillColor(status).opacity(0.18))
                 .foregroundStyle(pillColor(status))
                 .clipShape(Capsule())
