@@ -24,6 +24,7 @@ struct MainTabView: View {
     private static let tabIds = (
         workspaces: "workspaces",
         home: "home",
+        reflect: "reflect",
         think: "think",
         brain: "brain",
         settings: "settings"
@@ -49,6 +50,13 @@ struct MainTabView: View {
 
                     home
                         .tag(Self.tabIds.home)
+                        .toolbar(.hidden, for: .tabBar)
+
+                    // HER-194 — Reflect tab. Synth-cluster skills
+                    // (Patterns / Contradictions / Beliefs) with topic
+                    // input, full-screen result + Save-to-Vault.
+                    reflect
+                        .tag(Self.tabIds.reflect)
                         .toolbar(.hidden, for: .tabBar)
 
                     // HER-107: Think tab — multi-turn chat. Memory-grounded
@@ -117,6 +125,11 @@ struct MainTabView: View {
                       systemImage: "folder.fill", customImageName: "spaces"),
             LVTabItem(id: Self.tabIds.home, label: "Home",
                       systemImage: "sparkles", customImageName: "home"),
+            // HER-194 — Reflect lives between Home and Think; the
+            // synthesis-intelligence cluster is the premium-flawless
+            // surface that justifies a primary tab.
+            LVTabItem(id: Self.tabIds.reflect, label: "Reflect",
+                      systemImage: "sparkles.rectangle.stack"),
             LVTabItem(id: Self.tabIds.think, label: "Think",
                       systemImage: "bubble.left.and.text.bubble.right", customImageName: "think"),
         ]
@@ -264,6 +277,25 @@ struct MainTabView: View {
 
     private var skillsClient: SkillsClientProtocol {
         SkillsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    // HER-194 — vault upload client wired so Save-to-Vault in Reflect
+    // can POST the cached rendered markdown without firing a second
+    // LLM call.
+    private var vaultUploadClient: VaultUploadClientProtocol {
+        VaultUploadHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var reflect: some View {
+        ReflectTabView(
+            vm: ReflectViewModel(vaultClient: vaultClient),
+            runner: ReflectionRunner(
+                skillsClient: skillsClient,
+                vaultUploadClient: vaultUploadClient,
+            ),
+            vaultClient: vaultClient,
+            memoryClient: memoryUpsertClient,
+        )
     }
 
     private var sessionsClient: SessionsClientProtocol {

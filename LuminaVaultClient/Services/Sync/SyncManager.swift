@@ -228,6 +228,8 @@ actor SyncManager {
             // HER-188 — sync queue should poison 402s so the user sees the
             // paywall once via EntitlementGate instead of looping retries.
             "payment required\(tier.map { " (\($0.rawValue))" } ?? "")"
+        case let .rateLimited(retryAfter):
+            "rate limited\(retryAfter.map { " (retry after \(Int($0))s)" } ?? "")"
         case .invalidURL: "invalid url"
         case let .encodingFailed(err): "encode: \(err.localizedDescription)"
         case let .decodingFailed(err): "decode: \(err.localizedDescription)"
