@@ -44,24 +44,18 @@ struct SpacesListView: View {
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottomTrailing) {
-                // Background
-                Color.black.ignoresSafeArea()
-                
-                // Cosmic aurora gradients
-                RadialGradient(
-                    colors: [palette.glowPrimary.opacity(0.15), .clear],
-                    center: .topTrailing,
-                    startRadius: 0,
-                    endRadius: 600
-                ).ignoresSafeArea()
-                
-                RadialGradient(
-                    colors: [palette.accent.opacity(0.1), .clear],
-                    center: .center,
-                    startRadius: 0,
-                    endRadius: 500
-                ).ignoresSafeArea()
-                
+                // HER-307 — bespoke RadialGradient layers removed; lvBackground
+                // (applied below) ships the canonical aurora wash from the
+                // design system.
+
+                // HER-307 — subtle neural-network particle field anchored to
+                // the top half of the screen per DESIGN_SYSTEM §13.4.
+                Color.clear
+                    .lvParticleBackground(intensity: .subtle)
+                    .frame(maxHeight: 380)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .allowsHitTesting(false)
+
                 content
                 createButton
             }
@@ -245,17 +239,11 @@ struct SpacesListView: View {
     }
 
     private var createButton: some View {
-        Button {
+        // HER-307 — replaces the bespoke cyan circle + plus with the shared
+        // LVFAB component (HER-301). Single source for the cinematic
+        // capture-button chrome — cyan glow, gold ring, haptic on press.
+        LVFAB {
             presentingEditorFor = EditorPresentation(mode: .create)
-        } label: {
-            LVIconView(.plus, size: 26, tint: .black, weight: .light)
-                .frame(width: 64, height: 64)
-                .background {
-                    Circle()
-                        .fill(palette.glowPrimary)
-                        .shadow(color: palette.glowPrimary.opacity(0.6), radius: 15)
-                }
-                .lvGlowPress()
         }
         .padding(24)
         .padding(.bottom, 16)
