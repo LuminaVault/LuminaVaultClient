@@ -72,6 +72,8 @@ Login succeeded → `BillingService.bootstrap` → `purchases.logIn(...)` → `P
 
 ## What's missing for production (HER-271 + dashboard work)
 
+The manual dashboard steps below have a click-by-click runbook: [`docs/revenuecat-appstore-setup.md`](../../../docs/revenuecat-appstore-setup.md).
+
 To make Layer 2 a no-op in real builds (i.e. RC actually configured everywhere), the following still has to ship:
 
 ### 1. App Store Connect
@@ -106,7 +108,7 @@ Product IDs must match `RCProduct` constants verbatim — case-sensitive. See `R
 | Surface | Status |
 |---|---|
 | `Config.revenueCatPublicKey` reader (env > Info.plist) | DONE (`Config.swift`, HER-185) |
-| Debug scheme: `REVENUECAT_PUBLIC_KEY` env var set in Xcode scheme editor | TODO |
+| Debug scheme: `REVENUECAT_PUBLIC_KEY` env var set in Xcode scheme editor | DONE (HER-271 — disabled placeholder in `LuminaVaultClient.xcscheme`; enable + paste real `appl_*` locally) |
 | Release xcconfig: `LV_RC_API_KEY` populated, fed into Info.plist via `$(LV_RC_API_KEY)` substitution | TODO |
 | Info.plist key `LV_RC_API_KEY` present | DONE (HER-185 — substitution placeholder) |
 

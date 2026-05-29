@@ -84,7 +84,7 @@ The file-based plist is required for `CFBundleURLTypes`, which Google Sign-In ne
 - Apple Developer App IDs have Push Notifications, Sign in with Apple, HealthKit, background delivery, App Groups, and Keychain Sharing enabled where required.
 - Share extension App IDs exist for Debug, Beta, and Release bundle IDs, with App Groups and Keychain Sharing enabled.
 - App Store Connect products exist for every RevenueCat product ID.
-- RevenueCat offerings map products to entitlements such as `plus` and `pro`.
+- RevenueCat offerings map products to entitlements `pro` and `ultimate` (must match `RCEntitlement` in `Services/Billing/BillingService.swift`). See `docs/revenuecat-appstore-setup.md`.
 - Google OAuth iOS client has the correct bundle ID.
 - X OAuth app has the exact redirect URI from the xcconfig.
 - Sentry has separate environment filtering for `beta` and `production`.

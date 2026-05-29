@@ -83,6 +83,11 @@
             value = "https://us.i.posthog.com"
             isEnabled = "YES">
          </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "REVENUECAT_PUBLIC_KEY"
+            value = "appl_REPLACE_WITH_REVENUECAT_PUBLIC_SDK_KEY"
+            isEnabled = "NO">
+         </EnvironmentVariable>
       </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
