@@ -13,7 +13,7 @@ struct SocialProofView: View {
             onPrimary: { state.advance() }
         ) {
             VStack(spacing: 12) {
-                ForEach(FunnelTestimonial.placeholders) { t in
+                ForEach(FunnelTestimonial.verified) { t in
                     card(for: t)
                 }
             }

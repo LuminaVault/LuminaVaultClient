@@ -76,7 +76,7 @@ struct FunnelSampleCapture: Identifiable, Sendable, Equatable {
     }
 }
 
-// MARK: - Testimonials (Screen 4 placeholders)
+// MARK: - Testimonials (Screen 4 — Social Proof)
 
 struct FunnelTestimonial: Identifiable, Sendable, Equatable {
     let id: Int
@@ -84,20 +84,53 @@ struct FunnelTestimonial: Identifiable, Sendable, Equatable {
     let persona: String
     let quote: String
 
-    /// PLACEHOLDER — swap with real reviews post-TestFlight.
-    static let placeholders: [FunnelTestimonial] = [
+    /// Ship-guard source of truth (HER-296).
+    ///
+    /// The entries below are placeholders. Apple §3.1.2 paywall App Review
+    /// requires real review screenshots — placeholders read as "lorem ipsum"
+    /// and risk rejection. Screen 4 feeds the paywall screenshot.
+    ///
+    /// Flip to `false` IN THE SAME COMMIT that swaps real testimonials in.
+    /// While `true`, `verified` trips a DEBUG assertion on every Screen 4
+    /// render so placeholders can't quietly reach a build.
+    static let containsUnverifiedPlaceholders = true
+
+    /// Read path for Screen 4. Always read this, never `entries` directly,
+    /// so the placeholder ship-guard runs. Assertion is DEBUG-only — release
+    /// builds never crash on it.
+    static var verified: [FunnelTestimonial] {
+        assert(
+            !containsUnverifiedPlaceholders,
+            "HER-296: Screen 4 still shows placeholder testimonials. Swap in real "
+                + "TestFlight reviews (written consent on file), then set "
+                + "containsUnverifiedPlaceholders = false before the paywall ships."
+        )
+        return entries
+    }
+
+    // TODO(HER-296): replace all 3 placeholders with real testimonials
+    // (50–80 words each) from consented TestFlight testers, then flip
+    // `containsUnverifiedPlaceholders` to false.
+    //
+    // Per entry, add an audit comment on the line above it — DO NOT commit
+    // consent forms to source; link them in the PR description (1Password/Notion):
+    //   // Source: <full name> <email> <consent date YYYY-MM-DD>
+    static let entries: [FunnelTestimonial] = [
+        // Source: <placeholder — replace>
         .init(
             id: 0,
             initials: "M.K.",
             persona: "Independent researcher",
             quote: "I used to grep 800 Obsidian notes by hand. Lumina actually finds what I asked about months ago. First AI that doesn't make me re-explain myself every conversation."
         ),
+        // Source: <placeholder — replace>
         .init(
             id: 1,
             initials: "D.R.",
             persona: "Indie founder",
             quote: "My voice memos, my Safari saves, my Health data — Lumina sees them as one corpus. It reads back insights I would have lost otherwise."
         ),
+        // Source: <placeholder — replace>
         .init(
             id: 2,
             initials: "S.T.",
