@@ -24,6 +24,7 @@ final class HomeViewModel {
 
     // Card-level state. Each settles independently from `refresh()`.
     var stats: CardState<DashboardStatsResponse> = .loading
+    var profile: CardState<DashboardProfileResponse> = .loading
     var tasks: CardState<[TaskDTO]> = .loading
     var insights: CardState<[InsightDTO]> = .loading
     var isOnline: Bool = true
@@ -38,12 +39,14 @@ final class HomeViewModel {
     let displayName: String
 
     private let statsClient: DashboardStatsClientProtocol
+    private let profileClient: DashboardProfileClientProtocol
     private let tasksClient: TasksClientProtocol
     private let insightsClient: InsightsClientProtocol
     private let healthClient: HealthClientProtocol
 
     init(
         statsClient: DashboardStatsClientProtocol,
+        profileClient: DashboardProfileClientProtocol,
         tasksClient: TasksClientProtocol,
         insightsClient: InsightsClientProtocol,
         healthClient: HealthClientProtocol,
@@ -51,6 +54,7 @@ final class HomeViewModel {
         displayName: String
     ) {
         self.statsClient = statsClient
+        self.profileClient = profileClient
         self.tasksClient = tasksClient
         self.insightsClient = insightsClient
         self.healthClient = healthClient
@@ -60,14 +64,16 @@ final class HomeViewModel {
 
     func refresh() async {
         stats = .loading
+        profile = .loading
         tasks = .loading
         insights = .loading
 
         async let statsTask: Void = loadStats()
+        async let profileTask: Void = loadProfile()
         async let tasksTask: Void = loadTasks()
         async let insightsTask: Void = loadInsights()
         async let healthTask: Void = checkHealth()
-        _ = await (statsTask, tasksTask, insightsTask, healthTask)
+        _ = await (statsTask, profileTask, tasksTask, insightsTask, healthTask)
     }
 
     func triggerCompile() async {
@@ -82,6 +88,15 @@ final class HomeViewModel {
             stats = .loaded(result)
         } catch {
             stats = .failed(message: friendlyMessage(error))
+        }
+    }
+
+    private func loadProfile() async {
+        do {
+            let result = try await profileClient.profile()
+            profile = .loaded(result)
+        } catch {
+            profile = .failed(message: friendlyMessage(error))
         }
     }
 

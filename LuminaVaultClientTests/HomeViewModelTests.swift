@@ -10,6 +10,7 @@ import LuminaVaultShared
 @MainActor
 final class HomeViewModelTests: XCTestCase {
     private var statsClient: MockDashboardStatsClient!
+    private var profileClient: MockDashboardProfileClient!
     private var tasksClient: MockTasksClient!
     private var insightsClient: MockInsightsClient!
     private var healthClient: MockHealthClient!
@@ -20,6 +21,7 @@ final class HomeViewModelTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         statsClient = MockDashboardStatsClient()
+        profileClient = MockDashboardProfileClient()
         tasksClient = MockTasksClient()
         insightsClient = MockInsightsClient()
         healthClient = MockHealthClient()
@@ -27,6 +29,7 @@ final class HomeViewModelTests: XCTestCase {
         compileVM = SyncAndLearnViewModel(client: compileClient)
         sut = HomeViewModel(
             statsClient: statsClient,
+            profileClient: profileClient,
             tasksClient: tasksClient,
             insightsClient: insightsClient,
             healthClient: healthClient,

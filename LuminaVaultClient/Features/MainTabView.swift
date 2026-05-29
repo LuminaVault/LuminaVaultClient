@@ -129,7 +129,7 @@ struct MainTabView: View {
             // synthesis-intelligence cluster is the premium-flawless
             // surface that justifies a primary tab.
             LVTabItem(id: Self.tabIds.reflect, label: "Reflect", icon: .sparklesRectangleStack),
-            LVTabItem(id: Self.tabIds.think, label: "Think", icon: .tabThink),
+            LVTabItem(id: Self.tabIds.think, label: "AI", icon: .tabThink),
         ]
     }
 
@@ -201,6 +201,10 @@ struct MainTabView: View {
         DashboardStatsHTTPClient(client: appState.makeHTTPClient())
     }
 
+    private var dashboardProfileClient: DashboardProfileClientProtocol {
+        DashboardProfileHTTPClient(client: appState.makeHTTPClient())
+    }
+
     private var tasksClient: TasksClientProtocol {
         TasksHTTPClient(client: appState.makeHTTPClient())
     }
@@ -221,6 +225,7 @@ struct MainTabView: View {
         HomeView(
             vm: HomeViewModel(
                 statsClient: dashboardStatsClient,
+                profileClient: dashboardProfileClient,
                 tasksClient: tasksClient,
                 insightsClient: insightsClient,
                 healthClient: healthClient,
@@ -236,6 +241,7 @@ struct MainTabView: View {
                 // TODO(HER-107): when chat detail ships, route to it
                 // directly. For now defers to the Think tab.
             },
+            onSelectTab: { selection = $0 },
             sessionsDestination: AnyView(
                 SessionsListView(vm: SessionsListViewModel(client: sessionsClient))
             ),

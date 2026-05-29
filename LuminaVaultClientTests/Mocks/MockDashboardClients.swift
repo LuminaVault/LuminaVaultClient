@@ -16,6 +16,16 @@ final class MockDashboardStatsClient: DashboardStatsClientProtocol, @unchecked S
     }
 }
 
+final class MockDashboardProfileClient: DashboardProfileClientProtocol, @unchecked Sendable {
+    var result: Result<DashboardProfileResponse, Error> = .success(.empty)
+    private(set) var callCount = 0
+
+    func profile() async throws -> DashboardProfileResponse {
+        callCount += 1
+        return try result.get()
+    }
+}
+
 final class MockTasksClient: TasksClientProtocol, @unchecked Sendable {
     var result: Result<TaskListResponse, Error> = .success(TaskListResponse(tasks: []))
     private(set) var callCount = 0
@@ -59,6 +69,23 @@ extension DashboardStatsResponse {
 
     static func stub(today: Int = 5, total: Int = 42, lastCompileAt: Date? = nil) -> DashboardStatsResponse {
         DashboardStatsResponse(memoriesToday: today, memoriesTotal: total, lastCompileAt: lastCompileAt)
+    }
+}
+
+extension DashboardProfileResponse {
+    static let empty = DashboardProfileResponse(
+        skillsCount: 0, jobsCount: 0, sessionsCount: 0,
+        badgesEarned: 0, powerLevel: 1, powerXP: 0
+    )
+
+    static func stub(
+        skills: Int = 6, jobs: Int = 18, sessions: Int = 9,
+        badges: Int = 4, powerLevel: Int = 8, powerXP: Int = 63
+    ) -> DashboardProfileResponse {
+        DashboardProfileResponse(
+            skillsCount: skills, jobsCount: jobs, sessionsCount: sessions,
+            badgesEarned: badges, powerLevel: powerLevel, powerXP: powerXP
+        )
     }
 }
 

@@ -94,7 +94,7 @@ struct ChatView: View {
                                 .id(Self.pendingAnchor)
                             }
                             if case let .failed(message) = viewModel.phase {
-                                ErrorRow(message: message)
+                                ErrorRow(message: message, onRetry: { viewModel.retryLast() })
                             }
                         }
                         .padding(.horizontal, LVSpacing.lg)
@@ -466,7 +466,11 @@ private struct VoiceErrorToast: View {
 }
 
 private struct ErrorRow: View {
+    @Environment(\.lvPalette) private var palette
     let message: String
+    /// Re-sends the last user turn. Surfaced as a tappable "Retry" pill so
+    /// a timed-out / failed reply is recoverable without retyping.
+    var onRetry: (() -> Void)?
     var body: some View {
         HStack(spacing: 8) {
             LVIconView(.exclamationmarkTriangleFill, size: 14, tint: .orange)
@@ -474,6 +478,17 @@ private struct ErrorRow: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
+            if let onRetry {
+                Button(action: onRetry) {
+                    HStack(spacing: 4) {
+                        LVIconView(.arrowUpCircleFill, size: 13, tint: palette.glowPrimary)
+                        Text("Retry")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(palette.glowPrimary)
+                    }
+                }
+                .lvGlowPress()
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -504,6 +519,7 @@ private struct ComposerBar: View {
                     .lvFont(.body)
                     .foregroundStyle(palette.textPrimary)
                     .tint(palette.glowPrimary)
+                    .submitLabel(.send)
                     .disabled(voice.isRecording)
                     .opacity(voice.isRecording ? 0 : 1)
                 if voice.isRecording {
@@ -531,14 +547,17 @@ private struct ComposerBar: View {
             } else {
                 MicHoldButton(voice: voice)
 
-                if !text.isEmpty && canSend {
-                    Button(action: onSend) {
-                        LVIconView(.arrowUpCircleFill, size: 28, tint: palette.glowPrimary)
-                            .shadow(color: palette.glowPrimary.opacity(0.75), radius: 10)
-                    }
-                    .lvGlowPress()
-                    .transition(.scale.combined(with: .opacity))
+                // Send button stays visible whenever we're not streaming so
+                // the affordance is always discoverable; it dims + disables
+                // until there's sendable text (canSend).
+                Button(action: onSend) {
+                    LVIconView(.arrowUpCircleFill, size: 28, tint: palette.glowPrimary)
+                        .shadow(color: palette.glowPrimary.opacity(canSend ? 0.75 : 0), radius: 10)
                 }
+                .lvGlowPress()
+                .disabled(!canSend)
+                .opacity(canSend ? 1 : 0.35)
+                .transition(.scale.combined(with: .opacity))
             }
         }
         .padding(.horizontal, LVSpacing.base)

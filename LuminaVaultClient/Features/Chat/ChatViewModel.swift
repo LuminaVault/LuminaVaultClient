@@ -93,6 +93,9 @@ final class ChatViewModel {
     /// (`sendVoiceTranscript`). On `.done`, the assistant reply is
     /// auto-spoken iff this flag is set. Reset after each finalize.
     private var lastInputWasVoice = false
+    /// Last user turn content, retained so `retryLast()` can re-send after
+    /// a failure (e.g. a timed-out stream) without the user retyping.
+    private var lastSentContent: String?
     private(set) var conversationID: UUID?
     private var streamTask: Task<Void, Never>?
     private var mascotDecayTask: Task<Void, Never>?
@@ -156,6 +159,7 @@ final class ChatViewModel {
         let trimmed = composer.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !isStreaming, phase != .starting else { return }
         composer = ""
+        lastSentContent = trimmed
         fallbackNotice = nil
         setMascot(.thinking)
 
@@ -167,6 +171,30 @@ final class ChatViewModel {
         streamTask = Task { [weak self] in
             await self?.runSend(content: trimmed)
         }
+    }
+
+    /// Re-run the last user turn after a failure (e.g. a timed-out stream).
+    /// The user bubble is already in `messages`, so we only restart the
+    /// send pipeline — no duplicate user message is appended.
+    func retryLast() {
+        guard let content = lastSentContent, !isStreaming, phase != .starting else { return }
+        fallbackNotice = nil
+        setMascot(.thinking)
+        streamTask?.cancel()
+        streamTask = Task { [weak self] in
+            await self?.runSend(content: content)
+        }
+    }
+
+    /// Maps transport errors to user-facing copy. `URLError.timedOut`
+    /// (often a cold managed-brain that hasn't emitted its first SSE byte)
+    /// gets a friendlier, retry-oriented message instead of Foundation's
+    /// "The request timed out."
+    private func friendlyError(_ error: Error) -> String {
+        if let urlError = error as? URLError, urlError.code == .timedOut {
+            return "Lumina took too long to respond. Tap Retry."
+        }
+        return (error as? APIError)?.errorDescription ?? error.localizedDescription
     }
 
     /// Programmatic seed — used by empty-state suggestion chips.
@@ -255,7 +283,7 @@ final class ChatViewModel {
             phase = .idle
             setMascot(.idle)
         } catch {
-            let message = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            let message = friendlyError(error)
             phase = .failed(message: message)
             setMascot(.idle)
         }
@@ -295,7 +323,7 @@ final class ChatViewModel {
             phase = .idle
             setMascot(.idle)
         } catch {
-            let message = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            let message = friendlyError(error)
             phase = .failed(message: message)
             setMascot(.idle)
         }

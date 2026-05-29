@@ -25,6 +25,12 @@ protocol StreamingEndpoint: Sendable {
     var requiresAuth: Bool { get }
     var decoder: JSONDecoder { get }
     var encoder: JSONEncoder { get }
+    /// Per-request connect/idle timeout for the SSE request. Streaming
+    /// replies (LLM token streams) can be slow to emit their first byte —
+    /// especially a cold managed brain — so this defaults well above the
+    /// 60s `URLSession.shared` default to avoid a premature
+    /// `URLError.timedOut` before any token arrives.
+    var streamTimeout: TimeInterval { get }
 }
 
 extension StreamingEndpoint {
@@ -32,6 +38,7 @@ extension StreamingEndpoint {
     var body: (any Encodable & Sendable)? { nil }
     var decoder: JSONDecoder { .hvDefault }
     var encoder: JSONEncoder { JSONEncoder() }
+    var streamTimeout: TimeInterval { 120 }
 }
 
 /// Pure SSE line-buffer state machine. Extracted so the wire parser can

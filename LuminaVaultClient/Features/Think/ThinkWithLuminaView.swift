@@ -28,7 +28,7 @@ struct ThinkWithLuminaView: View {
             ChatView(
                 viewModel: chatVM,
                 emptyStateSuggestions: suggestions,
-                emptyHeadline: "Think",
+                emptyHeadline: "AI",
                 emptySupporting: "Ask anything. Lumina pulls from your vault and recent learnings.",
                 vaultClient: vaultClient,
                 memoryClient: memoryClient,

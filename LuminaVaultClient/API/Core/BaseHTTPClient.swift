@@ -344,6 +344,10 @@ final class BaseHTTPClient: Sendable {
         }
         var req = URLRequest(url: url)
         req.httpMethod = endpoint.method.rawValue
+        // SSE streams (LLM token streams) can be slow to emit their first
+        // byte; raise the per-request timeout above the URLSession default
+        // so a cold managed brain doesn't trip `URLError.timedOut`.
+        req.timeoutInterval = endpoint.streamTimeout
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         if endpoint.requiresAuth, let token = await tokenProvider() {

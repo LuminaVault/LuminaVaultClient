@@ -165,7 +165,16 @@ final class AppState {
     /// 401 auto-refresh, and a sign-out trigger when refresh fails. All
     /// per-feature HTTP clients (Vault, Spaces, Memory, Settings, …) MUST
     /// be built through this factory so they share the refresh coordinator.
-    func makeHTTPClient() -> BaseHTTPClient {
+    func makeHTTPClient() -> BaseHTTPClient { sharedHTTPClient }
+
+    /// HER perf audit (C1a): `BaseHTTPClient` is `final … Sendable` with only
+    /// `let` stored state, so one instance is safe to share process-wide.
+    /// Memoized so `makeHTTPClient()` stops allocating three objects (bootstrap
+    /// + `AuthHTTPClient` + `BaseHTTPClient`) on every SwiftUI `body` eval —
+    /// `MainTabView` rebuilds every per-feature client on each tab switch.
+    @ObservationIgnored private lazy var sharedHTTPClient: BaseHTTPClient = buildHTTPClient()
+
+    private func buildHTTPClient() -> BaseHTTPClient {
         let keychain = self.keychain
         let sharedSessionKeychain = self.sharedSessionKeychain
         let coordinator = self.refreshCoordinator

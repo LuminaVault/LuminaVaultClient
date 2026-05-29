@@ -14,6 +14,10 @@ struct HomeView: View {
 
     @State var vm: HomeViewModel
     let onAskLumina: () -> Void
+    /// Switches the root tab selection. Quick-action cards that target a
+    /// tab (Spaces, AI) call this instead of pushing a duplicate screen.
+    /// Pass tab ids matching `MainTabView.tabIds` ("workspaces", "think").
+    var onSelectTab: (String) -> Void = { _ in }
     /// HER-245/246/248/250 — pushed destinations from the dashboard cards.
     /// Owners are constructed by `MainTabView`; HomeView just navigates.
     let sessionsDestination: AnyView
@@ -74,6 +78,9 @@ struct HomeView: View {
                         // the Home tab had no mascot at all.
                         MascotHero()
 
+                        // Player-profile HUD: power level ring + stat tiles.
+                        ProfileStatsHUDView(state: vm.profile)
+
                         VStack(spacing: 24) {
                             quickActionsHeader
                             cardGrid
@@ -116,34 +123,32 @@ struct HomeView: View {
     }
 
     private var cardGrid: some View {
-        // HER-304 — every card now ships an LVIcon token that resolves to
-        // a Lumina/Icons/* PNG (HER-301) for the brand-glyph look.
+        // HER-304 — every card ships an LVIcon token that resolves to a
+        // Lumina/Icons/* PNG (HER-301) for the brand-glyph look. Only
+        // surfaces with a real destination are shown (no "Stocks" stub):
+        // Spaces + AI switch tabs; Health/Ideas/Work push their screens.
         LazyVGrid(columns: columns, spacing: 16) {
-            // Row 1: Spaces, AI, Health
-            NavigationLink { workspacesView } label: {
+            // Tab-targeting cards.
+            Button { onSelectTab("workspaces") } label: {
                 SciFiCardView(icon: .scrollWinged, title: "Spaces", subtitle: "Winged docs")
             }
 
-            NavigationLink { sessionsDestination } label: {
+            Button { onSelectTab("think") } label: {
                 SciFiCardView(icon: .brainHeadProfile, title: "AI", subtitle: "Neural brain")
             }
 
+            // Pushed destinations.
             NavigationLink {
                 healthDestination ?? sessionsDestination
             } label: {
                 SciFiCardView(icon: .heartWinged, title: "Health", subtitle: "Sparklines")
             }
 
-            // Row 2: Ideas, Stocks, Work
             NavigationLink { insightsDestination } label: {
                 SciFiCardView(icon: .lightbulbFill, title: "Ideas", subtitle: "Glowing light")
             }
 
-            NavigationLink { sessionsDestination } label: {
-                SciFiCardView(icon: .chartUp, title: "Stocks", subtitle: "Market flow")
-            }
-
-            NavigationLink { visualSearchDestination ?? AnyView(EmptyView()) } label: {
+            NavigationLink { tasksDestination } label: {
                 SciFiCardView(icon: .briefcase, title: "Work", subtitle: "Core tasks")
             }
         }
@@ -195,15 +200,6 @@ struct HomeView: View {
         .padding(.top, 10)
     }
     
-    // Helper to get Workspaces destination if needed,
-    // though in MainTabView it's already defined as a tab.
-    // For the "Spaces" card, we'll just navigate to a placeholder
-    // or the existing sessions for now if not explicitly passed.
-    private var workspacesView: AnyView {
-        // Ideally we'd pass the spacesDestination but HomeView didn't have it.
-        // I'll just use sessionsDestination as a placeholder if it's not provided.
-        sessionsDestination
-    }
 }
 
 // MARK: - Mascot hero (HER-304)

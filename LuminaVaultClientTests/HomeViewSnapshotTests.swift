@@ -31,6 +31,7 @@ final class HomeViewSnapshotTests: XCTestCase {
 
     private func makeViewModel(
         stats: HomeViewModel.CardState<DashboardStatsResponse> = .loaded(.stub(today: 7, total: 142, lastCompileAt: Date(timeIntervalSince1970: 1_715_000_000))),
+        profile: HomeViewModel.CardState<DashboardProfileResponse> = .loaded(.stub()),
         tasks: HomeViewModel.CardState<[TaskDTO]> = .loaded([.stub(label: "Compiling vault", state: .running, progress: 0.4)]),
         insights: HomeViewModel.CardState<[InsightDTO]> = .loaded([
             .stub(headline: "You're writing more on Tuesdays."),
@@ -40,6 +41,7 @@ final class HomeViewSnapshotTests: XCTestCase {
     ) -> HomeViewModel {
         let vm = HomeViewModel(
             statsClient: MockDashboardStatsClient(),
+            profileClient: MockDashboardProfileClient(),
             tasksClient: MockTasksClient(),
             insightsClient: MockInsightsClient(),
             healthClient: MockHealthClient(),
@@ -47,6 +49,7 @@ final class HomeViewSnapshotTests: XCTestCase {
             displayName: "Fernando"
         )
         vm.stats = stats
+        vm.profile = profile
         vm.tasks = tasks
         vm.insights = insights
         vm.isOnline = isOnline
