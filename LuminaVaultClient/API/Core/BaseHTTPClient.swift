@@ -268,29 +268,39 @@ final class BaseHTTPClient: Sendable {
                     }
 
                     var parser = SSEFrameParser()
-                    for try await line in bytes.lines {
+
+                    // Decode one frame and forward it. Wraps the decoder
+                    // error so consumers see a typed `APIError`.
+                    func emit(_ data: Data) throws {
+                        let event: E.Event
+                        do { event = try endpoint.decoder.decode(E.Event.self, from: data) }
+                        catch { throw APIError.decodingFailed(error) }
+                        continuation.yield(event)
+                    }
+
+                    // Frame the SSE stream at the byte level. We deliberately
+                    // do NOT use `bytes.lines`: `AsyncLineSequence` drops the
+                    // blank lines that delimit SSE frames, which made the
+                    // parser concatenate the whole stream into one buffer and
+                    // fail to decode ("Unexpected character '{' after
+                    // top-level value").
+                    for try await byte in bytes {
                         if Task.isCancelled { break }
-                        switch parser.feed(line: line) {
-                        case .pending:
-                            continue
-                        case .event(let data):
-                            let event: E.Event
-                            do { event = try endpoint.decoder.decode(E.Event.self, from: data) }
-                            catch { throw APIError.decodingFailed(error) }
-                            continuation.yield(event)
-                        case .done:
-                            continuation.finish()
-                            return
+                        for outcome in parser.feed(bytes: CollectionOfOne(byte)) {
+                            switch outcome {
+                            case .pending: continue
+                            case .event(let data): try emit(data)
+                            case .done: continuation.finish(); return
+                            }
                         }
                     }
-                    // Stream ended without trailing blank line — flush
-                    // any unfinished frame so we don't drop the last event.
-                    switch parser.flush() {
-                    case .event(let data):
-                        let event = try endpoint.decoder.decode(E.Event.self, from: data)
-                        continuation.yield(event)
-                    case .done, .pending:
-                        break
+                    // Drain trailing partial line + buffered frame.
+                    for outcome in parser.finishBytes() {
+                        switch outcome {
+                        case .pending: continue
+                        case .event(let data): try emit(data)
+                        case .done: continuation.finish(); return
+                        }
                     }
                     continuation.finish()
                 } catch is CancellationError {

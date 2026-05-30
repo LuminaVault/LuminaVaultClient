@@ -64,6 +64,53 @@ struct SSEFrameParser: Sendable {
     }
 
     private var buffer = ""
+    /// Bytes of the current, not-yet-terminated wire line. SSE frames are
+    /// delimited by blank lines, so framing MUST be done at the byte level:
+    /// `URLSession.AsyncBytes.lines` (AsyncLineSequence) silently drops
+    /// empty lines, which are exactly the frame delimiters `feed(line:)`
+    /// relies on. Splitting bytes here preserves them.
+    private var lineBytes: [UInt8] = []
+
+    /// Feed raw transport bytes. Splits on LF (stripping a trailing CR),
+    /// preserving blank lines, and runs each completed line through
+    /// `feed(line:)`. Returns the outcomes for lines completed by these
+    /// bytes (callers act on `.event` / `.done`, ignore `.pending`).
+    ///
+    /// This is the transport entry point. Do NOT route the byte stream
+    /// through `AsyncLineSequence` — it discards the blank-line frame
+    /// delimiters and the parser then concatenates the entire stream into
+    /// one buffer ("Unexpected character '{' after top-level value").
+    mutating func feed(bytes: some Sequence<UInt8>) -> [Outcome] {
+        var outcomes: [Outcome] = []
+        for byte in bytes {
+            if byte == 0x0A { // LF terminates a line
+                outcomes.append(consumeLineBytes())
+            } else {
+                lineBytes.append(byte)
+            }
+        }
+        return outcomes
+    }
+
+    /// Call once the byte stream ends. Drains a trailing partial line (no
+    /// final LF) and then any buffered frame, so the last event is never
+    /// dropped. Returns non-`.pending` outcomes in order.
+    mutating func finishBytes() -> [Outcome] {
+        var outcomes: [Outcome] = []
+        if !lineBytes.isEmpty {
+            outcomes.append(consumeLineBytes())
+        }
+        let flushed = flush()
+        if case .pending = flushed {} else { outcomes.append(flushed) }
+        return outcomes
+    }
+
+    private mutating func consumeLineBytes() -> Outcome {
+        if lineBytes.last == 0x0D { lineBytes.removeLast() } // strip CR
+        let line = String(decoding: lineBytes, as: UTF8.self)
+        lineBytes.removeAll(keepingCapacity: true)
+        return feed(line: line)
+    }
 
     /// Append one SSE wire line to the parser. Returns:
     /// - `.event(data)` when a blank line flushes a non-empty buffer

@@ -49,9 +49,13 @@ struct ChooseYourBrainScreen: View {
                     VStack(spacing: LVSpacing.xl) {
                         Spacer(minLength: LVSpacing.heroTop)
 
-                        LVIconView(.brainPremium, size: 120, tint: palette.accent)
+                        Image("Lumina/Icons/brain-neural")
+                            .resizable()
+                            .renderingMode(.original)
+                            .scaledToFit()
+                            .frame(width: 240, height: 240)
+                            .shadow(color: palette.glowPrimary.opacity(0.6), radius: 40, y: 0)
                             .accessibilityHidden(true)
-                            .shadow(color: palette.glowPrimary.opacity(0.4), radius: 28, y: 12)
 
                         VStack(spacing: LVSpacing.sm) {
                             Text("Choose your Brain")
@@ -65,17 +69,12 @@ struct ChooseYourBrainScreen: View {
                                 )
                                 .multilineTextAlignment(.center)
 
-                            Text("Pick the AI model powering your vault. You can change this anytime in Settings.")
+                            Text("Pick the AI model powering your vault.\nYou can change this anytime in Settings.")
                                 .lvFont(.body)
                                 .foregroundStyle(palette.textSecondary)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, LVSpacing.base)
                         }
-                        .padding(.horizontal, LVSpacing.lg)
-                        .padding(.vertical, LVSpacing.lg)
-                        .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.hero)
-                        .lvInnerGlow(cornerRadius: LVRadius.card, intensity: LVGlow.subtle)
-                        .padding(.horizontal, LVSpacing.xl)
 
                         Spacer(minLength: LVSpacing.base)
 
@@ -109,41 +108,82 @@ struct ChooseYourBrainScreen: View {
     }
 
     private var primaryCTA: some View {
-        VStack(spacing: LVSpacing.xs) {
-            LVButton("Use LuminaVault Default", isLoading: viewModel.isSubmitting) {
-                Task { await viewModel.acceptManagedDefault() }
-            }
-            Text("Qwen2.5-72B — free, no API key needed")
-                .lvFont(.footnote)
-                .foregroundStyle(palette.textSecondary)
-        }
-    }
-
-    private var secondaryCTA: some View {
-        Button {
-            Task { await viewModel.selectBYOK() }
-        } label: {
+        VStack(spacing: LVSpacing.md) {
             VStack(spacing: LVSpacing.xs) {
-                Text("Use my own API key")
-                    .lvFont(.bodyEmphasis)
+                Text("Use LuminaVault Default")
+                    .lvFont(.subtitle)
                     .foregroundStyle(palette.textPrimary)
-                Text("Anthropic, OpenAI, Gemini, Qwen, DeepSeek…")
+                Text("Qwen 2.5-72B — free, no API key needed")
                     .lvFont(.footnote)
                     .foregroundStyle(palette.textSecondary)
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: LVSize.largeControlHeight)
-            .background(
-                RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous)
-                    .fill(palette.surface)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous)
-                    .stroke(palette.surfaceStroke, lineWidth: 1)
-            )
+
+            Button {
+                Task { await viewModel.acceptManagedDefault() }
+            } label: {
+                Text("Select Default")
+                    .lvFont(.bodyEmphasis)
+                    .foregroundStyle(Color.black)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: LVSize.buttonHeight)
+                    .background(
+                        RoundedRectangle(cornerRadius: LVRadius.pill, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [palette.primary.opacity(0.8), palette.primary],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(viewModel.isSubmitting)
+            .opacity(viewModel.isSubmitting ? 0.6 : 1.0)
         }
-        .buttonStyle(.plain)
-        .disabled(viewModel.isSubmitting)
-        .opacity(viewModel.isSubmitting ? 0.6 : 1.0)
+        .padding(.horizontal, LVSpacing.lg)
+        .padding(.vertical, LVSpacing.lg)
+        .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.hero)
+        .lvInnerGlow(cornerRadius: LVRadius.card, intensity: LVGlow.subtle)
+    }
+
+    private var secondaryCTA: some View {
+        let localPalette = LVPalette.nebulaDark
+        return VStack(spacing: LVSpacing.md) {
+            VStack(spacing: LVSpacing.xs) {
+                Text("Use my own API key")
+                    .lvFont(.subtitle)
+                    .foregroundStyle(localPalette.textPrimary)
+                Text("Anthropic, OpenAI, Gemini, Qwen, DeepSeek…")
+                    .lvFont(.footnote)
+                    .foregroundStyle(localPalette.textSecondary)
+            }
+
+            Button {
+                Task { await viewModel.selectBYOK() }
+            } label: {
+                Text("Enter API Key")
+                    .lvFont(.bodyEmphasis)
+                    .foregroundStyle(localPalette.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: LVSize.buttonHeight)
+                    .background(
+                        RoundedRectangle(cornerRadius: LVRadius.pill, style: .continuous)
+                            .fill(localPalette.surface)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: LVRadius.pill, style: .continuous)
+                            .stroke(localPalette.surfaceStroke, lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(viewModel.isSubmitting)
+            .opacity(viewModel.isSubmitting ? 0.6 : 1.0)
+        }
+        .padding(.horizontal, LVSpacing.lg)
+        .padding(.vertical, LVSpacing.lg)
+        .environment(\.lvPalette, localPalette)
+        .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.hero)
+        .lvInnerGlow(cornerRadius: LVRadius.card, intensity: LVGlow.subtle)
     }
 }

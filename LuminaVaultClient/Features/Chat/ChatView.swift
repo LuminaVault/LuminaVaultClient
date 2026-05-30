@@ -556,7 +556,9 @@ private struct ComposerBar: View {
                 }
                 .lvGlowPress()
                 .disabled(!canSend)
-                .opacity(canSend ? 1 : 0.35)
+                // Dimmed but clearly present on the dark background before there's
+                // sendable text, so the affordance reads as available from first entry.
+                .opacity(canSend ? 1 : 0.55)
                 .transition(.scale.combined(with: .opacity))
             }
         }

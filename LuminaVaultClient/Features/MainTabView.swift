@@ -104,8 +104,12 @@ struct MainTabView: View {
             )
 
             // HER-243 — capture FAB anchored centrally over the tab bar.
-            CaptureFAB()
-                .padding(.bottom, 70)
+            // Hidden on the AI tab: the chat composer owns the bottom edge,
+            // and the FAB would float on top of the text field + send button.
+            if selection != Self.tabIds.think {
+                CaptureFAB()
+                    .padding(.bottom, 70)
+            }
         }
         .onChange(of: selection) { _, newValue in
             // HER-243 — drive Hermie state from the active tab. ".thinking"

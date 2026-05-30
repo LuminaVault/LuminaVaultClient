@@ -134,6 +134,90 @@ final class BaseHTTPClientSSETests: XCTestCase {
         }
         XCTAssertThrowsError(try decode(data))
     }
+
+    // MARK: - Byte-level framing (transport path)
+
+    /// Drives the parser the way the real transport does — through
+    /// `feed(bytes:)` — instead of hand-fed `""` lines. This is the path
+    /// that was broken: the transport used `AsyncLineSequence`, which
+    /// drops the blank lines that delimit SSE frames, so the parser
+    /// concatenated the whole stream and failed with "Unexpected
+    /// character '{' after top-level value". Feeding raw bytes preserves
+    /// the delimiters.
+    private func runBytes(_ wire: String) throws -> ([QueryStreamEvent], Bool) {
+        var parser = SSEFrameParser()
+        var events: [QueryStreamEvent] = []
+        var hitDone = false
+        func handle(_ outcomes: [SSEFrameParser.Outcome]) throws {
+            for o in outcomes {
+                switch o {
+                case .pending: continue
+                case .event(let data): events.append(try decode(data))
+                case .done: hitDone = true
+                }
+            }
+        }
+        try handle(parser.feed(bytes: Array(wire.utf8)))
+        if !hitDone { try handle(parser.finishBytes()) }
+        return (events, hitDone)
+    }
+
+    func testFeedBytesYieldsFramePerBlankLine() throws {
+        // Realistic wire: multiple `data:` frames separated by blank lines,
+        // exactly what the server emits and what the broken `.lines`
+        // transport mis-handled.
+        let wire = """
+        data: {"type":"token","payload":"I"}
+
+        data: {"type":"token","payload":" am"}
+
+        data: {"type":"token","payload":" fine"}
+
+        data: {"type":"done"}
+
+        """
+        let (events, done) = try runBytes(wire)
+        XCTAssertEqual(events, [.token("I"), .token(" am"), .token(" fine"), .done])
+        XCTAssertFalse(done, "typed .done decodes as event, not [DONE] sentinel")
+    }
+
+    func testFeedBytesHandlesCRLFFrames() throws {
+        let wire = "data: {\"type\":\"token\",\"payload\":\"x\"}\r\n\r\ndata: {\"type\":\"done\"}\r\n\r\n"
+        let (events, _) = try runBytes(wire)
+        XCTAssertEqual(events, [.token("x"), .done])
+    }
+
+    func testFeedBytesSplitAcrossArbitraryChunkBoundaries() throws {
+        // The byte stream can be chunked anywhere — mid-frame, mid-blank
+        // line. Framing must survive splits at every offset.
+        let wire = """
+        data: {"type":"token","payload":"chunk"}
+
+        data: {"type":"token","payload":"split"}
+
+        """
+        let allBytes = Array(wire.utf8)
+        for split in 1..<allBytes.count {
+            var parser = SSEFrameParser()
+            var events: [QueryStreamEvent] = []
+            func handle(_ outcomes: [SSEFrameParser.Outcome]) throws {
+                for o in outcomes {
+                    if case .event(let data) = o { events.append(try decode(data)) }
+                }
+            }
+            try handle(parser.feed(bytes: allBytes[..<split]))
+            try handle(parser.feed(bytes: allBytes[split...]))
+            try handle(parser.finishBytes())
+            XCTAssertEqual(events, [.token("chunk"), .token("split")], "split at \(split)")
+        }
+    }
+
+    func testFeedBytesFlushesTrailingFrameWithoutBlankLine() throws {
+        // Server hangs up after the last frame with no trailing blank line.
+        let wire = #"data: {"type":"token","payload":"last"}"#
+        let (events, _) = try runBytes(wire)
+        XCTAssertEqual(events, [.token("last")])
+    }
 }
 
 // MARK: - Live transport: non-2xx short-circuit
