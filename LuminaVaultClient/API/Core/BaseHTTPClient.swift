@@ -81,6 +81,11 @@ final class BaseHTTPClient: Sendable {
         if let key = endpoint.idempotencyKey {
             req.setValue(key.uuidString, forHTTPHeaderField: "Idempotency-Key")
         }
+        // HER-330: extra caller headers (e.g. X-Admin-Token). Applied last so
+        // they can't overwrite Authorization (which was set above).
+        for (name, value) in endpoint.additionalHeaders {
+            req.setValue(value, forHTTPHeaderField: name)
+        }
         if let body = endpoint.body {
             do { req.httpBody = try endpoint.encoder.encode(AnyEncodable(body)) }
             catch { throw APIError.encodingFailed(error) }
@@ -362,6 +367,10 @@ final class BaseHTTPClient: Sendable {
         req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         if endpoint.requiresAuth, let token = await tokenProvider() {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        // HER-330: extra caller headers (e.g. X-Admin-Token) for streams.
+        for (name, value) in endpoint.additionalHeaders {
+            req.setValue(value, forHTTPHeaderField: name)
         }
         if let body = endpoint.body {
             do { req.httpBody = try endpoint.encoder.encode(AnyEncodable(body)) }

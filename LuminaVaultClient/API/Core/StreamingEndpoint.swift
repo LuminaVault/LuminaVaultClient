@@ -31,6 +31,8 @@ protocol StreamingEndpoint: Sendable {
     /// 60s `URLSession.shared` default to avoid a premature
     /// `URLError.timedOut` before any token arrives.
     var streamTimeout: TimeInterval { get }
+    /// HER-330 — extra request headers (e.g. `X-Admin-Token`). Default empty.
+    var additionalHeaders: [String: String] { get }
 }
 
 extension StreamingEndpoint {
@@ -39,6 +41,7 @@ extension StreamingEndpoint {
     var decoder: JSONDecoder { .hvDefault }
     var encoder: JSONEncoder { JSONEncoder() }
     var streamTimeout: TimeInterval { 120 }
+    var additionalHeaders: [String: String] { [:] }
 }
 
 /// Pure SSE line-buffer state machine. Extracted so the wire parser can

@@ -122,6 +122,11 @@ struct SettingsRootView: View {
                             LVSettingsRow("Messaging Gateways", icon: .bubbleLeftAndBubbleRight) {
                                 HermesGatewaysPaneView(client: hermesGatewaysClient)
                             }
+                            LVSettingsDivider()
+                            // HER-330 — owner-only Hermes self-update.
+                            LVSettingsRow("Update Hermes", icon: .trayAndArrowDown) {
+                                HermesUpdateView(client: systemHermesClient)
+                            }
                             // HER-300/5 — "Model Preferences" was folded into
                             // the new "Intelligence" row under Connections.
                         }
@@ -143,6 +148,11 @@ struct SettingsRootView: View {
 
     private var apnsPrefsClient: any APNSPrefsClientProtocol {
         APNSPrefsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    // HER-330 — owner-only Hermes self-update client.
+    private var systemHermesClient: SystemHermesHTTPClient {
+        SystemHermesHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var skillsClient: any SkillsClientProtocol {

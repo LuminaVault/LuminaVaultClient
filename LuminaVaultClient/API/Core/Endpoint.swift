@@ -22,6 +22,10 @@ protocol Endpoint {
     /// `nil` (default) preserves pre-HER-39 behaviour — no header sent,
     /// every retry is independent.
     var idempotencyKey: UUID? { get }
+    /// HER-330 — extra request headers (e.g. `X-Admin-Token` for the
+    /// owner-only system routes). Default empty. Applied after the standard
+    /// Content-Type / Authorization headers so callers can't clobber auth.
+    var additionalHeaders: [String: String] { get }
 }
 
 extension Endpoint {
@@ -31,6 +35,7 @@ extension Endpoint {
     var encoder: JSONEncoder { JSONEncoder() }
     var skipsAuthRefresh: Bool { !requiresAuth }
     var idempotencyKey: UUID? { nil }
+    var additionalHeaders: [String: String] { [:] }
 }
 
 /// Type-erasing wrapper so a JSONEncoder can encode an `any Encodable`

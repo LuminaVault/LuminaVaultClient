@@ -32,6 +32,14 @@ final class KeychainService: Sendable {
         set { write(key: "biometricsEnabled", value: newValue ? "1" : nil) }
     }
 
+    // HER-330: server admin token (`admin.token`) for the owner-only
+    // /v1/system/hermes update routes, sent as the `X-Admin-Token` header.
+    // Stored here (not @AppStorage) because it is a shared secret.
+    var hermesAdminToken: String? {
+        get { read(key: "hermesAdminToken") }
+        set { write(key: "hermesAdminToken", value: newValue) }
+    }
+
     // HER-209: persist Apple's `user` identifier so we can poll
     // `ASAuthorizationAppleIDProvider.getCredentialState(forUserID:)` on
     // launch/foreground and sign out on `.revoked`.
