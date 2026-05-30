@@ -74,6 +74,7 @@ struct MainTabView: View {
                         suggestionsClient: suggestionsClient,
                         vaultClient: vaultClient,
                         memoryClient: memoryUpsertClient,
+                        vaultUploadClient: vaultUploadClient,
                     )
                     .tag(Self.tabIds.think)
                     .toolbar(.hidden, for: .tabBar)

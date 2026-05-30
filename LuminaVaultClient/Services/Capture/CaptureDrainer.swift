@@ -123,7 +123,7 @@ actor CaptureDrainer {
                     lng: row.lng,
                     accuracyM: row.accuracyM,
                     placeName: row.placeName,
-                ))
+                ), spaceID: row.spaceID)
 
             case .text:
                 // HER-256 — text-only memory: no vault asset to upload.
@@ -141,7 +141,7 @@ actor CaptureDrainer {
                     lng: row.lng,
                     accuracyM: row.accuracyM,
                     placeName: row.placeName,
-                ))
+                ), spaceID: row.spaceID)
 
             case .textFile:
                 guard let body = row.captionText?.nilIfEmpty else {
@@ -162,7 +162,7 @@ actor CaptureDrainer {
                     lng: row.lng,
                     accuracyM: row.accuracyM,
                     placeName: row.placeName,
-                ))
+                ), spaceID: row.spaceID)
 
             case .url:
                 // HER-257 — URL capture: hand off to /v1/capture/safari.

@@ -1,16 +1,24 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Chat/ChatView.swift
 //
 // HER-269 — multi-turn SSE chat surface. Drops into any NavigationStack
-// host (Think tab, dev menu, etc.). Composer pinned via
+// host (AI tab, dev menu, etc.). Composer pinned via
 // `.safeAreaInset(edge: .bottom)`. Auto-scrolls to the live pending
 // bubble as tokens arrive.
+//
+// The empty state is an "Input Hub": a shared cosmic background, a
+// Hermie status badge, and a horizontal carousel of quick-action cards
+// above the composer. Both empty and active states share the same
+// background + composer so switching between them is seamless, and the
+// quick actions sit well above the composer so they can never overlap
+// or intercept its taps (the cause of the old "typed send does nothing"
+// bug — full-width suggestion buttons stole the send tap).
 import SwiftUI
 
 struct ChatView: View {
     @Environment(\.lvPalette) private var palette
     @State var viewModel: ChatViewModel
-    /// HER-107 — empty-state suggestion chips (Think tab passes the
-    /// server's `/v1/me/suggestions` payload). Tapping a chip seeds the
+    /// HER-107 — empty-state quick actions (the AI tab passes the
+    /// server's `/v1/me/suggestions` payload). Tapping a card seeds the
     /// composer and sends.
     var emptyStateSuggestions: [String] = []
     /// Optional empty-state copy. Defaults to a generic prompt.
@@ -23,83 +31,33 @@ struct ChatView: View {
     /// resolution can omit them; bubbles fall back to plain text.
     var vaultClient: (any VaultClientProtocol)?
     var memoryClient: (any MemoryClientProtocol)?
+    /// Reused `/v1/vault/files` upload seam. An attached file is both
+    /// extracted into the turn and uploaded to the vault (persisted +
+    /// indexed for grounding). Optional so previews / dev menus can omit.
+    var vaultUploadClient: (any VaultUploadClientProtocol)?
     var bottomPadding: CGFloat = 0
 
     @FocusState private var composerFocused: Bool
+    /// Transient banner for a failed file extraction (unsupported type,
+    /// unreadable, empty). Auto-clears after a few seconds.
+    @State private var attachmentError: String?
 
     var body: some View {
         ScrollViewReader { proxy in
             ZStack {
-                // Background
-                Color.black.ignoresSafeArea()
-                
-                // Deep cosmic gradients
-                RadialGradient(
-                    colors: [palette.glowPrimary.opacity(0.12), .clear],
-                    center: .topTrailing,
-                    startRadius: 0,
-                    endRadius: 500
-                ).ignoresSafeArea()
-                
-                ScrollView {
-                    if viewModel.messages.isEmpty && !viewModel.isStreaming {
-                        EmptyStateHero(
-                            mascotState: viewModel.mascotState,
-                            headline: emptyHeadline,
-                            supporting: emptySupporting,
-                            suggestions: emptyStateSuggestions,
-                            onSuggestion: { viewModel.sendSuggestion($0) },
-                        )
-                        .padding(.horizontal, LVSpacing.lg)
-                        .padding(.top, LVSpacing.xl)
-                    } else {
-                        LazyVStack(alignment: .leading, spacing: LVSpacing.base) {
-                            // Header for active chat (compact view)
-                            HStack {
-                                Spacer()
-                                Button {
-                                    viewModel.reset()
-                                } label: {
-                                    LVIconView(.trash, size: 14, tint: palette.textSecondary)
-                                }
-                                .lvGlowPress()
-                            }
-                            .padding(.bottom, LVSpacing.sm)
+                ChatCosmicBackground()
 
-                            ForEach(viewModel.messages) { message in
-                                MessageRow(
-                                    message: message,
-                                    mascotState: .idle,
-                                    vaultClient: vaultClient,
-                                    memoryClient: memoryClient,
-                                )
-                                    .id(message.id)
-                                    .contextMenu {
-                                        if message.role == .assistant {
-                                            Button {
-                                                viewModel.saveAsMemory(message)
-                                            } label: {
-                                                Label("Save as memory", systemImage: "brain.head.profile")
-                                            }
-                                        }
-                                    }
-                            }
-                            if viewModel.isStreaming || !viewModel.pendingAssistant.isEmpty {
-                                PendingAssistantRow(
-                                    text: viewModel.pendingAssistant,
-                                    sources: viewModel.pendingSources,
-                                    isStreaming: viewModel.isStreaming,
-                                    mascotState: viewModel.mascotState,
-                                )
-                                .id(Self.pendingAnchor)
-                            }
-                            if case let .failed(message) = viewModel.phase {
-                                ErrorRow(message: message, onRetry: { viewModel.retryLast() })
-                            }
+                ScrollView {
+                    VStack(spacing: LVSpacing.lg) {
+                        if viewModel.messages.isEmpty && !viewModel.isStreaming {
+                            emptyState
+                        } else {
+                            conversation
                         }
-                        .padding(.horizontal, LVSpacing.lg)
-                        .padding(.vertical, LVSpacing.lg)
                     }
+                    .padding(.top, LVSpacing.base)
+                    // Clearance so content never hides under the composer.
+                    .padding(.bottom, LVSpacing.hero)
                 }
                 .onChange(of: viewModel.pendingAssistant) { _, _ in
                     withAnimation(.easeOut(duration: 0.15)) {
@@ -118,123 +76,196 @@ struct ChatView: View {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                if let toast = viewModel.savedMemoryToast {
-                    SavedToast(text: toast)
-                }
-                if let notice = viewModel.fallbackNotice {
-                    FallbackBanner(notice: notice)
-                }
-                if let voiceError = viewModel.voice.errorMessage {
-                    VoiceErrorToast(text: voiceError)
-                }
+            bottomBar
+        }
+    }
 
-                ComposerBar(
-                    text: $viewModel.composer,
-                    canSend: viewModel.canSend,
-                    isStreaming: viewModel.isStreaming,
-                    voice: viewModel.voice,
-                    onSend: {
-                        composerFocused = false
-                        viewModel.send()
-                    },
-                    onCancel: viewModel.cancel,
-                )
-                .focused($composerFocused)
+    // MARK: - Empty state ("Input Hub")
+
+    private var emptyState: some View {
+        VStack(spacing: LVSpacing.xl) {
+            HermieStatusBadge(mascotState: viewModel.mascotState, label: statusLabel)
+                .padding(.top, LVSpacing.lg)
+
+            if !emptyStateSuggestions.isEmpty {
+                VStack(alignment: .leading, spacing: LVSpacing.sm) {
+                    Text("Quick actions")
+                        .lvFont(.microTag)
+                        .foregroundStyle(palette.textSecondary)
+                        .padding(.horizontal, LVSpacing.lg)
+
+                    QuickActionsCarousel(
+                        suggestions: emptyStateSuggestions,
+                        onTap: { viewModel.sendSuggestion($0) }
+                    )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.bottom, bottomPadding)
-            .background(.clear)
+
+            if !emptySupporting.isEmpty {
+                Text(emptySupporting)
+                    .lvFont(.callout)
+                    .foregroundStyle(palette.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, LVSpacing.lg)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// Short label under the mascot badge, derived from voice + phase.
+    private var statusLabel: String {
+        if viewModel.voice.isRecording { return "Listening…" }
+        switch viewModel.phase {
+        case .starting, .streaming: return "Thinking…"
+        case .failed: return "Let's try that again"
+        case .idle: return "Ready when you are"
+        }
+    }
+
+    // MARK: - Active conversation
+
+    private var conversation: some View {
+        LazyVStack(alignment: .leading, spacing: LVSpacing.base) {
+            HStack {
+                Spacer()
+                Button {
+                    viewModel.reset()
+                } label: {
+                    LVIconView(.trash, size: 14, tint: palette.textSecondary)
+                }
+                .lvGlowPress()
+            }
+            .padding(.bottom, LVSpacing.sm)
+
+            ForEach(viewModel.messages) { message in
+                MessageRow(
+                    message: message,
+                    mascotState: .idle,
+                    vaultClient: vaultClient,
+                    memoryClient: memoryClient,
+                )
+                .id(message.id)
+                .contextMenu {
+                    if message.role == .assistant {
+                        Button {
+                            viewModel.saveAsMemory(message)
+                        } label: {
+                            Label("Save as memory", systemImage: "brain.head.profile")
+                        }
+                    }
+                }
+            }
+
+            if viewModel.isStreaming || !viewModel.pendingAssistant.isEmpty {
+                PendingAssistantRow(
+                    text: viewModel.pendingAssistant,
+                    sources: viewModel.pendingSources,
+                    isStreaming: viewModel.isStreaming,
+                    mascotState: viewModel.mascotState,
+                )
+                .id(Self.pendingAnchor)
+            }
+
+            if case let .failed(message) = viewModel.phase {
+                ErrorRow(message: message, onRetry: { viewModel.retryLast() })
+            }
+        }
+        .padding(.horizontal, LVSpacing.lg)
+    }
+
+    // MARK: - Bottom bar (toasts + composer)
+
+    private var bottomBar: some View {
+        VStack(spacing: 0) {
+            if let toast = viewModel.savedMemoryToast {
+                SavedToast(text: toast)
+            }
+            if let notice = viewModel.fallbackNotice {
+                FallbackBanner(notice: notice)
+            }
+            if let voiceError = viewModel.voice.errorMessage {
+                VoiceErrorToast(text: voiceError)
+            }
+            if let attachmentError {
+                VoiceErrorToast(text: attachmentError)
+            }
+
+            ComposerBar(
+                text: $viewModel.composer,
+                canSend: viewModel.canSend,
+                isStreaming: viewModel.isStreaming,
+                stagedAttachmentName: viewModel.stagedAttachment?.name,
+                voice: viewModel.voice,
+                onSend: {
+                    composerFocused = false
+                    viewModel.send()
+                },
+                onCancel: viewModel.cancel,
+                onAttach: handleAttach,
+                onClearAttachment: viewModel.clearAttachment,
+            )
+            .focused($composerFocused)
+        }
+        .padding(.bottom, bottomPadding)
+        .background(.clear)
+    }
+
+    /// "Do both": extract the file's text into the turn (immediate use)
+    /// AND upload the raw bytes to the vault (persisted + indexed for
+    /// grounding). The upload is best-effort — the staged text works even
+    /// if the vault rejects the type.
+    private func handleAttach(_ url: URL) {
+        do {
+            let extracted = try AttachmentTextExtractor.extract(from: url)
+            viewModel.attach(name: extracted.name, text: extracted.text)
+        } catch {
+            let message = (error as? LocalizedError)?.errorDescription
+                ?? error.localizedDescription
+            showAttachmentError(message)
+            return
+        }
+        uploadToVault(url)
+    }
+
+    private func uploadToVault(_ url: URL) {
+        guard let vaultUploadClient else { return }
+        let scoped = url.startAccessingSecurityScopedResource()
+        let data = try? Data(contentsOf: url)
+        if scoped { url.stopAccessingSecurityScopedResource() }
+        guard let data else { return }
+
+        let name = url.lastPathComponent
+        let contentType = Self.uploadContentType(for: url.pathExtension.lowercased())
+        Task {
+            // Best-effort: a vault allowlist rejection (e.g. .txt) leaves
+            // the staged text intact, so the turn still carries the file.
+            _ = try? await vaultUploadClient.uploadAsset(
+                data: data,
+                contentType: contentType,
+                relativePath: "uploads/\(name)",
+                spaceID: nil,
+            )
+        }
+    }
+
+    private static func uploadContentType(for ext: String) -> String {
+        switch ext {
+        case "pdf": return "application/pdf"
+        case "md", "markdown": return "text/markdown"
+        default: return "text/plain"
+        }
+    }
+
+    private func showAttachmentError(_ message: String) {
+        attachmentError = message
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3.5))
+            attachmentError = nil
         }
     }
 
     private static let pendingAnchor = "lv.chat.pending"
-}
-
-// MARK: - Empty state
-
-private struct EmptyStateHero: View {
-    @Environment(\.lvPalette) private var palette
-    let mascotState: HermieMascotState
-    let headline: String
-    let supporting: String
-    let suggestions: [String]
-    let onSuggestion: (String) -> Void
-
-    private let mascotSize: CGFloat = 240
-
-    var body: some View {
-        VStack(spacing: LVSpacing.xxl) {
-            // Header row
-            HStack(alignment: .top) {
-                Text(headline)
-                    .font(.system(size: 44, weight: .black, design: .rounded))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [palette.glowPrimary, palette.accent],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .shadow(color: palette.glowPrimary.opacity(0.75), radius: 14)
-
-                Spacer()
-
-                LVIconView(.personCircleFill, size: 32, tint: palette.glowPrimary, weight: .light)
-                    .shadow(color: palette.glowPrimary.opacity(0.6), radius: 8)
-            }
-
-            // HER-302 — mascot with halo + sparkle dust.
-            ZStack {
-                LVHaloBackdrop(focalSize: mascotSize, intensity: LVGlow.hero, particleCount: 12)
-                    .frame(width: mascotSize * 2.2, height: mascotSize * 2.2)
-                    .allowsHitTesting(false)
-
-                SparkleField(density: 14, maxRadius: 1.4)
-                    .frame(width: mascotSize * 1.6, height: mascotSize * 1.6)
-                    .opacity(0.5)
-                    .blendMode(.screen)
-                    .allowsHitTesting(false)
-
-                HermieMascotView(state: mascotState, size: mascotSize,
-                                 fallbackImageName: "OnboardingMascot")
-                    .shadow(color: palette.glowPrimary.opacity(0.55), radius: 40)
-            }
-            .frame(maxWidth: .infinity)
-
-            if !supporting.isEmpty {
-                Text(supporting)
-                    .lvFont(.callout)
-                    .foregroundStyle(palette.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, LVSpacing.lg)
-            }
-
-            if !suggestions.isEmpty {
-                VStack(alignment: .trailing, spacing: LVSpacing.md) {
-                    ForEach(suggestions.prefix(3), id: \.self) { suggestion in
-                        Button {
-                            onSuggestion(suggestion)
-                        } label: {
-                            Text(suggestion)
-                                .lvFont(.bodyEmphasis)
-                                .foregroundStyle(palette.textPrimary)
-                                .padding(.horizontal, LVSpacing.base)
-                                .padding(.vertical, LVSpacing.md)
-                                .frame(maxWidth: .infinity, alignment: .trailing)
-                        }
-                        .buttonStyle(.plain)
-                        .background(
-                            Capsule().fill(palette.surface)
-                        )
-                        .lvGlowStroke(cornerRadius: LVRadius.pill, intensity: LVGlow.subtle)
-                        .lvGlowPress()
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-        }
-    }
 }
 
 // MARK: - Bubbles
@@ -442,8 +473,8 @@ private struct FallbackBanner: View {
 }
 
 /// HER-153 — transient banner above the composer surfacing voice mode
-/// failures (mic denied, no speech detected, recognizer unavailable).
-/// Auto-decays via `VoiceModeController.errorMessage` after 3.5s.
+/// failures (mic denied, no speech detected, recognizer unavailable) and
+/// file-attachment failures. Auto-decays via its source state.
 private struct VoiceErrorToast: View {
     @Environment(\.lvPalette) private var palette
     let text: String
@@ -494,80 +525,5 @@ private struct ErrorRow: View {
         .padding(.vertical, 8)
         .background(Color(.secondarySystemBackground))
         .clipShape(.rect(cornerRadius: 10))
-    }
-}
-
-// MARK: - Composer
-
-private struct ComposerBar: View {
-    @Environment(\.lvPalette) private var palette
-    @Binding var text: String
-    let canSend: Bool
-    let isStreaming: Bool
-    @Bindable var voice: VoiceModeController
-    let onSend: () -> Void
-    let onCancel: () -> Void
-
-    var body: some View {
-        HStack(alignment: .center, spacing: LVSpacing.md) {
-            LVIconView(.magnifyingglass, size: 18, tint: palette.glowPrimary, weight: .bold)
-
-            ZStack(alignment: .leading) {
-                TextField("Ask Hermie anything...", text: $text, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .lineLimit(1 ... 6)
-                    .lvFont(.body)
-                    .foregroundStyle(palette.textPrimary)
-                    .tint(palette.glowPrimary)
-                    .submitLabel(.send)
-                    .disabled(voice.isRecording)
-                    .opacity(voice.isRecording ? 0 : 1)
-                if voice.isRecording {
-                    Text(voice.liveTranscript.isEmpty ? "Listening…" : voice.liveTranscript)
-                        .lvFont(.body)
-                        .foregroundStyle(
-                            voice.liveTranscript.isEmpty
-                                ? palette.textSecondary
-                                : palette.textPrimary
-                        )
-                        .lineLimit(3)
-                        .transition(.opacity)
-                }
-            }
-            .animation(.easeInOut(duration: 0.18), value: voice.isRecording)
-
-            Spacer()
-
-            if isStreaming {
-                Button(action: onCancel) {
-                    LVIconView(.stopCircleFill, size: 24, tint: palette.accent)
-                        .shadow(color: palette.accent.opacity(0.6), radius: 8)
-                }
-                .lvPulse(active: true)
-            } else {
-                MicHoldButton(voice: voice)
-
-                // Send button stays visible whenever we're not streaming so
-                // the affordance is always discoverable; it dims + disables
-                // until there's sendable text (canSend).
-                Button(action: onSend) {
-                    LVIconView(.arrowUpCircleFill, size: 28, tint: palette.glowPrimary)
-                        .shadow(color: palette.glowPrimary.opacity(canSend ? 0.75 : 0), radius: 10)
-                }
-                .lvGlowPress()
-                .disabled(!canSend)
-                // Dimmed but clearly present on the dark background before there's
-                // sendable text, so the affordance reads as available from first entry.
-                .opacity(canSend ? 1 : 0.55)
-                .transition(.scale.combined(with: .opacity))
-            }
-        }
-        .padding(.horizontal, LVSpacing.base)
-        .padding(.vertical, LVSpacing.md)
-        .lvGlassCard(cornerRadius: LVRadius.lg, intensity: LVGlow.card)
-        .lvInnerGlow(cornerRadius: LVRadius.lg, intensity: LVGlow.subtle)
-        .padding(.horizontal, LVSpacing.lg)
-        .padding(.vertical, LVSpacing.md)
-        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: canSend && !text.isEmpty)
     }
 }

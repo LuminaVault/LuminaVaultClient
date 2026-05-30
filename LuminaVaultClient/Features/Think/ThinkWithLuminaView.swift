@@ -20,6 +20,10 @@ struct ThinkWithLuminaView: View {
     /// inline. Optional to keep test wirings light.
     var vaultClient: (any VaultClientProtocol)?
     var memoryClient: (any MemoryClientProtocol)?
+    /// Reused `/v1/vault/files` upload seam. An attached file is both
+    /// extracted into the turn (immediate use) and uploaded to the vault
+    /// (persisted + indexed for memory-grounding).
+    var vaultUploadClient: (any VaultUploadClientProtocol)?
 
     @State private var suggestions: [String] = []
 
@@ -32,6 +36,7 @@ struct ThinkWithLuminaView: View {
                 emptySupporting: "Ask anything. Lumina pulls from your vault and recent learnings.",
                 vaultClient: vaultClient,
                 memoryClient: memoryClient,
+                vaultUploadClient: vaultUploadClient,
                 bottomPadding: 90
             )
             .lvBackground()

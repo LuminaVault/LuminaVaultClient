@@ -80,6 +80,16 @@ final class ChatViewModel {
     /// HER-107 — transient banner after `saveAsMemory(...)`. Auto-clears
     /// after ~2s so the chat surface doesn't grow stale toasts.
     var savedMemoryToast: String?
+    /// Client-extracted file staged for the next send. There is no
+    /// per-message attachment contract on the server, so the extracted
+    /// text is prepended into the outgoing message `content` (see
+    /// `wireText`) and the file is cleared once sent.
+    var stagedAttachment: StagedAttachment?
+
+    struct StagedAttachment: Equatable, Sendable {
+        let name: String
+        let text: String
+    }
 
     private let conversationsClient: any ConversationsClientProtocol
     private let chatClient: any ChatClientProtocol
@@ -139,9 +149,20 @@ final class ChatViewModel {
     }
 
     var canSend: Bool {
-        !composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasText = !composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return (hasText || stagedAttachment != nil)
             && !isStreaming
             && phase != .starting
+    }
+
+    /// Stage a client-extracted file. Its text rides into the next
+    /// `send()` as a context block prepended to the user's turn.
+    func attach(name: String, text: String) {
+        stagedAttachment = StagedAttachment(name: name, text: text)
+    }
+
+    func clearAttachment() {
+        stagedAttachment = nil
     }
 
     /// Lazy conversation create. Called once on first memory-grounded
@@ -157,20 +178,56 @@ final class ChatViewModel {
 
     func send() {
         let trimmed = composer.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !isStreaming, phase != .starting else { return }
+        let attachment = stagedAttachment
+        guard (!trimmed.isEmpty || attachment != nil), !isStreaming, phase != .starting else { return }
         composer = ""
-        lastSentContent = trimmed
+        stagedAttachment = nil
+
+        // The bubble shows just the user's text (+ a compact file marker);
+        // the wire content carries the full extracted file so the model
+        // can reason over it.
+        let displayContent = Self.displayText(typed: trimmed, attachment: attachment)
+        let wireContent = Self.wireText(typed: trimmed, attachment: attachment)
+
+        lastSentContent = wireContent
         fallbackNotice = nil
         setMascot(.thinking)
 
-        let userMessage = Message(role: .user, content: trimmed)
+        let userMessage = Message(role: .user, content: displayContent)
         messages.append(userMessage)
         schedulePersist()
 
         streamTask?.cancel()
         streamTask = Task { [weak self] in
-            await self?.runSend(content: trimmed)
+            await self?.runSend(content: wireContent)
         }
+    }
+
+    /// User-visible bubble text: their typed message, with a compact
+    /// "📎 name" marker when a file is attached (the bulky extracted text
+    /// is never shown in the bubble). Internal (not private) so it can be
+    /// unit-tested directly.
+    static func displayText(typed: String, attachment: StagedAttachment?) -> String {
+        guard let attachment else { return typed }
+        let marker = "📎 \(attachment.name)"
+        return typed.isEmpty ? marker : "\(marker)\n\(typed)"
+    }
+
+    /// Outgoing wire content: the extracted file wrapped in a fenced
+    /// block, followed by the user's message. No server attachment
+    /// contract exists, so the file rides inside `content`. Internal (not
+    /// private) so it can be unit-tested directly.
+    static func wireText(typed: String, attachment: StagedAttachment?) -> String {
+        guard let attachment else { return typed }
+        let block = """
+        [Attached file: \(attachment.name)]
+        \"\"\"
+        \(attachment.text)
+        \"\"\"
+        """
+        return typed.isEmpty
+            ? "\(block)\n\nPlease use the attached file."
+            : "\(block)\n\n\(typed)"
     }
 
     /// Re-run the last user turn after a failure (e.g. a timed-out stream).
@@ -465,6 +522,7 @@ final class ChatViewModel {
         pendingAssistant = ""
         pendingSources = []
         fallbackNotice = nil
+        stagedAttachment = nil
         phase = .idle
         mascotState = .idle
         if let store = historyStore, let oldID {
