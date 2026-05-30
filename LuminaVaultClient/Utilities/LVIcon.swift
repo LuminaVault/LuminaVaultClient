@@ -87,12 +87,14 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
     case bubbleLeftAndBubbleRightFill
     case bubbleLeftAndTextBubbleRight
     case micFill
+    case waveform
 
     // MARK: Content
     case bookmarkFill
     case docOnClipboard
     case docOnDoc
     case docText
+    case paperclip
     case eye
     case folder
     case folderFill
@@ -201,11 +203,13 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
         case .bubbleLeftAndBubbleRightFill:     return "bubble.left.and.bubble.right.fill"
         case .bubbleLeftAndTextBubbleRight:     return "bubble.left.and.text.bubble.right"
         case .micFill:                          return "mic.fill"
+        case .waveform:                         return "waveform"
 
         case .bookmarkFill:                     return "bookmark.fill"
         case .docOnClipboard:                   return "doc.on.clipboard"
         case .docOnDoc:                         return "doc.on.doc"
         case .docText:                          return "doc.text"
+        case .paperclip:                        return "paperclip"
         case .eye:                              return "eye"
         case .folder:                           return "folder"
         case .folderFill:                       return "folder.fill"
