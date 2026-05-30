@@ -21,4 +21,30 @@ protocol VaultUploadClientProtocol: Sendable {
         relativePath: String,
         spaceID: UUID?
     ) async throws -> VaultUploadResponse
+
+    /// HER-105 — same upload, but `processed: true` marks the row already
+    /// compiled (`?processed=true`) so Sync & Learn skips it. Written text
+    /// notes use this because they create their memory immediately via
+    /// `/v1/memory/upsert`; the markdown file is just for visibility. A default
+    /// implementation forwards to the base call so existing conformers/stubs
+    /// keep working; the real HTTP client overrides it.
+    func uploadAsset(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        spaceID: UUID?,
+        processed: Bool
+    ) async throws -> VaultUploadResponse
+}
+
+extension VaultUploadClientProtocol {
+    func uploadAsset(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        spaceID: UUID?,
+        processed _: Bool
+    ) async throws -> VaultUploadResponse {
+        try await uploadAsset(data: data, contentType: contentType, relativePath: relativePath, spaceID: spaceID)
+    }
 }

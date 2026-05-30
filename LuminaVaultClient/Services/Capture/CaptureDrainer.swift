@@ -126,14 +126,27 @@ actor CaptureDrainer {
                 ), spaceID: row.spaceID)
 
             case .text:
-                // HER-256 — text-only memory: no vault asset to upload.
-                // Empty bodies were already filtered by the VM before
-                // enqueue, but guard here defends against schema drift /
-                // hand-crafted rows so we don't POST garbage upsert.
+                // HER-256 — written note. Empty bodies were already filtered by
+                // the VM before enqueue, but guard here defends against schema
+                // drift / hand-crafted rows so we don't POST garbage upsert.
                 guard let body = row.captionText?.nilIfEmpty else {
                     try await queue.delete(id: row.id)
                     log.info("dropped empty .text capture id=\(row.id.uuidString)")
                     return
+                }
+                // HER-105 — also persist the note as a markdown vault file in
+                // the Space so the user can SEE/browse what they wrote (the
+                // vault list shows vault_files; a memory-only note was
+                // invisible). The upsert below keeps instant chat recall.
+                if let data = body.data(using: .utf8) {
+                    let relativePath = "\(pathPrefix)/\(row.id.uuidString).md"
+                    _ = try await vaultUploader.uploadAsset(
+                        data: data,
+                        contentType: "text/markdown",
+                        relativePath: relativePath,
+                        spaceID: row.spaceID,
+                        processed: true,
+                    )
                 }
                 _ = try await memoryClient.upsert(MemoryUpsertRequest(
                     content: body,
