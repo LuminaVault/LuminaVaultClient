@@ -45,17 +45,23 @@ struct LVTabBar: View {
     @Environment(\.lvPalette) private var palette
     let primaryItems: [LVTabItem]
     let overflowItems: [LVTabItem]
+    /// When true, the More overflow ("...") button renders as the FIRST
+    /// (leading) item instead of trailing. Used to make the Menu the first
+    /// option on the tab bar.
+    let overflowLeading: Bool
     @Binding var selection: String
     private let underlineNamespace: Namespace.ID
 
     init(
         primaryItems: [LVTabItem],
         overflowItems: [LVTabItem] = [],
+        overflowLeading: Bool = false,
         selection: Binding<String>,
         underlineNamespace: Namespace.ID
     ) {
         self.primaryItems = primaryItems
         self.overflowItems = overflowItems
+        self.overflowLeading = overflowLeading
         self._selection = selection
         self.underlineNamespace = underlineNamespace
     }
@@ -80,6 +86,9 @@ struct LVTabBar: View {
 
     var body: some View {
         HStack(spacing: 0) { // zero-gap intentional — primary items flex equal-width
+            if overflowLeading {
+                moreButton
+            }
             ForEach(primaryItems) { item in
                 LVTabBarButton(
                     item: item,
@@ -89,15 +98,8 @@ struct LVTabBar: View {
                 )
                 .frame(maxWidth: .infinity)
             }
-            if !overflowItems.isEmpty {
-                LVTabBarMoreButton(
-                    item: moreItem,
-                    isActive: activeOverflowItem != nil,
-                    overflowItems: overflowItems,
-                    selection: $selection,
-                    underlineNamespace: underlineNamespace,
-                )
-                .frame(maxWidth: .infinity)
+            if !overflowLeading {
+                moreButton
             }
         }
         .padding(.horizontal, LVSpacing.sm)
@@ -116,6 +118,22 @@ struct LVTabBar: View {
                     .frame(height: 0.5)
             }
             .ignoresSafeArea(edges: .bottom)
+        }
+    }
+
+    /// The More overflow button. Rendered leading or trailing per
+    /// `overflowLeading`; hidden entirely when there are no overflow items.
+    @ViewBuilder
+    private var moreButton: some View {
+        if !overflowItems.isEmpty {
+            LVTabBarMoreButton(
+                item: moreItem,
+                isActive: activeOverflowItem != nil,
+                overflowItems: overflowItems,
+                selection: $selection,
+                underlineNamespace: underlineNamespace,
+            )
+            .frame(maxWidth: .infinity)
         }
     }
 

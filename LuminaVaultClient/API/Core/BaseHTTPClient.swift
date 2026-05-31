@@ -141,7 +141,8 @@ final class BaseHTTPClient: Sendable {
         body: Data,
         contentType: String,
         requiresAuth: Bool = true,
-        idempotencyKey: UUID? = nil
+        idempotencyKey: UUID? = nil,
+        extraHeaders: [String: String] = [:]
     ) async throws -> Data {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw APIError.invalidURL
@@ -154,6 +155,9 @@ final class BaseHTTPClient: Sendable {
         }
         if let idempotencyKey {
             req.setValue(idempotencyKey.uuidString, forHTTPHeaderField: "Idempotency-Key")
+        }
+        for (k, v) in extraHeaders {
+            req.setValue(v, forHTTPHeaderField: k)
         }
         req.httpBody = body
 

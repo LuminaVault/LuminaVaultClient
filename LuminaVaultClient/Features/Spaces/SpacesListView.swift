@@ -15,6 +15,7 @@ struct SpacesListView: View {
     let vaultClient: VaultClientProtocol
     let memoryClient: MemoryQueryClientProtocol
     let memoryDetailClient: MemoryClientProtocol
+    let uploadClient: any VaultUploadClientProtocol
 
     @State private var presentingEditorFor: EditorPresentation?
     @State private var spaceToDelete: SpaceDTO?
@@ -26,11 +27,13 @@ struct SpacesListView: View {
         vaultClient: VaultClientProtocol,
         memoryClient: MemoryQueryClientProtocol,
         memoryDetailClient: MemoryClientProtocol,
+        uploadClient: any VaultUploadClientProtocol,
     ) {
         self._vm = Bindable(wrappedValue: vm)
         self.vaultClient = vaultClient
         self.memoryClient = memoryClient
         self.memoryDetailClient = memoryDetailClient
+        self.uploadClient = uploadClient
         self._searchVM = State(wrappedValue: VaultSearchViewModel(
             memoryClient: memoryClient, vaultClient: vaultClient,
         ))
@@ -151,6 +154,7 @@ struct SpacesListView: View {
                                     space: space,
                                     vaultClient: vaultClient,
                                     memoryClient: memoryDetailClient,
+                                    uploadClient: uploadClient,
                                 )
                             } label: {
                                 SpaceCardView(
@@ -260,6 +264,7 @@ struct SpacesListView: View {
                 space: Self.inboxSpace,
                 vaultClient: vaultClient,
                 memoryClient: memoryDetailClient,
+                uploadClient: uploadClient,
             )
         } label: {
             HStack(spacing: 16) {

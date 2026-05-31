@@ -49,4 +49,50 @@ final class VaultUploadHTTPClient: VaultUploadClientProtocol {
         )
         return try JSONDecoder.hvDefault.decode(VaultUploadResponse.self, from: raw)
     }
+
+    /// ISO-8601 dates so `dueAt` round-trips with the server's
+    /// `X-Vault-Metadata` decoder (`VaultController.metadataDecoder`).
+    private static let metadataEncoder: JSONEncoder = {
+        let e = JSONEncoder()
+        e.dateEncodingStrategy = .iso8601
+        return e
+    }()
+
+    func uploadNote(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        spaceID: UUID?,
+        metadata: VaultNoteMetadataDTO?
+    ) async throws -> VaultUploadResponse {
+        var comps = URLComponents()
+        comps.path = "/v1/vault/files"
+        var items: [URLQueryItem] = [URLQueryItem(name: "path", value: relativePath)]
+        if let spaceID {
+            items.append(URLQueryItem(name: "space_id", value: spaceID.uuidString))
+        }
+        // Server owns the memory inline → mark processed so Sync & Learn skips
+        // the file, and flag note so the upload compiles + re-embeds it.
+        items.append(URLQueryItem(name: "processed", value: "true"))
+        items.append(URLQueryItem(name: "note", value: "true"))
+        comps.queryItems = items
+        let uri = comps.string ?? "/v1/vault/files"
+
+        var extraHeaders: [String: String] = [:]
+        if let metadata,
+           let json = try? Self.metadataEncoder.encode(metadata),
+           let str = String(data: json, encoding: .utf8)
+        {
+            extraHeaders["X-Vault-Metadata"] = str
+        }
+
+        let raw = try await client.uploadBytes(
+            path: uri,
+            method: .post,
+            body: data,
+            contentType: contentType,
+            extraHeaders: extraHeaders,
+        )
+        return try JSONDecoder.hvDefault.decode(VaultUploadResponse.self, from: raw)
+    }
 }

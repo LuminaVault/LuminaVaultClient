@@ -35,6 +35,19 @@ protocol VaultUploadClientProtocol: Sendable {
         spaceID: UUID?,
         processed: Bool
     ) async throws -> VaultUploadResponse
+
+    /// HER-Notes — write a note (`?note=true&processed=true`). The server
+    /// owns the recall memory for the file: it creates-or-updates the linked
+    /// memory and re-embeds in the same call, so an edit is instantly current
+    /// in chat (no separate `/v1/memory/upsert`). `metadata` rides the
+    /// `X-Vault-Metadata` header (title, tags, isTodo, done, dueAt).
+    func uploadNote(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        spaceID: UUID?,
+        metadata: VaultNoteMetadataDTO?
+    ) async throws -> VaultUploadResponse
 }
 
 extension VaultUploadClientProtocol {
@@ -46,5 +59,20 @@ extension VaultUploadClientProtocol {
         processed _: Bool
     ) async throws -> VaultUploadResponse {
         try await uploadAsset(data: data, contentType: contentType, relativePath: relativePath, spaceID: spaceID)
+    }
+
+    /// Default forwards to the processed upload so existing stubs/conformers
+    /// keep working; the HTTP client overrides with the real note wiring.
+    func uploadNote(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        spaceID: UUID?,
+        metadata _: VaultNoteMetadataDTO?
+    ) async throws -> VaultUploadResponse {
+        try await uploadAsset(
+            data: data, contentType: contentType,
+            relativePath: relativePath, spaceID: spaceID, processed: true,
+        )
     }
 }

@@ -44,6 +44,7 @@ struct MainTabView: View {
                         vaultClient: vaultClient,
                         memoryClient: memoryClient,
                         memoryDetailClient: memoryUpsertClient,
+                        uploadClient: vaultUploadClient,
                     )
                     .tag(Self.tabIds.workspaces)
                     .toolbar(.hidden, for: .tabBar)
@@ -100,6 +101,7 @@ struct MainTabView: View {
             LVTabBar(
                 primaryItems: primaryTabItems,
                 overflowItems: overflowTabItems,
+                overflowLeading: true,
                 selection: $selection,
                 underlineNamespace: tabUnderline,
             )

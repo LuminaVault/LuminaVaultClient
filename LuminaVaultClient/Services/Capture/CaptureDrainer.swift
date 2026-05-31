@@ -134,27 +134,27 @@ actor CaptureDrainer {
                     log.info("dropped empty .text capture id=\(row.id.uuidString)")
                     return
                 }
-                // HER-105 — also persist the note as a markdown vault file in
-                // the Space so the user can SEE/browse what they wrote (the
-                // vault list shows vault_files; a memory-only note was
-                // invisible). The upsert below keeps instant chat recall.
-                if let data = body.data(using: .utf8) {
-                    let relativePath = "\(pathPrefix)/\(row.id.uuidString).md"
-                    _ = try await vaultUploader.uploadAsset(
-                        data: data,
-                        contentType: "text/markdown",
-                        relativePath: relativePath,
-                        spaceID: row.spaceID,
-                        processed: true,
-                    )
+                // HER-Notes — persist the note as a markdown vault file AND
+                // let the server own its recall memory in one call. `uploadNote`
+                // (`?note=true`) creates-or-updates the linked memory and
+                // re-embeds server-side, so the note is browsable in its Space
+                // and instantly current in chat. Replaces the old two-call
+                // (uploadAsset + /v1/memory/upsert) flow, which left the memory
+                // without lineage and unable to re-embed on edit.
+                // NOTE: geo (lat/lng/placeName) is not yet carried on note
+                // memories — follow-up if location-tagged notes are needed.
+                guard let data = body.data(using: .utf8) else {
+                    try await queue.delete(id: row.id)
+                    return
                 }
-                _ = try await memoryClient.upsert(MemoryUpsertRequest(
-                    content: body,
-                    lat: row.lat,
-                    lng: row.lng,
-                    accuracyM: row.accuracyM,
-                    placeName: row.placeName,
-                ), spaceID: row.spaceID)
+                let relativePath = "\(pathPrefix)/\(row.id.uuidString).md"
+                _ = try await vaultUploader.uploadNote(
+                    data: data,
+                    contentType: "text/markdown",
+                    relativePath: relativePath,
+                    spaceID: row.spaceID,
+                    metadata: nil,
+                )
 
             case .textFile:
                 guard let body = row.captionText?.nilIfEmpty else {

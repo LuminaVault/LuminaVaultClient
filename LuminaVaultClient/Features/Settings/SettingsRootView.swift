@@ -76,6 +76,11 @@ struct SettingsRootView: View {
                                     providersClient: providersClient
                                 )
                             }
+                            LVSettingsDivider()
+                            // HER-43 — declarative plugin store (connectors, …).
+                            LVSettingsRow("Plugins", icon: .puzzlepieceExtension) {
+                                PluginStoreView(client: pluginsClient)
+                            }
                         }
 
                         LVSectionCard("Automation & Alerts") {
@@ -191,5 +196,10 @@ struct SettingsRootView: View {
     // HER-241 — per-user Hermes messaging gateway configurator.
     private var hermesGatewaysClient: any HermesGatewaysClientProtocol {
         HermesGatewaysHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    // HER-43 — declarative plugin foundation (catalog + installs + sync).
+    private var pluginsClient: any PluginsClientProtocol {
+        PluginsHTTPClient(client: appState.makeHTTPClient())
     }
 }

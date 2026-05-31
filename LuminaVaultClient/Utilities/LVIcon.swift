@@ -138,6 +138,7 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
     case network
     case personCircleFill
     case photoOnRectangleAngled
+    case puzzlepieceExtension                // HER-43 — plugins
     case questionmarkAppDashed
     case scrollWinged                       // HER-301 — vault / notes
     case serverRack
@@ -250,6 +251,7 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
         case .network:                          return "network"
         case .personCircleFill:                 return "person.circle.fill"
         case .photoOnRectangleAngled:           return "photo.on.rectangle.angled"
+        case .puzzlepieceExtension:             return "puzzlepiece.extension.fill"
         case .questionmarkAppDashed:            return "questionmark.app.dashed"
         case .scrollWinged:                     return "scroll.fill"
         case .serverRack:                       return "server.rack"
