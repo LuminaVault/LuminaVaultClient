@@ -81,6 +81,11 @@
 	<string>Lumina listens to your question so you can ask hands-free.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Speech recognition turns your spoken question into text before sending it.</string>
+	<!-- HER-105 "Feed Your Brain" import sources. -->
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>LuminaVault reads your reminders so you can feed them into your brain as notes Lumina can recall. Selection is one-shot.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>LuminaVault reads your calendar events so you can import them as notes Lumina can recall. Selection is one-shot.</string>
 
 	<!-- Scene / orientation / launch flags. -->
 	<key>UIApplicationSceneManifest</key>

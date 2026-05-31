@@ -93,10 +93,12 @@ struct HermesUpdateView: View {
     // MARK: - Progress
 
     private func progressSection(title: String) -> some View {
-        Section(title) {
+        Section {
             ForEach(stepsForDisplay) { step in
                 stepRow(step)
             }
+        } header: {
+            Text(title)
         } footer: {
             Text("Keep this screen open, or come back later — the update continues on your server even if you leave.")
         }
@@ -165,6 +167,7 @@ struct HermesUpdateView: View {
         }
     }
 
+    @ViewBuilder
     private var failedSection: some View {
         Section {
             Label("Update failed", systemImage: "exclamationmark.triangle.fill")
@@ -190,7 +193,7 @@ struct HermesUpdateView: View {
     @ViewBuilder
     private func loadErrorSection(_ message: String) -> some View {
         Section {
-            Text(message).foregroundStyle(viewModel.needsAdminToken ? .secondary : .red)
+            Text(message).foregroundStyle(viewModel.needsAdminToken ? Color.secondary : Color.red)
         }
         adminTokenSection
     }
@@ -198,7 +201,7 @@ struct HermesUpdateView: View {
     @ViewBuilder
     private var adminTokenSection: some View {
         if viewModel.needsAdminToken {
-            Section("Server admin token") {
+            Section {
                 SecureField("X-Admin-Token", text: $viewModel.adminTokenDraft)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -206,6 +209,8 @@ struct HermesUpdateView: View {
                     viewModel.saveAdminToken()
                     Task { await viewModel.load() }
                 }
+            } header: {
+                Text("Server admin token")
             } footer: {
                 Text("This is the `admin.token` configured on your server. It's stored securely on this device.")
             }
