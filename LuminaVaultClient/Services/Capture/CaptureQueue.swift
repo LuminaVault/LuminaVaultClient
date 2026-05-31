@@ -75,7 +75,8 @@ struct CaptureSnapshot: Sendable {
         lat: Double? = nil,
         lng: Double? = nil,
         accuracyM: Double? = nil,
-        placeName: String? = nil
+        placeName: String? = nil,
+        spaceID: UUID? = nil
     ) -> CaptureSnapshot {
         CaptureSnapshot(
             id: id,
@@ -88,7 +89,7 @@ struct CaptureSnapshot: Sendable {
             lng: lng,
             accuracyM: accuracyM,
             placeName: placeName,
-            spaceID: nil,
+            spaceID: spaceID,
             kind: .text,
         )
     }

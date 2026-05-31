@@ -45,6 +45,7 @@ struct CaptureFAB: View {
                         queue: queue,
                         locationService: LocationService(),
                         drainer: coordinator?.drainerHandle ?? .noop,
+                        spacesClient: coordinator?.spacesClient,
                     ),
                     urlViewModel: URLCaptureViewModel(
                         queue: queue,

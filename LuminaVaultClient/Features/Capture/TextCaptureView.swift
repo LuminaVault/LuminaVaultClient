@@ -19,6 +19,7 @@ struct TextCaptureView: View {
         ScrollView {
             VStack(spacing: LVSpacing.lg) {
                 bodyCard
+                spaceCard
                 locationCard
             }
             .padding(.horizontal, LVSpacing.base)
@@ -27,6 +28,31 @@ struct TextCaptureView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .onAppear { bodyFocused = true }
+        .task { await viewModel.loadSpacesIfNeeded() }
+    }
+
+    @ViewBuilder
+    private var spaceCard: some View {
+        if let spaces = viewModel.availableSpaces, !spaces.isEmpty {
+            CaptureCard(
+                eyebrowIcon: .folder,
+                eyebrowTitle: "Space",
+                footer: "Pick a Space to file this note into. Unfiled notes land at the vault root."
+            ) {
+                Picker(selection: $viewModel.selectedSpaceID) {
+                    Text("Unfiled").tag(UUID?.none)
+                    ForEach(spaces, id: \.id) { space in
+                        Text(space.name).tag(UUID?.some(space.id))
+                    }
+                } label: {
+                    Text("Space")
+                        .lvFont(.body)
+                        .foregroundStyle(palette.textPrimary)
+                }
+                .pickerStyle(.menu)
+                .tint(palette.glowPrimary)
+            }
+        }
     }
 
     private var bodyCard: some View {

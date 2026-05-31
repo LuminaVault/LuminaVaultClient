@@ -153,17 +153,20 @@ private struct LVTabBarMoreButton: View {
     @Binding var selection: String
     let underlineNamespace: Namespace.ID
 
+    // HER-bugfix — the overflow trigger was a SwiftUI `Menu`, whose label is
+    // hosted in a separate UIHostingController. The label's
+    // `matchedGeometryEffect` (shared `underlineNamespace` with the primary
+    // tabs) then reparents across that hosting boundary, spamming
+    // `_UIReparentingView ... is not supported` plus
+    // `UIContextMenuInteraction updateVisibleMenuWithBlock` on every tap.
+    // A plain Button keeps the label in the same hosting controller as the
+    // primary tabs (which never warn); a confirmationDialog replaces the
+    // dropdown without any UIMenu/context-menu interaction.
+    @State private var showOverflow = false
+
     var body: some View {
-        Menu {
-            ForEach(overflowItems) { overflowItem in
-                Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
-                        selection = overflowItem.id
-                    }
-                } label: {
-                    Label(overflowItem.label, systemImage: overflowItem.icon.sfSymbol)
-                }
-            }
+        Button {
+            showOverflow = true
         } label: {
             LVTabBarItemContent(
                 item: item,
@@ -171,7 +174,16 @@ private struct LVTabBarMoreButton: View {
                 underlineNamespace: underlineNamespace,
             )
         }
-        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .confirmationDialog("More", isPresented: $showOverflow, titleVisibility: .visible) {
+            ForEach(overflowItems) { overflowItem in
+                Button(overflowItem.label) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                        selection = overflowItem.id
+                    }
+                }
+            }
+        }
         .accessibilityLabel(isActive ? "More — \(item.label) active" : "More")
         .accessibilityAddTraits(isActive ? [.isSelected, .isButton] : .isButton)
     }

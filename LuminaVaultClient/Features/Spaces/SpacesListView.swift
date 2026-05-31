@@ -131,6 +131,8 @@ struct SpacesListView: View {
                     errorBanner(message: error)
                 }
 
+                inboxCard
+
                 if vm.isLoading && vm.spaces.isEmpty {
                     ProgressView()
                         .tint(palette.glowPrimary)
@@ -238,15 +240,62 @@ struct SpacesListView: View {
         }
     }
 
+    /// Synthetic Space backing the Inbox bucket. `slug = "inbox"` is a
+    /// reserved server sentinel — `GET /v1/vault/files?space=inbox` returns
+    /// unfiled notes (space_id IS NULL) instead of resolving a real Space.
+    /// Fixed id so the NavigationLink identity is stable across renders.
+    static let inboxSpace = SpaceDTO(
+        id: UUID(uuidString: "00000000-0000-0000-0000-0000000000B0")!,
+        name: "Inbox",
+        slug: "inbox",
+        icon: "folder",
+    )
+
+    /// Full-width card collecting unfiled notes — the catch-all every note
+    /// lands in when no Space is chosen. Always visible so the backlog is
+    /// reachable even before the user creates any Space.
+    private var inboxCard: some View {
+        NavigationLink {
+            VaultFilesListView(
+                space: Self.inboxSpace,
+                vaultClient: vaultClient,
+                memoryClient: memoryDetailClient,
+            )
+        } label: {
+            HStack(spacing: 16) {
+                LVIconView(.layers, size: 32, tint: palette.glowPrimary, weight: .light)
+                    .shadow(color: palette.glowPrimary.opacity(0.6), radius: 10)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Inbox")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(palette.textPrimary)
+                    Text("Unfiled notes")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(palette.glowPrimary)
+                }
+                Spacer()
+                LVIconView(.chevronRight, size: 16, tint: palette.textSecondary, weight: .semibold)
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .lvGlassCard(cornerRadius: 24, intensity: 0.7)
+            .lvGlowStroke(cornerRadius: 24, intensity: LVGlow.card)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 20)
+    }
+
     private var createButton: some View {
         // HER-307 — replaces the bespoke cyan circle + plus with the shared
         // LVFAB component (HER-301). Single source for the cinematic
         // capture-button chrome — cyan glow, gold ring, haptic on press.
-        LVFAB {
+        // Smaller than the default 64 and lifted clear of the LVTabBar
+        // (~70pt) so it isn't cropped by the bottom bar.
+        LVFAB(size: 52) {
             presentingEditorFor = EditorPresentation(mode: .create)
         }
-        .padding(24)
-        .padding(.bottom, 16)
+        .padding(.trailing, 20)
+        .padding(.bottom, 86)
     }
 
     private var emptyState: some View {

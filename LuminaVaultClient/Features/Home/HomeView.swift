@@ -41,6 +41,10 @@ struct HomeView: View {
         GridItem(.flexible(), spacing: 16)
     ]
 
+    // Header mascot avatar = quick-access shortcut to the most-used settings.
+    // Full Settings still lives behind the "..." (More) tab.
+    @State private var showQuickSettings = false
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -99,7 +103,12 @@ struct HomeView: View {
                 }
             }
             .safeAreaInset(edge: .top) {
-                LuminaHeader(title: "LuminaVault")
+                LuminaHeader(title: "LuminaVault", onMascotTap: { showQuickSettings = true })
+            }
+            .sheet(isPresented: $showQuickSettings) {
+                QuickSettingsView()
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
             .lvBackground()
             .onReceive(NotificationCenter.default.publisher(for: BackendModeStore.modeChangedNotification)) { _ in
