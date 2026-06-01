@@ -15,6 +15,14 @@ struct BrainTabView: View {
 
     @State private var vm: BrainGraphViewModel
 
+    /// Client-side edge-kind filter. The server returns every kind by
+    /// default; toggling a chip hides that kind in-place with no refetch.
+    @State private var activeEdgeKinds: Set<MemoryEdgeKindDTO> = [
+        .wikilink, .tag, .space, .semantic, .temporal,
+    ]
+    /// When false, wiki-page nodes (and any edge touching them) are hidden.
+    @State private var showWikiPages = true
+
     init(client: any MemoryGraphClientProtocol) {
         self._vm = State(initialValue: BrainGraphViewModel(client: client))
     }
@@ -50,10 +58,20 @@ struct BrainTabView: View {
         case .loaded(let graph) where graph.nodes.isEmpty:
             emptyState
         case .loaded(let graph):
-            BrainGraphCanvas(graph: graph) { id in
-                vm.selectedNodeID = id
+            ZStack(alignment: .bottom) {
+                BrainGraphCanvas(graph: filtered(graph)) { id in
+                    vm.selectedNodeID = id
+                }
+                .lvBackground()
+
+                GraphLegend(
+                    activeEdgeKinds: $activeEdgeKinds,
+                    showWikiPages: $showWikiPages,
+                    hasWikiPages: graph.nodes.contains { $0.kind == .wikiPage },
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 90) // clear the floating tab bar
             }
-            .lvBackground()
         case .failed(let message):
             errorState(message)
         }
@@ -109,6 +127,20 @@ struct BrainTabView: View {
         .lvBackground()
     }
 
+    // MARK: - Filtering
+
+    /// Applies the in-place node/edge filters. Drops wiki-page nodes when
+    /// hidden, then keeps only edges of an active kind whose endpoints both
+    /// survive — so no edge dangles to a filtered-out node.
+    private func filtered(_ graph: MemoryGraphResponse) -> MemoryGraphResponse {
+        let nodes = showWikiPages ? graph.nodes : graph.nodes.filter { $0.kind != .wikiPage }
+        let liveIDs = Set(nodes.map(\.id))
+        let edges = graph.edges.filter {
+            activeEdgeKinds.contains($0.kind) && liveIDs.contains($0.from) && liveIDs.contains($0.to)
+        }
+        return MemoryGraphResponse(nodes: nodes, edges: edges, generatedAt: graph.generatedAt)
+    }
+
     // MARK: - Sheet binding
 
     /// Bridges `selectedNodeID` + the current graph into an `Identifiable`
@@ -118,5 +150,86 @@ struct BrainTabView: View {
             get: { vm.selectedNodeID.flatMap(vm.node(for:)) },
             set: { node in vm.selectedNodeID = node?.id },
         )
+    }
+}
+
+// MARK: - Legend
+
+/// Compact, glassy filter legend pinned to the bottom of the graph. Each
+/// chip both documents the colour channel and toggles that edge kind.
+private struct GraphLegend: View {
+
+    @Environment(\.lvPalette) private var palette
+
+    @Binding var activeEdgeKinds: Set<MemoryEdgeKindDTO>
+    @Binding var showWikiPages: Bool
+    let hasWikiPages: Bool
+
+    private static let order: [MemoryEdgeKindDTO] = [.wikilink, .tag, .space, .semantic, .temporal]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                if hasWikiPages {
+                    chip(
+                        label: "Wiki pages",
+                        color: palette.accent,
+                        isOn: showWikiPages,
+                    ) { showWikiPages.toggle() }
+                }
+                ForEach(Self.order, id: \.self) { kind in
+                    chip(
+                        label: Self.label(for: kind),
+                        color: color(for: kind),
+                        isOn: activeEdgeKinds.contains(kind),
+                    ) { toggle(kind) }
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+
+    private func toggle(_ kind: MemoryEdgeKindDTO) {
+        if activeEdgeKinds.contains(kind) { activeEdgeKinds.remove(kind) }
+        else { activeEdgeKinds.insert(kind) }
+    }
+
+    private func chip(label: String, color: Color, isOn: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 8, height: 8)
+                Text(label)
+                    .font(.caption2.weight(.semibold))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().stroke(color.opacity(isOn ? 0.6 : 0.0), lineWidth: 1))
+            .foregroundStyle(isOn ? palette.textPrimary : palette.textSecondary)
+            .opacity(isOn ? 1.0 : 0.5)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func color(for kind: MemoryEdgeKindDTO) -> Color {
+        switch kind {
+        case .wikilink: return palette.accent
+        case .tag: return palette.accent.opacity(0.7)
+        case .space: return palette.secondary
+        case .semantic: return palette.primary
+        case .temporal: return palette.textSecondary
+        }
+    }
+
+    private static func label(for kind: MemoryEdgeKindDTO) -> String {
+        switch kind {
+        case .wikilink: return "Links"
+        case .tag: return "Tags"
+        case .space: return "Spaces"
+        case .semantic: return "Similar"
+        case .temporal: return "Time"
+        }
     }
 }

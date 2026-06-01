@@ -1,12 +1,16 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Brain/BrainGraphCanvas.swift
 //
-// HER-235 — Grape `ForceDirectedGraph` view configured for the LuminaVault
-// theme. Node radius scales with `score`; node fill interpolates from
-// `lvBlue` (low) to `lvCyan` (high). Edges: semantic = `lvCyan` weighted
-// alpha; tag = `lvAmber` weighted alpha. Tap → onSelect callback.
+// HER-235 — premium pure-SwiftUI knowledge graph. A `TimelineView` drives a
+// `Canvas` at display rate; `BrainGraphEngine` owns the force simulation,
+// view transform, and all drawing (volumetric glow, recency pulse, weight-
+// glowed edges, breathing, drifting particles). Gestures provide pan with
+// inertia, pinch-zoom, and tap-to-select with a highlight + scale animation.
+//
+// Public API (`init(graph:onSelect:)`) is unchanged so `BrainTabView` is
+// untouched. Replaces the prior Grape renderer, which couldn't expose node
+// positions or draw layered glow.
 
 import Foundation
-import Grape
 import LuminaVaultShared
 import SwiftUI
 
@@ -17,90 +21,84 @@ struct BrainGraphCanvas: View {
     let graph: MemoryGraphResponse
     let onSelect: (UUID) -> Void
 
-    @State private var graphStates = ForceDirectedGraphState()
-    @State private var draggingID: UUID?
+    @State private var engine = BrainGraphEngine()
+    @State private var lastDrag: CGSize = .zero
+    @State private var zoomAnchor: CGFloat = 1
 
-    private static let edgeStroke = StrokeStyle(lineWidth: 1.0, lineCap: .round, lineJoin: .round)
+    /// Resync trigger: node/edge counts change on legend toggles. Surviving
+    /// nodes keep their position inside the engine, so this never reshuffles.
+    private var signature: String { "\(graph.nodes.count)-\(graph.edges.count)" }
 
     var body: some View {
-        ForceDirectedGraph(states: graphStates) {
-            Series(graph.nodes) { node in
-                NodeMark(id: node.id)
-                    .symbolSize(radius: Self.radius(for: node.score))
-                    .foregroundStyle(nodeFill(for: node.score))
-                    .stroke(
-                        draggingID == node.id ? palette.accent : .clear,
-                        Self.edgeStroke,
-                    )
+        TimelineView(.animation) { timeline in
+            Canvas { ctx, size in
+                engine.advance(to: timeline.date)
+                engine.draw(into: &ctx, size: size, style: style)
             }
-            Series(graph.edges) { edge in
-                LinkMark(from: edge.from, to: edge.to)
-                    .stroke(edgeStyle(for: edge), Self.edgeStroke)
-            }
-        } force: {
-            // Empirically tuned for ~500 nodes on iPhone 14 Pro. Tighten
-            // `originalLength` and increase `manyBody` repulsion if the
-            // graph collapses into the centre on small viewports.
-            .manyBody(strength: -22)
-            .link(originalLength: 28.0, stiffness: .weightedByDegree { _, _ in 3.0 })
-            .center()
-            .collide()
+            .contentShape(Rectangle())
+            .gesture(panGesture)
+            .simultaneousGesture(zoomGesture)
+            .simultaneousGesture(tapGesture)
         }
-        .graphOverlay { proxy in
-            Rectangle()
-                .fill(.clear)
-                .contentShape(Rectangle())
-                .withGraphDragGesture(proxy, action: handleDrag)
-                .withGraphMagnifyGesture(proxy)
-                .onTapGesture { location in
-                    // Grape's proxy returns the nearest node id under the
-                    // tap point; nil = empty space (deselect).
-                    if let any = proxy.locateNode(at: location),
-                       let id = any as? UUID
-                    {
-                        onSelect(id)
-                    }
+        .onAppear { engine.sync(graph: graph) }
+        .onChange(of: signature) { _, _ in engine.sync(graph: graph) }
+        .accessibilityLabel("Knowledge graph — \(graph.nodes.count) nodes")
+    }
+
+    // MARK: - Gestures
+
+    private var panGesture: some Gesture {
+        DragGesture(minimumDistance: 4)
+            .onChanged { value in
+                let delta = CGSize(
+                    width: value.translation.width - lastDrag.width,
+                    height: value.translation.height - lastDrag.height,
+                )
+                engine.pan(by: delta)
+                lastDrag = value.translation
+            }
+            .onEnded { value in
+                engine.endPan(velocity: value.velocity)
+                lastDrag = .zero
+            }
+    }
+
+    private var zoomGesture: some Gesture {
+        MagnifyGesture()
+            .onChanged { value in engine.zoom(to: zoomAnchor * value.magnification) }
+            .onEnded { _ in zoomAnchor = engine.scale }
+    }
+
+    private var tapGesture: some Gesture {
+        SpatialTapGesture()
+            .onEnded { value in
+                // Hit-test needs the view size; the engine stores the live
+                // transform, and Canvas fills the whole view, so the gesture
+                // location is already in that space.
+                if let id = engine.hitTest(value.location, viewSize: lastViewSize) {
+                    engine.selectedID = id
+                    engine.reheat()
+                    onSelect(id)
                 }
-        }
+            }
     }
 
-    // MARK: - Styling
+    // SpatialTapGesture doesn't hand us the view size, so track it from the
+    // Canvas via a geometry-free approximation: the engine centres on the
+    // live view each draw, so we cache the most recent size there.
+    private var lastViewSize: CGSize { engine.lastViewSize }
 
-    /// Maps `memories.score` (loosely `[0, ∞)`) to a node radius in `[4, 14]`.
-    /// `log1p` keeps high-score outliers from blowing up the dot.
-    private static func radius(for score: Double) -> CGFloat {
-        let normalized = min(1.0, log1p(max(0, score)) / log1p(100))
-        return 4 + CGFloat(normalized) * 10
-    }
+    // MARK: - Palette → Canvas colours
 
-    /// Interpolates `lvBlue` → `lvCyan` along the same score curve as the
-    /// radius so size and hue track together.
-    private func nodeFill(for score: Double) -> Color {
-        let t = min(1.0, log1p(max(0, score)) / log1p(100))
-        // SwiftUI doesn't expose RGB blending on `Color`, so we layer a
-        // gradient by overlaying `lvCyan.opacity(t)` on `lvBlue`. Good
-        // enough at node scale (4–14 px); we can swap to a Metal shader
-        // when we need pixel-perfect bloom.
-        return palette.primary.mix(with: palette.secondary, by: 1 - t)
-    }
-
-    /// Semantic edges use the cool channel (`lvCyan`); tag edges use the
-    /// warm channel (`lvAmber`) so the two derivation paths read as
-    /// distinct signals on the graph.
-    private func edgeStyle(for edge: MemoryGraphEdgeDTO) -> Color {
-        switch edge.kind {
-        case .semantic: return palette.primary.opacity(0.25 + 0.55 * edge.weight)
-        case .tag: return palette.accent.opacity(0.30 + 0.50 * edge.weight)
-        }
-    }
-
-    // MARK: - Drag tracking
-
-    private func handleDrag(_ state: GraphDragState?) {
-        switch state {
-        case .node(let anyHashable): draggingID = anyHashable as? UUID
-        case .background, nil: draggingID = nil
-        }
+    private var style: BrainGraphStyle {
+        BrainGraphStyle(
+            memoryLow: palette.secondary,
+            memoryHigh: palette.primary,
+            wiki: palette.accent,
+            space: Color(red: 0.20, green: 0.85, blue: 0.76),
+            temporal: palette.textSecondary,
+            selection: palette.accent,
+            particle: palette.primary,
+        )
     }
 }
-
