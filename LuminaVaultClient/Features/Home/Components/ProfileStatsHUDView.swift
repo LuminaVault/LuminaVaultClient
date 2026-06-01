@@ -16,6 +16,9 @@ struct ProfileStatsHUDView: View {
     var body: some View {
         VStack(spacing: LVSpacing.lg) {
             powerRing
+            if let titleText {
+                rankBadge(titleText)
+            }
             statRow
         }
         .padding(.vertical, LVSpacing.lg)
@@ -65,6 +68,32 @@ struct ProfileStatsHUDView: View {
         .frame(width: 132, height: 132)
     }
 
+    // MARK: Rank badge
+
+    /// Milestone title under the ring (e.g. "Neural Awakening"). A glowing
+    /// capsule that reinforces the "your brain is evolving" feel.
+    private func rankBadge(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.system(size: 11, weight: .heavy, design: .rounded))
+            .tracking(1.5)
+            .foregroundStyle(
+                LinearGradient(
+                    colors: [palette.glowPrimary, palette.accent],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .padding(.horizontal, LVSpacing.md)
+            .padding(.vertical, LVSpacing.xs)
+            .background(
+                Capsule().fill(palette.glowPrimary.opacity(0.12))
+            )
+            .overlay(
+                Capsule().stroke(palette.glowPrimary.opacity(0.4), lineWidth: 1)
+            )
+            .shadow(color: palette.glowPrimary.opacity(0.4), radius: 8)
+    }
+
     // MARK: Stat tiles
 
     private var statRow: some View {
@@ -110,6 +139,12 @@ struct ProfileStatsHUDView: View {
     private var levelText: String {
         guard let profile else { return "—" }
         return "\(profile.powerLevel)"
+    }
+
+    /// Milestone rank for the current level; nil until the profile loads.
+    private var titleText: String? {
+        guard let profile else { return nil }
+        return PowerLevelTitle.title(for: profile.powerLevel)
     }
 
     /// Fraction of XP earned toward the next level. Level `L` starts at

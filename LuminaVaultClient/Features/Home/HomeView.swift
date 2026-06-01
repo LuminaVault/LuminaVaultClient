@@ -43,6 +43,12 @@ struct HomeView: View {
     /// Achievements screen — pushed by tapping the player-profile HUD.
     /// Optional so older call sites (tests, previews) keep compiling.
     var achievementsDestination: (() -> AnyView)? = nil
+    /// "Your Brain" stat tiles — Projects + Reminders push their own list
+    /// screens. Optional so older call sites (tests, previews) compile;
+    /// a nil destination renders the tile inert (e.g. the Jobs tile, which
+    /// has no list surface).
+    var projectsDestination: (() -> AnyView)? = nil
+    var remindersDestination: (() -> AnyView)? = nil
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -178,13 +184,37 @@ struct HomeView: View {
     private var statsGrid: some View {
         let home = vm.home.value
         return LazyVGrid(columns: columns, spacing: 16) {
-            SciFiCardView(icon: .brainHeadProfile, title: "Skills", subtitle: count(home?.skillsCount))
-            SciFiCardView(icon: .briefcase, title: "Jobs", subtitle: count(home?.jobsCount))
-            SciFiCardView(icon: .heartWinged, title: "Reminders", subtitle: count(home?.remindersCount))
-            SciFiCardView(icon: .scrollWinged, title: "Tasks", subtitle: count(home?.todosCount))
-            SciFiCardView(icon: .sparklesRectangleStack, title: "Projects", subtitle: count(home?.projectsCount))
-            SciFiCardView(icon: .lightbulbFill, title: "Insights", subtitle: insightsSubtitle)
-            SciFiCardView(icon: .tabSettings, title: "Profile", subtitle: home?.activeProfileName ?? "—")
+            brainTile(icon: .brainHeadProfile, title: "Skills", subtitle: count(home?.skillsCount), destination: skillsDestination)
+            // Jobs == skill-run count; no list surface, so it stays inert.
+            brainTile(icon: .briefcase, title: "Jobs", subtitle: count(home?.jobsCount), destination: nil)
+            brainTile(icon: .heartWinged, title: "Reminders", subtitle: count(home?.remindersCount), destination: remindersDestination)
+            brainTile(icon: .scrollWinged, title: "Tasks", subtitle: count(home?.todosCount), destination: tasksDestination)
+            brainTile(icon: .sparklesRectangleStack, title: "Projects", subtitle: count(home?.projectsCount), destination: projectsDestination)
+            brainTile(icon: .lightbulbFill, title: "Insights", subtitle: insightsSubtitle, destination: insightsDestination)
+            brainTile(icon: .tabSettings, title: "Profile", subtitle: home?.activeProfileName ?? "—", destination: achievementsDestination)
+        }
+    }
+
+    /// One "Your Brain" stat tile. Wraps the card in a `NavigationLink` when
+    /// a destination is wired; otherwise renders a dimmed, inert tile so the
+    /// grid never looks tappable when it isn't.
+    @ViewBuilder
+    private func brainTile(
+        icon: LVIcon,
+        title: String,
+        subtitle: String,
+        destination: (() -> AnyView)?
+    ) -> some View {
+        if let destination {
+            NavigationLink {
+                destination()
+            } label: {
+                SciFiCardView(icon: icon, title: title, subtitle: subtitle)
+            }
+            .buttonStyle(.plain)
+        } else {
+            SciFiCardView(icon: icon, title: title, subtitle: subtitle)
+                .opacity(0.55)
         }
     }
 

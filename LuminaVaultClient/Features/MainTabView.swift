@@ -227,6 +227,14 @@ struct MainTabView: View {
         MemoryGraphHTTPClient(client: appState.makeHTTPClient())
     }
 
+    private var projectsClient: ProjectsClientProtocol {
+        ProjectsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var remindersClient: RemindersClientProtocol {
+        RemindersHTTPClient(client: appState.makeHTTPClient())
+    }
+
     private var kbCompileClient: KBCompileClientProtocol {
         KBCompileHTTPClient(client: appState.makeHTTPClient())
     }
@@ -338,6 +346,12 @@ struct MainTabView: View {
             ) },
             achievementsDestination: { [self] in AnyView(
                 AchievementsView(vm: AchievementsViewModel(client: achievementsClient))
+            ) },
+            projectsDestination: { [self] in AnyView(
+                ProjectsListView(vm: ProjectsListViewModel(client: projectsClient))
+            ) },
+            remindersDestination: { [self] in AnyView(
+                RemindersListView(vm: RemindersListViewModel(client: remindersClient))
             ) },
         )
     }
