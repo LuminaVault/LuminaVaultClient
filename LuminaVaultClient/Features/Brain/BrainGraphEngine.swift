@@ -356,8 +356,8 @@ final class BrainGraphEngine {
     /// Live render radius incl. breathing pulse (amplitude ↑ with recency)
     /// and selection scale.
     private func renderRadius(_ n: Node) -> CGFloat {
-        // Only memories breathe; sources stay quiet satellites.
-        let pulse = n.kind == .wikiPage ? 1 : 1 + (0.06 + 0.10 * n.recency) * sin(time * 2.2 + n.phase)
+        // Only memories breathe; sources + Space hubs stay static.
+        let pulse = n.kind == .memory ? 1 + (0.06 + 0.10 * n.recency) * sin(time * 2.2 + n.phase) : 1
         let selBoost = n.id == selectedID ? (1 + 0.25 * selectionPulse) : 1
         return baseRadius(n) * scale * pulse * selBoost
     }
@@ -377,8 +377,11 @@ final class BrainGraphEngine {
     // Memory-centric reframe: sources are demoted to small, dim, static
     // satellites so the memory network reads as the primary object.
     private func baseRadius(_ n: Node) -> CGFloat {
-        if n.kind == .wikiPage { return 6 }
-        return 5 + n.importance * 10 + n.recency * 2
+        switch n.kind {
+        case .space: return 16 // Space hub — large cluster centre.
+        case .wikiPage: return 6 // source satellite.
+        case .memory: return 5 + n.importance * 10 + n.recency * 2
+        }
     }
 
     /// Glow emphasis multiplier — sources are dimmed so memories dominate.
@@ -386,6 +389,7 @@ final class BrainGraphEngine {
 
     private func nodeColor(_ n: Node, style: BrainGraphStyle) -> Color {
         switch n.kind {
+        case .space: return style.space
         case .wikiPage: return style.wiki
         case .memory: return style.memoryLow.mix(with: style.memoryHigh, by: n.importance)
         }

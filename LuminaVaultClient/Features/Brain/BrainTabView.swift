@@ -139,7 +139,11 @@ struct BrainTabView: View {
     /// hidden, then keeps only edges of an active kind whose endpoints both
     /// survive — so no edge dangles to a filtered-out node.
     private func filtered(_ graph: MemoryGraphResponse) -> MemoryGraphResponse {
-        let nodes = showWikiPages ? graph.nodes : graph.nodes.filter { $0.kind != .wikiPage }
+        var nodes = graph.nodes
+        if !showWikiPages { nodes = nodes.filter { $0.kind != .wikiPage } }
+        // Space hubs only read as hubs with their star edges; drop them when
+        // the Space edge kind is off so no orphan hubs float.
+        if !activeEdgeKinds.contains(.space) { nodes = nodes.filter { $0.kind != .space } }
         let liveIDs = Set(nodes.map(\.id))
         let edges = graph.edges.filter {
             activeEdgeKinds.contains($0.kind) && liveIDs.contains($0.from) && liveIDs.contains($0.to)
