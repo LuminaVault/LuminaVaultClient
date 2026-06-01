@@ -20,7 +20,7 @@ struct PluginStoreView: View {
             switch viewModel.state {
             case .loading:
                 Section { ProgressView().frame(maxWidth: .infinity) }
-            case let .loaded(catalog, installsBySlug):
+            case let .loaded(catalog, installsBySlug, hermesSkills):
                 if catalog.isEmpty {
                     Section { Text("No plugins available yet.").foregroundStyle(.secondary) }
                 } else {
@@ -39,6 +39,18 @@ struct PluginStoreView: View {
                         }
                     } footer: {
                         Text("Plugins extend what Lumina can pull in. Connectors stage items into your Imported inbox, where Smart Import files and compiles them.")
+                    }
+                }
+
+                if !hermesSkills.isEmpty {
+                    Section {
+                        ForEach(hermesSkills) { entry in
+                            hermesRow(for: entry)
+                        }
+                    } header: {
+                        Text("In your Hermes")
+                    } footer: {
+                        Text("Skills already installed in your Hermes agent. Manage these from Hermes for now; installing from the Hub here is coming soon.")
                     }
                 }
             case let .error(message):
@@ -75,6 +87,23 @@ struct PluginStoreView: View {
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(install.status == .enabled ? .green : .secondary)
             }
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// Read-only row for a skill installed in the tenant's Hermes agent.
+    @ViewBuilder
+    private func hermesRow(for entry: PluginCatalogEntryDTO) -> some View {
+        HStack {
+            Image(systemName: "bolt.horizontal.circle.fill")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.name).font(.body)
+                Text(entry.summary).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            }
+            Spacer()
         }
         .padding(.vertical, 2)
     }

@@ -10,6 +10,8 @@ import LuminaVaultShared
 
 protocol PluginsClientProtocol: Sendable {
     func catalog(category: PluginCategory?) async throws -> PluginCatalogListResponse
+    /// HER-43 Slice 3a — read-only skills installed in the tenant's Hermes agent.
+    func hermesSkills() async throws -> PluginCatalogListResponse
     func installs() async throws -> PluginInstallsListResponse
     func install(_ body: InstallPluginRequest) async throws -> PluginInstallDTO
     func update(_ id: UUID, _ body: UpdatePluginInstallRequest) async throws -> PluginInstallDTO

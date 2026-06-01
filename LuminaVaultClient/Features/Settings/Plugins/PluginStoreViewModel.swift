@@ -12,7 +12,11 @@ import LuminaVaultShared
 final class PluginStoreViewModel {
     enum State: Equatable {
         case loading
-        case loaded(catalog: [PluginCatalogEntryDTO], installsBySlug: [String: PluginInstallDTO])
+        case loaded(
+            catalog: [PluginCatalogEntryDTO],
+            installsBySlug: [String: PluginInstallDTO],
+            hermesSkills: [PluginCatalogEntryDTO]
+        )
         case error(message: String)
     }
 
@@ -29,9 +33,16 @@ final class PluginStoreViewModel {
         do {
             async let catalogTask = client.catalog(category: nil)
             async let installsTask = client.installs()
-            let (catalog, installs) = try await (catalogTask, installsTask)
+            // Best-effort: Hermes may be unreachable; show an empty section
+            // rather than failing the whole store.
+            async let hermesTask = try? client.hermesSkills()
+            let (catalog, installs, hermes) = try await (catalogTask, installsTask, hermesTask)
             let bySlug = Dictionary(installs.items.map { ($0.pluginSlug, $0) }, uniquingKeysWith: { first, _ in first })
-            state = .loaded(catalog: catalog.items, installsBySlug: bySlug)
+            state = .loaded(
+                catalog: catalog.items,
+                installsBySlug: bySlug,
+                hermesSkills: hermes?.items ?? [],
+            )
         } catch {
             state = .error(message: Self.errorMessage(error))
         }
