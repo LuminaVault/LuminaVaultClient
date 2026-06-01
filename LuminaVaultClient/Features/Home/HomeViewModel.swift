@@ -27,6 +27,10 @@ final class HomeViewModel {
     var profile: CardState<DashboardProfileResponse> = .loading
     var tasks: CardState<[TaskDTO]> = .loading
     var insights: CardState<[InsightDTO]> = .loading
+    // HER-Home — one-shot dashboard counts (skills, jobs, reminders, todos,
+    // projects, insights) + active profile, and month-to-date usage.
+    var home: CardState<HomeSummaryResponse> = .loading
+    var usage: CardState<UsageSummaryResponse> = .loading
     var isOnline: Bool = true
 
     // Inherited from the existing kb-compile flow (HER-36 / HER-39). The
@@ -43,6 +47,10 @@ final class HomeViewModel {
     private let tasksClient: TasksClientProtocol
     private let insightsClient: InsightsClientProtocol
     private let healthClient: HealthClientProtocol
+    // HER-Home — optional so existing call sites keep compiling; when nil the
+    // corresponding card simply stays in its initial state.
+    private let homeClient: HomeSummaryClientProtocol?
+    private let analyticsClient: AnalyticsClientProtocol?
 
     init(
         statsClient: DashboardStatsClientProtocol,
@@ -51,7 +59,9 @@ final class HomeViewModel {
         insightsClient: InsightsClientProtocol,
         healthClient: HealthClientProtocol,
         compileViewModel: SyncAndLearnViewModel,
-        displayName: String
+        displayName: String,
+        homeClient: HomeSummaryClientProtocol? = nil,
+        analyticsClient: AnalyticsClientProtocol? = nil
     ) {
         self.statsClient = statsClient
         self.profileClient = profileClient
@@ -60,6 +70,8 @@ final class HomeViewModel {
         self.healthClient = healthClient
         self.compileViewModel = compileViewModel
         self.displayName = displayName
+        self.homeClient = homeClient
+        self.analyticsClient = analyticsClient
     }
 
     func refresh() async {
@@ -73,7 +85,27 @@ final class HomeViewModel {
         async let tasksTask: Void = loadTasks()
         async let insightsTask: Void = loadInsights()
         async let healthTask: Void = checkHealth()
-        _ = await (statsTask, profileTask, tasksTask, insightsTask, healthTask)
+        async let homeTask: Void = loadHome()
+        async let usageTask: Void = loadUsage()
+        _ = await (statsTask, profileTask, tasksTask, insightsTask, healthTask, homeTask, usageTask)
+    }
+
+    private func loadHome() async {
+        guard let homeClient else { return }
+        do {
+            home = .loaded(try await homeClient.summary())
+        } catch {
+            home = .failed(message: friendlyMessage(error))
+        }
+    }
+
+    private func loadUsage() async {
+        guard let analyticsClient else { return }
+        do {
+            usage = .loaded(try await analyticsClient.usageSummary())
+        } catch {
+            usage = .failed(message: friendlyMessage(error))
+        }
     }
 
     func triggerCompile() async {

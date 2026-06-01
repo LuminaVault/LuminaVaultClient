@@ -260,6 +260,10 @@ final class AppState {
         MemoryHTTPClient(client: makeHTTPClient())
     }
 
+    func makeBillingClient() -> any BillingClientProtocol {
+        BillingHTTPClient(client: makeHTTPClient())
+    }
+
     func handleAuthSuccess(_ response: AuthResponse) {
         keychain.accessToken = response.accessToken
         keychain.refreshToken = response.refreshToken
@@ -279,7 +283,7 @@ final class AppState {
         // authoritative billing snapshot. Service stays nil until the
         // first sign-in so cold-launch + unauthenticated paths skip RC.
         let billing = BillingService(
-            client: BillingHTTPClient(client: makeHTTPClient()),
+            client: makeBillingClient(),
             purchases: purchasesProxyFactory()
         )
         billingService = billing

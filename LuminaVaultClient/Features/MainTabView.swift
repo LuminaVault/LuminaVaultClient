@@ -242,7 +242,9 @@ struct MainTabView: View {
                     webSocket: appState.makeKBCompileWebSocketClient(),
                     memoryClient: appState.makeMemoryClient(),
                 ),
-                displayName: Self.deriveDisplayName(from: appState.currentEmail)
+                displayName: Self.deriveDisplayName(from: appState.currentEmail),
+                homeClient: HomeSummaryHTTPClient(client: appState.makeHTTPClient()),
+                analyticsClient: AnalyticsHTTPClient(client: appState.makeHTTPClient())
             ),
             onAskLumina: {
                 // TODO(HER-107): when chat detail ships, route to it

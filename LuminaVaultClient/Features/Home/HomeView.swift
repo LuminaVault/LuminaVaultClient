@@ -85,6 +85,14 @@ struct HomeView: View {
                         // Player-profile HUD: power level ring + stat tiles.
                         ProfileStatsHUDView(state: vm.profile)
 
+                        // HER-Home — live counts for the user's brain: skills,
+                        // jobs, reminders, tasks, insights, projects + active
+                        // profile, sourced from GET /v1/dashboard/home.
+                        VStack(spacing: 24) {
+                            sectionHeader("Your Brain")
+                            statsGrid
+                        }
+
                         VStack(spacing: 24) {
                             quickActionsHeader
                             cardGrid
@@ -122,13 +130,47 @@ struct HomeView: View {
     }
 
     private var quickActionsHeader: some View {
+        sectionHeader("Quick Actions")
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
         HStack {
-            Text("Quick Actions")
+            Text(title)
                 .font(.system(size: 20, weight: .bold))
                 .foregroundStyle(palette.textPrimary)
                 .shadow(color: palette.glowPrimary.opacity(0.3), radius: 4)
             Spacer()
         }
+    }
+
+    // HER-Home — seven count tiles. Counts come from `vm.home`; the Insights
+    // tile prefers month-to-date token usage from `vm.usage`. Tiles are
+    // display-only until detail screens land.
+    private var statsGrid: some View {
+        let home = vm.home.value
+        return LazyVGrid(columns: columns, spacing: 16) {
+            SciFiCardView(icon: .brainHeadProfile, title: "Skills", subtitle: count(home?.skillsCount))
+            SciFiCardView(icon: .briefcase, title: "Jobs", subtitle: count(home?.jobsCount))
+            SciFiCardView(icon: .heartWinged, title: "Reminders", subtitle: count(home?.remindersCount))
+            SciFiCardView(icon: .scrollWinged, title: "Tasks", subtitle: count(home?.todosCount))
+            SciFiCardView(icon: .sparklesRectangleStack, title: "Projects", subtitle: count(home?.projectsCount))
+            SciFiCardView(icon: .lightbulbFill, title: "Insights", subtitle: insightsSubtitle)
+            SciFiCardView(icon: .tabSettings, title: "Profile", subtitle: home?.activeProfileName ?? "—")
+        }
+    }
+
+    private func count(_ value: Int?) -> String {
+        value.map(String.init) ?? "—"
+    }
+
+    /// Insights tile shows total month-to-date LLM tokens when usage has
+    /// loaded; otherwise the count of active findings from the home summary.
+    private var insightsSubtitle: String {
+        if let usage = vm.usage.value {
+            let total = usage.llmTokensIn + usage.llmTokensOut
+            return "\(total) tok"
+        }
+        return count(vm.home.value?.insightsCount)
     }
 
     private var cardGrid: some View {

@@ -13,4 +13,8 @@ final class BillingHTTPClient: BillingClientProtocol {
     func fetchMeBilling() async throws -> MeBillingResponse {
         try await client.execute(BillingEndpoints.GetMeBilling())
     }
+
+    func fetchMeUsage() async throws -> MeUsageResponse {
+        try await client.execute(BillingEndpoints.GetMeUsage())
+    }
 }

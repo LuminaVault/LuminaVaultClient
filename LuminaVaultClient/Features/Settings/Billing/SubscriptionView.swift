@@ -19,6 +19,7 @@ struct SubscriptionView: View {
     @Environment(\.lvPalette) private var palette
     @Environment(\.openURL) private var openURL
     @State private var viewModel: SubscriptionViewModel?
+    @State private var usageViewModel: UsageMetricsViewModel?
 
     var body: some View {
         Group {
@@ -35,6 +36,11 @@ struct SubscriptionView: View {
             if viewModel == nil {
                 viewModel = SubscriptionViewModel(billing: appState.billingService)
             }
+            if usageViewModel == nil, appState.billingService != nil {
+                let usage = UsageMetricsViewModel(client: appState.makeBillingClient())
+                usageViewModel = usage
+                await usage.refresh()
+            }
         }
     }
 
@@ -45,6 +51,30 @@ struct SubscriptionView: View {
                 tierBadgeRow(viewModel: viewModel)
                 if viewModel.inTrial, let days = viewModel.daysRemaining {
                     trialCountdownRow(days: days)
+                }
+            }
+
+            if let usageViewModel {
+                Section("Usage this month") {
+                    usageRow("Storage", value: usageViewModel.storageLabel, systemImage: "externaldrive")
+                    usageRow("Tokens", value: usageViewModel.tokensLabel, systemImage: "text.word.spacing")
+                    usageRow("Compiles", value: usageViewModel.compilesLabel, systemImage: "arrow.triangle.2.circlepath")
+                    usageRow("Compiled files", value: usageViewModel.compileFilesLabel, systemImage: "doc.text")
+                    if usageViewModel.shouldShowTTS {
+                        usageRow("TTS characters", value: usageViewModel.ttsCharactersLabel, systemImage: "waveform")
+                    }
+                    if usageViewModel.isLoading {
+                        HStack {
+                            Label("Refreshing", systemImage: "arrow.clockwise")
+                            Spacer()
+                            ProgressView()
+                        }
+                    }
+                    if let message = usageViewModel.errorMessage {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
@@ -150,6 +180,16 @@ struct SubscriptionView: View {
             Label("Trial", systemImage: "clock")
             Spacer()
             Text("\(days) day\(days == 1 ? "" : "s") left")
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+    }
+
+    private func usageRow(_ title: String, value: String, systemImage: String) -> some View {
+        HStack {
+            Label(title, systemImage: systemImage)
+            Spacer()
+            Text(value)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }

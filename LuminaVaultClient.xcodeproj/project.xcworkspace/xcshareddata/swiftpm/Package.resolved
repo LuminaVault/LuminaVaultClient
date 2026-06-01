@@ -69,8 +69,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/LuminaVault/LuminaVaultShared.git",
       "state" : {
-        "revision" : "bed0ca88d193c1752fac22e669c3ea7688cbcc60",
-        "version" : "0.45.0"
+        "revision" : "87f9d68fd1ea3b0d7cb3258f07ff4629d43e223a",
+        "version" : "0.46.0"
       }
     },
     {

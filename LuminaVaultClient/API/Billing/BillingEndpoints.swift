@@ -15,4 +15,11 @@ enum BillingEndpoints {
         var path: String { "/v1/auth/me/billing" }
         var method: HTTPMethod { .get }
     }
+
+    /// Metrics-only usage summary for Settings → Subscription.
+    struct GetMeUsage: Endpoint {
+        typealias Response = MeUsageResponse
+        var path: String { "/v1/auth/me/usage" }
+        var method: HTTPMethod { .get }
+    }
 }
