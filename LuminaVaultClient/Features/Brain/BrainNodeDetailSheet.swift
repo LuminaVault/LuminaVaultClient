@@ -1,8 +1,9 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Brain/BrainNodeDetailSheet.swift
 //
-// HER-235 — minimal detail sheet for a tapped graph node. v1 shows the
-// memory's title, tags, and timestamp. A follow-up can route to the full
-// `MemoEditorView` when we wire memory id → memo id lookup.
+// HER-235 — detail sheet for a tapped graph node, kind-aware (memory vs
+// wiki page). v1 shows title, tags, and timestamp. A follow-up can route a
+// wiki node to its full markdown page once the node DTO carries the vault
+// path, and a memory node to `MemoEditorView`.
 
 import LuminaVaultShared
 import SwiftUI
@@ -17,6 +18,14 @@ struct BrainNodeDetailSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 8) {
+                        LVIconView(kindIcon, size: 13, tint: accentColor)
+                        Text(kindLabel.uppercased())
+                            .font(.caption2.weight(.bold))
+                            .tracking(0.8)
+                            .foregroundStyle(accentColor)
+                    }
+
                     Text(node.title)
                         .font(.title2.weight(.semibold))
                         .foregroundStyle(palette.textPrimary)
@@ -35,20 +44,24 @@ struct BrainNodeDetailSheet: View {
                                     .font(.caption.weight(.medium))
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 5)
-                                    .background(palette.primary.opacity(0.15))
-                                    .foregroundStyle(palette.primary)
+                                    .background(accentColor.opacity(0.15))
+                                    .foregroundStyle(accentColor)
                                     .clipShape(Capsule())
                             }
                         }
                     }
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Score")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Color.lvTextMuted)
-                        Text(String(format: "%.2f", node.score))
-                            .font(.body.monospacedDigit())
-                            .foregroundStyle(palette.textPrimary)
+                    // Score is a memory-only signal; wiki pages render at a
+                    // constant size so it carries no meaning for them.
+                    if node.kind == .memory {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Score")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color.lvTextMuted)
+                            Text(String(format: "%.2f", node.score))
+                                .font(.body.monospacedDigit())
+                                .foregroundStyle(palette.textPrimary)
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -56,10 +69,26 @@ struct BrainNodeDetailSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .lvBackground()
-            .navigationTitle("Memory")
+            .navigationTitle(kindLabel)
             .navigationBarTitleDisplayMode(.inline)
         }
         .presentationDetents([.medium, .large])
+    }
+
+    // MARK: - Kind presentation
+
+    private var kindLabel: String {
+        node.kind == .wikiPage ? "Wiki Page" : "Memory"
+    }
+
+    private var kindIcon: LVIcon {
+        node.kind == .wikiPage ? .docText : .brain
+    }
+
+    /// Wiki pages ride the warm channel (gold accent) to match the graph;
+    /// memories ride the cool channel (cyan primary).
+    private var accentColor: Color {
+        node.kind == .wikiPage ? palette.accent : palette.primary
     }
 }
 
