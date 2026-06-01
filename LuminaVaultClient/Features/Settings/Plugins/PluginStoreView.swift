@@ -84,11 +84,12 @@ struct PluginStoreView: View {
 
     // MARK: - Catalog rows + grouping (Slice 6)
 
-    private static let categoryOrder: [PluginCategory] = [.connector, .skill, .memory, .export, .ui, .theme]
+    private static let categoryOrder: [PluginCategory] = [.connector, .capture, .skill, .memory, .export, .ui, .theme]
 
     private static func categoryTitle(_ category: PluginCategory) -> String {
         switch category {
         case .connector: "Connectors"
+        case .capture: "Capture"
         case .skill: "Skills"
         case .memory: "Memory"
         case .export: "Export"
