@@ -19,6 +19,9 @@ struct MainTabView: View {
     @Environment(AppState.self) private var appState
     @State private var selection: String = "home"
     @State private var hermieState: HermieMascotState = .idle
+    // HER-255 — QuickSettings now opens from the global header's mascot tap
+    // (was owned by HomeView's per-screen header).
+    @State private var showQuickSettings = false
     @Namespace private var tabUnderline
 
     private static let tabIds = (
@@ -35,6 +38,17 @@ struct MainTabView: View {
             VStack(spacing: 0) {
                 // HER-39 — pinned sync status. Hidden when idle.
                 SyncStatusBanner()
+
+                // HER-255 — global app header (the "base of the app"). Lives
+                // above the TabView so it's present on every tab and every
+                // pushed detail. Per-screen LuminaHeaders were removed; the
+                // title is derived from the active tab. The compact capture
+                // "+" rides inside LuminaHeader.
+                LuminaHeader(
+                    title: currentTitle,
+                    mascotState: hermieState,
+                    onMascotTap: { showQuickSettings = true }
+                )
 
                 TabView(selection: $selection) {
                     // HER-249 — Workspaces wraps Spaces with workspace-aware
@@ -113,14 +127,8 @@ struct MainTabView: View {
                 selection: $selection,
                 underlineNamespace: tabUnderline,
             )
-
-            // HER-243 — capture FAB anchored centrally over the tab bar.
-            // Hidden on the AI tab: the chat composer owns the bottom edge,
-            // and the FAB would float on top of the text field + send button.
-            if selection != Self.tabIds.think {
-                CaptureFAB()
-                    .padding(.bottom, 70)
-            }
+            // HER-255 — capture "+" moved into LuminaHeader (compact style);
+            // the floating FAB over the tab bar is retired.
         }
         .onChange(of: selection) { _, newValue in
             // HER-243 — drive Hermie state from the active tab. ".thinking"
@@ -128,6 +136,25 @@ struct MainTabView: View {
             // wiring lands when ThinkWithLuminaViewModel exposes its phase
             // via the AppState observation tree.
             hermieState = (newValue == Self.tabIds.think) ? .thinking : .idle
+        }
+        .sheet(isPresented: $showQuickSettings) {
+            QuickSettingsView()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    // HER-255 — global header title per active tab.
+    private var currentTitle: String {
+        switch selection {
+        case Self.tabIds.workspaces: return "Spaces"
+        case Self.tabIds.home:       return "LuminaVault"
+        case Self.tabIds.reflect:    return "Reflect"
+        case Self.tabIds.think:      return "AI"
+        case Self.tabIds.brain:      return "Brain"
+        case Self.tabIds.settings:   return "Settings"
+        case "visual_search":        return "Visual Search"
+        default:                     return "LuminaVault"
         }
     }
 
@@ -267,47 +294,51 @@ struct MainTabView: View {
                 // directly. For now defers to the Think tab.
             },
             onSelectTab: { selection = $0 },
-            sessionsDestination: AnyView(
+            // PERF — destinations are lazy closures (HomeView builds them on
+            // navigation). Previously every `AnyView(...)` + its view-model
+            // graph allocated here on every `MainTabView.body` pass, i.e. on
+            // every tab switch, even when Home wasn't visible.
+            sessionsDestination: { [self] in AnyView(
                 SessionsListView(vm: SessionsListViewModel(client: sessionsClient))
-            ),
-            tasksDestination: AnyView(
+            ) },
+            tasksDestination: { [self] in AnyView(
                 TasksListView(vm: TasksListViewModel(client: tasksClient))
-            ),
-            insightsDestination: AnyView(
+            ) },
+            insightsDestination: { [self] in AnyView(
                 InsightsListView(vm: InsightsListViewModel(client: insightsClient))
-            ),
-            serverConnectionDestination: AnyView(
+            ) },
+            serverConnectionDestination: { [self] in AnyView(
                 ServerConnectionView(vm: ServerConnectionViewModel(soulClient: soulClient))
-            ),
-            skillsDestination: AnyView(
+            ) },
+            skillsDestination: { [self] in AnyView(
                 SkillsHubView(
                     vm: SkillsHubViewModel(client: skillsClient),
                     detailClient: skillsClient,
                 )
-            ),
-            todayDestination: AnyView(
+            ) },
+            todayDestination: { [self] in AnyView(
                 TodayView(
                     vm: TodayViewModel(client: todayClient),
                     vaultClient: vaultClient,
                     memoryClient: memoryUpsertClient,
                 )
-            ),
-            visualSearchDestination: AnyView(
+            ) },
+            visualSearchDestination: { [self] in AnyView(
                 VisualSearchView(viewModel: VisualSearchViewModel(
                     ocr: ImageOCRService(),
                     client: memoryClient,
                     telemetry: LoggerTelemetry(),
                 ))
-            ),
-            healthDestination: AnyView(
+            ) },
+            healthDestination: { [self] in AnyView(
                 HealthDashboardScreen(
                     httpClient: appState.makeHTTPClient(),
                     coordinator: appState.healthKit,
                 )
-            ),
-            achievementsDestination: AnyView(
+            ) },
+            achievementsDestination: { [self] in AnyView(
                 AchievementsView(vm: AchievementsViewModel(client: achievementsClient))
-            ),
+            ) },
         )
     }
 

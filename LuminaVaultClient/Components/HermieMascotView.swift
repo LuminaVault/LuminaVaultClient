@@ -102,12 +102,16 @@ public struct LuminaHeader: View {
     
     public let title: String
     public var showMascot: Bool = true
+    /// HER-255 — when true, a compact "+" capture button is rendered in the
+    /// header (left of the mascot), replacing the old floating FAB.
+    public var showCapture: Bool = true
     public var mascotState: HermieMascotState = .idle
     public var onMascotTap: (() -> Void)? = nil
-    
-    public init(title: String, showMascot: Bool = true, mascotState: HermieMascotState = .idle, onMascotTap: (() -> Void)? = nil) {
+
+    public init(title: String, showMascot: Bool = true, showCapture: Bool = true, mascotState: HermieMascotState = .idle, onMascotTap: (() -> Void)? = nil) {
         self.title = title
         self.showMascot = showMascot
+        self.showCapture = showCapture
         self.mascotState = mascotState
         self.onMascotTap = onMascotTap
     }
@@ -127,7 +131,13 @@ public struct LuminaHeader: View {
                 .shadow(color: palette.glowPrimary.opacity(0.6), radius: 8)
             
             Spacer()
-            
+
+            // HER-255 — compact capture "+" lives in the header now (was a
+            // floating FAB over the tab bar). Sits left of the mascot avatar.
+            if showCapture {
+                CaptureFAB(style: .header)
+            }
+
             // Mascot Avatar
             if showMascot {
                 Button {

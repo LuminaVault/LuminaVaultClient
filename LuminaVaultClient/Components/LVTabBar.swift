@@ -106,16 +106,22 @@ struct LVTabBar: View {
         .padding(.top, LVSpacing.sm)
         .padding(.bottom, LVSpacing.sm)
         .background {
+            // HER-255 redesign — deep frosted "glass" slab. The base material
+            // is darkened with a `backgroundBase` wash so the holographic icons
+            // and active pill read with high contrast, and the top edge gets a
+            // cyan-tinted "lit rim" (hairline + soft glow) for the sci-fi look.
             ZStack(alignment: .top) {
                 Rectangle().fill(.ultraThinMaterial)
+                Rectangle().fill(palette.backgroundBase.opacity(0.6))
                 LinearGradient(
-                    colors: [palette.backgroundBase.opacity(0.55), .clear],
+                    colors: [palette.backgroundBase.opacity(0.35), .clear],
                     startPoint: .bottom,
                     endPoint: .top
                 )
                 Rectangle()
-                    .fill(palette.surfaceStroke)
-                    .frame(height: 0.5)
+                    .fill(palette.glowPrimary.opacity(0.28))
+                    .frame(height: 0.75)
+                    .shadow(color: palette.glowPrimary.opacity(0.18), radius: 8, y: -2)
             }
             .ignoresSafeArea(edges: .bottom)
         }
@@ -221,11 +227,19 @@ private struct LVTabBarItemContent: View {
     var body: some View {
         VStack(spacing: LVSpacing.xs) {
             ZStack {
+                // HER-255 redesign — orbiting sparkle shimmer behind the active
+                // icon. Reuses `SparkleField` (30fps-throttled Canvas that goes
+                // static under Reduce Motion). Only the active tab mounts it, so
+                // at most one particle field is ever alive.
                 if isActive {
-                    Circle()
-                        .fill(palette.glowPrimary.opacity(0.25))
-                        .frame(width: 38, height: 38)
-                        .blur(radius: 8)
+                    SparkleField(
+                        density: 6,
+                        maxRadius: 1.4,
+                        driftSpeed: 0.8,
+                        colors: [palette.primary, palette.accent, .white]
+                    )
+                    .frame(width: 34, height: 34)
+                    .allowsHitTesting(false)
                 }
                 iconView
                     .frame(width: 26, height: 26)
@@ -235,19 +249,41 @@ private struct LVTabBarItemContent: View {
                 .font(LVTypography.microTag.font.weight(isActive ? .semibold : .regular))
                 .foregroundStyle(isActive ? palette.primary : palette.textSecondary.opacity(0.85))
                 .lineLimit(1)
-            ZStack {
-                if isActive {
-                    Capsule()
-                        .fill(palette.glowPrimary)
-                        .frame(width: 24, height: 3)
-                        .shadow(color: palette.glowPrimary, radius: 6)
-                        .matchedGeometryEffect(id: "activeUnderline", in: underlineNamespace)
-                } else {
-                    Capsule().fill(Color.clear).frame(width: 24, height: 3)
-                }
+        }
+        .padding(.horizontal, LVSpacing.sm)
+        .padding(.vertical, LVSpacing.xs)
+        .background {
+            // HER-255 redesign — glowing active "pill" wrapping icon+label.
+            // Slides between tabs via `matchedGeometryEffect` on the shared
+            // `underlineNamespace` (driven by `selectWithAnimation`'s spring),
+            // replacing the old circle-blur + underline-capsule pair.
+            if isActive {
+                activePill
             }
         }
         .contentShape(Rectangle())
+    }
+
+    /// Volumetric active highlight: a cyan-gradient rounded-rect with a glowing
+    /// stroke and soft outer shadow. Theme-tinted via `palette.glowPrimary`.
+    private var activePill: some View {
+        RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        palette.glowPrimary.opacity(0.22),
+                        palette.glowPrimary.opacity(0.06)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous)
+                    .stroke(palette.glowPrimary.opacity(0.5), lineWidth: 1)
+            }
+            .shadow(color: palette.glowPrimary.opacity(0.45), radius: 12)
+            .matchedGeometryEffect(id: "activeTabPill", in: underlineNamespace)
     }
 
     // HER-291 — name + custom-asset resolution comes from `LVIcon`,
@@ -257,20 +293,38 @@ private struct LVTabBarItemContent: View {
     // `LVIconView` is intentionally NOT used here — it forces template
     // rendering, which would flatten the brand artwork to a single
     // tint and break the existing tab-bar look.
+    //
+    // HER-255 redesign — the active icon gets a holographic treatment: a
+    // blurred, cyan-multiplied bloom copy sits behind the sharp glyph, plus a
+    // saturation lift and a cyan drop-shadow. Inactive icons stay dim and
+    // desaturated.
     @ViewBuilder
     private var iconView: some View {
         if let assetName = item.icon.customAssetName,
            UIImage(named: assetName) != nil {
-            Image(assetName)
-                .resizable()
-                .renderingMode(.original)
-                .aspectRatio(contentMode: .fit)
-                .saturation(isActive ? 1.0 : 0.55)
-                .opacity(isActive ? 1.0 : 0.75)
+            ZStack {
+                if isActive {
+                    Image(assetName)
+                        .resizable()
+                        .renderingMode(.original)
+                        .aspectRatio(contentMode: .fit)
+                        .blur(radius: 6)
+                        .colorMultiply(palette.glowPrimary)
+                        .opacity(0.7)
+                }
+                Image(assetName)
+                    .resizable()
+                    .renderingMode(.original)
+                    .aspectRatio(contentMode: .fit)
+                    .saturation(isActive ? 1.15 : 0.55)
+                    .opacity(isActive ? 1.0 : 0.75)
+                    .shadow(color: isActive ? palette.glowPrimary.opacity(0.7) : .clear, radius: 8)
+            }
         } else {
             Image(systemName: item.icon.sfSymbol)
                 .font(.system(size: LVSize.tabBarGlyph, weight: .medium))
                 .foregroundStyle(isActive ? palette.primary : palette.textSecondary.opacity(0.85))
+                .shadow(color: isActive ? palette.glowPrimary.opacity(0.7) : .clear, radius: 8)
         }
     }
 }

@@ -62,9 +62,7 @@ struct SpacesListView: View {
                 content
                 createButton
             }
-            .safeAreaInset(edge: .top) {
-                LuminaHeader(title: "Spaces")
-            }
+            // HER-255 — header hoisted to MainTabView (app-wide base header).
             .lvBackground()
             .toolbar(.hidden, for: .navigationBar) // Custom header instead
             .task { await vm.load() }

@@ -67,6 +67,13 @@ final class BrainGraphEngine {
     private(set) var edges: [Edge] = []
     private var indexByID: [UUID: Int] = [:]
 
+    // PERF — reused per-frame scratch buffers. Previously `stepPhysics`
+    // allocated a fresh force array + spatial-hash dictionary every step (up
+    // to 3×/frame), churning the heap at display rate. Held here and cleared
+    // in place instead.
+    private var forceBuffer: [CGPoint] = []
+    private var gridBuffer: [GridKey: [Int]] = [:]
+
     // MARK: View transform (owned here so inertia can animate it per frame)
 
     var scale: CGFloat = 1.0
@@ -173,13 +180,19 @@ final class BrainGraphEngine {
         let energy = 0.25 + 0.75 * alpha
 
         // Repulsion via uniform spatial hash (cell ≈ 2× rest length).
+        // Reuses `gridBuffer`/`forceBuffer` (cleared in place) to avoid
+        // per-step heap allocation.
         let cell = Self.restLength * 2
-        var grid: [GridKey: [Int]] = [:]
-        grid.reserveCapacity(nodes.count)
+        for key in gridBuffer.keys { gridBuffer[key]?.removeAll(keepingCapacity: true) }
         for i in nodes.indices {
-            grid[GridKey(nodes[i].pos, cell), default: []].append(i)
+            gridBuffer[GridKey(nodes[i].pos, cell), default: []].append(i)
         }
-        var force = [CGPoint](repeating: .zero, count: nodes.count)
+        let grid = gridBuffer
+        if forceBuffer.count == nodes.count {
+            for i in forceBuffer.indices { forceBuffer[i] = .zero }
+        } else {
+            forceBuffer = [CGPoint](repeating: .zero, count: nodes.count)
+        }
         for i in nodes.indices {
             let pi = nodes[i].pos
             let base = GridKey(pi, cell)
@@ -192,8 +205,8 @@ final class BrainGraphEngine {
                         if dist2 < 0.01 { d = CGPoint(x: .random(in: -1 ... 1, using: &rng), y: .random(in: -1 ... 1, using: &rng)); dist2 = 1 }
                         let f = Self.repulsion / dist2
                         let inv = 1 / sqrt(dist2)
-                        force[i].x += d.x * inv * f
-                        force[i].y += d.y * inv * f
+                        forceBuffer[i].x += d.x * inv * f
+                        forceBuffer[i].y += d.y * inv * f
                     }
                 }
             }
@@ -207,17 +220,17 @@ final class BrainGraphEngine {
             let rest = Self.restLength * (1.4 - 0.6 * e.weight)
             let f = Self.springK * (dist - rest) * (0.5 + e.weight)
             let ux = dx / dist, uy = dy / dist
-            force[e.a].x += ux * f; force[e.a].y += uy * f
-            force[e.b].x -= ux * f; force[e.b].y -= uy * f
+            forceBuffer[e.a].x += ux * f; forceBuffer[e.a].y += uy * f
+            forceBuffer[e.b].x -= ux * f; forceBuffer[e.b].y -= uy * f
         }
 
         // Centering + integrate.
         for i in nodes.indices {
-            force[i].x -= nodes[i].pos.x * Self.centerK
-            force[i].y -= nodes[i].pos.y * Self.centerK
+            forceBuffer[i].x -= nodes[i].pos.x * Self.centerK
+            forceBuffer[i].y -= nodes[i].pos.y * Self.centerK
             var v = nodes[i].vel
-            v.x = (v.x + force[i].x * dt * energy) * Self.damping
-            v.y = (v.y + force[i].y * dt * energy) * Self.damping
+            v.x = (v.x + forceBuffer[i].x * dt * energy) * Self.damping
+            v.y = (v.y + forceBuffer[i].y * dt * energy) * Self.damping
             nodes[i].vel = v
             nodes[i].pos.x += v.x * dt
             nodes[i].pos.y += v.y * dt
@@ -225,6 +238,19 @@ final class BrainGraphEngine {
     }
 
     func reheat() { alpha = max(alpha, 0.6) }
+
+    /// PERF — true while anything is still visibly moving (physics settling,
+    /// pan inertia, or a selection ring easing in/out). The Canvas uses this
+    /// to pause its `TimelineView` once the graph comes to rest, so a settled
+    /// graph costs ~0% CPU instead of redrawing 3 blur passes at display rate
+    /// forever. A gesture or `sync`/`reheat` re-arms it.
+    var needsContinuousRedraw: Bool {
+        if alpha > 0.03 { return true }
+        if abs(panVelocity.width) > 0.1 || abs(panVelocity.height) > 0.1 { return true }
+        // Mid-transition only: a fully-eased ring (≈0 or ≈1) is static.
+        if selectionPulse > 0.01, selectionPulse < 0.99 { return true }
+        return false
+    }
 
     // MARK: - Interaction
 
@@ -410,8 +436,6 @@ final class BrainGraphEngine {
     private static func circle(_ c: CGPoint, _ r: CGFloat) -> Path {
         Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
     }
-
-    private static func circlePath(_ c: CGPoint, _ r: CGFloat) -> Path { circle(c, r) }
 
     // Uniform-grid bucket key.
     private struct GridKey: Hashable {

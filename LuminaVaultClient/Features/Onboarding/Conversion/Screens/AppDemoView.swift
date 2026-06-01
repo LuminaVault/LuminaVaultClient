@@ -57,9 +57,10 @@ struct AppDemoView: View {
             ForEach(Array(deck.enumerated()), id: \.element.id) { index, capture in
                 if index >= topIndex && index < topIndex + 2 {
                     card(for: capture, isTop: index == topIndex)
-                        .offset(index == topIndex ? dragOffset : .zero)
+                        .offset(index == topIndex ? dragOffset : CGSize(width: 0, height: 14))
                         .rotationEffect(.degrees(index == topIndex ? Double(dragOffset.width / 16) : 0))
                         .scaleEffect(index == topIndex ? 1.0 : 0.94)
+                        .opacity(index == topIndex ? 1 : 0.6)
                         .zIndex(Double(deck.count - index))
                         .gesture(index == topIndex ? swipeGesture(capture: capture) : nil)
                         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: dragOffset)
@@ -92,6 +93,9 @@ struct AppDemoView: View {
                 .lineLimit(5)
             Spacer()
         }
+        // Back cards render as a blank card edge — hide text so it can't
+        // bleed through the near-transparent front-card surface.
+        .opacity(isTop ? 1 : 0)
         .padding(20)
         .frame(maxWidth: .infinity, minHeight: 380, alignment: .topLeading)
         .background(

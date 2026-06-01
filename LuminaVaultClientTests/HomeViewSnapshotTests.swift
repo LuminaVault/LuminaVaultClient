@@ -57,7 +57,7 @@ final class HomeViewSnapshotTests: XCTestCase {
     }
 
     private func makeView(_ vm: HomeViewModel) -> some View {
-        HomeView(vm: vm, onAskLumina: {}, sessionsDestination: AnyView(EmptyView()), tasksDestination: AnyView(EmptyView()), insightsDestination: AnyView(EmptyView()), serverConnectionDestination: AnyView(EmptyView()))
+        HomeView(vm: vm, onAskLumina: {}, sessionsDestination: { AnyView(EmptyView()) }, tasksDestination: { AnyView(EmptyView()) }, insightsDestination: { AnyView(EmptyView()) }, serverConnectionDestination: { AnyView(EmptyView()) })
             .transaction { $0.disablesAnimations = true }
     }
 

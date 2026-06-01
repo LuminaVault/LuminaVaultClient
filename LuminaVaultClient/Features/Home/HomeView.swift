@@ -20,33 +20,35 @@ struct HomeView: View {
     var onSelectTab: (String) -> Void = { _ in }
     /// HER-245/246/248/250 — pushed destinations from the dashboard cards.
     /// Owners are constructed by `MainTabView`; HomeView just navigates.
-    let sessionsDestination: AnyView
-    let tasksDestination: AnyView
-    let insightsDestination: AnyView
-    let serverConnectionDestination: AnyView
+    ///
+    /// PERF — these are lazy builders, not prebuilt `AnyView`s. Building a
+    /// destination eagerly forced its view + view-model graph to allocate
+    /// inside `MainTabView.body` on *every* tab switch (even when Home is
+    /// not visible). Closures defer construction to the moment the matching
+    /// `NavigationLink` actually renders.
+    let sessionsDestination: () -> AnyView
+    let tasksDestination: () -> AnyView
+    let insightsDestination: () -> AnyView
+    let serverConnectionDestination: () -> AnyView
     /// HER-243 — surfaces demoted from the tab bar in the 5-tab redesign.
     /// Optional so existing call sites (and unit tests) keep compiling
     /// without forcing every variant to wire every destination.
-    var skillsDestination: AnyView? = nil
-    var todayDestination: AnyView? = nil
-    var visualSearchDestination: AnyView? = nil
+    var skillsDestination: (() -> AnyView)? = nil
+    var todayDestination: (() -> AnyView)? = nil
+    var visualSearchDestination: (() -> AnyView)? = nil
     /// HER-118 — Health card pushes the sparkline dashboard. Optional so
     /// older call sites (tests, previews) keep compiling without wiring
     /// the new screen.
-    var healthDestination: AnyView? = nil
+    var healthDestination: (() -> AnyView)? = nil
     /// Achievements screen — pushed by tapping the player-profile HUD.
     /// Optional so older call sites (tests, previews) keep compiling.
-    var achievementsDestination: AnyView? = nil
+    var achievementsDestination: (() -> AnyView)? = nil
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
         GridItem(.flexible(), spacing: 16),
         GridItem(.flexible(), spacing: 16)
     ]
-
-    // Header mascot avatar = quick-access shortcut to the most-used settings.
-    // Full Settings still lives behind the "..." (More) tab.
-    @State private var showQuickSettings = false
 
     var body: some View {
         NavigationStack {
@@ -89,7 +91,7 @@ struct HomeView: View {
                         // Tapping pushes the Achievements screen when wired.
                         if let achievementsDestination {
                             NavigationLink {
-                                achievementsDestination
+                                achievementsDestination()
                             } label: {
                                 ProfileStatsHUDView(state: vm.profile)
                             }
@@ -128,14 +130,8 @@ struct HomeView: View {
                     await vm.refresh()
                 }
             }
-            .safeAreaInset(edge: .top) {
-                LuminaHeader(title: "LuminaVault", onMascotTap: { showQuickSettings = true })
-            }
-            .sheet(isPresented: $showQuickSettings) {
-                QuickSettingsView()
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-            }
+            // HER-255 — header hoisted to MainTabView (app-wide base header);
+            // QuickSettings now opens from that global header's mascot tap.
             .lvBackground()
             .onReceive(NotificationCenter.default.publisher(for: BackendModeStore.modeChangedNotification)) { _ in
                 Task { await vm.refresh() }
@@ -223,16 +219,16 @@ struct HomeView: View {
 
             // Pushed destinations.
             NavigationLink {
-                healthDestination ?? sessionsDestination
+                healthDestination?() ?? sessionsDestination()
             } label: {
                 SciFiCardView(icon: .heartWinged, title: "Health", subtitle: "Sparklines")
             }
 
-            NavigationLink { insightsDestination } label: {
+            NavigationLink { insightsDestination() } label: {
                 SciFiCardView(icon: .lightbulbFill, title: "Ideas", subtitle: "Glowing light")
             }
 
-            NavigationLink { tasksDestination } label: {
+            NavigationLink { tasksDestination() } label: {
                 SciFiCardView(icon: .briefcase, title: "Work", subtitle: "Core tasks")
             }
         }

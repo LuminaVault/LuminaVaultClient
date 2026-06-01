@@ -30,9 +30,10 @@ struct BrainTabView: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle("Brain")
+                // HER-255 — title + mascot now live in the global app header
+                // (MainTabView). Keep the inline navbar only for the refresh
+                // action below.
                 .navigationBarTitleDisplayMode(.inline)
-                .lvNavBrand(position: .topLeading)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {

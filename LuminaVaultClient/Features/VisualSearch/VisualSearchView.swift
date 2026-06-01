@@ -45,9 +45,9 @@ struct VisualSearchView: View {
                 }
             }
             .lvBackground()
-            .navigationTitle("Visual search")
-            .navigationBarTitleDisplayMode(.inline)
-            .lvNavBrand(position: .topLeading)
+            // HER-255 — title + mascot now live in the global app header
+            // (MainTabView); hide this screen's own navbar.
+            .toolbar(.hidden, for: .navigationBar)
         }
         .onChange(of: pickedItem) { _, newItem in
             guard let newItem else { return }

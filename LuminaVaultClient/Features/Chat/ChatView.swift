@@ -71,9 +71,7 @@ struct ChatView: View {
                     }
                 }
             }
-            .safeAreaInset(edge: .top) {
-                LuminaHeader(title: emptyHeadline, mascotState: viewModel.mascotState)
-            }
+            // HER-255 — header hoisted to MainTabView (app-wide base header).
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomBar

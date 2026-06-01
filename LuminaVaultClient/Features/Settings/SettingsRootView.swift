@@ -141,9 +141,7 @@ struct SettingsRootView: View {
                     .padding(.bottom, LVSpacing.hero + LVSpacing.xxl)
                 }
             }
-            .safeAreaInset(edge: .top) {
-                LuminaHeader(title: "Settings")
-            }
+            // HER-255 — header hoisted to MainTabView (app-wide base header).
             .lvBackground()
             .toolbar(.hidden, for: .navigationBar)
         }
