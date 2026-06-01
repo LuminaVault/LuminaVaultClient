@@ -64,8 +64,14 @@ final class ChatViewModel {
     var phase: Phase = .idle
     var messages: [Message] = []
     /// Live token buffer for the in-flight assistant turn. Empty when no
-    /// stream is active. Rendered as a non-finalized bubble by the view.
+    /// stream is active. This is the *authoritative* received-so-far text;
+    /// the view renders `displayedAssistant`, not this.
     var pendingAssistant: String = ""
+    /// Typewriter reveal buffer. Lags `pendingAssistant` and catches up on a
+    /// timer so the answer types in progressively — even when a non-streaming
+    /// provider (e.g. managed-brain Gemini) delivers the whole reply in one
+    /// `.summary` event. Rendered by `PendingAssistantRow`.
+    var displayedAssistant: String = ""
     var pendingSources: [QueryHitDTO] = []
     /// One-shot banner emitted by a `.fallback` SSE event (e.g. xAI
     /// credit exhaustion → fallback model). Cleared on next `send()`.
@@ -108,6 +114,9 @@ final class ChatViewModel {
     private var lastSentContent: String?
     private(set) var conversationID: UUID?
     private var streamTask: Task<Void, Never>?
+    /// Drives the `displayedAssistant` typewriter reveal. Self-clears when it
+    /// catches up so it never idle-spins.
+    private var typewriterTask: Task<Void, Never>?
     private var mascotDecayTask: Task<Void, Never>?
     private var toastDecayTask: Task<Void, Never>?
     private var persistTask: Task<Void, Never>?
@@ -285,6 +294,7 @@ final class ChatViewModel {
             let id = try await ensureConversation()
             phase = .streaming
             pendingAssistant = ""
+            displayedAssistant = ""
             pendingSources = []
 
             let stream = conversationsClient.streamReply(
@@ -298,11 +308,16 @@ final class ChatViewModel {
                     pendingSources.append(hit)
                 case .token(let delta):
                     pendingAssistant.append(delta)
+                    startTypewriter()
                 case .summary(let final):
                     // Server-provided final summary overrides the
                     // concatenated tokens. Some backends only emit a
-                    // summary (no per-token deltas).
-                    if !final.isEmpty { pendingAssistant = final }
+                    // summary (no per-token deltas) — the typewriter reveals
+                    // it progressively instead of popping it in at once.
+                    if !final.isEmpty {
+                        pendingAssistant = final
+                        startTypewriter()
+                    }
                 case .fallback(let notice):
                     fallbackNotice = notice
                 case .followUps:
@@ -315,11 +330,15 @@ final class ChatViewModel {
                     // in the vault on next refresh.
                     continue
                 case .done:
+                    // Let the reveal finish typing the tail, then freeze the
+                    // fully-revealed text into a finalized bubble.
+                    await drainTypewriter()
                     finalizeAssistantTurn()
                     phase = .idle
                     flashHappyThenIdle()
                     return
                 case .error(let message):
+                    drainTypewriterNow()
                     phase = .failed(message: message)
                     setMascot(.idle)
                     return
@@ -327,19 +346,23 @@ final class ChatViewModel {
             }
             // Stream ended without `.done` (e.g. server hung up). Treat
             // any buffered text as a complete turn.
+            await drainTypewriter()
             if !pendingAssistant.isEmpty {
                 finalizeAssistantTurn()
             }
             phase = .idle
             flashHappyThenIdle()
         } catch is CancellationError {
-            // User-initiated cancel via `cancel()` — preserve partials.
+            // User-initiated cancel via `cancel()` — reveal-all, preserve
+            // partials (no point animating after teardown).
+            drainTypewriterNow()
             if !pendingAssistant.isEmpty {
                 finalizeAssistantTurn()
             }
             phase = .idle
             setMascot(.idle)
         } catch {
+            drainTypewriterNow()
             let message = friendlyError(error)
             phase = .failed(message: message)
             setMascot(.idle)
@@ -356,6 +379,7 @@ final class ChatViewModel {
         if conversationID == nil { conversationID = UUID() }
         phase = .streaming
         pendingAssistant = ""
+        displayedAssistant = ""
         pendingSources = []
         let history = messages.map { msg in
             ChatMessage(role: msg.role.rawValue, content: msg.content)
@@ -368,18 +392,20 @@ final class ChatViewModel {
         )
         do {
             let response = try await chatClient.complete(request)
-            let assistant = Message(
-                role: .assistant,
-                content: response.message.content,
-            )
-            messages.append(assistant)
+            // Reveal the one-shot reply through the same typewriter so ☁️ mode
+            // feels consistent with the SSE path, then finalize.
+            pendingAssistant = response.message.content
+            startTypewriter()
+            await drainTypewriter()
+            finalizeAssistantTurn()
             phase = .idle
             flashHappyThenIdle()
-            schedulePersist()
         } catch is CancellationError {
+            drainTypewriterNow()
             phase = .idle
             setMascot(.idle)
         } catch {
+            drainTypewriterNow()
             let message = friendlyError(error)
             phase = .failed(message: message)
             setMascot(.idle)
@@ -480,6 +506,55 @@ final class ChatViewModel {
         }
     }
 
+    // MARK: - Typewriter reveal
+
+    /// Spawn the reveal driver if not already running. Cheap no-op while a
+    /// task is live, so it can be called on every `.token`/`.summary`.
+    private func startTypewriter() {
+        guard typewriterTask == nil else { return }
+        typewriterTask = Task { [weak self] in
+            await self?.pumpTypewriter()
+        }
+    }
+
+    /// Advance `displayedAssistant` toward `pendingAssistant` on a ~60fps
+    /// timer. Bounded drain: each tick reveals a fraction of the remaining
+    /// gap, so any answer (incl. a one-shot Gemini dump) finishes in ~1s
+    /// while the tail still feels typed. Self-clears when caught up.
+    private func pumpTypewriter() async {
+        while !Task.isCancelled {
+            let gap = pendingAssistant.count - displayedAssistant.count
+            if gap <= 0 { break }
+            let stride = max(1, gap / 8)
+            // `displayedAssistant` is always a prefix of `pendingAssistant`,
+            // so extend it by slicing the next `stride` chars from the
+            // authoritative buffer at the current offset.
+            let lower = pendingAssistant.index(pendingAssistant.startIndex, offsetBy: displayedAssistant.count)
+            let upper = pendingAssistant.index(lower, offsetBy: stride)
+            displayedAssistant.append(contentsOf: pendingAssistant[lower..<upper])
+            try? await Task.sleep(for: .milliseconds(16))
+        }
+        typewriterTask = nil
+    }
+
+    /// Await the live reveal so it finishes typing the tail before we freeze
+    /// the turn. Returns immediately if nothing is animating.
+    private func drainTypewriter() async {
+        await typewriterTask?.value
+        // Guard against an interleaved write landing after the loop exited.
+        if displayedAssistant.count < pendingAssistant.count {
+            displayedAssistant = pendingAssistant
+        }
+    }
+
+    /// Instant catch-up — reveal everything and tear down the driver. Used on
+    /// cancel/error where animating is pointless.
+    private func drainTypewriterNow() {
+        typewriterTask?.cancel()
+        typewriterTask = nil
+        displayedAssistant = pendingAssistant
+    }
+
     private func finalizeAssistantTurn() {
         let assistant = Message(
             role: .assistant,
@@ -489,6 +564,7 @@ final class ChatViewModel {
         messages.append(assistant)
         let spokenBody = pendingAssistant
         pendingAssistant = ""
+        displayedAssistant = ""
         pendingSources = []
         schedulePersist()
         // HER-153 — speak reply iff the user's prompt was voice. Typed
@@ -505,6 +581,10 @@ final class ChatViewModel {
     func cancel() {
         streamTask?.cancel()
         streamTask = nil
+        // The stream's CancellationError path reveals + preserves partials;
+        // tear the reveal driver down here so it can't outlive the stream.
+        typewriterTask?.cancel()
+        typewriterTask = nil
         if voice.isSpeaking { voice.stopSpeaking() }
     }
 
@@ -516,10 +596,13 @@ final class ChatViewModel {
         cancel()
         mascotDecayTask?.cancel()
         persistTask?.cancel()
+        typewriterTask?.cancel()
+        typewriterTask = nil
         let oldID = conversationID
         conversationID = nil
         messages = []
         pendingAssistant = ""
+        displayedAssistant = ""
         pendingSources = []
         fallbackNotice = nil
         stagedAttachment = nil

@@ -59,7 +59,7 @@ struct ChatView: View {
                     // Clearance so content never hides under the composer.
                     .padding(.bottom, LVSpacing.hero)
                 }
-                .onChange(of: viewModel.pendingAssistant) { _, _ in
+                .onChange(of: viewModel.displayedAssistant) { _, _ in
                     withAnimation(.easeOut(duration: 0.15)) {
                         proxy.scrollTo(Self.pendingAnchor, anchor: .bottom)
                     }
@@ -157,7 +157,7 @@ struct ChatView: View {
 
             if viewModel.isStreaming || !viewModel.pendingAssistant.isEmpty {
                 PendingAssistantRow(
-                    text: viewModel.pendingAssistant,
+                    text: viewModel.displayedAssistant,
                     sources: viewModel.pendingSources,
                     isStreaming: viewModel.isStreaming,
                     mascotState: viewModel.mascotState,
