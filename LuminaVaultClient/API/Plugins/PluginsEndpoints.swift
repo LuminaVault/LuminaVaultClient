@@ -28,6 +28,26 @@ enum PluginsEndpoints {
         var method: HTTPMethod { .get }
     }
 
+    struct HermesSkillInstall: Endpoint {
+        typealias Response = PluginCatalogListResponse
+        let id: String
+        var path: String {
+            let encoded = id.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? id
+            return "/v1/plugins/hermes-skills/install?id=\(encoded)"
+        }
+        var method: HTTPMethod { .post }
+    }
+
+    struct HermesSkillUninstall: Endpoint {
+        typealias Response = PluginCatalogListResponse
+        let name: String
+        var path: String {
+            let encoded = name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? name
+            return "/v1/plugins/hermes-skills/\(encoded)"
+        }
+        var method: HTTPMethod { .delete }
+    }
+
     struct Installs: Endpoint {
         typealias Response = PluginInstallsListResponse
         var path: String { "/v1/plugins/installs" }

@@ -19,6 +19,14 @@ final class PluginsHTTPClient: PluginsClientProtocol {
         try await client.execute(PluginsEndpoints.HermesSkills())
     }
 
+    func installHermesSkill(id: String) async throws -> PluginCatalogListResponse {
+        try await client.execute(PluginsEndpoints.HermesSkillInstall(id: id))
+    }
+
+    func uninstallHermesSkill(name: String) async throws -> PluginCatalogListResponse {
+        try await client.execute(PluginsEndpoints.HermesSkillUninstall(name: name))
+    }
+
     func installs() async throws -> PluginInstallsListResponse {
         try await client.execute(PluginsEndpoints.Installs())
     }
