@@ -22,10 +22,11 @@ struct BrainTabView: View {
     @State private var activeEdgeKinds: Set<MemoryEdgeKindDTO> = [
         .wikilink, .tag, .space, .semantic,
     ]
-    /// Source (raw vault-file) nodes are the *raw* layer, not the knowledge
-    /// network — they start hidden so the graph opens as a clean memory map.
+    /// Source nodes = the user's captures (notes, saved links, images). They
+    /// start visible so captured content shows on the graph, but render as
+    /// small dim satellites (see `BrainGraphEngine`) so memories stay primary.
     /// `filtered(_:)` drops them and any edge touching them with no refetch.
-    @State private var showWikiPages = false
+    @State private var showWikiPages = true
 
     init(client: any MemoryGraphClientProtocol) {
         self._vm = State(initialValue: BrainGraphViewModel(client: client))
