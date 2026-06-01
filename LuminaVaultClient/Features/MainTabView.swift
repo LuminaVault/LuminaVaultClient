@@ -60,6 +60,14 @@ struct MainTabView: View {
                         .tag(Self.tabIds.reflect)
                         .toolbar(.hidden, for: .tabBar)
 
+                    // HER-235 — Brain tab. The Obsidian-style knowledge
+                    // graph. Re-surfaced as a primary tab after the HER-243
+                    // OS-shell rebuild dropped it from the bar (the view +
+                    // client survived, only the nav wiring was lost).
+                    BrainTabView(client: memoryGraphClient)
+                        .tag(Self.tabIds.brain)
+                        .toolbar(.hidden, for: .tabBar)
+
                     // HER-107: Think tab — multi-turn chat. Memory-grounded
                     // mode streams over SSE; fresh mode hits
                     // /v1/chat/completions. Both routes are BYO-Hermes-aware
@@ -137,6 +145,10 @@ struct MainTabView: View {
             // surface that justifies a primary tab.
             LVTabItem(id: Self.tabIds.reflect, label: "Reflect", icon: .sparklesRectangleStack),
             LVTabItem(id: Self.tabIds.think, label: "AI", icon: .tabThink),
+            // HER-235 — Brain (knowledge graph). 5th primary tab (Apple
+            // HIG ceiling); the graph is the premium "see your second
+            // brain" surface, so it earns a primary slot over More.
+            LVTabItem(id: Self.tabIds.brain, label: "Brain", icon: .brain),
         ]
     }
 
@@ -210,6 +222,10 @@ struct MainTabView: View {
 
     private var dashboardProfileClient: DashboardProfileClientProtocol {
         DashboardProfileHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var achievementsClient: AchievementsClientProtocol {
+        AchievementsHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var tasksClient: TasksClientProtocol {
@@ -288,6 +304,9 @@ struct MainTabView: View {
                     httpClient: appState.makeHTTPClient(),
                     coordinator: appState.healthKit,
                 )
+            ),
+            achievementsDestination: AnyView(
+                AchievementsView(vm: AchievementsViewModel(client: achievementsClient))
             ),
         )
     }
