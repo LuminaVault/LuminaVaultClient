@@ -21,24 +21,33 @@ struct PluginStoreView: View {
             case .loading:
                 Section { ProgressView().frame(maxWidth: .infinity) }
             case let .loaded(catalog, installsBySlug, hermesSkills):
-                if catalog.isEmpty {
-                    Section { Text("No plugins available yet.").foregroundStyle(.secondary) }
-                } else {
+                let visible = filtered(catalog)
+
+                if !viewModel.featured.isEmpty, viewModel.searchText.isEmpty {
+                    Section("Featured") {
+                        ForEach(viewModel.featured) { entry in
+                            catalogLink(entry, installsBySlug)
+                        }
+                    }
+                }
+
+                if visible.isEmpty {
                     Section {
-                        ForEach(catalog) { entry in
-                            NavigationLink {
-                                PluginDetailView(
-                                    entry: entry,
-                                    install: installsBySlug[entry.slug],
-                                    client: client,
-                                    onChange: { await viewModel.refresh() },
-                                )
-                            } label: {
-                                row(for: entry, install: installsBySlug[entry.slug])
+                        Text(viewModel.searchText.isEmpty
+                            ? "No plugins available yet."
+                            : "No plugins match “\(viewModel.searchText)”.")
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    ForEach(Self.categoryOrder, id: \.self) { category in
+                        let inCategory = visible.filter { $0.category == category }
+                        if !inCategory.isEmpty {
+                            Section(Self.categoryTitle(category)) {
+                                ForEach(inCategory) { entry in
+                                    catalogLink(entry, installsBySlug)
+                                }
                             }
                         }
-                    } footer: {
-                        Text("Plugins extend what Lumina can pull in. Connectors stage items into your Imported inbox, where Smart Import files and compiles them.")
                     }
                 }
 
@@ -65,8 +74,47 @@ struct PluginStoreView: View {
         }
         .navigationTitle("Plugins")
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(
+            text: Binding(get: { viewModel.searchText }, set: { viewModel.searchText = $0 }),
+            prompt: "Search plugins",
+        )
         .task { await viewModel.load() }
         .refreshable { await viewModel.refresh() }
+    }
+
+    // MARK: - Catalog rows + grouping (Slice 6)
+
+    private static let categoryOrder: [PluginCategory] = [.connector, .skill, .memory, .export, .ui, .theme]
+
+    private static func categoryTitle(_ category: PluginCategory) -> String {
+        switch category {
+        case .connector: "Connectors"
+        case .skill: "Skills"
+        case .memory: "Memory"
+        case .export: "Export"
+        case .ui: "Interface"
+        case .theme: "Themes"
+        }
+    }
+
+    private func filtered(_ entries: [PluginCatalogEntryDTO]) -> [PluginCatalogEntryDTO] {
+        let q = viewModel.searchText.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return entries }
+        return entries.filter { $0.name.lowercased().contains(q) || $0.summary.lowercased().contains(q) }
+    }
+
+    @ViewBuilder
+    private func catalogLink(_ entry: PluginCatalogEntryDTO, _ installsBySlug: [String: PluginInstallDTO]) -> some View {
+        NavigationLink {
+            PluginDetailView(
+                entry: entry,
+                install: installsBySlug[entry.slug],
+                client: client,
+                onChange: { await viewModel.refresh() },
+            )
+        } label: {
+            row(for: entry, install: installsBySlug[entry.slug])
+        }
     }
 
     @ViewBuilder
@@ -83,6 +131,14 @@ struct PluginStoreView: View {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.caption2)
                             .foregroundStyle(.blue)
+                    }
+                    if viewModel.premiumSlugs.contains(entry.slug) {
+                        Text("PRO")
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(Color.yellow.opacity(0.25), in: Capsule())
+                            .foregroundStyle(.orange)
                     }
                 }
                 Text(entry.summary).font(.caption).foregroundStyle(.secondary).lineLimit(2)

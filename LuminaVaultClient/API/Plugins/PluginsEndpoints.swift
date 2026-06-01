@@ -14,10 +14,15 @@ import LuminaVaultShared
 enum PluginsEndpoints {
     struct Catalog: Endpoint {
         typealias Response = PluginCatalogListResponse
-        let category: PluginCategory?
+        var category: PluginCategory? = nil
+        var featured: Bool? = nil
+        var premium: Bool? = nil
         var path: String {
-            guard let category else { return "/v1/plugins/catalog" }
-            return "/v1/plugins/catalog?category=\(category.rawValue)"
+            var items: [String] = []
+            if let category { items.append("category=\(category.rawValue)") }
+            if let featured { items.append("featured=\(featured)") }
+            if let premium { items.append("premium=\(premium)") }
+            return items.isEmpty ? "/v1/plugins/catalog" : "/v1/plugins/catalog?\(items.joined(separator: "&"))"
         }
         var method: HTTPMethod { .get }
     }
