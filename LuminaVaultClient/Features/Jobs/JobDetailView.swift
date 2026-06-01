@@ -78,12 +78,17 @@ struct JobDetailView: View {
 
     @ViewBuilder
     private var latestResult: some View {
-        if let latest = vm.latest, let body = latest.markdown, !body.isEmpty {
+        if let latest = vm.latest, hasResult(latest) {
             VStack(alignment: .leading, spacing: 10) {
                 Text(latest.startedAt, format: .dateTime.weekday().month().day().hour().minute())
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(palette.textSecondary)
-                markdownBody(body)
+                // P2 — native blocks when present; Markdown fallback otherwise.
+                if let blocks = latest.blocks, !blocks.isEmpty {
+                    BlockRenderer(blocks: blocks)
+                } else if let body = latest.markdown, !body.isEmpty {
+                    markdownBody(body)
+                }
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -99,6 +104,10 @@ struct JobDetailView: View {
                 supporting: "This job hasn't produced a result yet. It'll appear here after its next run."
             )
         }
+    }
+
+    private func hasResult(_ run: SkillRunDTO) -> Bool {
+        (run.blocks?.isEmpty == false) || (run.markdown?.isEmpty == false)
     }
 
     /// Reuses the app's Markdown render pattern (see TodayOutputDetailView):
