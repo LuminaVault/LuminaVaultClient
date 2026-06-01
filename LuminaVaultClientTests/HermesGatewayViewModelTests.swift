@@ -100,6 +100,7 @@ final class HermesGatewayViewModelTests: XCTestCase {
         mockClient.putResult = .success(.stubUnverified)
         mockClient.testResult = .success(.init(verifiedAt: Date(timeIntervalSince1970: 1_800_000_000)))
         sut.baseUrlInput = "https://hermes.example.com"
+        sut.authMode = .bearer
         sut.authHeaderInput = "Bearer abc"
 
         await sut.submit()
@@ -120,6 +121,7 @@ final class HermesGatewayViewModelTests: XCTestCase {
         mockClient.putResult = .success(.stubUnverified)
         mockClient.testResult = .failure(APIError.httpError(statusCode: 502, data: Data()))
         sut.baseUrlInput = "https://hermes.example.com"
+        sut.authMode = .bearer
         sut.authHeaderInput = "Bearer abc"
 
         await sut.submit()
@@ -138,9 +140,43 @@ final class HermesGatewayViewModelTests: XCTestCase {
     func testSubmitTrimsBlankAuthHeaderToNil() async {
         mockClient.putResult = .success(.stubUnverified)
         sut.baseUrlInput = "https://hermes.example.com"
+        sut.authMode = .bearer
         sut.authHeaderInput = "   "
         await sut.submit()
         XCTAssertEqual(mockClient.calls.first, .put(baseUrl: "https://hermes.example.com", authHeader: nil))
+    }
+
+    func testSubmitNoneAuthModeSendsNilHeader() async {
+        mockClient.putResult = .success(.stubUnverified)
+        sut.baseUrlInput = "https://hermes.example.com"
+        sut.authMode = .none
+        // Leftover bearer text is ignored when the picker is on None.
+        sut.authHeaderInput = "Bearer ignored"
+        await sut.submit()
+        XCTAssertEqual(mockClient.calls.first, .put(baseUrl: "https://hermes.example.com", authHeader: nil))
+    }
+
+    func testSubmitBearerWithoutPrefixGetsBearerPrepended() async {
+        mockClient.putResult = .success(.stubUnverified)
+        sut.baseUrlInput = "https://hermes.example.com"
+        sut.authMode = .bearer
+        sut.authHeaderInput = "abc123"
+        await sut.submit()
+        XCTAssertEqual(mockClient.calls.first, .put(baseUrl: "https://hermes.example.com", authHeader: "Bearer abc123"))
+    }
+
+    func testSubmitBasicBuildsBase64AuthorizationHeader() async {
+        mockClient.putResult = .success(.stubUnverified)
+        sut.baseUrlInput = "https://hermes.example.com"
+        sut.authMode = .basic
+        sut.basicUsernameInput = "alice"
+        sut.basicPasswordInput = "s3cr3t"
+        await sut.submit()
+        // base64("alice:s3cr3t") == "YWxpY2U6czNjcjN0"
+        XCTAssertEqual(
+            mockClient.calls.first,
+            .put(baseUrl: "https://hermes.example.com", authHeader: "Basic YWxpY2U6czNjcjN0"),
+        )
     }
 
     // MARK: - testAgain()

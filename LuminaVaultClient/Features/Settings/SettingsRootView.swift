@@ -77,6 +77,18 @@ struct SettingsRootView: View {
                                 )
                             }
                             LVSettingsDivider()
+                            // HER-218 — "Bring Your Own Hermes". Promoted from
+                            // System & Advanced so the Managed-vs-connect-your-own
+                            // choice sits next to Intelligence. Renamed from
+                            // "Hermes Gateway" to disambiguate from the HER-241
+                            // "Messaging Gateways" pane below.
+                            LVSettingsRow(
+                                "Hermes Server",
+                                icon: .network,
+                                trailing: { ConnectionBadge(state: .unknown) },
+                                destination: { HermesGatewayPaneView(client: settingsClient) }
+                            )
+                            LVSettingsDivider()
                             // HER-43 — declarative plugin store (connectors, …).
                             LVSettingsRow("Plugins", icon: .puzzlepieceExtension) {
                                 PluginStoreView(client: pluginsClient)
@@ -117,13 +129,7 @@ struct SettingsRootView: View {
                                 ServerConnectionView(vm: ServerConnectionViewModel(soulClient: soulClient))
                             }
                             LVSettingsDivider()
-                            LVSettingsRow(
-                                "Hermes Gateway",
-                                icon: .network,
-                                trailing: { ConnectionBadge(state: .unknown) },
-                                destination: { HermesGatewayPaneView(client: settingsClient) }
-                            )
-                            LVSettingsDivider()
+                            // HER-218 "Hermes Server" moved up to Connections.
                             LVSettingsRow("Messaging Gateways", icon: .bubbleLeftAndBubbleRight) {
                                 HermesGatewaysPaneView(client: hermesGatewaysClient)
                             }

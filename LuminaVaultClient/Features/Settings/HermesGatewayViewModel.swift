@@ -31,12 +31,34 @@ final class HermesGatewayViewModel {
         case editing(prefilledBaseUrl: String?, prefilledHasAuthHeader: Bool)
     }
 
+    /// How the user authenticates to their Hermes. All three collapse to a
+    /// single `Authorization` header value sent as `authHeader` — the server
+    /// stores/forwards it verbatim and is scheme-agnostic.
+    enum AuthMode: String, CaseIterable, Sendable {
+        case none
+        case bearer
+        case basic
+
+        var label: String {
+            switch self {
+            case .none: "None"
+            case .bearer: "Bearer token"
+            case .basic: "Username & password"
+            }
+        }
+    }
+
     // MARK: - Observable state
     var state: State = .loading
 
     // Form fields
     var baseUrlInput: String = ""
+    var authMode: AuthMode = .none
+    /// Raw value for `.bearer` — the token, with or without a `Bearer ` prefix.
     var authHeaderInput: String = ""
+    /// `.basic` credentials. Combined into `Authorization: Basic <base64>` at submit.
+    var basicUsernameInput: String = ""
+    var basicPasswordInput: String = ""
 
     // Banners + per-call status
     var isWorking: Bool = false
@@ -71,7 +93,7 @@ final class HermesGatewayViewModel {
     /// Empty-state CTA. Opens the form with no prefill.
     func useMyOwnGateway() {
         baseUrlInput = ""
-        authHeaderInput = ""
+        resetAuthInputs()
         state = .editing(prefilledBaseUrl: nil, prefilledHasAuthHeader: false)
         verifyError = nil
     }
@@ -82,9 +104,42 @@ final class HermesGatewayViewModel {
     func editExistingConfig() {
         if case let .configured(baseUrl, hasAuthHeader, _) = state {
             baseUrlInput = baseUrl
-            authHeaderInput = ""
+            // Server never returns the plaintext header, so we can't know which
+            // scheme was used. Blank the inputs; the user re-enters to rotate.
+            resetAuthInputs()
             state = .editing(prefilledBaseUrl: baseUrl, prefilledHasAuthHeader: hasAuthHeader)
             verifyError = nil
+        }
+    }
+
+    /// Clears every auth field and resets the picker to `.none`.
+    private func resetAuthInputs() {
+        authMode = .none
+        authHeaderInput = ""
+        basicUsernameInput = ""
+        basicPasswordInput = ""
+    }
+
+    /// Collapses the current `authMode` + inputs into a single `Authorization`
+    /// header value, or `nil` for `.none` / empty. Sent verbatim as `authHeader`.
+    private func buildAuthHeader() -> String? {
+        switch authMode {
+        case .none:
+            return nil
+        case .bearer:
+            let token = authHeaderInput.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !token.isEmpty else { return nil }
+            // Accept a raw token or a full "Bearer …" value.
+            if token.lowercased().hasPrefix("bearer ") { return token }
+            return "Bearer \(token)"
+        case .basic:
+            let user = basicUsernameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Password is intentionally NOT trimmed — trailing/leading spaces
+            // can be significant in a password.
+            let pass = basicPasswordInput
+            guard !user.isEmpty || !pass.isEmpty else { return nil }
+            let encoded = Data("\(user):\(pass)".utf8).base64EncodedString()
+            return "Basic \(encoded)"
         }
     }
 
@@ -101,10 +156,9 @@ final class HermesGatewayViewModel {
         lastError = nil
         verifyError = nil
         do {
-            let trimmedHeader = authHeaderInput.trimmingCharacters(in: .whitespacesAndNewlines)
             let put = try await client.putHermesConfig(
                 baseUrl: baseUrlInput,
-                authHeader: trimmedHeader.isEmpty ? nil : trimmedHeader,
+                authHeader: buildAuthHeader(),
             )
             do {
                 let test = try await client.testHermesConfig()
