@@ -88,10 +88,12 @@ struct SSOButton: View {
         case .apple:
             LVIconView(.apple, size: 18, tint: palette.textPrimary)
         case .google:
-            // Replace with Image("google_logo") once asset added to Assets.xcassets
-            Text("G")
-                .font(.system(size: 16, weight: .bold)) // TODO HER-icon-tokens: text glyph used as icon stand-in
-                .foregroundStyle(palette.textPrimary)
+            // Official multi-color Google "G" mark — keep brand colors (no tint).
+            Image("google_logo")
+                .renderingMode(.original)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 18, height: 18)
         case .x:
             Text("𝕏")
                 .font(.system(size: 16, weight: .bold)) // TODO HER-icon-tokens: text glyph used as icon stand-in
