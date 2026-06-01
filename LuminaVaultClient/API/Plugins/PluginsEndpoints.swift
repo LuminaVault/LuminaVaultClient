@@ -22,6 +22,12 @@ enum PluginsEndpoints {
         var method: HTTPMethod { .get }
     }
 
+    struct HermesSkills: Endpoint {
+        typealias Response = PluginCatalogListResponse
+        var path: String { "/v1/plugins/hermes-skills" }
+        var method: HTTPMethod { .get }
+    }
+
     struct Installs: Endpoint {
         typealias Response = PluginInstallsListResponse
         var path: String { "/v1/plugins/installs" }
