@@ -71,6 +71,9 @@
 		6088C50A2FAE1186006F894F /* LuminaVaultClientUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LuminaVaultClientUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7E92BAF538ED1E2FDADCFEDF /* PendingShare.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PendingShare.swift; path = LuminaVaultClient/Services/AppGroup/PendingShare.swift; sourceTree = "<group>"; };
 		CC806D8A50D60DFFD23095C1 /* SharedShareQueue.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SharedShareQueue.swift; path = LuminaVaultClient/Services/AppGroup/SharedShareQueue.swift; sourceTree = "<group>"; };
+		60HER143CFGDBG0000000001 /* Config.Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.Debug.xcconfig; path = LuminaVaultClient/Config/Config.Debug.xcconfig; sourceTree = "<group>"; };
+		60HER143CFGBTA0000000001 /* Config.Beta.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.Beta.xcconfig; path = LuminaVaultClient/Config/Config.Beta.xcconfig; sourceTree = "<group>"; };
+		60HER143CFGREL0000000001 /* Config.Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.Release.xcconfig; path = LuminaVaultClient/Config/Config.Release.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -190,6 +193,9 @@
 				28D751509558FA472F19A1E9 /* SharedAppGroup.swift */,
 				7E92BAF538ED1E2FDADCFEDF /* PendingShare.swift */,
 				CC806D8A50D60DFFD23095C1 /* SharedShareQueue.swift */,
+				60HER143CFGDBG0000000001 /* Config.Debug.xcconfig */,
+				60HER143CFGBTA0000000001 /* Config.Beta.xcconfig */,
+				60HER143CFGREL0000000001 /* Config.Release.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -678,6 +684,7 @@
 		};
 		6088C5152FAE1186006F894F /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 60HER143CFGDBG0000000001 /* Config.Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -689,7 +696,8 @@
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LuminaVaultClient/Config/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock LuminaVault and your memories.";
@@ -723,6 +731,7 @@
 		};
 		6088C5162FAE1186006F894F /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 60HER143CFGREL0000000001 /* Config.Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -734,7 +743,8 @@
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LuminaVaultClient/Config/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock LuminaVault and your memories.";
@@ -911,6 +921,7 @@
 		};
 		60BE7A022FAE1186006F894F /* Beta */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 60HER143CFGBTA0000000001 /* Config.Beta.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -922,7 +933,8 @@
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = LuminaVaultClient/Config/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock LuminaVault and your memories.";
