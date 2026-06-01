@@ -69,11 +69,11 @@
 		6088C4F32FAE1184006F894F /* LuminaVaultClient.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LuminaVaultClient.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6088C5002FAE1186006F894F /* LuminaVaultClientTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LuminaVaultClientTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6088C50A2FAE1186006F894F /* LuminaVaultClientUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LuminaVaultClientUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		60HER143CFGBTA0000000001 /* Config.Beta.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.Beta.xcconfig; path = LuminaVaultClient/Config/Config.Beta.xcconfig; sourceTree = "<group>"; };
+		60HER143CFGDBG0000000001 /* Config.Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.Debug.xcconfig; path = LuminaVaultClient/Config/Config.Debug.xcconfig; sourceTree = "<group>"; };
+		60HER143CFGREL0000000001 /* Config.Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.Release.xcconfig; path = LuminaVaultClient/Config/Config.Release.xcconfig; sourceTree = "<group>"; };
 		7E92BAF538ED1E2FDADCFEDF /* PendingShare.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PendingShare.swift; path = LuminaVaultClient/Services/AppGroup/PendingShare.swift; sourceTree = "<group>"; };
 		CC806D8A50D60DFFD23095C1 /* SharedShareQueue.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SharedShareQueue.swift; path = LuminaVaultClient/Services/AppGroup/SharedShareQueue.swift; sourceTree = "<group>"; };
-		60HER143CFGDBG0000000001 /* Config.Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.Debug.xcconfig; path = LuminaVaultClient/Config/Config.Debug.xcconfig; sourceTree = "<group>"; };
-		60HER143CFGBTA0000000001 /* Config.Beta.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.Beta.xcconfig; path = LuminaVaultClient/Config/Config.Beta.xcconfig; sourceTree = "<group>"; };
-		60HER143CFGREL0000000001 /* Config.Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Config.Release.xcconfig; path = LuminaVaultClient/Config/Config.Release.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -1069,7 +1069,7 @@
 			repositoryURL = "https://github.com/LuminaVault/LuminaVaultShared.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 0.49.0;
+				minimumVersion = 0.51.0;
 			};
 		};
 		60GRP000C2FAE1200006F894F /* XCRemoteSwiftPackageReference "Grape" */ = {

@@ -353,6 +353,9 @@ struct MainTabView: View {
             remindersDestination: { [self] in AnyView(
                 RemindersListView(vm: RemindersListViewModel(client: remindersClient))
             ) },
+            jobsDestination: { [self] in AnyView(
+                JobsListView(vm: JobsListViewModel(client: skillsClient), client: skillsClient)
+            ) },
         )
     }
 

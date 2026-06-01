@@ -49,6 +49,8 @@ struct HomeView: View {
     /// has no list surface).
     var projectsDestination: (() -> AnyView)? = nil
     var remindersDestination: (() -> AnyView)? = nil
+    /// Lumina Jobs — the Jobs tile opens the scheduled-jobs surface.
+    var jobsDestination: (() -> AnyView)? = nil
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -185,8 +187,7 @@ struct HomeView: View {
         let home = vm.home.value
         return LazyVGrid(columns: columns, spacing: 16) {
             brainTile(icon: .brainHeadProfile, title: "Skills", subtitle: count(home?.skillsCount), destination: skillsDestination)
-            // Jobs == skill-run count; no list surface, so it stays inert.
-            brainTile(icon: .briefcase, title: "Jobs", subtitle: count(home?.jobsCount), destination: nil)
+            brainTile(icon: .briefcase, title: "Jobs", subtitle: count(home?.jobsCount), destination: jobsDestination)
             brainTile(icon: .heartWinged, title: "Reminders", subtitle: count(home?.remindersCount), destination: remindersDestination)
             brainTile(icon: .scrollWinged, title: "Tasks", subtitle: count(home?.todosCount), destination: tasksDestination)
             brainTile(icon: .sparklesRectangleStack, title: "Projects", subtitle: count(home?.projectsCount), destination: projectsDestination)
