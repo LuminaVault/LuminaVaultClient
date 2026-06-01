@@ -42,16 +42,22 @@ struct PluginStoreView: View {
                     }
                 }
 
-                if !hermesSkills.isEmpty {
-                    Section {
-                        ForEach(hermesSkills) { entry in
-                            hermesRow(for: entry)
-                        }
-                    } header: {
-                        Text("In your Hermes")
-                    } footer: {
-                        Text("Skills already installed in your Hermes agent. Manage these from Hermes for now; installing from the Hub here is coming soon.")
+                Section {
+                    hubInstallField
+                    ForEach(hermesSkills) { entry in
+                        hermesRow(for: entry)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    Task { await viewModel.uninstallHubSkill(name: Self.hermesName(entry)) }
+                                } label: {
+                                    Label("Uninstall", systemImage: "trash")
+                                }
+                            }
                     }
+                } header: {
+                    Text("Hermes Hub")
+                } footer: {
+                    Text("Install community skills into your Hermes agent by id or URL (from the Hermes Skills Hub). Swipe a skill to uninstall.")
                 }
             case let .error(message):
                 Section { Text(message).foregroundStyle(.red) }
@@ -106,5 +112,44 @@ struct PluginStoreView: View {
             Spacer()
         }
         .padding(.vertical, 2)
+    }
+
+    /// "Add from Hermes Hub": paste a skill id/URL and install it into the
+    /// tenant's Hermes container.
+    @ViewBuilder
+    private var hubInstallField: some View {
+        let text = Binding(
+            get: { viewModel.hubInstallText },
+            set: { viewModel.hubInstallText = $0 },
+        )
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                TextField("skill id or URL", text: text)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .disabled(viewModel.hubBusy)
+                Button {
+                    Task { await viewModel.installHubSkill() }
+                } label: {
+                    if viewModel.hubBusy {
+                        ProgressView()
+                    } else {
+                        Text("Install")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.hubBusy || viewModel.hubInstallText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            if let hubError = viewModel.hubError {
+                Text(hubError).font(.caption).foregroundStyle(.red)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// Recover the Hermes skill name from a `hermes-<name>` catalog slug.
+    private static func hermesName(_ entry: PluginCatalogEntryDTO) -> String {
+        let prefix = "hermes-"
+        return entry.slug.hasPrefix(prefix) ? String(entry.slug.dropFirst(prefix.count)) : entry.slug
     }
 }
