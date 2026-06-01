@@ -22,6 +22,11 @@ final class PluginStoreViewModel {
 
     var state: State = .loading
 
+    // HER-43 Slice 6 — marketplace curation + search.
+    var featured: [PluginCatalogEntryDTO] = []
+    var premiumSlugs: Set<String> = []
+    var searchText: String = ""
+
     // HER-43 Slice 5 — Hermes Hub install field + in-flight/error feedback.
     var hubInstallText: String = ""
     var hubBusy: Bool = false
@@ -41,8 +46,15 @@ final class PluginStoreViewModel {
             // Best-effort: Hermes may be unreachable; show an empty section
             // rather than failing the whole store.
             async let hermesTask = try? client.hermesSkills()
-            let (catalog, installs, hermes) = try await (catalogTask, installsTask, hermesTask)
+            // Curation (best-effort): empty/unbadged if these fail.
+            async let featuredTask = try? client.featuredPlugins()
+            async let premiumTask = try? client.premiumPlugins()
+            let (catalog, installs, hermes, featured, premium) = try await (
+                catalogTask, installsTask, hermesTask, featuredTask, premiumTask,
+            )
             let bySlug = Dictionary(installs.items.map { ($0.pluginSlug, $0) }, uniquingKeysWith: { first, _ in first })
+            self.featured = featured?.items ?? []
+            premiumSlugs = Set((premium?.items ?? []).map(\.slug))
             state = .loaded(
                 catalog: catalog.items,
                 installsBySlug: bySlug,

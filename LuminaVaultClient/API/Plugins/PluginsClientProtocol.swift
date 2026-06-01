@@ -10,6 +10,10 @@ import LuminaVaultShared
 
 protocol PluginsClientProtocol: Sendable {
     func catalog(category: PluginCategory?) async throws -> PluginCatalogListResponse
+    /// HER-43 Slice 6 — Featured marketplace entries.
+    func featuredPlugins() async throws -> PluginCatalogListResponse
+    /// HER-43 Slice 6 — premium (paid-tier) entries, for badging.
+    func premiumPlugins() async throws -> PluginCatalogListResponse
     /// HER-43 Slice 3a — read-only skills installed in the tenant's Hermes agent.
     func hermesSkills() async throws -> PluginCatalogListResponse
     /// HER-43 Slice 5 — install a Hermes Hub skill by id/URL into the tenant's

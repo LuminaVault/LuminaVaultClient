@@ -15,6 +15,14 @@ final class PluginsHTTPClient: PluginsClientProtocol {
         try await client.execute(PluginsEndpoints.Catalog(category: category))
     }
 
+    func featuredPlugins() async throws -> PluginCatalogListResponse {
+        try await client.execute(PluginsEndpoints.Catalog(featured: true))
+    }
+
+    func premiumPlugins() async throws -> PluginCatalogListResponse {
+        try await client.execute(PluginsEndpoints.Catalog(premium: true))
+    }
+
     func hermesSkills() async throws -> PluginCatalogListResponse {
         try await client.execute(PluginsEndpoints.HermesSkills())
     }
