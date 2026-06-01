@@ -17,11 +17,15 @@ struct BrainTabView: View {
 
     /// Client-side edge-kind filter. The server returns every kind by
     /// default; toggling a chip hides that kind in-place with no refetch.
+    /// Memory-centric reframe: `.temporal` starts OFF (its day-chains add
+    /// hairball noise to the knowledge network); still toggleable.
     @State private var activeEdgeKinds: Set<MemoryEdgeKindDTO> = [
-        .wikilink, .tag, .space, .semantic, .temporal,
+        .wikilink, .tag, .space, .semantic,
     ]
-    /// When false, wiki-page nodes (and any edge touching them) are hidden.
-    @State private var showWikiPages = true
+    /// Source (raw vault-file) nodes are the *raw* layer, not the knowledge
+    /// network — they start hidden so the graph opens as a clean memory map.
+    /// `filtered(_:)` drops them and any edge touching them with no refetch.
+    @State private var showWikiPages = false
 
     init(client: any MemoryGraphClientProtocol) {
         self._vm = State(initialValue: BrainGraphViewModel(client: client))
@@ -172,8 +176,10 @@ private struct GraphLegend: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 if hasWikiPages {
+                    // "Sources" = the raw vault-file pages behind your memories
+                    // (the wire still calls these `wikiPage`; cosmetic rename).
                     chip(
-                        label: "Wiki pages",
+                        label: "Sources",
                         color: palette.accent,
                         isOn: showWikiPages,
                     ) { showWikiPages.toggle() }

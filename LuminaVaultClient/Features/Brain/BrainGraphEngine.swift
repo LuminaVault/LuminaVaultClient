@@ -324,7 +324,7 @@ final class BrainGraphEngine {
             for n in nodes {
                 let r = renderRadius(n)
                 layer.fill(Self.circle(view(n.pos), r * 2.4),
-                           with: .color(nodeColor(n, style: style).opacity(0.16 * (0.45 + 0.55 * n.recency))))
+                           with: .color(nodeColor(n, style: style).opacity(0.16 * (0.45 + 0.55 * n.recency) * glowFactor(n))))
             }
         }
         // 4 — mid bloom (one medium-blur pass for all nodes).
@@ -333,7 +333,7 @@ final class BrainGraphEngine {
             for n in nodes {
                 let r = renderRadius(n)
                 layer.fill(Self.circle(view(n.pos), r * 1.5),
-                           with: .color(nodeColor(n, style: style).opacity(0.38 * (0.45 + 0.55 * n.recency))))
+                           with: .color(nodeColor(n, style: style).opacity(0.38 * (0.45 + 0.55 * n.recency) * glowFactor(n))))
             }
         }
         // 5 — crisp cores + rings (no blur).
@@ -356,7 +356,8 @@ final class BrainGraphEngine {
     /// Live render radius incl. breathing pulse (amplitude ↑ with recency)
     /// and selection scale.
     private func renderRadius(_ n: Node) -> CGFloat {
-        let pulse = 1 + (0.06 + 0.10 * n.recency) * sin(time * 2.2 + n.phase)
+        // Only memories breathe; sources stay quiet satellites.
+        let pulse = n.kind == .wikiPage ? 1 : 1 + (0.06 + 0.10 * n.recency) * sin(time * 2.2 + n.phase)
         let selBoost = n.id == selectedID ? (1 + 0.25 * selectionPulse) : 1
         return baseRadius(n) * scale * pulse * selBoost
     }
@@ -373,7 +374,15 @@ final class BrainGraphEngine {
 
     // MARK: - Mapping helpers
 
-    private func baseRadius(_ n: Node) -> CGFloat { 5 + n.importance * 10 + n.recency * 2 }
+    // Memory-centric reframe: sources are demoted to small, dim, static
+    // satellites so the memory network reads as the primary object.
+    private func baseRadius(_ n: Node) -> CGFloat {
+        if n.kind == .wikiPage { return 6 }
+        return 5 + n.importance * 10 + n.recency * 2
+    }
+
+    /// Glow emphasis multiplier — sources are dimmed so memories dominate.
+    private func glowFactor(_ n: Node) -> Double { n.kind == .wikiPage ? 0.35 : 1 }
 
     private func nodeColor(_ n: Node, style: BrainGraphStyle) -> Color {
         switch n.kind {
