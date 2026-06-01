@@ -34,6 +34,9 @@ struct HomeView: View {
     /// older call sites (tests, previews) keep compiling without wiring
     /// the new screen.
     var healthDestination: AnyView? = nil
+    /// Achievements screen — pushed by tapping the player-profile HUD.
+    /// Optional so older call sites (tests, previews) keep compiling.
+    var achievementsDestination: AnyView? = nil
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -83,13 +86,28 @@ struct HomeView: View {
                         MascotHero()
 
                         // Player-profile HUD: power level ring + stat tiles.
-                        ProfileStatsHUDView(state: vm.profile)
+                        // Tapping pushes the Achievements screen when wired.
+                        if let achievementsDestination {
+                            NavigationLink {
+                                achievementsDestination
+                            } label: {
+                                ProfileStatsHUDView(state: vm.profile)
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            ProfileStatsHUDView(state: vm.profile)
+                        }
 
                         // HER-Home — live counts for the user's brain: skills,
                         // jobs, reminders, tasks, insights, projects + active
                         // profile, sourced from GET /v1/dashboard/home.
                         VStack(spacing: 24) {
-                            sectionHeader("Your Brain")
+                            // HER-235 — tapping the section opens the Brain
+                            // tab (the knowledge graph). The stats tiles below
+                            // stay display-only.
+                            Button { onSelectTab("brain") } label: {
+                                yourBrainHeader
+                            }
                             statsGrid
                         }
 
@@ -141,6 +159,21 @@ struct HomeView: View {
                 .shadow(color: palette.glowPrimary.opacity(0.3), radius: 4)
             Spacer()
         }
+    }
+
+    // HER-235 — "Your Brain" header doubles as the entry point to the Brain
+    // tab (knowledge graph). The chevron + brain glyph signal it's tappable.
+    private var yourBrainHeader: some View {
+        HStack(spacing: 10) {
+            LVIconView(.brain, size: 22, tint: palette.primary)
+            Text("Your Brain")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(palette.textPrimary)
+                .shadow(color: palette.glowPrimary.opacity(0.3), radius: 4)
+            Spacer()
+            LVIconView(.chevronRight, size: 15, tint: palette.textSecondary)
+        }
+        .contentShape(Rectangle())
     }
 
     // HER-Home — seven count tiles. Counts come from `vm.home`; the Insights
