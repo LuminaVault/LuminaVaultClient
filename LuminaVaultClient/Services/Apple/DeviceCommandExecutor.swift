@@ -14,8 +14,10 @@ import EventKit
 import Foundation
 import LuminaVaultShared
 import OSLog
+import PDFKit
 import Photos
 import UIKit
+import UniformTypeIdentifiers
 import Vision
 
 private let log = Logger(subsystem: "com.luminavault", category: "apple.device-rpc")
@@ -188,9 +190,44 @@ actor DeviceCommandExecutor {
         case .reminders: return await fetchReminders(command)
         case .photos: return await fetchPhotos(command)
         case .location: return await fetchLocation(command)
+        case .files: return await fetchFiles(command)
         default:
             return DeviceCommandResult(id: command.id, ok: false, error: "device_fetch not supported for \(command.domain?.rawValue ?? "unknown")")
         }
+    }
+
+    // MARK: - Files (P5) — user-picked documents; only derived text leaves the
+    // device. Requires the app foregrounded (the picker is interactive); if the
+    // app is asleep the broker request times out and Hermes reports the device
+    // as unavailable, which is the intended behaviour.
+
+    private func fetchFiles(_ command: DeviceCommand) async -> DeviceCommandResult {
+        let urls = await DocumentPickerPresenter().present()
+        guard !urls.isEmpty else {
+            return DeviceCommandResult(id: command.id, ok: false, error: "no files were selected")
+        }
+        var items: [[String: String]] = []
+        for url in urls.prefix(10) {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            let text = Self.extractText(from: url)
+            items.append([
+                "name": url.lastPathComponent,
+                "type": url.pathExtension.lowercased(),
+                "chars": String(text.count),
+                "text": String(text.prefix(8000)),
+            ])
+        }
+        return Self.encodeItems(command.id, items)
+    }
+
+    /// On-device text extraction. PDFs via PDFKit, anything UTF-8-decodable as
+    /// plain text. Binary/unsupported files yield empty text (metadata only).
+    private static func extractText(from url: URL) -> String {
+        if url.pathExtension.lowercased() == "pdf" {
+            return PDFDocument(url: url)?.string ?? ""
+        }
+        return (try? String(contentsOf: url, encoding: .utf8)) ?? ""
     }
 
     // MARK: - Location (P4)
@@ -308,6 +345,60 @@ actor DeviceCommandExecutor {
             return DeviceCommandResult(id: id, ok: false, error: "encode failed")
         }
         return DeviceCommandResult(id: id, ok: true, payload: ["items": json])
+    }
+
+    // MARK: - Files document picker (P5)
+
+    /// Presents `UIDocumentPickerViewController` from the top view controller and
+    /// resolves with the picked URLs (empty if cancelled or no window). Retains
+    /// itself for the lifetime of the presentation so the delegate survives.
+    @MainActor
+    private final class DocumentPickerPresenter: NSObject, UIDocumentPickerDelegate {
+        private var continuation: CheckedContinuation<[URL], Never>?
+        private var selfRef: DocumentPickerPresenter?
+
+        func present() async -> [URL] {
+            await withCheckedContinuation { cont in
+                self.continuation = cont
+                self.selfRef = self // keep alive until the delegate fires
+                // `asCopy: true` hands us temporary local copies we can read
+                // immediately, sidestepping long-lived security-scoped bookmarks.
+                let picker = UIDocumentPickerViewController(
+                    forOpeningContentTypes: [.pdf, .plainText, .text, .rtf, .json, .commaSeparatedText, .data],
+                    asCopy: true,
+                )
+                picker.allowsMultipleSelection = true
+                picker.delegate = self
+                guard let top = Self.topViewController() else {
+                    finish([])
+                    return
+                }
+                top.present(picker, animated: true)
+            }
+        }
+
+        func documentPicker(_: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            finish(urls)
+        }
+
+        func documentPickerWasCancelled(_: UIDocumentPickerViewController) {
+            finish([])
+        }
+
+        private func finish(_ urls: [URL]) {
+            continuation?.resume(returning: urls)
+            continuation = nil
+            selfRef = nil
+        }
+
+        private static func topViewController() -> UIViewController? {
+            let windows = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap(\.windows)
+            var top = (windows.first { $0.isKeyWindow } ?? windows.first)?.rootViewController
+            while let presented = top?.presentedViewController { top = presented }
+            return top
+        }
     }
 
     private func wsURL() -> URL? {
