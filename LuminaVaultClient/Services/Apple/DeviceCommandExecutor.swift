@@ -187,9 +187,25 @@ actor DeviceCommandExecutor {
         case .calendar: return await fetchEvents(command)
         case .reminders: return await fetchReminders(command)
         case .photos: return await fetchPhotos(command)
+        case .location: return await fetchLocation(command)
         default:
             return DeviceCommandResult(id: command.id, ok: false, error: "device_fetch not supported for \(command.domain?.rawValue ?? "unknown")")
         }
+    }
+
+    // MARK: - Location (P4)
+
+    private func fetchLocation(_ command: DeviceCommand) async -> DeviceCommandResult {
+        guard let fix = await LocationService().requestFix() else {
+            return DeviceCommandResult(id: command.id, ok: false, error: "location unavailable or permission not granted")
+        }
+        let item: [String: String] = [
+            "lat": String(fix.lat),
+            "lng": String(fix.lng),
+            "place": fix.placeName ?? "",
+            "at": ISO8601DateFormatter().string(from: Date()),
+        ]
+        return Self.encodeItems(command.id, [item])
     }
 
     // MARK: - Photos (P3) — on-device OCR; only derived text leaves the device.
