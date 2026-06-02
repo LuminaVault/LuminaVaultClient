@@ -42,4 +42,16 @@ final class HermesGatewaysHTTPClient: HermesGatewaysClientProtocol {
     func applyStream(_ jobID: UUID) -> AsyncThrowingStream<HermesGatewayApplyEvent, any Error> {
         client.executeStreamWithRefresh(HermesGatewaysEndpoints.ApplyStream(jobID: jobID))
     }
+
+    func startWhatsAppPair() async throws -> StartWhatsAppPairResponse {
+        try await client.execute(HermesGatewaysEndpoints.StartWhatsAppPair())
+    }
+
+    func whatsAppPairStream(_ sessionID: UUID) -> AsyncThrowingStream<HermesWhatsAppPairEvent, any Error> {
+        client.executeStreamWithRefresh(HermesGatewaysEndpoints.WhatsAppPairStream(sessionID: sessionID))
+    }
+
+    func unlinkWhatsApp() async throws -> HermesGatewayCatalogEntry {
+        try await client.execute(HermesGatewaysEndpoints.DeleteWhatsAppSession())
+    }
 }

@@ -10,15 +10,30 @@ import SwiftUI
 
 struct HermesGatewayDetailView: View {
     let gatewayID: HermesGatewayID
+    private let client: any HermesGatewaysClientProtocol
     @State private var viewModel: HermesGatewayDetailViewModel
     @State private var showDisconnectConfirm = false
 
     init(gatewayID: HermesGatewayID, client: any HermesGatewaysClientProtocol) {
         self.gatewayID = gatewayID
+        self.client = client
         _viewModel = State(initialValue: HermesGatewayDetailViewModel(gatewayID: gatewayID, client: client))
     }
 
     var body: some View {
+        Group {
+            // A pairing gateway (WhatsApp QR) replaces the whole credential
+            // screen with its dedicated flow once the catalog entry has loaded.
+            if let entry = viewModel.entry, entry.pairingKind == .whatsappQR {
+                WhatsAppPairingView(entry: entry, client: client)
+            } else {
+                credentialForm
+            }
+        }
+        .task { await viewModel.load() }
+    }
+
+    private var credentialForm: some View {
         Form {
             switch viewModel.loadingState {
             case .loading:
@@ -36,7 +51,6 @@ struct HermesGatewayDetailView: View {
         }
         .navigationTitle(viewModel.entry?.displayName ?? "Gateway")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await viewModel.load() }
     }
 
     // MARK: - Sections

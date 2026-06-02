@@ -19,4 +19,9 @@ protocol HermesGatewaysClientProtocol: Sendable {
     func startApply() async throws -> StartHermesGatewayApplyResponse
     func applyStatus(_ jobID: UUID) async throws -> HermesGatewayApplyJobStatus
     func applyStream(_ jobID: UUID) -> AsyncThrowingStream<HermesGatewayApplyEvent, any Error>
+
+    // WhatsApp QR pairing — start a session, stream QR + status, unlink.
+    func startWhatsAppPair() async throws -> StartWhatsAppPairResponse
+    func whatsAppPairStream(_ sessionID: UUID) -> AsyncThrowingStream<HermesWhatsAppPairEvent, any Error>
+    func unlinkWhatsApp() async throws -> HermesGatewayCatalogEntry
 }
