@@ -276,6 +276,12 @@ struct MainTabView: View {
         InsightsHTTPClient(client: appState.makeHTTPClient())
     }
 
+    // C6 — Kanban HTTP client. Follows the same makeHTTPClient() pattern as
+    // every other feature client in this file.
+    private var kanbanClient: any KanbanClientProtocol {
+        KanbanHTTPClient(client: appState.makeHTTPClient())
+    }
+
     private var healthClient: HealthClientProtocol {
         HealthHTTPClient()
     }
@@ -360,6 +366,10 @@ struct MainTabView: View {
             ) },
             jobsDestination: { [self] in AnyView(
                 JobsListView(vm: JobsListViewModel(client: skillsClient), client: skillsClient)
+            ) },
+            // C6 — Kanban entry: loader resolves the default board then pushes KanbanBoardView.
+            kanbanDestination: { [self] in AnyView(
+                KanbanEntryView(client: kanbanClient)
             ) },
         )
     }
