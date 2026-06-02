@@ -17,7 +17,19 @@ struct KanbanBoardView: View {
                         KanbanColumnView(
                             column: column,
                             onAddCard: { title in Task { await viewModel.addCard(columnID: column.id, title: title) } },
-                            onOpenCard: { detailCard = $0 }
+                            onOpenCard: { detailCard = $0 },
+                            // C5 — drop closure: append dragged card to this column
+                            // (before = current last card so it goes to end, after = nil).
+                            onDropCard: { cardID in
+                                Task {
+                                    await viewModel.moveCard(
+                                        cardID,
+                                        toColumn: column.id,
+                                        before: column.cards.last?.id,
+                                        after: nil
+                                    )
+                                }
+                            }
                         )
                     }
                     Button { Task { await viewModel.addColumn(title: "New Column") } } label: {

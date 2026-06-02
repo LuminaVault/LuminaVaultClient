@@ -21,6 +21,9 @@ struct KanbanCardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.08)))
+        // C5 — make every card a drag source. The payload is the UUID string;
+        // the receiving column's .dropDestination parses it back to UUID.
+        .draggable(card.id.uuidString)
     }
     private func priorityDot(_ p: CardPriority) -> some View {
         Circle().fill(p == .urgent || p == .high ? Color.yellow : Color.cyan).frame(width: 8, height: 8)

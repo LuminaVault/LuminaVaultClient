@@ -51,6 +51,8 @@ struct HomeView: View {
     var remindersDestination: (() -> AnyView)? = nil
     /// Lumina Jobs — the Jobs tile opens the scheduled-jobs surface.
     var jobsDestination: (() -> AnyView)? = nil
+    /// C6 — Kanban board entry point.
+    var kanbanDestination: (() -> AnyView)? = nil
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -193,6 +195,8 @@ struct HomeView: View {
             brainTile(icon: .sparklesRectangleStack, title: "Projects", subtitle: count(home?.projectsCount), destination: projectsDestination)
             brainTile(icon: .lightbulbFill, title: "Insights", subtitle: insightsSubtitle, destination: insightsDestination)
             brainTile(icon: .tabSettings, title: "Profile", subtitle: home?.activeProfileName ?? "—", destination: achievementsDestination)
+            // C6 — Kanban board tile.
+            brainTile(icon: .layers, title: "Kanban", subtitle: "Board", destination: kanbanDestination)
         }
     }
 
