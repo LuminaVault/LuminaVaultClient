@@ -111,10 +111,12 @@ actor DeviceCommandExecutor {
             result = await createReminder(command)
         case .calendarCreate:
             result = await createEvent(command)
-        case .deviceFetch, .photoAnalyze:
-            // Fresh-read / photo handlers land in P3+. Report unsupported so the
-            // server's pending request resolves instead of timing out.
-            result = DeviceCommandResult(id: command.id, ok: false, error: "command \(command.kind.rawValue) not yet supported on this device")
+        case .deviceFetch:
+            result = await fetchDeviceData(command)
+        case .photoAnalyze:
+            // Photo handler lands in P3. Report unsupported so the server's
+            // pending request resolves instead of timing out.
+            result = DeviceCommandResult(id: command.id, ok: false, error: "command photo_analyze not yet supported on this device")
         }
         do {
             _ = try await httpClient.execute(DeviceCommandEndpoints.PostResult(result: result))
@@ -173,6 +175,65 @@ actor DeviceCommandExecutor {
         } catch {
             return DeviceCommandResult(id: command.id, ok: false, error: "save failed: \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - EventKit fresh reads (P2b)
+
+    private func fetchDeviceData(_ command: DeviceCommand) async -> DeviceCommandResult {
+        switch command.domain {
+        case .calendar: return await fetchEvents(command)
+        case .reminders: return await fetchReminders(command)
+        default:
+            return DeviceCommandResult(id: command.id, ok: false, error: "device_fetch not supported for \(command.domain?.rawValue ?? "unknown")")
+        }
+    }
+
+    private func fetchEvents(_ command: DeviceCommand) async -> DeviceCommandResult {
+        let store = EKEventStore()
+        guard (try? await store.requestFullAccessToEvents()) == true else {
+            return DeviceCommandResult(id: command.id, ok: false, error: "Calendar permission not granted")
+        }
+        let days = Int(command.payload["days"] ?? "7") ?? 7
+        let start = Date()
+        let end = Calendar.current.date(byAdding: .day, value: days, to: start) ?? start
+        let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+        let iso = ISO8601DateFormatter()
+        let items = store.events(matching: predicate).prefix(100).map { event in
+            [
+                "title": event.title ?? "",
+                "start": iso.string(from: event.startDate),
+                "end": iso.string(from: event.endDate),
+                "location": event.location ?? "",
+            ]
+        }
+        return Self.encodeItems(command.id, Array(items))
+    }
+
+    private func fetchReminders(_ command: DeviceCommand) async -> DeviceCommandResult {
+        let store = EKEventStore()
+        guard (try? await store.requestFullAccessToReminders()) == true else {
+            return DeviceCommandResult(id: command.id, ok: false, error: "Reminders permission not granted")
+        }
+        let predicate = store.predicateForIncompleteReminders(withDueDateStarting: nil, ending: nil, calendars: nil)
+        let reminders: [EKReminder] = await withCheckedContinuation { cont in
+            store.fetchReminders(matching: predicate) { cont.resume(returning: $0 ?? []) }
+        }
+        let iso = ISO8601DateFormatter()
+        let items = reminders.prefix(100).map { reminder -> [String: String] in
+            var due = ""
+            if let comps = reminder.dueDateComponents, let date = Calendar.current.date(from: comps) {
+                due = iso.string(from: date)
+            }
+            return ["title": reminder.title ?? "", "due": due, "notes": reminder.notes ?? ""]
+        }
+        return Self.encodeItems(command.id, items)
+    }
+
+    private static func encodeItems(_ id: UUID, _ items: [[String: String]]) -> DeviceCommandResult {
+        guard let data = try? JSONEncoder().encode(items), let json = String(data: data, encoding: .utf8) else {
+            return DeviceCommandResult(id: id, ok: false, error: "encode failed")
+        }
+        return DeviceCommandResult(id: id, ok: true, payload: ["items": json])
     }
 
     private func wsURL() -> URL? {
