@@ -12,12 +12,21 @@ final class MockIntegrationsClient: IntegrationsClientProtocol, @unchecked Senda
     var completeResult: Result<XaiStatusResponse, Error> = .success(.stubConnected)
     var disconnectResult: Result<XaiStatusResponse, Error> = .success(.stubDisconnected)
 
+    var nousStatusResult: Result<NousStatusResponse, Error> = .success(.stubDisconnected)
+    var nousStartResult: Result<NousStartResponse, Error> = .success(.stub)
+    var nousCompleteResult: Result<NousStatusResponse, Error> = .success(.stubConnected)
+    var nousDisconnectResult: Result<NousStatusResponse, Error> = .success(.stubDisconnected)
+
     private(set) var calls: [Call] = []
     enum Call: Equatable {
         case status
         case start
         case complete(sessionID: String, callbackURL: String)
         case disconnect
+        case nousStatus
+        case nousStart
+        case nousComplete(sessionID: String)
+        case nousDisconnect
     }
 
     func getXaiStatus() async throws -> XaiStatusResponse {
@@ -39,6 +48,26 @@ final class MockIntegrationsClient: IntegrationsClientProtocol, @unchecked Senda
         calls.append(.disconnect)
         return try disconnectResult.get()
     }
+
+    func getNousStatus() async throws -> NousStatusResponse {
+        calls.append(.nousStatus)
+        return try nousStatusResult.get()
+    }
+
+    func startNousConnect() async throws -> NousStartResponse {
+        calls.append(.nousStart)
+        return try nousStartResult.get()
+    }
+
+    func completeNousConnect(sessionID: String) async throws -> NousStatusResponse {
+        calls.append(.nousComplete(sessionID: sessionID))
+        return try nousCompleteResult.get()
+    }
+
+    func disconnectNous() async throws -> NousStatusResponse {
+        calls.append(.nousDisconnect)
+        return try nousDisconnectResult.get()
+    }
 }
 
 extension XaiStatusResponse {
@@ -54,5 +83,22 @@ extension XaiStartResponse {
     static let stub = XaiStartResponse(
         sessionID: "session-stub",
         authorizeURL: "https://accounts.x.ai/authorize?stub=1",
+    )
+}
+
+extension NousStatusResponse {
+    static let stubDisconnected = NousStatusResponse(connected: false, nousConnectedAt: nil, plan: nil)
+    static let stubConnected = NousStatusResponse(
+        connected: true,
+        nousConnectedAt: Date(timeIntervalSince1970: 1_700_000_000),
+        plan: "Hermes Pro",
+    )
+}
+
+extension NousStartResponse {
+    static let stub = NousStartResponse(
+        sessionID: "nous-session-stub",
+        verifyURL: "https://portal.nousresearch.com/device?user_code=STUB-CODE",
+        userCode: "STUB-CODE",
     )
 }

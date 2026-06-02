@@ -7,6 +7,7 @@
 // independently (see HER-213 precedent).
 
 import Foundation
+import LuminaVaultShared
 
 /// GET /v1/integrations/xai — current state of the tenant's xAI Grok OAuth
 /// connection. `tier` mirrors the server User row's tier column
@@ -32,3 +33,12 @@ struct XaiCompleteRequest: Codable, Sendable, Equatable {
     let sessionID: String
     let callbackURL: String
 }
+
+// MARK: - Nous Portal subscription (OAuth device-code)
+//
+// Wire DTOs now live in LuminaVaultShared (single source of truth, per
+// CLAUDE.md §3). Aliased here so call sites keep the short names.
+
+typealias NousStatusResponse = LuminaVaultShared.NousStatusResponse
+typealias NousStartResponse = LuminaVaultShared.NousStartResponse
+typealias NousCompleteRequest = LuminaVaultShared.NousCompleteRequest

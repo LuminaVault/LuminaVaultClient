@@ -98,6 +98,13 @@ struct SettingsRootView: View {
                                 destination: { HermesGatewayPaneView(client: settingsClient) }
                             )
                             LVSettingsDivider()
+                            // Nous Subscription Integration — connect a personal
+                            // Nous Portal subscription (OAuth device-code) so
+                            // Hermes runs on the user's own credits.
+                            LVSettingsRow("Connect Nous Account", icon: .sparkles) {
+                                NousAccountView(client: integrationsClient)
+                            }
+                            LVSettingsDivider()
                             // HER-43 — declarative plugin store (connectors, …).
                             LVSettingsRow("Plugins", icon: .puzzlepieceExtension) {
                                 PluginStoreView(client: pluginsClient)

@@ -28,4 +28,22 @@ final class IntegrationsHTTPClient: IntegrationsClientProtocol {
     func disconnectXai() async throws -> XaiStatusResponse {
         try await client.execute(IntegrationsEndpoints.DisconnectXai())
     }
+
+    // MARK: - Nous Portal subscription
+
+    func getNousStatus() async throws -> NousStatusResponse {
+        try await client.execute(IntegrationsEndpoints.GetNousStatus())
+    }
+
+    func startNousConnect() async throws -> NousStartResponse {
+        try await client.execute(IntegrationsEndpoints.StartNousConnect())
+    }
+
+    func completeNousConnect(sessionID: String) async throws -> NousStatusResponse {
+        try await client.execute(IntegrationsEndpoints.CompleteNousConnect(sessionID: sessionID))
+    }
+
+    func disconnectNous() async throws -> NousStatusResponse {
+        try await client.execute(IntegrationsEndpoints.DisconnectNous())
+    }
 }

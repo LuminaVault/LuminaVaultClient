@@ -34,4 +34,35 @@ enum IntegrationsEndpoints {
         var path: String { "/v1/integrations/xai" }
         var method: HTTPMethod { .delete }
     }
+
+    // MARK: - Nous Portal subscription
+
+    struct GetNousStatus: Endpoint {
+        typealias Response = NousStatusResponse
+        var path: String { "/v1/integrations/nous" }
+        var method: HTTPMethod { .get }
+    }
+
+    struct StartNousConnect: Endpoint {
+        typealias Response = NousStartResponse
+        var path: String { "/v1/integrations/nous/start" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { nil }
+    }
+
+    struct CompleteNousConnect: Endpoint {
+        typealias Response = NousStatusResponse
+        let sessionID: String
+        var path: String { "/v1/integrations/nous/complete" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? {
+            NousCompleteRequest(sessionID: sessionID)
+        }
+    }
+
+    struct DisconnectNous: Endpoint {
+        typealias Response = NousStatusResponse
+        var path: String { "/v1/integrations/nous" }
+        var method: HTTPMethod { .delete }
+    }
 }
