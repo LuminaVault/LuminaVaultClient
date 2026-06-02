@@ -103,3 +103,6 @@ LuminaVaultClient/Config/Config.Release.xcconfig
 *.log
 
 .sentryclirc
+
+# Claude worktrees
+.claude/worktrees/
