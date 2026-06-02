@@ -86,6 +86,12 @@ final class ChatViewModel {
     /// HER-107 — transient banner after `saveAsMemory(...)`. Auto-clears
     /// after ~2s so the chat surface doesn't grow stale toasts.
     var savedMemoryToast: String?
+    /// Lumina Jobs P3 — when the last user message reads as a recurring-job
+    /// request, the server classifier returns a proposal and the chat shows a
+    /// "Create Job" card. Cleared on confirm/dismiss/next send.
+    var jobProposal: JobProposalDTO?
+    /// Transient confirmation after a job is created (auto-clears ~2.5s).
+    var jobToast: String?
     /// Client-extracted file staged for the next send. There is no
     /// per-message attachment contract on the server, so the extracted
     /// text is prepended into the outgoing message `content` (see
@@ -101,6 +107,9 @@ final class ChatViewModel {
     private let chatClient: any ChatClientProtocol
     private let memoryClient: any MemoryClientProtocol
     private let historyStore: ChatHistoryStore?
+    /// Lumina Jobs P3 — optional; when wired, each user turn is classified for
+    /// recurring-job intent and a proposal card may surface.
+    private let jobsClient: (any JobsClientProtocol)?
     /// HER-153 — owns the hold-to-talk recording state and Lumina's
     /// spoken-reply pipeline. Lazily wired through the init chain so
     /// existing call sites and previews don't need to know about it.
@@ -128,11 +137,13 @@ final class ChatViewModel {
         memoryClient: any MemoryClientProtocol,
         historyStore: ChatHistoryStore? = nil,
         voice: VoiceModeController = VoiceModeController(),
+        jobsClient: (any JobsClientProtocol)? = nil,
     ) {
         self.conversationsClient = conversationsClient
         self.chatClient = chatClient
         self.memoryClient = memoryClient
         self.historyStore = historyStore
+        self.jobsClient = jobsClient
         self.voice = voice
         self.voice.onFinalTranscript = { [weak self] transcript in
             self?.sendVoiceTranscript(transcript)
@@ -206,9 +217,57 @@ final class ChatViewModel {
         messages.append(userMessage)
         schedulePersist()
 
+        // Jobs P3 — classify the turn for recurring-job intent in the
+        // background; never blocks the chat stream.
+        jobProposal = nil
+        if jobsClient != nil, !trimmed.isEmpty {
+            let probe = trimmed
+            Task { [weak self] in await self?.detectJob(probe) }
+        }
+
         streamTask?.cancel()
         streamTask = Task { [weak self] in
             await self?.runSend(content: wireContent)
+        }
+    }
+
+    // MARK: - Jobs (P3)
+
+    private func detectJob(_ text: String) async {
+        guard let jobsClient else { return }
+        guard let proposal = try? await jobsClient.detect(text: text), proposal.isJob else { return }
+        jobProposal = proposal
+    }
+
+    /// Create the proposed job, then clear the card and show a toast.
+    func confirmJob() {
+        guard let jobsClient, let proposal = jobProposal,
+              let cron = proposal.cron, let spec = proposal.spec
+        else { jobProposal = nil; return }
+        let request = JobCreateRequest(
+            title: proposal.title ?? "Job",
+            cron: cron,
+            domain: proposal.domain,
+            spec: spec,
+            spaceId: nil,
+        )
+        jobProposal = nil
+        Task { [weak self] in
+            guard let self else { return }
+            if (try? await jobsClient.create(request)) != nil {
+                self.jobToast = "Job created — find it in the Jobs tab."
+                self.scheduleJobToastDecay()
+            }
+        }
+    }
+
+    func dismissJob() { jobProposal = nil }
+
+    private func scheduleJobToastDecay() {
+        toastDecayTask?.cancel()
+        toastDecayTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2.5))
+            self?.jobToast = nil
         }
     }
 

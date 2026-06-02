@@ -92,6 +92,7 @@ struct MainTabView: View {
                             chatClient: chatClient,
                             memoryClient: memoryUpsertClient,
                             historyStore: chatHistoryStore,
+                            jobsClient: jobsClient,
                         ),
                         memoClient: memoClient,
                         suggestionsClient: suggestionsClient,
@@ -229,6 +230,10 @@ struct MainTabView: View {
 
     private var projectsClient: ProjectsClientProtocol {
         ProjectsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var jobsClient: JobsClientProtocol {
+        JobsHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var remindersClient: RemindersClientProtocol {
