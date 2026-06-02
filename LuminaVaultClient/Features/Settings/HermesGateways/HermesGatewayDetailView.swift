@@ -29,9 +29,7 @@ struct HermesGatewayDetailView: View {
                 if let entry = viewModel.entry {
                     fieldSection(entry: entry)
                     actionSection(entry: entry)
-                    if entry.hasConfig {
-                        manualCliSection
-                    }
+                    applyProgressSection
                     outcomeSection
                 }
             }
@@ -85,11 +83,11 @@ struct HermesGatewayDetailView: View {
     @ViewBuilder
     private func actionSection(entry: HermesGatewayCatalogEntry) -> some View {
         Section {
-            Button("Save & test connection") {
-                Task { await viewModel.saveAndTest() }
+            Button("Save & apply") {
+                Task { await viewModel.saveAndApply() }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(viewModel.save == .saving)
+            .disabled(viewModel.save == .saving || viewModel.applyPhase == .applying)
 
             if entry.hasConfig {
                 Button("Disconnect", role: .destructive) { showDisconnectConfirm = true }
@@ -111,49 +109,74 @@ struct HermesGatewayDetailView: View {
     }
 
     @ViewBuilder
-    private var manualCliSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Run on your Hermes host")
-                    .font(.subheadline.weight(.medium))
-                HStack {
-                    Text(viewModel.manualCliCommand)
-                        .font(.system(.callout, design: .monospaced))
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 8)
-                        .background(Color.gray.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                    Spacer()
-                    Button {
-                        UIPasteboard.general.string = viewModel.manualCliCommand
-                    } label: {
-                        LVIconView(.docOnDoc)
+    private var applyProgressSection: some View {
+        if viewModel.applyPhase != .idle {
+            Section("Applying to your assistant") {
+                if viewModel.applySteps.isEmpty, viewModel.applyPhase == .applying {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("Starting…").foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.borderless)
+                }
+                ForEach(viewModel.applySteps) { step in
+                    applyStepRow(step)
                 }
             }
-        } footer: {
-            Text("Hermes does not yet expose an admin HTTP API for gateway setup. Run this on your Hermes host once, then restart Hermes to pick up the change. (`hermes gateway restart`)")
+        }
+    }
+
+    @ViewBuilder
+    private func applyStepRow(_ step: HermesGatewayApplyStep) -> some View {
+        let style = Self.stepIcon(step.state)
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: style.symbol)
+                .foregroundStyle(style.color)
+                .symbolEffect(.pulse, isActive: step.state == .running)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Self.stepLabel(step.id))
+                if let detail = step.detail, !detail.isEmpty {
+                    Text(detail).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            if step.state == .running { ProgressView() }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private static func stepLabel(_ id: HermesGatewayApplyStepID) -> String {
+        switch id {
+        case .writeEnv: "Writing your settings"
+        case .restartContainer: "Restarting your assistant"
+        case .healthCheck: "Checking it responds"
+        }
+    }
+
+    private static func stepIcon(_ state: HermesGatewayApplyStepState) -> (symbol: String, color: Color) {
+        switch state {
+        case .pending: ("circle", .secondary)
+        case .running: ("arrow.triangle.2.circlepath", .blue)
+        case .succeeded: ("checkmark.circle.fill", .green)
+        case .failed: ("xmark.circle.fill", .red)
+        case .skipped: ("minus.circle", .secondary)
         }
     }
 
     @ViewBuilder
     private var outcomeSection: some View {
-        switch viewModel.save {
-        case .idle, .saving:
-            EmptyView()
-        case let .saved(verifyOk, errorCode):
+        switch viewModel.applyPhase {
+        case .succeeded:
             Section {
-                if verifyOk {
-                    Label("Hermes reachable. Config saved.", systemImage: "checkmark.seal.fill")
-                        .foregroundStyle(.green)
-                } else {
-                    Label("Saved. Hermes not reachable: \(errorCode ?? "unknown")", systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                }
+                Label("Connected. Your assistant is live on this platform.", systemImage: "checkmark.seal.fill")
+                    .foregroundStyle(.green)
             }
-        case let .error(message):
+        case let .failed(message):
             Section { Text(message).foregroundStyle(.red) }
+        case .idle, .applying:
+            // Surface a pre-apply save error (e.g. validation / upsert failure).
+            if case let .error(message) = viewModel.save {
+                Section { Text(message).foregroundStyle(.red) }
+            }
         }
     }
 }

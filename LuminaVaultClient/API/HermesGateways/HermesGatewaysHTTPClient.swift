@@ -30,4 +30,16 @@ final class HermesGatewaysHTTPClient: HermesGatewaysClientProtocol {
     func test(_ id: HermesGatewayID) async throws -> HermesGatewayTestResponse {
         try await client.execute(HermesGatewaysEndpoints.Test(id: id))
     }
+
+    func startApply() async throws -> StartHermesGatewayApplyResponse {
+        try await client.execute(HermesGatewaysEndpoints.Apply())
+    }
+
+    func applyStatus(_ jobID: UUID) async throws -> HermesGatewayApplyJobStatus {
+        try await client.execute(HermesGatewaysEndpoints.ApplyStatus(jobID: jobID))
+    }
+
+    func applyStream(_ jobID: UUID) -> AsyncThrowingStream<HermesGatewayApplyEvent, any Error> {
+        client.executeStreamWithRefresh(HermesGatewaysEndpoints.ApplyStream(jobID: jobID))
+    }
 }

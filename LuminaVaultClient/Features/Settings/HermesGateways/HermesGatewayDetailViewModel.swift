@@ -36,6 +36,18 @@ final class HermesGatewayDetailViewModel {
     var save: SaveOutcome = .idle
     var isDeleting: Bool = false
 
+    /// Live state of the "apply to the running container" actuation flow.
+    enum ApplyPhase: Equatable, Sendable {
+        case idle
+        case applying
+        case succeeded
+        case failed(message: String)
+    }
+
+    var applyPhase: ApplyPhase = .idle
+    /// Step rows streamed from the apply job, for the progress UI.
+    var applySteps: [HermesGatewayApplyStep] = []
+
     private let client: any HermesGatewaysClientProtocol
 
     init(gatewayID: HermesGatewayID, client: any HermesGatewaysClientProtocol) {
@@ -59,7 +71,10 @@ final class HermesGatewayDetailViewModel {
         }
     }
 
-    func saveAndTest() async {
+    /// Save the credentials, then apply them to the running Hermes container
+    /// (re-seed `.env` + restart) and stream live progress. On success the
+    /// gateway's status flips to `verified`.
+    func saveAndApply() async {
         guard let entry else { return }
         // Local validation — server enforces the same contract, but
         // failing fast keeps the iOS UX snappy.
@@ -72,24 +87,90 @@ final class HermesGatewayDetailViewModel {
         }
 
         save = .saving
+        applyPhase = .idle
+        applySteps = []
         do {
             let body = HermesGatewayPutRequest(config: values)
-            let updated = try await client.upsert(gatewayID, body)
-            self.entry = updated
-
-            // Best-effort reachability probe. The /test endpoint returns
-            // 200 even on failure (with `ok: false`); never throws on a
-            // probe miss.
-            do {
-                let result = try await client.test(gatewayID)
-                save = .saved(verifyOk: result.ok, errorCode: result.errorCode)
-                // Re-fetch so we pick up the new verifiedAt timestamp.
-                self.entry = try await client.get(gatewayID)
-            } catch {
-                save = .saved(verifyOk: false, errorCode: "client_error")
-            }
+            self.entry = try await client.upsert(gatewayID, body)
         } catch {
             save = .error(message: Self.errorMessage(error))
+            return
+        }
+
+        // Credentials saved — now actuate the container with live progress.
+        do {
+            let started = try await client.startApply()
+            applyPhase = .applying
+            await runApplyStream(jobID: started.jobID)
+        } catch {
+            applyPhase = .failed(message: Self.errorMessage(error))
+            save = .error(message: Self.errorMessage(error))
+        }
+    }
+
+    // MARK: - Apply streaming + poll fallback
+
+    private func runApplyStream(jobID: UUID) async {
+        do {
+            for try await event in client.applyStream(jobID) {
+                if Task.isCancelled { return }
+                switch event {
+                case let .step(step):
+                    mergeApplyStep(step)
+                case .status:
+                    break // wait for the terminal `.done`
+                case let .done(snapshot):
+                    applySteps = snapshot.steps
+                    await finishApply(state: snapshot.state, message: snapshot.errorMessage)
+                    return
+                case let .error(message):
+                    await finishApply(state: .failed, message: message)
+                    return
+                }
+            }
+            // Stream ended without a terminal event — reconcile via poll.
+            await pollApplyUntilTerminal(jobID: jobID)
+        } catch {
+            if Task.isCancelled { return }
+            // SSE dropped — fall back to polling.
+            await pollApplyUntilTerminal(jobID: jobID)
+        }
+    }
+
+    private func pollApplyUntilTerminal(jobID: UUID) async {
+        while !Task.isCancelled {
+            if let snapshot = try? await client.applyStatus(jobID) {
+                applySteps = snapshot.steps
+                if snapshot.state != .running {
+                    await finishApply(state: snapshot.state, message: snapshot.errorMessage)
+                    return
+                }
+            }
+            try? await Task.sleep(for: .seconds(2))
+        }
+    }
+
+    private func mergeApplyStep(_ step: HermesGatewayApplyStep) {
+        if let idx = applySteps.firstIndex(where: { $0.id == step.id }) {
+            applySteps[idx] = step
+        } else {
+            applySteps.append(step)
+        }
+    }
+
+    private func finishApply(state: HermesGatewayApplyJobState, message: String?) async {
+        switch state {
+        case .succeeded:
+            applyPhase = .succeeded
+            // Re-fetch so the status badge + verifiedAt reflect the apply.
+            self.entry = (try? await client.get(gatewayID)) ?? entry
+            save = .saved(verifyOk: true, errorCode: nil)
+        case .failed:
+            applyPhase = .failed(message: message ?? "Applying your settings didn't complete.")
+            self.entry = (try? await client.get(gatewayID)) ?? entry
+            save = .saved(verifyOk: false, errorCode: "apply_failed")
+        case .running:
+            break
         }
     }
 
