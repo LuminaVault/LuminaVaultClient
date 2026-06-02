@@ -114,11 +114,29 @@ final class AppState {
         keychain.accessToken != nil && keychain.biometricsEnabled && !isAuthenticated
     }
 
+    /// Apple Integration P0b — always-on device-RPC executor (lazily built,
+    /// started on auth, listens for server→device commands over /v1/ws).
+    private var deviceCommandExecutor: DeviceCommandExecutor?
+
     func unlockStoredSession() {
         guard keychain.accessToken != nil else { return }
         isAuthenticated = true
         vaultInitialized = true
         Task { await healthKit?.start() }
+        startDeviceCommandExecutor()
+    }
+
+    private func startDeviceCommandExecutor() {
+        if deviceCommandExecutor == nil {
+            let keychain = self.keychain
+            deviceCommandExecutor = DeviceCommandExecutor(
+                baseURL: Config.apiBaseURL,
+                tokenProvider: { @Sendable in keychain.accessToken },
+                httpClient: makeHTTPClient(),
+            )
+        }
+        let executor = deviceCommandExecutor
+        Task { await executor?.start() }
     }
 
     /// HER-39 — subscribes to `SyncManager` state changes and mirrors them
