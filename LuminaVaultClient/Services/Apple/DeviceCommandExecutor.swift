@@ -10,6 +10,7 @@
 // user is authenticated; cancelled on sign-out. First handler is `ping`
 // (round-trip proof); Apple handlers (reminder_create, …) plug into `handle`.
 
+import EventKit
 import Foundation
 import LuminaVaultShared
 import OSLog
@@ -106,15 +107,71 @@ actor DeviceCommandExecutor {
         switch command.kind {
         case .ping:
             result = DeviceCommandResult(id: command.id, ok: true, payload: ["pong": "1"])
-        case .reminderCreate, .calendarCreate, .deviceFetch, .photoAnalyze:
-            // Apple-SDK handlers land in P2+. Until then, report unsupported so
-            // the server's pending request resolves instead of timing out.
+        case .reminderCreate:
+            result = await createReminder(command)
+        case .calendarCreate:
+            result = await createEvent(command)
+        case .deviceFetch, .photoAnalyze:
+            // Fresh-read / photo handlers land in P3+. Report unsupported so the
+            // server's pending request resolves instead of timing out.
             result = DeviceCommandResult(id: command.id, ok: false, error: "command \(command.kind.rawValue) not yet supported on this device")
         }
         do {
             _ = try await httpClient.execute(DeviceCommandEndpoints.PostResult(result: result))
         } catch {
             log.warning("device-rpc result post failed id=\(command.id.uuidString): \(String(describing: error))")
+        }
+    }
+
+    // MARK: - EventKit handlers (P2)
+
+    private func createReminder(_ command: DeviceCommand) async -> DeviceCommandResult {
+        let store = EKEventStore()
+        guard (try? await store.requestFullAccessToReminders()) == true else {
+            return DeviceCommandResult(id: command.id, ok: false, error: "Reminders permission not granted")
+        }
+        guard let calendar = store.defaultCalendarForNewReminders() else {
+            return DeviceCommandResult(id: command.id, ok: false, error: "no default Reminders list")
+        }
+        let reminder = EKReminder(eventStore: store)
+        reminder.title = command.payload["title"] ?? "Reminder"
+        reminder.calendar = calendar
+        if let notes = command.payload["notes"], !notes.isEmpty { reminder.notes = notes }
+        if let dueStr = command.payload["due"], !dueStr.isEmpty,
+           let due = ISO8601DateFormatter().date(from: dueStr) {
+            reminder.dueDateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: due)
+        }
+        do {
+            try store.save(reminder, commit: true)
+            return DeviceCommandResult(id: command.id, ok: true, payload: ["id": reminder.calendarItemIdentifier, "title": reminder.title])
+        } catch {
+            return DeviceCommandResult(id: command.id, ok: false, error: "save failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func createEvent(_ command: DeviceCommand) async -> DeviceCommandResult {
+        let store = EKEventStore()
+        guard (try? await store.requestFullAccessToEvents()) == true else {
+            return DeviceCommandResult(id: command.id, ok: false, error: "Calendar permission not granted")
+        }
+        guard let calendar = store.defaultCalendarForNewEvents else {
+            return DeviceCommandResult(id: command.id, ok: false, error: "no default calendar")
+        }
+        let iso = ISO8601DateFormatter()
+        guard let startStr = command.payload["start"], let start = iso.date(from: startStr) else {
+            return DeviceCommandResult(id: command.id, ok: false, error: "invalid start date")
+        }
+        let event = EKEvent(eventStore: store)
+        event.title = command.payload["title"] ?? "Event"
+        event.calendar = calendar
+        event.startDate = start
+        event.endDate = (command.payload["end"].flatMap { iso.date(from: $0) }) ?? start.addingTimeInterval(3600)
+        if let location = command.payload["location"], !location.isEmpty { event.location = location }
+        do {
+            try store.save(event, span: .thisEvent, commit: true)
+            return DeviceCommandResult(id: command.id, ok: true, payload: ["id": event.eventIdentifier ?? "", "title": event.title])
+        } catch {
+            return DeviceCommandResult(id: command.id, ok: false, error: "save failed: \(error.localizedDescription)")
         }
     }
 
