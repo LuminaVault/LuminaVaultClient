@@ -67,6 +67,7 @@ struct HermesGatewaysPaneView: View {
         case .discord: "gamecontroller.fill"
         case .slack: "number"
         case .whatsapp: "bubble.left.fill"
+        case .email: "envelope.fill"
         }
     }
 }
