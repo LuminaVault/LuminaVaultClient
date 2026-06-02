@@ -59,6 +59,15 @@ struct SettingsRootView: View {
                                     securityViewModel: SecuritySettingsViewModel(keychain: appState.keychain)
                                 )
                             }
+                            LVSettingsDivider()
+                            // Apple Ecosystem Integration P0 — per-domain data-access consent.
+                            LVSettingsRow("Data Access", icon: .lockShield) {
+                                DataAccessView(
+                                    vm: DataAccessViewModel(
+                                        client: AppleConsentHTTPClient(client: appState.makeHTTPClient())
+                                    )
+                                )
+                            }
                         }
 
                         LVSectionCard("Connections") {
