@@ -148,7 +148,7 @@ final class HermesGatewayViewModel {
     /// without re-pasting the auth header.
     func submit() async {
         guard validateBaseUrl(baseUrlInput) else {
-            lastError = "Base URL must start with https://"
+            lastError = "Enter a valid http:// or https:// URL with a host."
             return
         }
         isWorking = true
@@ -238,7 +238,41 @@ final class HermesGatewayViewModel {
     private func validateBaseUrl(_ raw: String) -> Bool {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: trimmed) else { return false }
-        return url.scheme?.lowercased() == "https" && (url.host?.isEmpty == false)
+        let scheme = url.scheme?.lowercased()
+        return (scheme == "https" || scheme == "http") && (url.host?.isEmpty == false)
+    }
+
+    /// Non-nil when the typed URL uses insecure transport — shown as a
+    /// caution banner in the editing form. The server now accepts these
+    /// (BYO_HERMES_REQUIRE_HTTPS=false) but they trade away transport
+    /// security: `http://` sends the auth header in plaintext, and a bare
+    /// IP can't present a valid TLS certificate.
+    var transportWarning: String? {
+        let trimmed = baseUrlInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed), let host = url.host, !host.isEmpty else {
+            return nil
+        }
+        if url.scheme?.lowercased() == "http" {
+            return "No TLS — your auth token and traffic are sent in plaintext over http://. "
+                + "Use https:// with a domain whenever possible."
+        }
+        if Self.isBareIP(host) {
+            return "Raw IP address — there's no certificate to validate, so the connection "
+                + "can't be authenticated. A domain + HTTPS is safer."
+        }
+        return nil
+    }
+
+    /// Detects a bare IPv4/IPv6 literal host (no domain). IPv6 hosts from
+    /// `URL.host` may arrive bracket-stripped; a `:` is a sufficient tell.
+    private static func isBareIP(_ host: String) -> Bool {
+        if host.contains(":") { return true }
+        let parts = host.split(separator: ".")
+        guard parts.count == 4 else { return false }
+        return parts.allSatisfy { part in
+            guard let n = Int(part) else { return false }
+            return (0 ... 255).contains(n)
+        }
     }
 
     private static func makeConfiguredState(from config: HermesConfigGetResponse) -> State {

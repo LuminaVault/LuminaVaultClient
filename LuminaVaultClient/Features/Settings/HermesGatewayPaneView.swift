@@ -72,15 +72,19 @@ struct HermesGatewayPaneView: View {
         Section {
             DisclosureGroup("How do I expose my Hermes?") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("LuminaVault's server connects to your Hermes on your behalf, so it must be reachable from the public internet over **https://**. Local/LAN addresses and plain http:// are rejected.")
+                    Text("LuminaVault's server connects to your Hermes on your behalf, so it must be reachable from the **public internet**. Local/LAN, localhost and private IPs are always rejected.")
                     Divider()
-                    Text("**Public HTTPS URL**")
+                    Text("**Public HTTPS URL** (recommended)")
                         .font(.subheadline.weight(.semibold))
                     Text("Put Hermes behind TLS on a domain you control, e.g. `https://hermes.yourdomain.com` (Caddy/Nginx/Traefik reverse proxy).")
                     Divider()
                     Text("**Cloudflare Tunnel**")
                         .font(.subheadline.weight(.semibold))
                     Text("No port-forwarding and works behind CGNAT. Run `cloudflared tunnel` on the VPS and paste the resulting `https://…` hostname.")
+                    Divider()
+                    Text("**Public IP / http:// (advanced)**")
+                        .font(.subheadline.weight(.semibold))
+                    Text("A bare public IP or plain `http://` is allowed but insecure — the auth token is sent in plaintext and the connection can't be verified. Only use on a trusted network.")
                 }
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -139,7 +143,15 @@ struct HermesGatewayPaneView: View {
         } header: {
             Text("Hermes URL")
         } footer: {
-            Text("Must use https:// and be reachable from the public internet. Self-signed certificates are not supported.")
+            Text("Must be reachable from the public internet. https:// with a domain is strongly recommended; http:// and raw IPs are allowed but insecure (see warning below). Private/LAN addresses are rejected.")
+        }
+
+        if let warning = viewModel.transportWarning {
+            Section {
+                Label(warning, systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+            }
         }
 
         Section {
@@ -192,7 +204,7 @@ struct HermesGatewayPaneView: View {
             let rotate = prefilledHasAuthHeader ? " Leave blank to keep the existing token." : ""
             return "Sent as an Authorization: Bearer header.\(rotate) Credentials are never returned in plaintext after save."
         case .basic:
-            return "For a password-protected Hermes (HTTP Basic auth). Combined into an Authorization header and sent only over https://."
+            return "For a password-protected Hermes (HTTP Basic auth). Combined into an Authorization header. Use https:// so the credentials aren't sent in plaintext."
         }
     }
 }
