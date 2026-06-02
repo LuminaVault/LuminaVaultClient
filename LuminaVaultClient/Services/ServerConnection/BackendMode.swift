@@ -28,23 +28,44 @@ enum BackendMode: String, CaseIterable, Identifiable, Sendable {
     var subtitle: String {
         switch self {
         case .hosted: "luminavault.example managed instance."
-        case .byo: "Your own Hermes URL (HER-218)."
+        case .byo: "Point at your own self-hosted LuminaVault server."
         case .tailscale: "MagicDNS host on your tailnet."
         case .localhost: "127.0.0.1 for dev rigs."
         }
     }
 
-    /// Default URL for the mode. BYO / Tailscale fall through to the
-    /// dedicated Hermes Gateway override (HER-218) which is the
-    /// source of truth for custom hosts; we surface the hosted URL
-    /// here as a sensible fallback when the override isn't set.
+    /// Default URL for the mode. `.byo` resolves to the user-entered
+    /// self-hosted server URL (`BYOServerStore`); when none is set yet
+    /// we fall back to the hosted URL so the app never points at nil.
+    /// `.tailscale` still falls through to the Hermes Gateway override
+    /// (HER-218) — out of scope for the BYO-server feature.
     var defaultBaseURL: URL {
         switch self {
         case .hosted: return Config.hostedAPIBaseURL
-        case .byo: return Config.hostedAPIBaseURL
+        case .byo: return BYOServerStore.url ?? Config.hostedAPIBaseURL
         case .tailscale: return Config.hostedAPIBaseURL
         case .localhost: return URL(string: "http://localhost:8080")!
         }
+    }
+}
+
+/// Persists the user-entered base URL for `.byo` (self-hosted LuminaVault
+/// server) mode. The URL is not a secret, so UserDefaults is sufficient —
+/// the bearer token earned by logging in against that server still lives in
+/// the keychain like any other session.
+enum BYOServerStore {
+    static let userDefaultsKey = "lv.serverConnection.byoBaseURL"
+
+    static var url: URL? {
+        guard let raw = UserDefaults.standard.string(forKey: userDefaultsKey),
+              !raw.isEmpty,
+              let url = URL(string: raw) else { return nil }
+        return url
+    }
+
+    /// Pass a trimmed `http(s)://host` string, or `nil` to clear.
+    static func set(_ raw: String?) {
+        UserDefaults.standard.set(raw, forKey: userDefaultsKey)
     }
 }
 

@@ -8,6 +8,7 @@ import Foundation
 
 protocol HealthClientProtocol: Sendable {
     func isOnline() async -> Bool
+    func isReachable(baseURL: URL) async -> Bool
 }
 
 final class HealthHTTPClient: HealthClientProtocol {
@@ -20,7 +21,14 @@ final class HealthHTTPClient: HealthClientProtocol {
     }
 
     func isOnline() async -> Bool {
-        guard let url = URL(string: "/health", relativeTo: Config.apiBaseURL) else {
+        await isReachable(baseURL: Config.apiBaseURL)
+    }
+
+    /// Probes `GET <baseURL>/health`. Used both by the System Status card
+    /// (against the active base URL) and the BYO server picker, which tests
+    /// a user-entered URL *before* persisting it as the active endpoint.
+    func isReachable(baseURL: URL) async -> Bool {
+        guard let url = URL(string: "/health", relativeTo: baseURL) else {
             return false
         }
         var req = URLRequest(url: url)

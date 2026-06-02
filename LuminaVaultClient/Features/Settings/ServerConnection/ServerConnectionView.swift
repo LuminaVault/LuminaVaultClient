@@ -21,11 +21,46 @@ final class ServerConnectionViewModel {
     var soulBody: String = ""
     var soulSaving: Bool = false
     var mode: BackendMode
+    // BYO LuminaVault server (self-hosted) editor state.
+    var byoURLInput: String = ""
+    var byoTesting: Bool = false
+    var byoError: String?
     private let soulClient: SoulClientProtocol
+    private let healthClient: HealthClientProtocol
 
-    init(soulClient: SoulClientProtocol) {
+    init(soulClient: SoulClientProtocol, healthClient: HealthClientProtocol = HealthHTTPClient()) {
         self.soulClient = soulClient
+        self.healthClient = healthClient
         self.mode = BackendModeStore.current
+        self.byoURLInput = BYOServerStore.url?.absoluteString ?? ""
+    }
+
+    /// Caution banner when the typed BYO URL trades away transport security.
+    var byoTransportWarning: String? {
+        URLValidation.transportWarning(for: byoURLInput)
+    }
+
+    /// Validates + health-probes the typed URL, then persists it and switches
+    /// to `.byo`. Switching backend mode posts `modeChangedNotification`,
+    /// which the app root observes to force a clean re-login against the new
+    /// server (the existing session token belongs to the old endpoint).
+    func testAndSave() async {
+        let trimmed = byoURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard URLValidation.isValidBaseURL(trimmed), let url = URL(string: trimmed) else {
+            byoError = "Enter a valid http:// or https:// URL with a host."
+            return
+        }
+        byoError = nil
+        byoTesting = true
+        defer { byoTesting = false }
+        let ok = await healthClient.isReachable(baseURL: url)
+        guard ok else {
+            byoError = "Couldn't reach \(url.host ?? trimmed)/health. "
+                + "Check the URL and that your server is running."
+            return
+        }
+        BYOServerStore.set(trimmed)
+        setMode(.byo)
     }
 
     func load() async {
@@ -113,10 +148,52 @@ struct ServerConnectionView: View {
                     .buttonStyle(.plain)
                 }
             }
-            Text("Per-mode URL is configured in Advanced → Hermes Gateway (HER-218).")
+            if vm.mode == .byo {
+                byoEditor
+            }
+            Text("Tailscale URLs are configured in Advanced → Hermes Gateway (HER-218).")
                 .font(LVTypography.caption.font)
                 .foregroundStyle(Color.lvTextMuted)
         }
+    }
+
+    private var byoEditor: some View {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
+            Text("Self-hosted server URL")
+                .font(LVTypography.fieldLabel.font)
+                .foregroundStyle(palette.textPrimary)
+            TextField("https://vault.example.com", text: $vm.byoURLInput)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.URL)
+                .font(LVTypography.mono.font)
+                .padding(LVSpacing.sm)
+                .background(palette.backgroundBase.opacity(0.6))
+                .clipShape(RoundedRectangle(cornerRadius: LVRadius.md))
+            if let warning = vm.byoTransportWarning {
+                Text(warning)
+                    .font(LVTypography.caption.font)
+                    .foregroundStyle(.orange)
+            }
+            if let error = vm.byoError {
+                Text(error)
+                    .font(LVTypography.caption.font)
+                    .foregroundStyle(.red)
+            }
+            HStack {
+                Spacer()
+                Button("Test & Save") { Task { await vm.testAndSave() } }
+                    .buttonStyle(.borderedProminent)
+                    .tint(palette.primary)
+                    .disabled(vm.byoTesting || vm.byoURLInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            Text("Saving signs you out so you can log in against your server.")
+                .font(LVTypography.caption.font)
+                .foregroundStyle(palette.textSecondary)
+        }
+        .padding(LVSpacing.md)
+        .background(palette.backgroundBase.opacity(0.4))
+        .clipShape(RoundedRectangle(cornerRadius: LVRadius.md))
     }
 
     private var soulSection: some View {

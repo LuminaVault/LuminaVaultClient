@@ -57,9 +57,16 @@ final class MockInsightsClient: InsightsClientProtocol, @unchecked Sendable {
 final class MockHealthClient: HealthClientProtocol, @unchecked Sendable {
     var online = true
     private(set) var callCount = 0
+    private(set) var lastProbedBaseURL: URL?
 
     func isOnline() async -> Bool {
         callCount += 1
+        return online
+    }
+
+    func isReachable(baseURL: URL) async -> Bool {
+        callCount += 1
+        lastProbedBaseURL = baseURL
         return online
     }
 }

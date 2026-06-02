@@ -383,6 +383,20 @@ struct LuminaVaultClientApp: App {
                     await appState.signOut()
                 }
             }
+            // BYO server: switching backend mode (or saving a new self-hosted
+            // URL) changes which server `Config.apiBaseURL` resolves to. The
+            // keychain holds a single session token tied to the *old* server,
+            // so sign the user out and route them to the auth screen, which
+            // now points at the newly-selected endpoint.
+            .task {
+                for await _ in NotificationCenter.default.notifications(
+                    named: BackendModeStore.modeChangedNotification
+                ) {
+                    if appState.isAuthenticated {
+                        await appState.signOut()
+                    }
+                }
+            }
             // HER-34 — bring the capture coordinator up once the vault
             // is initialized. Stop it on sign-out so SwiftData / NWPath
             // resources don't leak across sessions.
