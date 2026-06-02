@@ -14,6 +14,9 @@ import EventKit
 import Foundation
 import LuminaVaultShared
 import OSLog
+import Photos
+import UIKit
+import Vision
 
 private let log = Logger(subsystem: "com.luminavault", category: "apple.device-rpc")
 
@@ -183,8 +186,63 @@ actor DeviceCommandExecutor {
         switch command.domain {
         case .calendar: return await fetchEvents(command)
         case .reminders: return await fetchReminders(command)
+        case .photos: return await fetchPhotos(command)
         default:
             return DeviceCommandResult(id: command.id, ok: false, error: "device_fetch not supported for \(command.domain?.rawValue ?? "unknown")")
+        }
+    }
+
+    // MARK: - Photos (P3) — on-device OCR; only derived text leaves the device.
+
+    private func fetchPhotos(_ command: DeviceCommand) async -> DeviceCommandResult {
+        let status = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+        guard status == .authorized || status == .limited else {
+            return DeviceCommandResult(id: command.id, ok: false, error: "Photos permission not granted")
+        }
+        let limit = Int(command.payload["limit"] ?? "10") ?? 10
+        let options = PHFetchOptions()
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        options.fetchLimit = limit
+        let fetch = PHAsset.fetchAssets(with: .image, options: options)
+        var assets: [PHAsset] = []
+        fetch.enumerateObjects { asset, _, _ in assets.append(asset) }
+
+        let iso = ISO8601DateFormatter()
+        var items: [[String: String]] = []
+        for asset in assets {
+            let text = await ocrText(for: asset)
+            items.append([
+                "takenAt": asset.creationDate.map { iso.string(from: $0) } ?? "",
+                "text": String(text.prefix(2000)),
+                "screenshot": asset.mediaSubtypes.contains(.photoScreenshot) ? "true" : "false",
+            ])
+        }
+        return Self.encodeItems(command.id, items)
+    }
+
+    private func ocrText(for asset: PHAsset) async -> String {
+        let image: UIImage? = await withCheckedContinuation { cont in
+            let opts = PHImageRequestOptions()
+            opts.deliveryMode = .highQualityFormat // single callback
+            opts.isNetworkAccessAllowed = true
+            opts.isSynchronous = false
+            PHImageManager.default().requestImage(
+                for: asset,
+                targetSize: CGSize(width: 1280, height: 1280),
+                contentMode: .aspectFit,
+                options: opts,
+            ) { img, _ in cont.resume(returning: img) }
+        }
+        guard let cg = image?.cgImage else { return "" }
+        return await withCheckedContinuation { cont in
+            let request = VNRecognizeTextRequest { req, _ in
+                let lines = (req.results as? [VNRecognizedTextObservation])?
+                    .compactMap { $0.topCandidates(1).first?.string } ?? []
+                cont.resume(returning: lines.joined(separator: "\n"))
+            }
+            request.recognitionLevel = .accurate
+            do { try VNImageRequestHandler(cgImage: cg, options: [:]).perform([request]) }
+            catch { cont.resume(returning: "") }
         }
     }
 
