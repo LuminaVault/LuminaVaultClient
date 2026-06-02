@@ -46,4 +46,31 @@ enum HermesGatewaysEndpoints {
         var path: String { "/v1/me/hermes-gateways/\(id.rawValue)/test" }
         var method: HTTPMethod { .post }
     }
+
+    // Actuation — apply all configured gateways to the running container:
+    //   POST /v1/me/hermes-gateways/apply              -> StartHermesGatewayApplyResponse
+    //   GET  /v1/me/hermes-gateways/apply/{jobID}      -> HermesGatewayApplyJobStatus (poll)
+    //   GET  /v1/me/hermes-gateways/apply/{jobID}/stream  (SSE HermesGatewayApplyEvent)
+
+    struct Apply: Endpoint {
+        typealias Response = StartHermesGatewayApplyResponse
+        var path: String { "/v1/me/hermes-gateways/apply" }
+        var method: HTTPMethod { .post }
+    }
+
+    struct ApplyStatus: Endpoint {
+        typealias Response = HermesGatewayApplyJobStatus
+        let jobID: UUID
+        var path: String { "/v1/me/hermes-gateways/apply/\(jobID.uuidString.lowercased())" }
+        var method: HTTPMethod { .get }
+    }
+
+    struct ApplyStream: StreamingEndpoint {
+        typealias Event = HermesGatewayApplyEvent
+        let jobID: UUID
+        var path: String { "/v1/me/hermes-gateways/apply/\(jobID.uuidString.lowercased())/stream" }
+        var method: HTTPMethod { .get }
+        // A container restart takes tens of seconds; keep the SSE generous.
+        var streamTimeout: TimeInterval { 180 }
+    }
 }

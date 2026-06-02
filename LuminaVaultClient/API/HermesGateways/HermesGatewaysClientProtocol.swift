@@ -14,4 +14,9 @@ protocol HermesGatewaysClientProtocol: Sendable {
     func upsert(_ id: HermesGatewayID, _ body: HermesGatewayPutRequest) async throws -> HermesGatewayCatalogEntry
     func delete(_ id: HermesGatewayID) async throws
     func test(_ id: HermesGatewayID) async throws -> HermesGatewayTestResponse
+
+    // Actuation — apply saved gateways to the running container with progress.
+    func startApply() async throws -> StartHermesGatewayApplyResponse
+    func applyStatus(_ jobID: UUID) async throws -> HermesGatewayApplyJobStatus
+    func applyStream(_ jobID: UUID) -> AsyncThrowingStream<HermesGatewayApplyEvent, any Error>
 }
