@@ -4,8 +4,9 @@ default_platform(:ios)
 #
 # Prereqs (one-time):
 # - `fastlane match init` against a PRIVATE git repo for certs.
-# - `bundle exec fastlane match appstore --app_identifier com.lumina.fernando.beta`
-#   to seed beta signing material into the match repo.
+# - `bundle exec fastlane match appstore --app_identifier com.lumina.fernando`
+#   to seed signing material into the match repo (one identity for TestFlight
+#   and App Store).
 # - GitHub repo secrets: MATCH_GIT_URL, MATCH_PASSWORD, APP_STORE_CONNECT_API_KEY_ID,
 #   APP_STORE_CONNECT_API_KEY_ISSUER_ID, APP_STORE_CONNECT_API_KEY_KEY (base64
 #   of .p8 file contents), FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD.
@@ -25,23 +26,26 @@ platform :ios do
     end
   end
 
-  desc "Upload a Beta build to TestFlight"
+  desc "Upload a TestFlight build (single identity: production Release build)"
   lane :beta do
+    # One identity: TestFlight ships the production `com.lumina.fernando`
+    # Release build (same API, DB, OAuth clients, APNS, passkeys as App Store).
+    # The legacy `.beta` bundle / Beta config is retired.
     match(
       type: "appstore",
-      app_identifier: "com.lumina.fernando.beta",
+      app_identifier: "com.lumina.fernando",
       readonly: ENV["CI"] ? true : false
     )
     build_app(
       project: "LuminaVaultClient.xcodeproj",
       scheme: "LuminaVaultClient",
-      configuration: "Beta",
+      configuration: "Release",
       export_method: "app-store",
       xcargs: "BUILD_NUMBER=#{ENV['BUILD_NUMBER'] || 1}",
       clean: true
     )
     upload_to_testflight(
-      app_identifier: "com.lumina.fernando.beta",
+      app_identifier: "com.lumina.fernando",
       skip_waiting_for_build_processing: true,
       changelog: ENV["CHANGELOG"] || "Latest internal build."
     )
