@@ -107,6 +107,7 @@ final class AppState {
         if isAuthenticated {
             sharedSessionKeychain.accessToken = keychain.accessToken
             Task { await healthKit?.start() }
+            startCalendarSync()
         }
     }
 
@@ -118,12 +119,37 @@ final class AppState {
     /// started on auth, listens for server→device commands over /v1/ws).
     private var deviceCommandExecutor: DeviceCommandExecutor?
 
+    /// Apple Calendar (EventKit) selective-sync — lazily built, started on
+    /// auth, consent-gated on `.calendar`. Pushes derived event metadata to
+    /// the server cache so Hermes can read the schedule in the background.
+    private var calendarSyncCoordinator: CalendarSyncCoordinator?
+
+    private func startCalendarSync() {
+        if calendarSyncCoordinator == nil {
+            let http = makeHTTPClient()
+            calendarSyncCoordinator = CalendarSyncCoordinator(
+                service: CalendarSyncService(httpClient: http),
+                consentClient: AppleConsentHTTPClient(client: http),
+            )
+        }
+        let coordinator = calendarSyncCoordinator
+        Task { await coordinator?.start() }
+    }
+
+    /// Foreground trigger — re-pushes the EventKit window so the server cache
+    /// stays fresh between background change notifications.
+    func syncCalendarOnForeground() {
+        let coordinator = calendarSyncCoordinator
+        Task { await coordinator?.sync() }
+    }
+
     func unlockStoredSession() {
         guard keychain.accessToken != nil else { return }
         isAuthenticated = true
         vaultInitialized = true
         Task { await healthKit?.start() }
         startDeviceCommandExecutor()
+        startCalendarSync()
     }
 
     private func startDeviceCommandExecutor() {
@@ -291,6 +317,7 @@ final class AppState {
         vaultInitialized = response.vaultInitialized
         isAuthenticated = true
         Task { await healthKit?.start() }
+        startCalendarSync()
         // PostHog: identify user so all subsequent events are attributed to them
         // Prefer email if present; otherwise fall back to userId
         let distinctId = response.email ?? response.userId.uuidString
@@ -318,6 +345,8 @@ final class AppState {
         PostHogSDK.shared.capture("user_signed_out")
         PostHogSDK.shared.reset()
         Task { await healthKit?.stop() }
+        calendarSyncCoordinator?.stop()
+        calendarSyncCoordinator = nil
         // HER-185 — tear down RC identity + customer-info stream before we
         // drop the user from local state. Snapshot the service so the
         // detached task can run after `billingService` is nilled out.

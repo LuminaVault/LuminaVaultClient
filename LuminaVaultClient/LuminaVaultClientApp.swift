@@ -368,6 +368,10 @@ struct LuminaVaultClientApp: App {
                     Task {
                         await captureCoordinator?.drainShareExtensionQueue()
                     }
+                    // Apple Calendar selective-sync — re-push the EventKit
+                    // window on every foreground so the server cache the
+                    // `calendar_query` Hermes tool reads stays fresh.
+                    appState.syncCalendarOnForeground()
                 } else if newPhase == .background {
                     // HER-39: arm the next BGTaskScheduler runs so the sync
                     // engine can drain its queue while the app is suspended.
