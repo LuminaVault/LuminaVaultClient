@@ -10,7 +10,7 @@ enum Config {
     }
 
     static var hostedAPIBaseURL: URL {
-        URL(string: infoString("API_BASE_URL") ?? "https://api.luminavault.com")!
+        URL(string: infoString("API_BASE_URL") ?? "https://api.luminavault.fyi")!
     }
 
     /// Provider client IDs are read from Info.plist keys so they can be
@@ -56,11 +56,11 @@ enum Config {
     /// Defaults point at production luminavault.com but can be overridden
     /// per-environment via Info.plist keys `LV_TERMS_URL` / `LV_PRIVACY_URL`.
     static var termsOfServiceURL: URL {
-        URL(string: infoString("LV_TERMS_URL") ?? "https://luminavault.com/terms")!
+        URL(string: infoString("LV_TERMS_URL") ?? "https://luminavault.fyi/terms")!
     }
 
     static var privacyPolicyURL: URL {
-        URL(string: infoString("LV_PRIVACY_URL") ?? "https://luminavault.com/privacy")!
+        URL(string: infoString("LV_PRIVACY_URL") ?? "https://luminavault.fyi/privacy")!
     }
 
     /// HER-298 — social handles surfaced from Settings → About. Placeholder
@@ -80,11 +80,11 @@ enum Config {
 
     /// HER-298 — brand + support links surfaced from Settings → About.
     static var websiteURL: URL {
-        URL(string: infoString("LV_WEBSITE_URL") ?? "https://luminavault.com")!
+        URL(string: infoString("LV_WEBSITE_URL") ?? "https://luminavault.fyi")!
     }
 
     static var supportEmail: String {
-        infoString("LV_SUPPORT_EMAIL") ?? "support@luminavault.com"
+        infoString("LV_SUPPORT_EMAIL") ?? "support@luminavault.fyi"
     }
 
     /// HER-298 — derived version string for the About pane. Reads
