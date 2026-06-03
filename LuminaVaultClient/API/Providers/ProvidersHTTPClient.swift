@@ -25,4 +25,16 @@ final class ProvidersHTTPClient: ProvidersClientProtocol {
     func test(_ provider: ProviderID) async throws -> ProviderTestResponse {
         try await client.execute(ProvidersEndpoints.Test(provider: provider))
     }
+
+    func listPool(_ provider: ProviderID) async throws -> ProviderPoolListResponse {
+        try await client.execute(ProvidersEndpoints.ListPool(provider: provider))
+    }
+
+    func addPool(_ provider: ProviderID, _ body: ProviderPoolAddRequest) async throws -> ProviderPoolKeyDTO {
+        try await client.execute(ProvidersEndpoints.AddPool(provider: provider, request: body))
+    }
+
+    func deletePool(_ provider: ProviderID, keyID: UUID) async throws {
+        _ = try await client.execute(ProvidersEndpoints.DeletePool(provider: provider, keyID: keyID))
+    }
 }

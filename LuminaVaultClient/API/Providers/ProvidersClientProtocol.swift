@@ -13,4 +13,9 @@ protocol ProvidersClientProtocol {
     func upsert(_ provider: ProviderID, _ body: ProviderCredentialPutRequest) async throws -> ProviderCredentialDTO
     func delete(_ provider: ProviderID) async throws
     func test(_ provider: ProviderID) async throws -> ProviderTestResponse
+
+    /// Round-robin credential pool (extra keys beyond the primary).
+    func listPool(_ provider: ProviderID) async throws -> ProviderPoolListResponse
+    func addPool(_ provider: ProviderID, _ body: ProviderPoolAddRequest) async throws -> ProviderPoolKeyDTO
+    func deletePool(_ provider: ProviderID, keyID: UUID) async throws
 }

@@ -38,4 +38,29 @@ enum ProvidersEndpoints {
         var path: String { "/v1/me/providers/\(provider.rawValue)/test" }
         var method: HTTPMethod { .post }
     }
+
+    // Round-robin credential pool.
+    struct ListPool: Endpoint {
+        typealias Response = ProviderPoolListResponse
+        let provider: ProviderID
+        var path: String { "/v1/me/providers/\(provider.rawValue)/pool" }
+        var method: HTTPMethod { .get }
+    }
+
+    struct AddPool: Endpoint {
+        typealias Response = ProviderPoolKeyDTO
+        let provider: ProviderID
+        let request: ProviderPoolAddRequest
+        var path: String { "/v1/me/providers/\(provider.rawValue)/pool" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { request }
+    }
+
+    struct DeletePool: Endpoint {
+        typealias Response = EmptyResponse
+        let provider: ProviderID
+        let keyID: UUID
+        var path: String { "/v1/me/providers/\(provider.rawValue)/pool/\(keyID.uuidString.lowercased())" }
+        var method: HTTPMethod { .delete }
+    }
 }

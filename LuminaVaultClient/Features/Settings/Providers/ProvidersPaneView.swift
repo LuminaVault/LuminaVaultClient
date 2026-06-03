@@ -11,8 +11,10 @@ import SwiftUI
 struct ProvidersPaneView: View {
     @State private var viewModel: ProvidersPaneViewModel
     @State private var editingProvider: ProviderID?
+    private let client: ProvidersClientProtocol
 
     init(client: ProvidersClientProtocol) {
+        self.client = client
         _viewModel = State(initialValue: ProvidersPaneViewModel(client: client))
     }
 
@@ -32,6 +34,22 @@ struct ProvidersPaneView: View {
                 }
             } footer: {
                 Text("Falls back through your chain automatically when a provider runs out of credits or rate-limits.")
+                    .font(LVTypography.footnote.font)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                ForEach(ProviderID.allCases, id: \.self) { provider in
+                    NavigationLink {
+                        ProviderPoolView(client: client, provider: provider)
+                    } label: {
+                        Text(ProvidersPaneViewModel.displayName(for: provider))
+                    }
+                }
+            } header: {
+                Text("Round-robin key pools")
+            } footer: {
+                Text("Add extra API keys per provider; requests rotate across them to spread rate limits.")
                     .font(LVTypography.footnote.font)
                     .foregroundStyle(.secondary)
             }
