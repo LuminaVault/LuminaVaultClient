@@ -25,6 +25,15 @@ protocol MemoryClientProtocol: Sendable {
     /// HER-290 — PATCH /v1/memory/{id} with a reviewState body. Server
     /// validates only `pending → approved` / `pending → rejected`.
     func patch(id: UUID, _ request: MemoryPatchRequest) async throws -> MemoryDTO
+
+    /// Phase 2 — GET /v1/memory?limit=&offset= for the memory browser.
+    func list(limit: Int, offset: Int) async throws -> MemoryListResponse
+
+    /// Phase 2 — POST /v1/memory/search semantic search.
+    func search(_ request: MemorySearchRequest) async throws -> MemorySearchResponse
+
+    /// Phase 2 — DELETE /v1/memory/{id}.
+    func delete(id: UUID) async throws
 }
 
 extension MemoryClientProtocol {

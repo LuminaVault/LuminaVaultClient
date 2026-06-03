@@ -48,4 +48,33 @@ enum MemoryEndpoints {
         var method: HTTPMethod { .patch }
         var body: (any Encodable)? { request }
     }
+
+    /// GET `/v1/memory?limit=&offset=` — paged memory list for the browser.
+    struct List: Endpoint {
+        typealias Response = MemoryListResponse
+        let limit: Int
+        let offset: Int
+
+        var path: String { "/v1/memory?limit=\(limit)&offset=\(offset)" }
+        var method: HTTPMethod { .get }
+    }
+
+    /// POST `/v1/memory/search` — semantic search over the tenant's memories.
+    struct Search: Endpoint {
+        typealias Response = MemorySearchResponse
+        let request: MemorySearchRequest
+
+        var path: String { "/v1/memory/search" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { request }
+    }
+
+    /// DELETE `/v1/memory/{id}` — removes a memory (server returns 204).
+    struct Delete: Endpoint {
+        typealias Response = EmptyResponse
+        let id: UUID
+
+        var path: String { "/v1/memory/\(id.uuidString.lowercased())" }
+        var method: HTTPMethod { .delete }
+    }
 }

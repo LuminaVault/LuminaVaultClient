@@ -25,4 +25,16 @@ final class MemoryHTTPClient: MemoryClientProtocol {
     func patch(id: UUID, _ request: MemoryPatchRequest) async throws -> MemoryDTO {
         try await client.execute(MemoryEndpoints.Patch(id: id, request: request))
     }
+
+    func list(limit: Int, offset: Int) async throws -> MemoryListResponse {
+        try await client.execute(MemoryEndpoints.List(limit: limit, offset: offset))
+    }
+
+    func search(_ request: MemorySearchRequest) async throws -> MemorySearchResponse {
+        try await client.execute(MemoryEndpoints.Search(request: request))
+    }
+
+    func delete(id: UUID) async throws {
+        _ = try await client.execute(MemoryEndpoints.Delete(id: id))
+    }
 }

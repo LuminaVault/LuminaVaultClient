@@ -696,4 +696,16 @@ private struct NoMemoryClient: MemoryClientProtocol {
     func patch(id: UUID, _ request: MemoryPatchRequest) async throws -> MemoryDTO {
         throw APIError.unauthorized
     }
+
+    func list(limit: Int, offset: Int) async throws -> MemoryListResponse {
+        throw APIError.unauthorized
+    }
+
+    func search(_ request: MemorySearchRequest) async throws -> MemorySearchResponse {
+        throw APIError.unauthorized
+    }
+
+    func delete(id: UUID) async throws {
+        throw APIError.unauthorized
+    }
 }

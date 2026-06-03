@@ -44,9 +44,14 @@ struct SettingsRootView: View {
                         }
 
                         // Phase 1 — post-onboarding SOUL.md personality editor.
+                        // Phase 2 — direct memory browse/edit/delete.
                         LVSectionCard("Your Agent") {
                             LVSettingsRow("Personality", icon: .brainHeadProfile) {
                                 SoulEditorView(client: soulClient)
+                            }
+                            LVSettingsDivider()
+                            LVSettingsRow("Memories", icon: .brain) {
+                                MemoryBrowserView(client: memoryClient)
                             }
                         }
 
@@ -210,6 +215,10 @@ struct SettingsRootView: View {
 
     private var soulClient: any SoulClientProtocol {
         SoulHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var memoryClient: any MemoryClientProtocol {
+        MemoryHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var vaultClient: any VaultClientProtocol {
