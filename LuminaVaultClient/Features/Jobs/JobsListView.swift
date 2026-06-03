@@ -100,6 +100,11 @@ private struct JobRow: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(palette.textPrimary)
                 HStack(spacing: 8) {
+                    if !job.enabled {
+                        Label("Paused", systemImage: "pause.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(palette.textSecondary)
+                    }
                     if let schedule = job.schedule ?? job.scheduleOverride {
                         Label(schedule, systemImage: "clock")
                             .font(.system(size: 11))
@@ -115,6 +120,7 @@ private struct JobRow: View {
             Spacer()
             LVIconView(.chevronRight, size: 13, tint: palette.textSecondary)
         }
+        .opacity(job.enabled ? 1 : 0.55)
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous)

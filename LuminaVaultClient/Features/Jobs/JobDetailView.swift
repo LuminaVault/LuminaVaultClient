@@ -13,7 +13,11 @@ final class JobDetailViewModel {
     enum LoadState: Equatable { case loading, loaded, failed(String) }
     var state: LoadState = .loading
     var runs: [SkillRunDTO] = []
-    let job: SkillDTO
+    /// Mutable so pause/resume reflects the PATCH response.
+    private(set) var job: SkillDTO
+    /// True while a run-now / pause action is in flight.
+    var isWorking = false
+    var actionError: String?
     private let client: SkillsClientProtocol
 
     init(client: SkillsClientProtocol, job: SkillDTO) {
@@ -28,6 +32,40 @@ final class JobDetailViewModel {
             state = .loaded
         } catch {
             state = .failed("Couldn't load this job's runs.")
+        }
+    }
+
+    /// Dispatches a manual run now and pulls the refreshed history in.
+    func runNow() async {
+        guard !isWorking else { return }
+        isWorking = true
+        actionError = nil
+        defer { isWorking = false }
+        do {
+            _ = try await client.run(name: job.name, request: SkillRunRequest(save: true))
+            await refreshRuns()
+        } catch {
+            actionError = "Couldn't run this job now."
+        }
+    }
+
+    /// Pauses (disables) or resumes the job's schedule via skill PATCH.
+    func setEnabled(_ enabled: Bool) async {
+        guard !isWorking else { return }
+        isWorking = true
+        actionError = nil
+        defer { isWorking = false }
+        do {
+            job = try await client.patch(name: job.name, body: SkillPatchRequest(enabled: enabled))
+        } catch {
+            actionError = enabled ? "Couldn't resume this job." : "Couldn't pause this job."
+        }
+    }
+
+    /// Reloads run history without flipping the screen back to `.loading`.
+    private func refreshRuns() async {
+        if let refreshed = try? await client.runs(name: job.name, limit: 50).runs {
+            runs = refreshed
         }
     }
 
@@ -67,6 +105,7 @@ struct JobDetailView: View {
         case .loaded:
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    controls
                     latestResult
                     if !vm.history.isEmpty { historySection }
                 }
@@ -74,6 +113,46 @@ struct JobDetailView: View {
                 .padding(.vertical, 16)
             }
         }
+    }
+
+    @ViewBuilder
+    private var controls: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                Button {
+                    Task { await vm.runNow() }
+                } label: {
+                    Label("Run now", systemImage: "play.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(vm.isWorking)
+
+                Button {
+                    Task { await vm.setEnabled(!vm.job.enabled) }
+                } label: {
+                    Label(
+                        vm.job.enabled ? "Pause" : "Resume",
+                        systemImage: vm.job.enabled ? "pause.fill" : "play.circle"
+                    )
+                }
+                .buttonStyle(.bordered)
+                .disabled(vm.isWorking)
+
+                if vm.isWorking { ProgressView().tint(palette.primary) }
+                Spacer()
+            }
+            if !vm.job.enabled {
+                Text("Paused — this job won't run on its schedule.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.lvTextMuted)
+            }
+            if let error = vm.actionError {
+                Text(error)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.red)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
