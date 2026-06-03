@@ -18,4 +18,7 @@ protocol KanbanClientProtocol: Sendable {
     func patchCard(cardID: UUID, _ req: CardPatchRequest) async throws -> CardDTO
     func deleteCard(cardID: UUID) async throws
     func moveCard(cardID: UUID, _ req: CardMoveRequest) async throws -> CardDTO
+    /// Promote a card to a scheduled Job (vault cron skill). Returns the
+    /// created job as a SkillDTO.
+    func promoteCard(cardID: UUID, _ req: CardPromoteRequest) async throws -> SkillDTO
 }

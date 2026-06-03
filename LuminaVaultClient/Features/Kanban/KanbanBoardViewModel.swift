@@ -130,6 +130,21 @@ final class KanbanBoardViewModel {
         }
     }
 
+    /// Promote a card to a scheduled Job. Reloads the board on success so the
+    /// card's `jobConfig` (now carrying the job slug) is reflected. Returns the
+    /// created job, or nil on failure (with `lastError` set).
+    @discardableResult
+    func promoteCard(_ id: UUID, _ req: CardPromoteRequest) async -> SkillDTO? {
+        do {
+            let job = try await client.promoteCard(cardID: id, req)
+            await load()
+            return job
+        } catch {
+            lastError = errorText(error)
+            return nil
+        }
+    }
+
     // MARK: - Local mutation helpers
 
     private func apply(_ mutate: (inout BoardDTO) -> Void) {

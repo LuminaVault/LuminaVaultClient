@@ -97,4 +97,14 @@ enum KanbanEndpoints {
         var method: HTTPMethod { .post }
         var body: (any Encodable)? { request }
     }
+
+    //   POST   /v1/cards/{cardID}/promote          -> SkillDTO
+    struct PromoteCard: Endpoint {
+        typealias Response = SkillDTO
+        let cardID: UUID
+        let request: CardPromoteRequest
+        var path: String { "/v1/cards/\(cardID)/promote" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { request }
+    }
 }

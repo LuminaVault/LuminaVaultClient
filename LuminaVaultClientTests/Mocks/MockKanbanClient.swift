@@ -22,6 +22,10 @@ final class MockKanbanClient: KanbanClientProtocol, @unchecked Sendable {
     var patchCardResult: Result<CardDTO, Error> = .success(.stub())
     var deleteCardError: Error?
     var moveCardResult: Result<CardDTO, Error> = .success(.stub())
+    var promoteCardResult: Result<SkillDTO, Error> = .success(
+        SkillDTO(id: "job-stub", source: .vault, name: "job-stub", title: "Stub Job",
+                 descriptionText: "", capability: .medium, enabled: true, bodyExcerpt: ""),
+    )
 
     // MARK: - Call recording
 
@@ -38,6 +42,7 @@ final class MockKanbanClient: KanbanClientProtocol, @unchecked Sendable {
         case patchCard(cardID: UUID)
         case deleteCard(UUID)
         case moveCard(cardID: UUID)
+        case promoteCard(cardID: UUID)
     }
 
     // MARK: - Protocol conformance
@@ -90,6 +95,11 @@ final class MockKanbanClient: KanbanClientProtocol, @unchecked Sendable {
     func moveCard(cardID: UUID, _ req: CardMoveRequest) async throws -> CardDTO {
         calls.append(.moveCard(cardID: cardID))
         return try moveCardResult.get()
+    }
+
+    func promoteCard(cardID: UUID, _ req: CardPromoteRequest) async throws -> SkillDTO {
+        calls.append(.promoteCard(cardID: cardID))
+        return try promoteCardResult.get()
     }
 }
 

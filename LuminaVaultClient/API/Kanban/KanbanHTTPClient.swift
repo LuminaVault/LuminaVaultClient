@@ -49,4 +49,8 @@ final class KanbanHTTPClient: KanbanClientProtocol {
     func moveCard(cardID: UUID, _ req: CardMoveRequest) async throws -> CardDTO {
         try await client.execute(KanbanEndpoints.MoveCard(cardID: cardID, request: req))
     }
+
+    func promoteCard(cardID: UUID, _ req: CardPromoteRequest) async throws -> SkillDTO {
+        try await client.execute(KanbanEndpoints.PromoteCard(cardID: cardID, request: req))
+    }
 }

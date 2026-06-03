@@ -9,6 +9,7 @@ struct KanbanCardDetailSheet: View {
     @State private var bodyText: String = ""
     @State private var priority: CardPriority?
     @State private var dueAt: Date?
+    @State private var showPromote = false
 
     var body: some View {
         NavigationStack {
@@ -29,11 +30,28 @@ struct KanbanCardDetailSheet: View {
                         DatePicker("Due", selection: Binding(get: { dueAt ?? .now }, set: { dueAt = $0 }), displayedComponents: .date)
                     }
                 }
+                Section("Job") {
+                    if let job = card.jobConfig, let slug = job.jobSlug {
+                        LabeledContent("Scheduled job", value: slug)
+                        if let cron = job.cron {
+                            LabeledContent("Schedule", value: cron)
+                        }
+                    } else {
+                        Button {
+                            showPromote = true
+                        } label: {
+                            Label("Promote to Job", systemImage: "clock.arrow.2.circlepath")
+                        }
+                    }
+                }
                 Section {
                     Button("Delete", role: .destructive) { Task { await viewModel.deleteCard(card.id); dismiss() } }
                 }
             }
             .navigationTitle("Card")
+            .sheet(isPresented: $showPromote) {
+                KanbanPromoteSheet(card: card, viewModel: viewModel)
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
