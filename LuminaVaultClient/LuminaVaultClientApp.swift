@@ -336,6 +336,10 @@ struct LuminaVaultClientApp: App {
                 if let hex = appDelegate.deviceTokenHex {
                     await appState.deviceRegistration.register(tokenHex: hex)
                 }
+                // Apple Reminders selective-sync — consent-gated start on auth
+                // (cold launch + fresh login). Self-gates on the `reminders`
+                // domain before touching EventKit.
+                appState.startRemindersSync()
                 await appState.loadOnboardingState()
                 // HER-214 — covers the "returning user on a new device"
                 // case where the SOUL quiz is bypassed (server already
@@ -367,6 +371,11 @@ struct LuminaVaultClientApp: App {
                     }
                     Task {
                         await captureCoordinator?.drainShareExtensionQueue()
+                    }
+                    // Re-pull reminders so edits made in the Reminders app
+                    // while backgrounded reach the server cache.
+                    if appState.isAuthenticated {
+                        appState.syncRemindersOnForeground()
                     }
                 } else if newPhase == .background {
                     // HER-39: arm the next BGTaskScheduler runs so the sync

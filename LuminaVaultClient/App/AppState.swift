@@ -118,12 +118,18 @@ final class AppState {
     /// started on auth, listens for server→device commands over /v1/ws).
     private var deviceCommandExecutor: DeviceCommandExecutor?
 
+    /// Apple Reminders selective-sync — lazily built, started on auth.
+    /// Consent-gated on the `reminders` domain; pushes EventKit reminder
+    /// deltas to the server cache the Hermes `reminders_list` tool reads.
+    private var remindersSync: RemindersSyncCoordinator?
+
     func unlockStoredSession() {
         guard keychain.accessToken != nil else { return }
         isAuthenticated = true
         vaultInitialized = true
         Task { await healthKit?.start() }
         startDeviceCommandExecutor()
+        startRemindersSync()
     }
 
     private func startDeviceCommandExecutor() {
@@ -137,6 +143,28 @@ final class AppState {
         }
         let executor = deviceCommandExecutor
         Task { await executor?.start() }
+    }
+
+    /// Apple Reminders selective-sync — start on auth. Built lazily over a
+    /// fresh HTTP client + AppleConsentHTTPClient; the coordinator self-gates
+    /// on the `reminders` consent domain before touching EventKit.
+    func startRemindersSync() {
+        if remindersSync == nil {
+            let httpClient = makeHTTPClient()
+            remindersSync = RemindersSyncCoordinator(
+                service: RemindersSyncService(httpClient: httpClient),
+                consentClient: AppleConsentHTTPClient(client: httpClient),
+            )
+        }
+        let coordinator = remindersSync
+        Task { await coordinator?.start() }
+    }
+
+    /// App-foreground hook — re-pull reminders so edits made in the Reminders
+    /// app while LuminaVault was backgrounded reach the cache.
+    func syncRemindersOnForeground() {
+        let coordinator = remindersSync
+        Task { await coordinator?.sync() }
     }
 
     /// HER-39 — subscribes to `SyncManager` state changes and mirrors them
@@ -318,6 +346,8 @@ final class AppState {
         PostHogSDK.shared.capture("user_signed_out")
         PostHogSDK.shared.reset()
         Task { await healthKit?.stop() }
+        remindersSync?.stop()
+        remindersSync = nil
         // HER-185 — tear down RC identity + customer-info stream before we
         // drop the user from local state. Snapshot the service so the
         // detached task can run after `billingService` is nilled out.
