@@ -22,6 +22,7 @@ struct HermesGatewaysPaneView: View {
             case .loading:
                 Section { ProgressView().frame(maxWidth: .infinity) }
             case let .loaded(items):
+                summarySection(items: items)
                 Section {
                     ForEach(items) { entry in
                         NavigationLink {
@@ -41,6 +42,43 @@ struct HermesGatewaysPaneView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await viewModel.load() }
         .refreshable { await viewModel.refresh() }
+    }
+
+    /// At-a-glance status dashboard: counts by gateway state + an alert when
+    /// any gateway is in error.
+    @ViewBuilder
+    private func summarySection(items: [HermesGatewayCatalogEntry]) -> some View {
+        let verified = items.filter { $0.status == .verified }.count
+        let configured = items.filter { $0.status == .configured }.count
+        let errored = items.filter { $0.status == .error }.count
+        let off = items.filter { $0.status == .notConfigured }.count
+        Section {
+            HStack(alignment: .top) {
+                stat("Verified", verified, .green)
+                stat("Configured", configured, .blue)
+                stat("Error", errored, .red)
+                stat("Off", off, .secondary)
+            }
+            .frame(maxWidth: .infinity)
+            if errored > 0 {
+                Label(
+                    "\(errored) gateway\(errored == 1 ? "" : "s") need attention.",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.red)
+            }
+        } header: {
+            Text("Status")
+        }
+    }
+
+    private func stat(_ label: String, _ count: Int, _ color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text("\(count)").font(.title2.weight(.bold)).foregroundStyle(color)
+            Text(label).font(.caption2).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
