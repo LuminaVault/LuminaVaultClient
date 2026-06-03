@@ -324,7 +324,10 @@ struct MainTabView: View {
                 TasksListView(vm: TasksListViewModel(client: tasksClient))
             ) },
             insightsDestination: { [self] in AnyView(
-                InsightsListView(vm: InsightsListViewModel(client: insightsClient))
+                InsightsListView(
+                    vm: InsightsListViewModel(client: insightsClient),
+                    httpClient: appState.makeHTTPClient(),
+                )
             ) },
             serverConnectionDestination: { [self] in AnyView(
                 ServerConnectionView(vm: ServerConnectionViewModel(soulClient: soulClient))

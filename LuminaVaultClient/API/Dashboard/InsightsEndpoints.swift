@@ -31,4 +31,15 @@ enum InsightsEndpoints {
 
         var method: HTTPMethod { .get }
     }
+
+    /// HER-248 — POST /v1/insights/{id}/dismiss. Soft-dismisses the row so
+    /// it stops appearing in `list`. Server returns 204 No Content.
+    struct Dismiss: Endpoint {
+        typealias Response = EmptyResponse
+
+        let id: UUID
+
+        var path: String { "/v1/insights/\(id.uuidString.lowercased())/dismiss" }
+        var method: HTTPMethod { .post }
+    }
 }
