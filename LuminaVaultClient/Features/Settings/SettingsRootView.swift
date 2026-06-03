@@ -152,6 +152,17 @@ struct SettingsRootView: View {
                                 ServerConnectionView(vm: ServerConnectionViewModel(soulClient: soulClient))
                             }
                             LVSettingsDivider()
+                            // Phase 1 — read-only "is my agent alive + how is
+                            // it wired" snapshot over existing endpoints.
+                            LVSettingsRow("Diagnostics", icon: .shieldBrain) {
+                                HermesDiagnosticsView(
+                                    llmClient: llmPreferencesClient,
+                                    providersClient: providersClient,
+                                    integrationsClient: integrationsClient,
+                                    settingsClient: settingsClient
+                                )
+                            }
+                            LVSettingsDivider()
                             // HER-218 "Hermes Server" moved up to Connections.
                             LVSettingsRow("Messaging Gateways", icon: .bubbleLeftAndBubbleRight) {
                                 HermesGatewaysPaneView(client: hermesGatewaysClient)
