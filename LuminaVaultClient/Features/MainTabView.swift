@@ -371,6 +371,10 @@ struct MainTabView: View {
             kanbanDestination: { [self] in AnyView(
                 KanbanEntryView(client: kanbanClient)
             ) },
+            // HER-56 — Deep Analytics & Patterns dashboard.
+            analyticsDestination: { [self] in AnyView(
+                AnalyticsDashboardScreen(httpClient: appState.makeHTTPClient())
+            ) },
         )
     }
 

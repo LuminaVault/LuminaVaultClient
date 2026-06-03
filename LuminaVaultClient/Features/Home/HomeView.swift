@@ -53,6 +53,9 @@ struct HomeView: View {
     var jobsDestination: (() -> AnyView)? = nil
     /// C6 — Kanban board entry point.
     var kanbanDestination: (() -> AnyView)? = nil
+    /// HER-56 — Deep Analytics & Patterns dashboard (trend graphs). Optional
+    /// so older call sites (tests, previews) keep compiling without wiring it.
+    var analyticsDestination: (() -> AnyView)? = nil
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -197,6 +200,8 @@ struct HomeView: View {
             brainTile(icon: .tabSettings, title: "Profile", subtitle: home?.activeProfileName ?? "—", destination: achievementsDestination)
             // C6 — Kanban board tile.
             brainTile(icon: .layers, title: "Kanban", subtitle: "Board", destination: kanbanDestination)
+            // HER-56 — Deep Analytics & Patterns tile.
+            brainTile(icon: .chartUp, title: "Analytics", subtitle: "Trends", destination: analyticsDestination)
         }
     }
 
