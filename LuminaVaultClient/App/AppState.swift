@@ -107,6 +107,7 @@ final class AppState {
         if isAuthenticated {
             sharedSessionKeychain.accessToken = keychain.accessToken
             Task { await healthKit?.start() }
+            startPhotoIndex()
         }
     }
 
@@ -123,6 +124,23 @@ final class AppState {
     /// deltas to the server cache the Hermes `reminders_list` tool reads.
     private var remindersSync: RemindersSyncCoordinator?
 
+    /// Apple Photos derived-text index coordinator. Lazily built, started on
+    /// auth alongside HealthKit; consent-gated on `.photos` before any scan.
+    @ObservationIgnored private lazy var photoIndexCoordinator: PhotoIndexCoordinator = {
+        let httpClient = makeHTTPClient()
+        return PhotoIndexCoordinator(
+            service: PhotoIndexService(client: httpClient),
+            consentClient: AppleConsentHTTPClient(client: httpClient),
+        )
+    }()
+
+    /// Fires a consent-gated Photos index scan. No-op (and no system prompt)
+    /// unless the user has allowed the `.photos` domain.
+    private func startPhotoIndex() {
+        let coordinator = photoIndexCoordinator
+        Task { await coordinator.start() }
+    }
+
     func unlockStoredSession() {
         guard keychain.accessToken != nil else { return }
         isAuthenticated = true
@@ -130,6 +148,7 @@ final class AppState {
         Task { await healthKit?.start() }
         startDeviceCommandExecutor()
         startRemindersSync()
+        startPhotoIndex()
     }
 
     private func startDeviceCommandExecutor() {
@@ -319,6 +338,7 @@ final class AppState {
         vaultInitialized = response.vaultInitialized
         isAuthenticated = true
         Task { await healthKit?.start() }
+        startPhotoIndex()
         // PostHog: identify user so all subsequent events are attributed to them
         // Prefer email if present; otherwise fall back to userId
         let distinctId = response.email ?? response.userId.uuidString
