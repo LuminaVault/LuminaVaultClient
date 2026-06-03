@@ -96,11 +96,20 @@ final class ChatViewModel {
     /// per-message attachment contract on the server, so the extracted
     /// text is prepended into the outgoing message `content` (see
     /// `wireText`) and the file is cleared once sent.
-    var stagedAttachment: StagedAttachment?
+    /// Phase 2 — multiple context references ride into the next `send()`.
+    /// Each is a file, vault note, photo, or link whose extracted text is
+    /// inlined into the turn (no server attachment contract exists).
+    var stagedReferences: [StagedAttachment] = []
 
-    struct StagedAttachment: Equatable, Sendable {
+    struct StagedAttachment: Equatable, Sendable, Identifiable {
+        let id = UUID()
         let name: String
         let text: String
+
+        init(name: String, text: String) {
+            self.name = name
+            self.text = text
+        }
     }
 
     private let conversationsClient: any ConversationsClientProtocol
@@ -170,19 +179,25 @@ final class ChatViewModel {
 
     var canSend: Bool {
         let hasText = !composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        return (hasText || stagedAttachment != nil)
+        return (hasText || !stagedReferences.isEmpty)
             && !isStreaming
             && phase != .starting
     }
 
-    /// Stage a client-extracted file. Its text rides into the next
-    /// `send()` as a context block prepended to the user's turn.
+    /// Stage a client-extracted reference (file / vault note / link). Its
+    /// text rides into the next `send()` as a context block prepended to the
+    /// user's turn.
     func attach(name: String, text: String) {
-        stagedAttachment = StagedAttachment(name: name, text: text)
+        stagedReferences.append(StagedAttachment(name: name, text: text))
     }
 
+    func removeReference(_ reference: StagedAttachment) {
+        stagedReferences.removeAll { $0.id == reference.id }
+    }
+
+    /// Clears all staged references.
     func clearAttachment() {
-        stagedAttachment = nil
+        stagedReferences.removeAll()
     }
 
     /// Lazy conversation create. Called once on first memory-grounded
@@ -198,16 +213,16 @@ final class ChatViewModel {
 
     func send() {
         let trimmed = composer.trimmingCharacters(in: .whitespacesAndNewlines)
-        let attachment = stagedAttachment
-        guard (!trimmed.isEmpty || attachment != nil), !isStreaming, phase != .starting else { return }
+        let references = stagedReferences
+        guard (!trimmed.isEmpty || !references.isEmpty), !isStreaming, phase != .starting else { return }
         composer = ""
-        stagedAttachment = nil
+        stagedReferences = []
 
-        // The bubble shows just the user's text (+ a compact file marker);
-        // the wire content carries the full extracted file so the model
-        // can reason over it.
-        let displayContent = Self.displayText(typed: trimmed, attachment: attachment)
-        let wireContent = Self.wireText(typed: trimmed, attachment: attachment)
+        // The bubble shows just the user's text (+ compact reference markers);
+        // the wire content carries the full extracted references so the model
+        // can reason over them.
+        let displayContent = Self.displayText(typed: trimmed, references: references)
+        let wireContent = Self.wireText(typed: trimmed, references: references)
 
         lastSentContent = wireContent
         fallbackNotice = nil
@@ -279,6 +294,30 @@ final class ChatViewModel {
         guard let attachment else { return typed }
         let marker = "📎 \(attachment.name)"
         return typed.isEmpty ? marker : "\(marker)\n\(typed)"
+    }
+
+    /// Multi-reference bubble text: one compact marker per reference.
+    static func displayText(typed: String, references: [StagedAttachment]) -> String {
+        guard !references.isEmpty else { return typed }
+        let markers = references.map { "📎 \($0.name)" }.joined(separator: "\n")
+        return typed.isEmpty ? markers : "\(markers)\n\(typed)"
+    }
+
+    /// Multi-reference wire content: each reference in its own fenced block,
+    /// followed by the user's message.
+    static func wireText(typed: String, references: [StagedAttachment]) -> String {
+        guard !references.isEmpty else { return typed }
+        let blocks = references.map { ref in
+            """
+            [Attached: \(ref.name)]
+            \"\"\"
+            \(ref.text)
+            \"\"\"
+            """
+        }.joined(separator: "\n\n")
+        return typed.isEmpty
+            ? "\(blocks)\n\nPlease use the attached context."
+            : "\(blocks)\n\n\(typed)"
     }
 
     /// Outgoing wire content: the extracted file wrapped in a fenced
@@ -664,7 +703,7 @@ final class ChatViewModel {
         displayedAssistant = ""
         pendingSources = []
         fallbackNotice = nil
-        stagedAttachment = nil
+        stagedReferences = []
         phase = .idle
         mascotState = .idle
         if let store = historyStore, let oldID {

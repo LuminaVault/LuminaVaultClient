@@ -14,16 +14,19 @@ struct ComposerBar: View {
     @Binding var text: String
     let canSend: Bool
     let isStreaming: Bool
-    /// Filename of the currently staged attachment, if any. Drives the
-    /// chip shown above the field.
-    let stagedAttachmentName: String?
+    /// Names of the currently staged references. Drives the chips shown
+    /// above the field.
+    let referenceNames: [String]
     @Bindable var voice: VoiceModeController
     let onSend: () -> Void
     let onCancel: () -> Void
     /// Called with a picked file URL (security-scoped). The host extracts
     /// its text and stages it on the view model.
     let onAttach: (URL) -> Void
-    let onClearAttachment: () -> Void
+    /// Removes the staged reference at the given index.
+    let onRemoveReference: (Int) -> Void
+    /// Opens the vault-note `@`-reference picker on the host.
+    let onPickNote: () -> Void
 
     @State private var showImporter = false
 
@@ -35,8 +38,14 @@ struct ComposerBar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: LVSpacing.sm) {
-            if let stagedAttachmentName {
-                ChatAttachmentChip(name: stagedAttachmentName, onRemove: onClearAttachment)
+            if !referenceNames.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: LVSpacing.xs) {
+                        ForEach(Array(referenceNames.enumerated()), id: \.offset) { index, name in
+                            ChatAttachmentChip(name: name, onRemove: { onRemoveReference(index) })
+                        }
+                    }
+                }
             }
 
             HStack(alignment: .center, spacing: LVSpacing.sm) {
@@ -73,8 +82,17 @@ struct ComposerBar: View {
     }
 
     private var attachButton: some View {
-        Button {
-            showImporter = true
+        Menu {
+            Button {
+                showImporter = true
+            } label: {
+                Label("Attach a file", systemImage: "doc")
+            }
+            Button {
+                onPickNote()
+            } label: {
+                Label("Reference a note", systemImage: "text.document")
+            }
         } label: {
             LVIconView(.plusCircleFill, size: 26, tint: palette.glowPrimary)
                 .shadow(color: palette.glowPrimary.opacity(0.6), radius: 8)
@@ -82,7 +100,7 @@ struct ComposerBar: View {
         .lvGlowPress()
         .disabled(voice.isRecording)
         .opacity(voice.isRecording ? 0.4 : 1)
-        .accessibilityLabel("Attach a file")
+        .accessibilityLabel("Add context")
     }
 
     private var field: some View {

@@ -41,6 +41,8 @@ struct ChatView: View {
     /// Transient banner for a failed file extraction (unsupported type,
     /// unreadable, empty). Auto-clears after a few seconds.
     @State private var attachmentError: String?
+    /// Presents the vault-note `@`-reference picker.
+    @State private var showNotePicker = false
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -207,7 +209,7 @@ struct ChatView: View {
                 text: $viewModel.composer,
                 canSend: viewModel.canSend,
                 isStreaming: viewModel.isStreaming,
-                stagedAttachmentName: viewModel.stagedAttachment?.name,
+                referenceNames: viewModel.stagedReferences.map(\.name),
                 voice: viewModel.voice,
                 onSend: {
                     composerFocused = false
@@ -215,9 +217,20 @@ struct ChatView: View {
                 },
                 onCancel: viewModel.cancel,
                 onAttach: handleAttach,
-                onClearAttachment: viewModel.clearAttachment,
+                onRemoveReference: { index in
+                    guard viewModel.stagedReferences.indices.contains(index) else { return }
+                    viewModel.removeReference(viewModel.stagedReferences[index])
+                },
+                onPickNote: { showNotePicker = true },
             )
             .focused($composerFocused)
+            .sheet(isPresented: $showNotePicker) {
+                if let vaultClient {
+                    NavigationStack {
+                        VaultNotePickerView(vaultClient: vaultClient, onPick: handleNotePick)
+                    }
+                }
+            }
         }
         .padding(.bottom, bottomPadding)
         .background(.clear)
@@ -238,6 +251,26 @@ struct ChatView: View {
             return
         }
         uploadToVault(url)
+    }
+
+    /// `@`-reference an existing vault note: read its text and stage it as a
+    /// context reference. The file is already in the vault, so no re-upload.
+    private func handleNotePick(_ file: VaultFileDTO) {
+        guard let vaultClient else { return }
+        let title = file.metadata?.title
+        let name = (title?.isEmpty == false) ? title! : (file.path as NSString).lastPathComponent
+        Task {
+            do {
+                let (data, _) = try await vaultClient.readFile(relativePath: file.path)
+                guard let text = String(data: data, encoding: .utf8), !text.isEmpty else {
+                    showAttachmentError("That note is empty or unreadable.")
+                    return
+                }
+                viewModel.attach(name: name, text: text)
+            } catch {
+                showAttachmentError("Couldn't read that note.")
+            }
+        }
     }
 
     private func uploadToVault(_ url: URL) {
