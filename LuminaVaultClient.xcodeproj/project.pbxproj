@@ -700,6 +700,7 @@
 				INFOPLIST_FILE = LuminaVaultClient/Config/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSCameraUsageDescription = "LuminaVault uses the camera to scan the QR code that signs you in to the web dashboard.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock LuminaVault and your memories.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "LuminaVault reads your HealthKit data so Lumina can surface patterns and nudges from your activity, sleep, and workouts.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "LuminaVault writes mindfulness sessions and notes back to HealthKit when you ask Lumina to.";
@@ -747,6 +748,7 @@
 				INFOPLIST_FILE = LuminaVaultClient/Config/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSCameraUsageDescription = "LuminaVault uses the camera to scan the QR code that signs you in to the web dashboard.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock LuminaVault and your memories.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "LuminaVault reads your HealthKit data so Lumina can surface patterns and nudges from your activity, sleep, and workouts.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "LuminaVault writes mindfulness sessions and notes back to HealthKit when you ask Lumina to.";
@@ -937,6 +939,7 @@
 				INFOPLIST_FILE = LuminaVaultClient/Config/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSCameraUsageDescription = "LuminaVault uses the camera to scan the QR code that signs you in to the web dashboard.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock LuminaVault and your memories.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "LuminaVault reads your HealthKit data so Lumina can surface patterns and nudges from your activity, sleep, and workouts.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "LuminaVault writes mindfulness sessions and notes back to HealthKit when you ask Lumina to.";

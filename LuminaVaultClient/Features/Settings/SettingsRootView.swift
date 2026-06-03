@@ -154,6 +154,12 @@ struct SettingsRootView: View {
                             LVSettingsRow("Update Hermes", icon: .trayAndArrowDown) {
                                 HermesUpdateView(client: systemHermesClient)
                             }
+                            LVSettingsDivider()
+                            // HER — approve a browser session for the web dashboard
+                            // by scanning the QR shown on the LuminaVault website.
+                            LVSettingsRow("Approve Web Sign-In", icon: .door) {
+                                WebSignInApprovalView(client: appState.makeHTTPClient())
+                            }
                             // HER-300/5 — "Model Preferences" was folded into
                             // the new "Intelligence" row under Connections.
                         }
