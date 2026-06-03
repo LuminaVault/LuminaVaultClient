@@ -35,6 +35,8 @@ struct KanbanCardDetailSheet: View {
                         LabeledContent("Scheduled job", value: slug)
                         if let cron = job.cron {
                             LabeledContent("Schedule", value: cron)
+                        } else if let runAt = job.runAt {
+                            LabeledContent("Runs once", value: runAt.formatted(date: .abbreviated, time: .shortened))
                         }
                     } else {
                         Button {
