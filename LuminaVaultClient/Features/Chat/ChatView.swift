@@ -12,6 +12,7 @@
 // quick actions sit well above the composer so they can never overlap
 // or intercept its taps (the cause of the old "typed send does nothing"
 // bug — full-width suggestion buttons stole the send tap).
+import PhotosUI
 import SwiftUI
 
 struct ChatView: View {
@@ -43,6 +44,11 @@ struct ChatView: View {
     @State private var attachmentError: String?
     /// Presents the vault-note `@`-reference picker.
     @State private var showNotePicker = false
+    /// Photo picker + add-link prompt state.
+    @State private var showPhotoPicker = false
+    @State private var photoItem: PhotosPickerItem?
+    @State private var showLinkPrompt = false
+    @State private var linkText = ""
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -222,6 +228,8 @@ struct ChatView: View {
                     viewModel.removeReference(viewModel.stagedReferences[index])
                 },
                 onPickNote: { showNotePicker = true },
+                onPickPhoto: { showPhotoPicker = true },
+                onAddLink: { linkText = ""; showLinkPrompt = true },
             )
             .focused($composerFocused)
             .sheet(isPresented: $showNotePicker) {
@@ -230,6 +238,20 @@ struct ChatView: View {
                         VaultNotePickerView(vaultClient: vaultClient, onPick: handleNotePick)
                     }
                 }
+            }
+            .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
+            .onChange(of: photoItem) { _, item in
+                guard let item else { return }
+                handlePhoto(item)
+            }
+            .alert("Add a link", isPresented: $showLinkPrompt) {
+                TextField("https://…", text: $linkText)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                Button("Add") { handleLink(linkText) }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("The link is added as context for your next message.")
             }
         }
         .padding(.bottom, bottomPadding)
@@ -271,6 +293,39 @@ struct ChatView: View {
                 showAttachmentError("Couldn't read that note.")
             }
         }
+    }
+
+    /// Add a photo: upload the image to the vault (best-effort, like file
+    /// attachments) and stage a marker reference. There's no client OCR, so
+    /// the turn carries a marker; the image lives in the vault for search.
+    private func handlePhoto(_ item: PhotosPickerItem) {
+        Task {
+            defer { photoItem = nil }
+            guard let data = try? await item.loadTransferable(type: Data.self), !data.isEmpty else {
+                showAttachmentError("Couldn't load that photo.")
+                return
+            }
+            let name = "photo-\(Int(Date().timeIntervalSince1970)).jpg"
+            if let vaultUploadClient {
+                _ = try? await vaultUploadClient.uploadAsset(
+                    data: data,
+                    contentType: "image/jpeg",
+                    relativePath: "uploads/\(name)",
+                    spaceID: nil,
+                )
+            }
+            viewModel.attach(name: name, text: "[Photo added to your vault: \(name)]")
+        }
+    }
+
+    /// Add a link as a context reference for the next turn.
+    private func handleLink(_ raw: String) {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, URL(string: trimmed) != nil else {
+            showAttachmentError("That doesn't look like a valid link.")
+            return
+        }
+        viewModel.attach(name: trimmed, text: "[Link reference: \(trimmed)]")
     }
 
     private func uploadToVault(_ url: URL) {

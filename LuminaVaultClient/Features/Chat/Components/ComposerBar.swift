@@ -27,6 +27,10 @@ struct ComposerBar: View {
     let onRemoveReference: (Int) -> Void
     /// Opens the vault-note `@`-reference picker on the host.
     let onPickNote: () -> Void
+    /// Opens the photo picker on the host (image is uploaded to the vault).
+    let onPickPhoto: () -> Void
+    /// Opens the add-link prompt on the host.
+    let onAddLink: () -> Void
 
     @State private var showImporter = false
 
@@ -92,6 +96,16 @@ struct ComposerBar: View {
                 onPickNote()
             } label: {
                 Label("Reference a note", systemImage: "text.document")
+            }
+            Button {
+                onPickPhoto()
+            } label: {
+                Label("Add a photo", systemImage: "photo")
+            }
+            Button {
+                onAddLink()
+            } label: {
+                Label("Add a link", systemImage: "link")
             }
         } label: {
             LVIconView(.plusCircleFill, size: 26, tint: palette.glowPrimary)
