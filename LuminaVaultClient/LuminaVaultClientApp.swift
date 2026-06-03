@@ -372,10 +372,12 @@ struct LuminaVaultClientApp: App {
                     Task {
                         await captureCoordinator?.drainShareExtensionQueue()
                     }
-                    // Re-pull reminders so edits made in the Reminders app
-                    // while backgrounded reach the server cache.
+                    // Re-push the EventKit windows (reminders + calendar) so
+                    // edits made in those apps while backgrounded reach the
+                    // server cache the Hermes tools read.
                     if appState.isAuthenticated {
                         appState.syncRemindersOnForeground()
+                        appState.syncCalendarOnForeground()
                     }
                 } else if newPhase == .background {
                     // HER-39: arm the next BGTaskScheduler runs so the sync
