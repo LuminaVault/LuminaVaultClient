@@ -37,6 +37,17 @@ struct LinkedAccountsView: View {
             if let err = viewModel.disconnectError {
                 Section { Text(err).foregroundStyle(.red) }
             }
+
+            // HER-340 — Google Calendar (server-owned OAuth data source).
+            Section {
+                NavigationLink {
+                    CalendarSettingsView()
+                } label: {
+                    Label("Google Calendar", systemImage: "calendar")
+                }
+            } footer: {
+                Text("Connect your calendar so Hermes knows your schedule.")
+            }
         }
         .navigationTitle("Linked Accounts")
         .navigationBarTitleDisplayMode(.inline)
