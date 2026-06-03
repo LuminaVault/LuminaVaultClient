@@ -160,6 +160,11 @@ struct ChatView: View {
                             Label("Save as memory", systemImage: "brain.head.profile")
                         }
                     }
+                    Button(role: .destructive) {
+                        viewModel.rewind(to: message)
+                    } label: {
+                        Label("Rewind to here", systemImage: "arrow.uturn.backward")
+                    }
                 }
             }
 

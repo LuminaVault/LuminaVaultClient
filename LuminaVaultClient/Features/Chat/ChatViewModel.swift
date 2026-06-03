@@ -559,6 +559,19 @@ final class ChatViewModel {
         )
     }
 
+    /// Conversation rewind: trims this message and everything after it,
+    /// returning the chat to its state just before this turn. The feasible
+    /// form of "rollback" — Hermes-native checkpoints aren't exposed to the
+    /// routed chat path, but LuminaVault owns the conversation history.
+    func rewind(to message: Message) {
+        guard !isStreaming, phase != .starting else { return }
+        guard let idx = messages.firstIndex(where: { $0.id == message.id }) else { return }
+        messages.removeSubrange(idx...)
+        pendingAssistant = ""
+        displayedAssistant = ""
+        schedulePersist()
+    }
+
     /// HER-107 — long-press save assistant turn as a Memory row.
     /// User turns are excluded (the chat itself is the persistence) —
     /// the UI should only surface this action on assistant bubbles.
