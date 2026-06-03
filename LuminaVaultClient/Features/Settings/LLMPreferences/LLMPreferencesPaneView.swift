@@ -43,6 +43,8 @@ struct LLMPreferencesPaneView: View {
             fallbackEditorSection
 
             if viewModel.mode == .byok {
+                routingBlockedSection
+                routingAllowSection
                 manageKeysSection
             }
 
@@ -206,6 +208,43 @@ struct LLMPreferencesPaneView: View {
         }
         .disabled(isEditorDisabled)
         .opacity(isEditorDisabled ? 0.5 : 1.0)
+    }
+
+    private var routingBlockedSection: some View {
+        Section {
+            ForEach(ProviderID.allCases, id: \.self) { provider in
+                Toggle(isOn: Binding(
+                    get: { viewModel.blockedProviders.contains(provider) },
+                    set: { _ in viewModel.toggleBlocked(provider) }
+                )) {
+                    Text(ProvidersPaneViewModel.displayName(for: provider))
+                }
+            }
+        } header: {
+            Text("Blocked providers")
+        } footer: {
+            Text("The router never routes to a blocked provider.")
+                .font(.footnote)
+        }
+    }
+
+    private var routingAllowSection: some View {
+        Section {
+            ForEach(ProviderID.allCases, id: \.self) { provider in
+                Toggle(isOn: Binding(
+                    get: { viewModel.allowedProviders.contains(provider) },
+                    set: { _ in viewModel.toggleAllowed(provider) }
+                )) {
+                    Text(ProvidersPaneViewModel.displayName(for: provider))
+                }
+                .disabled(viewModel.blockedProviders.contains(provider))
+            }
+        } header: {
+            Text("Restrict to (allow-list)")
+        } footer: {
+            Text("Leave all off to allow every provider. When any are on, only those are used.")
+                .font(.footnote)
+        }
     }
 
     private var manageKeysSection: some View {

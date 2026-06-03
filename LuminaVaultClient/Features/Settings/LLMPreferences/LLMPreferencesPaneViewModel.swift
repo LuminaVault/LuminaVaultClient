@@ -44,6 +44,10 @@ final class LLMPreferencesPaneViewModel {
     var primaryProvider: ProviderID = .anthropic
     var primaryModel: String = ""
     var fallbackChain: [ModelRouteDTO] = []
+    /// Provider routing constraints (BYOK only). Empty allowed = all allowed.
+    /// A provider is never in both sets.
+    var allowedProviders: Set<ProviderID> = []
+    var blockedProviders: Set<ProviderID> = []
     /// Tracks whether local state has diverged from the last server
     /// snapshot. Save button uses it to enable/disable.
     var hasUnsavedChanges: Bool = false
@@ -86,7 +90,9 @@ final class LLMPreferencesPaneViewModel {
                     mode: .byok,
                     primaryProvider: primaryProvider,
                     primaryModel: primaryModel,
-                    fallbackChain: fallbackChain
+                    fallbackChain: fallbackChain,
+                    allowedProviders: Array(allowedProviders),
+                    blockedProviders: Array(blockedProviders)
                 )
             }
             let response = try await client.put(body)
@@ -130,8 +136,34 @@ final class LLMPreferencesPaneViewModel {
             snapshot.mode == mode &&
             snapshot.primaryProvider == primaryProvider &&
             snapshot.primaryModel == primaryModel &&
-            snapshot.fallbackChain == fallbackChain
+            snapshot.fallbackChain == fallbackChain &&
+            Set(snapshot.allowedProviders) == allowedProviders &&
+            Set(snapshot.blockedProviders) == blockedProviders
         )
+    }
+
+    /// Toggles a provider's allow-list membership (mutually exclusive with
+    /// the block-list).
+    func toggleAllowed(_ provider: ProviderID) {
+        if allowedProviders.contains(provider) {
+            allowedProviders.remove(provider)
+        } else {
+            allowedProviders.insert(provider)
+            blockedProviders.remove(provider)
+        }
+        markDirty()
+    }
+
+    /// Toggles a provider's block-list membership (mutually exclusive with
+    /// the allow-list).
+    func toggleBlocked(_ provider: ProviderID) {
+        if blockedProviders.contains(provider) {
+            blockedProviders.remove(provider)
+        } else {
+            blockedProviders.insert(provider)
+            allowedProviders.remove(provider)
+        }
+        markDirty()
     }
 
     /// HER-300 — `canSave` enables the Save button. Managed mode is
@@ -153,6 +185,8 @@ final class LLMPreferencesPaneViewModel {
         primaryProvider = response.primaryProvider
         primaryModel = response.primaryModel
         fallbackChain = response.fallbackChain
+        allowedProviders = Set(response.allowedProviders)
+        blockedProviders = Set(response.blockedProviders)
         lastServerSnapshot = response
         hasUnsavedChanges = false
     }
