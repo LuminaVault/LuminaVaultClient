@@ -2,14 +2,17 @@
 //
 // HER-56 — Deep Analytics & Patterns dashboard. Renders live trend charts
 // for Health, token usage, and achievement signals over a selectable range,
-// plus a usage-summary header. The Patterns section is a placeholder until
-// HER-248 lands skill-backed pattern/contradiction narratives.
+// plus a usage-summary header. HER-248 — the Patterns section now lists
+// live pattern/contradiction insights, each tappable to a detail screen.
 
 import LuminaVaultShared
 import SwiftUI
 
 struct AnalyticsDashboardView: View {
     let vm: AnalyticsDashboardViewModel
+    /// HER-248 — used to build the insight detail screen pushed from the
+    /// Patterns section.
+    let httpClient: BaseHTTPClient
 
     var body: some View {
         ScrollView {
@@ -17,7 +20,7 @@ struct AnalyticsDashboardView: View {
                 rangePicker
                 summaryHeader
                 content
-                patternsPlaceholder
+                patternsSection
             }
             .padding(20)
         }
@@ -94,20 +97,50 @@ struct AnalyticsDashboardView: View {
         }
     }
 
-    private var patternsPlaceholder: some View {
-        // TODO(HER-248): replace with skill-backed pattern / contradiction
-        // / connection insights across these signals.
-        VStack(alignment: .leading, spacing: 6) {
+    @ViewBuilder
+    private var patternsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
             Text("PATTERNS")
                 .font(.caption2.weight(.heavy))
                 .tracking(0.8)
                 .foregroundStyle(.secondary)
-            Text("Lumina will surface correlations and contradictions across these signals here.")
+
+            if vm.patternInsights.isEmpty {
+                Text("Lumina will surface correlations and contradictions across these signals here.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 12))
+            } else {
+                ForEach(vm.patternInsights) { insight in
+                    NavigationLink {
+                        InsightDetailView.make(insight: insight, httpClient: httpClient)
+                    } label: {
+                        insightCard(insight)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func insightCard(_ insight: InsightDTO) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(insight.section.displayLabel.uppercased())
+                .font(.caption2.weight(.heavy))
+                .tracking(0.6)
+                .foregroundStyle(.tint)
+            Text(insight.headline)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+            Text(insight.summary)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+                .lineLimit(3)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 12))
+        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
     }
 }

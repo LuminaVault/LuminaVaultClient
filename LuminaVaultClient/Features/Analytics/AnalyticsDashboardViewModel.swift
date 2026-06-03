@@ -19,22 +19,28 @@ final class AnalyticsDashboardViewModel {
     var range: AnalyticsRange = .month
     var series: [TrendSeriesUIModel] = []
     var summary: UsageSummaryResponse?
+    /// HER-248 — narrative findings (patterns + contradictions) shown in
+    /// the Patterns section beneath the charts.
+    var patternInsights: [InsightDTO] = []
 
     private let health: any HealthDashboardEndpointsExecutor
     private let analytics: any AnalyticsClientProtocol
     private let achievements: any AchievementsClientProtocol
     private let billing: any BillingClientProtocol
+    private let insights: any InsightsClientProtocol
 
     init(
         health: any HealthDashboardEndpointsExecutor,
         analytics: any AnalyticsClientProtocol,
         achievements: any AchievementsClientProtocol,
         billing: any BillingClientProtocol,
+        insights: any InsightsClientProtocol,
     ) {
         self.health = health
         self.analytics = analytics
         self.achievements = achievements
         self.billing = billing
+        self.insights = insights
     }
 
     func setRange(_ range: AnalyticsRange) async {
@@ -52,11 +58,13 @@ final class AnalyticsDashboardViewModel {
         async let tokenSeries = loadTokenSeries()
         async let achievementSeries = loadAchievementSeries(days: days)
         async let summaryResult = loadSummary()
+        async let insightsResult = loadInsights()
 
         var collected = await healthSeries
         if let tokens = await tokenSeries { collected.append(tokens) }
         if let unlocks = await achievementSeries { collected.append(unlocks) }
         summary = await summaryResult
+        patternInsights = await insightsResult
 
         series = collected
         state = .loaded
@@ -66,6 +74,16 @@ final class AnalyticsDashboardViewModel {
 
     private nonisolated func loadSummary() async -> UsageSummaryResponse? {
         try? await analytics.usageSummary()
+    }
+
+    /// HER-248 — patterns + contradictions, newest first. Two list calls
+    /// (the feed filters by a single section); per-call failures degrade
+    /// to an empty Patterns section rather than failing the dashboard.
+    private nonisolated func loadInsights() async -> [InsightDTO] {
+        async let patterns = try? insights.list(section: .patterns, limit: 5)
+        async let contradictions = try? insights.list(section: .contradictions, limit: 5)
+        let combined = (await patterns?.insights ?? []) + (await contradictions?.insights ?? [])
+        return combined.sorted { $0.createdAt > $1.createdAt }
     }
 
     private nonisolated func loadHealthSeries(days: Int) async -> [TrendSeriesUIModel] {

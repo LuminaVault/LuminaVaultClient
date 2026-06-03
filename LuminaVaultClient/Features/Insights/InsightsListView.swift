@@ -39,6 +39,9 @@ struct InsightsListView: View {
     @Environment(\.lvPalette) private var palette
 
     @State var vm: InsightsListViewModel
+    /// HER-248 — when wired, cards push the insight detail screen. Optional
+    /// so older call sites / previews keep compiling.
+    var httpClient: BaseHTTPClient? = nil
 
     var body: some View {
         ZStack {
@@ -98,12 +101,26 @@ struct InsightsListView: View {
             ScrollView {
                 LazyVStack(spacing: LVSpacing.md) {
                     ForEach(vm.insights) { insight in
-                        card(insight)
+                        row(insight)
                     }
                 }
                 .padding(.horizontal, LVSpacing.lg)
                 .padding(.bottom, LVSpacing.lg)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func row(_ insight: InsightDTO) -> some View {
+        if let httpClient {
+            NavigationLink {
+                InsightDetailView.make(insight: insight, httpClient: httpClient)
+            } label: {
+                card(insight)
+            }
+            .buttonStyle(.plain)
+        } else {
+            card(insight)
         }
     }
 
