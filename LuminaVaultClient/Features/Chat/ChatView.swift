@@ -403,6 +403,25 @@ private struct MessageRow: View {
     private var bubble: some View {
         let content = VStack(alignment: .leading, spacing: LVSpacing.xs) {
             bubbleBody
+            // Render any images the assistant returned (e.g. Hermes Tool
+            // Gateway image generation) — AttributedString markdown drops
+            // image syntax, so surface them explicitly.
+            ForEach(imageURLs, id: \.self) { url in
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case let .success(image):
+                        image.resizable().scaledToFit()
+                            .clipShape(RoundedRectangle(cornerRadius: LVRadius.card, style: .continuous))
+                    case .empty:
+                        ProgressView().frame(maxWidth: .infinity, minHeight: 120)
+                    case .failure:
+                        EmptyView()
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+                .frame(maxWidth: 280)
+            }
             if !message.sources.isEmpty {
                 SourceChipRow(sources: message.sources)
             }
@@ -426,6 +445,30 @@ private struct MessageRow: View {
                 .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.card)
                 .lvInnerGlow(cornerRadius: LVRadius.card, intensity: LVGlow.subtle)
         }
+    }
+
+    /// Image URLs an assistant turn carries (markdown `![](url)` or bare
+    /// image links). Empty for user turns.
+    private var imageURLs: [URL] {
+        guard message.role == .assistant else { return [] }
+        return Self.extractImageURLs(from: message.content)
+    }
+
+    static func extractImageURLs(from text: String) -> [URL] {
+        let ns = text as NSString
+        var urls: [URL] = []
+        func scan(_ pattern: String, group: Int) {
+            guard let re = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return }
+            for m in re.matches(in: text, range: NSRange(location: 0, length: ns.length)) where m.numberOfRanges > group {
+                if let url = URL(string: ns.substring(with: m.range(at: group))) { urls.append(url) }
+            }
+        }
+        // Markdown image: ![alt](url)
+        scan(#"!\[[^\]]*\]\((https?://[^\s)]+)\)"#, group: 1)
+        // Bare image URL (not already part of a markdown link)
+        scan(#"(?<!\()(https?://[^\s)]+\.(?:png|jpe?g|gif|webp))"#, group: 1)
+        var seen = Set<String>()
+        return urls.filter { seen.insert($0.absoluteString).inserted }
     }
 
     @ViewBuilder
