@@ -67,7 +67,7 @@ struct SoulQuizConfirmView: View {
         let body = draft
         state.answers.editedMarkdown = body
         do {
-            _ = try await soulClient.put(SoulMdPutRequest(body: body))
+            _ = try await soulClient.put(SoulPutRequest(markdown: body))
             let updated = try await onboardingClient.patch(
                 OnboardingPatchRequest(soulConfiguredCompleted: true)
             )

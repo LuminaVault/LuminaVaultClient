@@ -130,8 +130,9 @@ final class BYOServerTests: XCTestCase {
 }
 
 private struct StubSoulClient: SoulClientProtocol {
-    func get() async throws -> SoulMdResponse { SoulMdResponse(body: "", updatedAt: nil) }
-    func put(_ body: SoulMdPutRequest) async throws -> SoulMdResponse {
-        SoulMdResponse(body: body.body, updatedAt: nil)
+    func get() async throws -> SoulResponse { SoulResponse(markdown: "", updatedAt: nil) }
+    func put(_ body: SoulPutRequest) async throws -> SoulResponse {
+        SoulResponse(markdown: body.markdown, updatedAt: nil)
     }
+    func delete() async throws {}
 }

@@ -43,6 +43,13 @@ struct SettingsRootView: View {
                             LVAppearanceSection()
                         }
 
+                        // Phase 1 — post-onboarding SOUL.md personality editor.
+                        LVSectionCard("Your Agent") {
+                            LVSettingsRow("Personality", icon: .brainHeadProfile) {
+                                SoulEditorView(client: soulClient)
+                            }
+                        }
+
                         LVSectionCard("Account & Data") {
                             LVSettingsRow("Sync & Backup", icon: .arrowTriangle2Circlepath) {
                                 SyncBackupView()

@@ -67,7 +67,7 @@ final class ServerConnectionViewModel {
         state = .loading
         do {
             let response = try await soulClient.get()
-            soulBody = response.body
+            soulBody = response.markdown
             state = .loaded
         } catch {
             state = .failed("Couldn't load SOUL.md.")
@@ -83,8 +83,8 @@ final class ServerConnectionViewModel {
         soulSaving = true
         defer { soulSaving = false }
         do {
-            let response = try await soulClient.put(SoulMdPutRequest(body: soulBody))
-            soulBody = response.body
+            let response = try await soulClient.put(SoulPutRequest(markdown: soulBody))
+            soulBody = response.markdown
         } catch {
             state = .failed("Couldn't save SOUL.md.")
         }
