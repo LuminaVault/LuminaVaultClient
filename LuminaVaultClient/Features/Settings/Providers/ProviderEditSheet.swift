@@ -111,6 +111,7 @@ struct ProviderEditSheet: View {
     private var footer: String {
         switch provider {
         case .xai: "Get a key at https://x.ai. Stored encrypted at rest."
+        case .nvidia: "Get a key at https://build.nvidia.com (prefix nvapi-). Stored encrypted at rest."
         case .anthropic: "Get a key at https://console.anthropic.com."
         case .openai: "Get a key at https://platform.openai.com/api-keys."
         case .openRouter: "Get a key at https://openrouter.ai/keys. Works as a fallback chain entry."
