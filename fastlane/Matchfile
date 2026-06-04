@@ -1,0 +1,9 @@
+# Dedicated PRIVATE certs repo — NOT the app source repo. Create it empty first.
+# SSH url so `match` can push without a token prompt.
+git_url("git@github.com:LuminaVault/LuminaVaultIOSSecrets.git")
+
+storage_mode("git")
+
+type("appstore") # appstore | adhoc | enterprise | development
+
+app_identifier("com.lumina.fernando")

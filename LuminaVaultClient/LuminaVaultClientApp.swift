@@ -62,6 +62,11 @@ struct LuminaVaultClientApp: App {
     // user only sees it once across reinstalls only if the device-id
     // store gets wiped (per-install scope is good enough for v1).
     @AppStorage("hasSeenConversionFunnel") private var hasSeenConversionFunnel = false
+    // HER-219 — local gate for the optional BYO-Hermes prompt. Sits at the
+    // end of the onboarding ladder (after the brain choice, before the main
+    // shell). No server latch: the step is idempotent and re-running it is
+    // harmless, so per-install scope is good enough.
+    @AppStorage("hasSeenBYOHermesPrompt") private var hasSeenBYOHermesPrompt = false
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -254,6 +259,21 @@ struct LuminaVaultClientApp: App {
                                             }
                                         ),
                                         makeProvidersClient: { appState.makeProvidersClient() }
+                                    )
+                                } else if !hasSeenBYOHermesPrompt {
+                                    // HER-219 — optional "point LuminaVault at
+                                    // your own Hermes VPS" prompt. Final
+                                    // onboarding step before the main shell.
+                                    // Local-only gate; "Skip" or finishing the
+                                    // setup sheet flips it so it never
+                                    // re-presents.
+                                    BYOHermesOnboardingGate(
+                                        settingsClient: SettingsHTTPClient(
+                                            client: appState.makeHTTPClient()
+                                        ),
+                                        onFinished: {
+                                            hasSeenBYOHermesPrompt = true
+                                        }
                                     )
                                 } else {
                                     MainTabView()
