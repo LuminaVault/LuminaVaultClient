@@ -1,10 +1,10 @@
 // LuminaVaultClient/LuminaVaultClient/Services/ImageOCRService.swift
 //
-// HER-157 — VisionKit `VNRecognizeTextRequest` wrapper. Pure data in,
-// joined text out. No UIKit beyond the UIImage decode (cheaper than
-// rewriting the data→CGImage path with ImageIO). The protocol seam
-// keeps the ViewModel testable without spinning up a real Vision
-// pipeline.
+// HER-157 — on-device OCR. Uses the iOS 18+ async Vision API
+// (`RecognizeTextRequest`), so there's no completion-handler/continuation
+// dance and the call naturally runs off the caller's executor. Pure data in,
+// joined text out. The protocol seam keeps callers testable without a real
+// Vision pipeline.
 
 import Foundation
 import UIKit
@@ -28,37 +28,24 @@ struct ImageOCRService: ImageOCRServiceProtocol {
     }
 
     func extractText(from imageData: Data, locale: String? = nil) async throws -> String {
-        guard let image = UIImage(data: imageData), let cgImage = image.cgImage else {
+        guard let cgImage = UIImage(data: imageData)?.cgImage else {
             throw OCRError.invalidImage
         }
-        return try await withCheckedThrowingContinuation { continuation in
-            let request = VNRecognizeTextRequest { request, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                let observations = request.results as? [VNRecognizedTextObservation] ?? []
-                let lines = observations
-                    .compactMap { $0.topCandidates(1).first?.string }
-                    .filter { !$0.isEmpty }
-                let joined = lines.joined(separator: "\n")
-                if joined.isEmpty {
-                    continuation.resume(throwing: OCRError.noTextFound)
-                } else {
-                    continuation.resume(returning: joined)
-                }
-            }
-            request.recognitionLevel = .accurate
-            request.usesLanguageCorrection = true
-            if let locale {
-                request.recognitionLanguages = [locale]
-            }
-            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-            do {
-                try handler.perform([request])
-            } catch {
-                continuation.resume(throwing: error)
-            }
+
+        var request = RecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = true
+        if let locale {
+            request.recognitionLanguages = [Locale.Language(identifier: locale)]
         }
+
+        let observations = try await request.perform(on: cgImage)
+        let joined = observations
+            .compactMap { $0.topCandidates(1).first?.string }
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+
+        guard !joined.isEmpty else { throw OCRError.noTextFound }
+        return joined
     }
 }

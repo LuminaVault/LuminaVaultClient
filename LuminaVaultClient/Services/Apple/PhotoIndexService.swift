@@ -180,14 +180,8 @@ actor PhotoIndexService {
             }
         }
         if let cg = rendered.cgImage {
-            // `classifyScene` runs a synchronous CPU-heavy Vision pass; offload
-            // it so it doesn't block this actor for the whole scan. (OCR above
-            // is `nonisolated async` and already runs off-actor.)
-            let confidence = sceneConfidence
-            let maxTags = maxSceneTags
-            sceneTags = await Task.detached(priority: .utility) {
-                Self.classifyScene(cgImage: cg, confidence: confidence, maxTags: maxTags)
-            }.value
+            // Async Vision API — runs off this actor naturally, no manual offload.
+            sceneTags = await Self.classifyScene(cgImage: cg, confidence: sceneConfidence, maxTags: maxSceneTags)
         }
 
         return PhotoIndexInput(
@@ -199,21 +193,19 @@ actor PhotoIndexService {
         )
     }
 
-    /// On-device scene classification. Returns the top labels above the
-    /// confidence floor (cleaned to bare label names).
-    nonisolated static func classifyScene(cgImage: CGImage, confidence: Float, maxTags: Int) -> [String] {
-        let request = VNClassifyImageRequest()
-        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    /// On-device scene classification (iOS 18+ async Vision). Returns the top
+    /// labels above the confidence floor (bare label names).
+    nonisolated static func classifyScene(cgImage: CGImage, confidence: Float, maxTags: Int) async -> [String] {
+        let request = ClassifyImageRequest()
         do {
-            try handler.perform([request])
+            let observations = try await request.perform(on: cgImage)
+            return observations
+                .filter { $0.confidence >= confidence }
+                .prefix(maxTags)
+                .map { $0.identifier }
         } catch {
             return []
         }
-        let observations = (request.results as? [VNClassificationObservation]) ?? []
-        return observations
-            .filter { $0.confidence >= confidence }
-            .prefix(maxTags)
-            .map { $0.identifier }
     }
 
     // MARK: - Photos plumbing
