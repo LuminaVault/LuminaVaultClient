@@ -106,8 +106,6 @@
 	<string>LuminaVault reads your reminders so you can feed them into your brain as notes Lumina can recall. Selection is one-shot.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>LuminaVault reads and (when you allow it) adds calendar events so Lumina can answer questions about your schedule and create events you ask for.</string>
-	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>LuminaVault reads your calendar events so you can import them as notes Lumina can recall. Selection is one-shot.</string>
 
 	<!-- Scene / orientation / launch flags. -->
 	<key>UIApplicationSceneManifest</key>
