@@ -134,6 +134,14 @@ private struct DomainRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(meta.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(palette.textPrimary)
                     Text(meta.blurb).font(.system(size: 12)).foregroundStyle(palette.textSecondary)
+                    // Shown only for synced domains that have actually run a
+                    // sync (last_sync_at stamped server-side); on-demand
+                    // device-RPC domains (files, location) never set it.
+                    if consent.allowed, let synced = consent.lastSyncAt {
+                        Text("Synced \(synced, format: .relative(presentation: .named))")
+                            .font(.system(size: 11))
+                            .foregroundStyle(palette.textSecondary.opacity(0.8))
+                    }
                 }
                 Spacer()
                 Toggle("", isOn: Binding(get: { consent.allowed }, set: onAllowed))
