@@ -107,6 +107,7 @@ final class AppState {
         if isAuthenticated {
             sharedSessionKeychain.accessToken = keychain.accessToken
             Task { await healthKit?.start() }
+            startRemindersSync()
             startPhotoIndex()
             startCalendarSync()
         }
@@ -364,6 +365,7 @@ final class AppState {
         vaultInitialized = response.vaultInitialized
         isAuthenticated = true
         Task { await healthKit?.start() }
+        startRemindersSync()
         startPhotoIndex()
         startCalendarSync()
         // PostHog: identify user so all subsequent events are attributed to them
