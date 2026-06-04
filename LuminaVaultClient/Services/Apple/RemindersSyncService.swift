@@ -48,8 +48,14 @@ actor RemindersSyncService {
     /// Requests EventKit full reminders access. Idempotent — the system
     /// remembers the previous answer; throws only when the user denies.
     func requestAuthorization() async throws {
-        let granted = (try? await store.requestFullAccessToReminders()) ?? false
-        guard granted else { throw RemindersSyncError.notAuthorized }
+        guard await ensureAccess() else { throw RemindersSyncError.notAuthorized }
+    }
+
+    /// Short-circuits when full access is already granted so we don't re-enter
+    /// the request path on every sync.
+    private func ensureAccess() async -> Bool {
+        if EKEventStore.authorizationStatus(for: .reminder) == .fullAccess { return true }
+        return (try? await store.requestFullAccessToReminders()) ?? false
     }
 
     /// Foreground pull. Fetches the open set + recently-completed reminders,
@@ -57,8 +63,7 @@ actor RemindersSyncService {
     /// successful push so a network blip just retries the same window.
     @discardableResult
     func syncAll() async throws -> Int {
-        let granted = (try? await store.requestFullAccessToReminders()) ?? false
-        guard granted else { throw RemindersSyncError.notAuthorized }
+        guard await ensureAccess() else { throw RemindersSyncError.notAuthorized }
 
         let now = Date()
         let incomplete = await fetchIncomplete()
@@ -79,8 +84,7 @@ actor RemindersSyncService {
         }
 
         var pushed = 0
-        for chunk in inputs.chunked(into: 500) {
-            guard chunk.count <= Self.maxBatchSize else { continue }
+        for chunk in inputs.chunked(into: min(500, Self.maxBatchSize)) {
             let response = try await httpClient.execute(AppleRemindersEndpoints.Sync(reminders: chunk))
             pushed += response.inserted + response.updated
             log.info("synced reminders inserted=\(response.inserted) updated=\(response.updated) skipped=\(response.skipped)")

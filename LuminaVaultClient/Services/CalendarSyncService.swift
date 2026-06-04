@@ -48,10 +48,18 @@ actor CalendarSyncService {
 
     /// Request EventKit read access. Reuses the same `requestFullAccessToEvents`
     /// path `DeviceCommandExecutor` already uses for on-demand reads, so the
-    /// user is never prompted twice for the same grant.
+    /// user is never prompted twice for the same grant. Short-circuits when
+    /// access was already granted so we don't re-enter the request path on
+    /// every sync.
     func requestAccess() async -> Bool {
-        (try? await store.requestFullAccessToEvents()) == true
+        if EKEventStore.authorizationStatus(for: .event) == .fullAccess { return true }
+        return (try? await store.requestFullAccessToEvents()) == true
     }
+
+    /// Recurring events share one `eventIdentifier` across every occurrence, so
+    /// the upsert key must include the occurrence start to keep each instance a
+    /// distinct row. Stable + collision-free for non-recurring events too.
+    private static let occurrenceFormatter = ISO8601DateFormatter()
 
     var lastSyncedAt: Date? {
         defaults.object(forKey: anchorKey) as? Date
@@ -76,7 +84,12 @@ actor CalendarSyncService {
 
         let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
         let inputs: [AppleCalendarEventInput] = store.events(matching: predicate).compactMap { event in
-            guard let externalID = event.eventIdentifier else { return nil }
+            guard let base = event.eventIdentifier else { return nil }
+            // Per-occurrence key: `eventIdentifier` alone collapses every
+            // instance of a recurring series into one server row. A moved
+            // single occurrence can orphan its old row (at most one phantom
+            // per series; ages out of the window) — acceptable vs. a migration.
+            let externalID = "\(base)|\(Self.occurrenceFormatter.string(from: event.startDate))"
             return AppleCalendarEventInput(
                 externalID: externalID,
                 calendarID: event.calendar?.calendarIdentifier,
@@ -108,18 +121,38 @@ actor CalendarSyncService {
         return touched
     }
 
-    /// Subscribe to on-device calendar edits. Each change debounces into a
-    /// fresh `syncNow`. The returned `Task` owns the observation; cancel it
-    /// (or let it die with the service) to stop. Mirrors HealthKit observers.
+    /// Trailing-debounce timer for store-change resyncs. `.EKEventStoreChanged`
+    /// fires in bursts (and for reminders edits too), so coalesce into one sync.
+    private var debounceTask: Task<Void, Never>?
+    private let debounceInterval: Duration = .seconds(2)
+
+    /// Subscribe to on-device calendar edits. Each change (trailing-)debounces
+    /// into a single `syncNow`. The returned `Task` owns the observation;
+    /// cancel it (or let it die with the service) to stop.
     func observeChanges() -> Task<Void, Never> {
         Task { [weak self] in
             let stream = NotificationCenter.default.notifications(named: .EKEventStoreChanged)
             for await _ in stream {
                 guard let self else { return }
-                do { _ = try await self.syncNow() }
-                catch { log.warning("calendar resync after change failed: \(error.localizedDescription)") }
+                await self.scheduleDebouncedSync()
             }
+            await self?.cancelDebounce()
         }
+    }
+
+    private func scheduleDebouncedSync() {
+        debounceTask?.cancel()
+        debounceTask = Task { [weak self] in
+            try? await Task.sleep(for: self?.debounceInterval ?? .seconds(2))
+            guard !Task.isCancelled, let self else { return }
+            do { _ = try await self.syncNow() }
+            catch { log.warning("calendar resync after change failed: \(error.localizedDescription)") }
+        }
+    }
+
+    private func cancelDebounce() {
+        debounceTask?.cancel()
+        debounceTask = nil
     }
 }
 
