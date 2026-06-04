@@ -95,6 +95,8 @@
 	<string>LuminaVault writes mindfulness sessions and notes back to HealthKit when you ask Lumina to.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>LuminaVault tags captures with the place you saved them — only when you toggle Location on for that capture.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>LuminaVault uses the camera so you can capture a photo or document straight into your vault.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>LuminaVault reads photos you pick to save them to your vault. Selection is one-shot and limited to the photos you choose.</string>
 	<key>NSMicrophoneUsageDescription</key>
