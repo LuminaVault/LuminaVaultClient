@@ -75,41 +75,45 @@ actor PhotoIndexService {
     // MARK: - Scan
 
     private func runScan() async {
-        var synced = Set(defaults.stringArray(forKey: Self.syncedKey) ?? [])
-        let assets = fetchCandidateAssets(excluding: synced, budget: perScanBudget)
+        var persisted = Set(defaults.stringArray(forKey: Self.syncedKey) ?? [])
+        let assets = fetchCandidateAssets(excluding: persisted, budget: perScanBudget)
         guard !assets.isEmpty else {
             log.info("photos index up to date — no new assets")
             return
         }
 
         var batch: [PhotoIndexInput] = []
+        var batchIDs: [String] = []
         var pushedTotal = 0
 
         for asset in assets {
-            let input = await deriveInput(for: asset)
-            batch.append(input)
-            synced.insert(asset.localIdentifier)
+            batch.append(await deriveInput(for: asset))
+            batchIDs.append(asset.localIdentifier)
 
             if batch.count >= batchSize {
-                pushedTotal += await flush(&batch, synced: synced)
+                pushedTotal += await flush(&batch, ids: &batchIDs, persisted: &persisted)
             }
         }
         if !batch.isEmpty {
-            pushedTotal += await flush(&batch, synced: synced)
+            pushedTotal += await flush(&batch, ids: &batchIDs, persisted: &persisted)
         }
-        log.info("photos index scan complete — pushed \(pushedTotal) items, \(synced.count) total tracked")
+        log.info("photos index scan complete — pushed \(pushedTotal) items, \(persisted.count) total tracked")
     }
 
-    /// POSTs a batch; on success persists the synced-id set so a crash mid-scan
-    /// doesn't re-OCR already-pushed assets. On failure the ids are NOT
-    /// persisted, so the next scan retries them.
-    private func flush(_ batch: inout [PhotoIndexInput], synced: Set<String>) async -> Int {
+    /// POSTs a batch. Only the ids the server actually ACCEPTED are unioned into
+    /// the persisted synced-set — a failed batch's ids stay out so the next scan
+    /// retries them (the previous version persisted the whole set on any later
+    /// success, silently dropping failed-batch assets forever).
+    private func flush(_ batch: inout [PhotoIndexInput], ids: inout [String], persisted: inout Set<String>) async -> Int {
         let items = batch
+        let acceptedIDs = ids
         batch.removeAll(keepingCapacity: true)
+        ids.removeAll(keepingCapacity: true)
         guard !items.isEmpty else { return 0 }
         do {
             let resp = try await client.execute(PhotoIndexEndpoints.Index(items: items))
-            persist(synced)
+            persisted.formUnion(acceptedIDs)
+            persist(persisted)
             log.info("photos index batch ok — inserted=\(resp.inserted) updated=\(resp.updated) skipped=\(resp.skipped)")
             return resp.inserted + resp.updated
         } catch {
@@ -176,11 +180,14 @@ actor PhotoIndexService {
             }
         }
         if let cg = rendered.cgImage {
-            sceneTags = Self.classifyScene(
-                cgImage: cg,
-                confidence: sceneConfidence,
-                maxTags: maxSceneTags,
-            )
+            // `classifyScene` runs a synchronous CPU-heavy Vision pass; offload
+            // it so it doesn't block this actor for the whole scan. (OCR above
+            // is `nonisolated async` and already runs off-actor.)
+            let confidence = sceneConfidence
+            let maxTags = maxSceneTags
+            sceneTags = await Task.detached(priority: .utility) {
+                Self.classifyScene(cgImage: cg, confidence: confidence, maxTags: maxTags)
+            }.value
         }
 
         return PhotoIndexInput(
@@ -231,7 +238,9 @@ actor PhotoIndexService {
         let image: UIImage? = await withCheckedContinuation { cont in
             let opts = PHImageRequestOptions()
             opts.deliveryMode = .highQualityFormat // single callback
-            opts.isNetworkAccessAllowed = true
+            // Index pass derives text from an on-device thumbnail only — don't
+            // pull full-res originals down from iCloud (data + battery).
+            opts.isNetworkAccessAllowed = false
             opts.isSynchronous = false
             PHImageManager.default().requestImage(
                 for: asset,

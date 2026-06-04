@@ -30,6 +30,9 @@ final class RemindersSyncCoordinator {
     private(set) var lastSyncDate: Date?
     private(set) var isStarted = false
     private var changeObserver: NSObjectProtocol?
+    /// Trailing-debounce for `.EKEventStoreChanged` — it fires in bursts (and
+    /// for calendar edits too), so coalesce into one resync.
+    private var debounceTask: Task<Void, Never>?
 
     init(service: RemindersSyncService, consentClient: any AppleConsentClientProtocol) {
         self.service = service
@@ -77,6 +80,8 @@ final class RemindersSyncCoordinator {
             NotificationCenter.default.removeObserver(changeObserver)
             self.changeObserver = nil
         }
+        debounceTask?.cancel()
+        debounceTask = nil
         isStarted = false
         log.info("reminders sync stopped")
     }
@@ -103,7 +108,18 @@ final class RemindersSyncCoordinator {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in await self?.sync() }
+            Task { @MainActor in self?.scheduleDebouncedSync() }
+        }
+    }
+
+    /// Trailing-debounce: a burst of change notifications collapses into a
+    /// single `sync()` after a short quiet period.
+    private func scheduleDebouncedSync() {
+        debounceTask?.cancel()
+        debounceTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            await self?.sync()
         }
     }
 }
