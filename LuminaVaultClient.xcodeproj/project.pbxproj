@@ -240,8 +240,8 @@
 				6088C4EF2FAE1184006F894F /* Sources */,
 				6088C4F02FAE1184006F894F /* Frameworks */,
 				6088C4F12FAE1184006F894F /* Resources */,
-				A53E5752B5D24598A86BD3CA /* Upload Debug Symbols to Sentry */,
 				605690362FBF20FF0059C355 /* Embed Foundation Extensions */,
+				A53E5752B5D24598A86BD3CA /* Upload Debug Symbols to Sentry */,
 			);
 			buildRules = (
 			);
@@ -405,6 +405,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		A53E5752B5D24598A86BD3CA /* Upload Debug Symbols to Sentry */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
