@@ -74,9 +74,14 @@ direct Xcode dev builds.)
     -H "Content-Type: application/json" \
     -d '{"tierOverride":"ultimate"}'    # none | pro | ultimate
   ```
-  This forces the tier **without changing RevenueCat state**. Requires
-  `ADMIN_TOKEN` set in the server `.env.production` (currently empty → endpoint
-  disabled until you set it). Get `<USER_ID>` from the account after it signs in.
+  This forces the tier **without changing RevenueCat state**. `ADMIN_TOKEN` is
+  **already configured** on the server (deploy writes it from the GitHub secret;
+  endpoint is live). Retrieve the value to use it:
+  ```bash
+  ssh -i /tmp/lv_deploy root@167.233.30.48 'grep ADMIN_TOKEN /opt/obsidian-claudebrain/.env.production'
+  ```
+  Get `<USER_ID>` from the account after it signs in (e.g. from the DB or an
+  admin/me lookup).
 
 **Recommendation:** create ONE dedicated review/demo account (email + password),
 comp it to `ultimate`, and give those credentials to App Review in the submission
@@ -137,10 +142,20 @@ Pipeline: match certs → archive (Release config, `api.luminavault.fyi`) →
 
 ---
 
-## D. Server prerequisite for comping accounts
-Set `ADMIN_TOKEN` in `/opt/obsidian-claudebrain/.env.production` on the VPS
-(strong random value), then redeploy or restart the app, before using the
-tier-override endpoint in §B. Keep this token secret (GitHub secret / 1Password).
+## D. Server prerequisite for comping accounts — DONE
+`ADMIN_TOKEN` is already generated, stored as a GitHub secret on
+`LuminaVault/LuminaVaultServer`, and written into the VPS `.env.production` by
+the deploy. The tier-override endpoint (§B) is live. To use it, read the token
+from the server: `ssh -i /tmp/lv_deploy root@167.233.30.48 'grep ADMIN_TOKEN /opt/obsidian-claudebrain/.env.production'`.
+
+## E. Where to run the commands
+All **client** commands run from the client repo root:
+`/Users/fernando_idwell/Projects/ObsidianClaudeBrain/LuminaVaultClient`
+(it has `fastlane/`, `Gemfile`, `LuminaVaultClient.xcodeproj`).
+- fastlane: `cd` there, then `bundle exec fastlane match appstore ...` / `bundle exec fastlane beta`.
+- `gh secret set ...`: client-repo secrets — run from that folder, or add `--repo LuminaVault/LuminaVaultClient`.
+- The comp `curl` (§B) hits the live API — run from anywhere.
+- Server deploys (`gh workflow run prod.yml`, `make deploy*`) run from the server repo.
 
 > Legal text is reasonable defaults, **not legal advice** — have counsel review
 > before public launch.
