@@ -18,17 +18,17 @@
 import Foundation
 
 enum RCProduct {
-    /// $14.99/mo, 7-day free trial intro (RC dashboard).
-    static let proMonthly = "pro_monthly_14_99"
+    /// $9.99/mo, 7-day free trial intro (RC dashboard).
+    static let proMonthly = "pro_monthly_9_99"
 
-    /// $149.99/year — ~17% saving vs monthly (RC dashboard).
-    static let proYearly = "pro_yearly_149_99"
+    /// $79.99/year — ~33% saving vs monthly (RC dashboard).
+    static let proYearly = "pro_yearly_79_99"
 
-    /// $29.99/mo (RC dashboard).
-    static let ultimateMonthly = "ultimate_monthly_29_99"
+    /// $19.99/mo, 7-day free trial intro (RC dashboard).
+    static let ultimateMonthly = "ultimate_monthly_19_99"
 
-    /// $299.99/year — ~17% saving vs monthly (RC dashboard).
-    static let ultimateYearly = "ultimate_yearly_299_99"
+    /// $179.99/year — ~25% saving vs monthly (RC dashboard).
+    static let ultimateYearly = "ultimate_yearly_179_99"
 
     /// Convenience list for regression guards in tests and any
     /// developer-mode debug pickers. Order is presentation order:
