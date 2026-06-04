@@ -33,7 +33,12 @@ struct ConversionFunnelContainer: View {
             palette.backgroundBase.ignoresSafeArea()
             VStack(spacing: 0) {
                 topBar
-                Spacer(minLength: 0)
+                // NOTE: do NOT put a `Spacer` here. A greedy `Spacer` sibling
+                // starves the `ScrollView` inside `FunnelScreenChrome` (the
+                // VStack hands the flexible height to the Spacer instead),
+                // collapsing the scroll content to ~0pt — headline, options
+                // and hero art vanish and the CTA floats up under the progress
+                // bar. `stepContent` already fills via `.frame(maxHeight:)`.
                 stepContent
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .transition(.opacity)

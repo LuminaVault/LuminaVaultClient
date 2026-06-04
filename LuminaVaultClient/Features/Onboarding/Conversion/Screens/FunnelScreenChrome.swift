@@ -55,6 +55,7 @@ struct FunnelScreenChrome<Content: View>: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             if primaryCTA != nil || secondaryCTA != nil {
                 ctaStack
                     .padding(.horizontal, 24)
