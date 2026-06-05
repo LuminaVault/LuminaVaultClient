@@ -508,7 +508,7 @@ private struct PendingAssistantRow: View {
                 .padding(.top, LVSpacing.xs)
             VStack(alignment: .leading, spacing: LVSpacing.xs) {
                 if text.isEmpty && isStreaming {
-                    StreamingCaret()
+                    TypingIndicator()
                 } else {
                     HStack(alignment: .firstTextBaseline, spacing: LVSpacing.xs) {
                         Text(text)
@@ -542,6 +542,39 @@ private struct AssistantAvatar: View {
     var body: some View {
         HermieMascotView(state: state, size: 32, fallbackImageName: "Mascot")
             .frame(width: 32, height: 32)
+    }
+}
+
+/// Animated "thinking" placeholder shown while the assistant turn is open but
+/// no tokens have arrived yet. Hermes time-to-first-token runs several seconds,
+/// so a lone caret feels dead — three staggered bouncing dots read as active
+/// composition. Falls back to static dimmed dots under Reduce Motion.
+private struct TypingIndicator: View {
+    @Environment(\.lvPalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var activeDot = 0
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(palette.glowPrimary)
+                    .frame(width: 6, height: 6)
+                    .shadow(color: palette.glowPrimary.opacity(0.7), radius: 3)
+                    .opacity(reduceMotion ? 0.6 : (activeDot == index ? 1 : 0.3))
+                    .offset(y: reduceMotion ? 0 : (activeDot == index ? -3 : 0))
+            }
+        }
+        .frame(height: 14)
+        .task {
+            guard !reduceMotion else { return }
+            while !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 0.3)) { activeDot = (activeDot + 1) % 3 }
+                try? await Task.sleep(for: .milliseconds(240))
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Thinking")
     }
 }
 

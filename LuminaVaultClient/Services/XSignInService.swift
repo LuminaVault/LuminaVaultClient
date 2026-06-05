@@ -255,6 +255,10 @@ final class XSignInService: NSObject, SignInServiceProtocol {
 @MainActor
 private final class ASWebAuthSessionDriver: NSObject, WebAuthSessionDriving, ASWebAuthenticationPresentationContextProviding {
     private var anchor: ASPresentationAnchor?
+    // ASWebAuthenticationSession must be strongly retained until its completion
+    // handler fires — otherwise the system can deallocate it the moment this
+    // function suspends, dismissing the browser sheet before the user finishes.
+    private var webSession: ASWebAuthenticationSession?
 
     func authenticate(
         url: URL,
@@ -263,7 +267,8 @@ private final class ASWebAuthSessionDriver: NSObject, WebAuthSessionDriving, ASW
     ) async throws -> URL {
         self.anchor = presentationAnchor
         return try await withCheckedThrowingContinuation { cont in
-            let webSession = ASWebAuthenticationSession(url: url, callbackURLScheme: callbackURLScheme) { url, error in
+            let webSession = ASWebAuthenticationSession(url: url, callbackURLScheme: callbackURLScheme) { [weak self] url, error in
+                self?.webSession = nil
                 if let error {
                     let nsErr = error as NSError
                     if nsErr.domain == ASWebAuthenticationSessionError.errorDomain
@@ -282,6 +287,7 @@ private final class ASWebAuthSessionDriver: NSObject, WebAuthSessionDriving, ASW
             }
             webSession.presentationContextProvider = self
             webSession.prefersEphemeralWebBrowserSession = false
+            self.webSession = webSession
             webSession.start()
         }
     }

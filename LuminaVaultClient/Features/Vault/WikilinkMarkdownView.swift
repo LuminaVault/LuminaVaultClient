@@ -1,6 +1,7 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Vault/WikilinkMarkdownView.swift
 // Markdown reader body with tappable Obsidian wikilinks.
 
+import MarkdownUI
 import SwiftUI
 
 struct WikilinkMarkdownView: View {
@@ -68,26 +69,15 @@ struct WikilinkMarkdownView: View {
         }
     }
 
-    @ViewBuilder
+    // Full GitHub-flavored block rendering via MarkdownUI. Wikilinks are
+    // pre-rewritten into standard markdown links by `renderedMarkdown`, and
+    // taps route through the `\.openURL` action installed on `body`'s VStack —
+    // so `[[note]]` / `[[memory:uuid]]` navigation is preserved.
     private var markdownText: some View {
-        if let attributed = try? AttributedString(
-            markdown: renderedMarkdown,
-            options: AttributedString.MarkdownParsingOptions(
-                interpretedSyntax: .inlineOnlyPreservingWhitespace
-            )
-        ) {
-            Text(attributed)
-                .font(.system(size: 14))
-                .foregroundStyle(palette.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
-        } else {
-            Text(markdown)
-                .font(.system(size: 14))
-                .foregroundStyle(palette.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
-        }
+        Markdown(renderedMarkdown)
+            .markdownTheme(.luminaVault(palette))
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var navigationLink: some View {

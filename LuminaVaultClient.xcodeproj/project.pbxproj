@@ -18,6 +18,7 @@
 		60GRP000B2FAE1200006F894F /* Grape in Frameworks */ = {isa = PBXBuildFile; productRef = 60GRP000A2FAE1200006F894F /* Grape */; };
 		60GSI00012FAE1200006F894F /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 60GSI00022FAE1200006F894F /* GoogleSignIn */; };
 		60HER40012FAE1200006F894F /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 60HER40022FAE1200006F894F /* RiveRuntime */; };
+		60MDUI012FAE1200006F894F /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 60MDUI022FAE1200006F894F /* MarkdownUI */; };
 		60PHG00012FAE1200006F894F /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 60PHG00022FAE1200006F894F /* PostHog */; };
 		60PNK00012FAE1200006F894F /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = 60PNK00022FAE1200006F894F /* PhoneNumberKit */; };
 		60SNP00012FAE1200006F894F /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 60SNP00022FAE1200006F894F /* SnapshotTesting */; };
@@ -152,6 +153,7 @@
 			files = (
 				60GSI00012FAE1200006F894F /* GoogleSignIn in Frameworks */,
 				60HER40012FAE1200006F894F /* RiveRuntime in Frameworks */,
+				60MDUI012FAE1200006F894F /* MarkdownUI in Frameworks */,
 				60GRP000B2FAE1200006F894F /* Grape in Frameworks */,
 				6098173A2FB8BE2500414C79 /* LuminaVaultShared in Frameworks */,
 				60PNK00012FAE1200006F894F /* PhoneNumberKit in Frameworks */,
@@ -255,6 +257,7 @@
 			packageProductDependencies = (
 				60GSI00022FAE1200006F894F /* GoogleSignIn */,
 				60HER40022FAE1200006F894F /* RiveRuntime */,
+				60MDUI022FAE1200006F894F /* MarkdownUI */,
 				60GRP000A2FAE1200006F894F /* Grape */,
 				60PNK00022FAE1200006F894F /* PhoneNumberKit */,
 				609817392FB8BE2500414C79 /* LuminaVaultShared */,
@@ -350,6 +353,7 @@
 			packageReferences = (
 				60GSI00032FAE1200006F894F /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				60HER40032FAE1200006F894F /* XCRemoteSwiftPackageReference "rive-ios" */,
+				60MDUI032FAE1200006F894F /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 				60GRP000C2FAE1200006F894F /* XCRemoteSwiftPackageReference "Grape" */,
 				60PNK00032FAE1200006F894F /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
 				609817382FB8BE2500414C79 /* XCRemoteSwiftPackageReference "LuminaVaultShared" */,
@@ -1100,6 +1104,14 @@
 				minimumVersion = 6.0.0;
 			};
 		};
+		60MDUI032FAE1200006F894F /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 		60PHG00032FAE1200006F894F /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/PostHog/posthog-ios";
@@ -1167,6 +1179,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 60HER40032FAE1200006F894F /* XCRemoteSwiftPackageReference "rive-ios" */;
 			productName = RiveRuntime;
+		};
+		60MDUI022FAE1200006F894F /* MarkdownUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 60MDUI032FAE1200006F894F /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
+			productName = MarkdownUI;
 		};
 		60PHG00022FAE1200006F894F /* PostHog */ = {
 			isa = XCSwiftPackageProductDependency;

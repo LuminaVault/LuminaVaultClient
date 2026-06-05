@@ -8,6 +8,12 @@ final class AppleSignInService: NSObject, SignInServiceProtocol {
     private var continuation: CheckedContinuation<ProviderCredential, Error>?
     private var currentRawNonce: String?
     private var presentationAnchor: ASPresentationAnchor?
+    // ASAuthorizationController.delegate and .presentationContextProvider are
+    // BOTH weak. If the controller is only a local var it deallocates the
+    // instant `signIn` suspends at the continuation — the system sheet never
+    // presents and no delegate callback ever fires ("Sign in with Apple does
+    // nothing"). Hold a strong reference until the flow resolves.
+    private var controller: ASAuthorizationController?
 
     func signIn(presentationAnchor: ASPresentationAnchor) async throws -> ProviderCredential {
         let rawNonce = Self.randomNonceString()
@@ -24,6 +30,7 @@ final class AppleSignInService: NSObject, SignInServiceProtocol {
             let controller = ASAuthorizationController(authorizationRequests: [request])
             controller.delegate = self
             controller.presentationContextProvider = self
+            self.controller = controller
             controller.performRequests()
         }
     }
@@ -63,6 +70,7 @@ extension AppleSignInService: ASAuthorizationControllerDelegate {
                   let idToken = String(data: tokenData, encoding: .utf8) else {
                 continuation?.resume(throwing: NSError(domain: "AppleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing identity token from Apple"]))
                 continuation = nil
+                self.controller = nil
                 return
             }
             continuation?.resume(returning: ProviderCredential(
@@ -73,6 +81,7 @@ extension AppleSignInService: ASAuthorizationControllerDelegate {
             ))
             continuation = nil
             currentRawNonce = nil
+            self.controller = nil
         }
     }
 
@@ -88,6 +97,7 @@ extension AppleSignInService: ASAuthorizationControllerDelegate {
             }
             continuation = nil
             currentRawNonce = nil
+            self.controller = nil
         }
     }
 }
