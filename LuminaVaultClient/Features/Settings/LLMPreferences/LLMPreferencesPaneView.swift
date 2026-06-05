@@ -18,6 +18,7 @@ import SwiftUI
 
 struct LLMPreferencesPaneView: View {
     @Environment(\.lvPalette) private var palette
+    @Environment(AppState.self) private var appState
     @State private var viewModel: LLMPreferencesPaneViewModel
 
     /// HER-300 — used to push the live BYOK key manager from the BYOK
@@ -29,7 +30,7 @@ struct LLMPreferencesPaneView: View {
         client: LLMPreferencesClientProtocol,
         providersClient: ProvidersClientProtocol
     ) {
-        _viewModel = State(initialValue: LLMPreferencesPaneViewModel(client: client))
+        _viewModel = State(initialValue: LLMPreferencesPaneViewModel(client: client, providersClient: providersClient))
         self.providersClient = providersClient
     }
 
@@ -150,28 +151,64 @@ struct LLMPreferencesPaneView: View {
 
     private var isEditorDisabled: Bool { viewModel.mode == .managed }
 
+    private var keyFieldPlaceholder: String {
+        let name = ProvidersPaneViewModel.displayName(for: viewModel.primaryProvider)
+        if ProvidersPaneViewModel.defaultKind(for: viewModel.primaryProvider) == .hostURL {
+            return "\(name) host URL (e.g. http://…:11434)"
+        }
+        return "\(name) API key"
+    }
+
     private var primaryEditorSection: some View {
         Section {
             Picker("Provider", selection: Binding(
                 get: { viewModel.primaryProvider },
-                set: { newValue in
-                    viewModel.primaryProvider = newValue
-                    viewModel.markDirty()
-                },
+                set: { viewModel.selectProvider($0) },
             )) {
                 ForEach(ProviderID.allCases, id: \.self) { provider in
                     Text(ProvidersPaneViewModel.displayName(for: provider)).tag(provider)
                 }
             }
-            TextField("Model", text: Binding(
-                get: { viewModel.primaryModel },
-                set: { newValue in
-                    viewModel.primaryModel = newValue
-                    viewModel.markDirty()
-                },
-            ))
-            .autocorrectionDisabled()
-            .textInputAutocapitalization(.never)
+            // BYOK v2 — model is a Picker from the curated catalog (no typos).
+            // Providers without a catalog (ollama) keep a free-text field.
+            if viewModel.usesModelCatalog {
+                Picker("Model", selection: Binding(
+                    get: { viewModel.primaryModel },
+                    set: { newValue in
+                        viewModel.primaryModel = newValue
+                        viewModel.markDirty()
+                    },
+                )) {
+                    ForEach(viewModel.availableModels) { model in
+                        Text(model.displayName).tag(model.id)
+                    }
+                }
+            } else {
+                TextField("Model", text: Binding(
+                    get: { viewModel.primaryModel },
+                    set: { newValue in
+                        viewModel.primaryModel = newValue
+                        viewModel.markDirty()
+                    },
+                ))
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+            }
+            // BYOK v2 — API key on the same screen as provider + model.
+            if !isEditorDisabled {
+                SecureField(
+                    keyFieldPlaceholder,
+                    text: Binding(
+                        get: { viewModel.apiKeyInput },
+                        set: { newValue in
+                            viewModel.apiKeyInput = newValue
+                            viewModel.markDirty()
+                        },
+                    ),
+                )
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+            }
         } header: {
             Text("Primary")
         } footer: {
@@ -179,7 +216,7 @@ struct LLMPreferencesPaneView: View {
                 Text("Switch to **My API Keys** to edit your primary provider.")
                     .font(.footnote)
             } else {
-                Text("Tried first on every chat / query / kb-compile call.")
+                Text("Tried first on every chat. Leave the key blank to keep the one already saved; enter a new key to replace it. Stored encrypted.")
                     .font(.footnote)
             }
         }
@@ -266,7 +303,14 @@ struct LLMPreferencesPaneView: View {
     private var saveSection: some View {
         Section {
             Button {
-                Task { await viewModel.save() }
+                Task {
+                    await viewModel.save()
+                    // BYOK v2 — on a successful save, signal ChatView to start a
+                    // fresh conversation on the new config.
+                    if case .failed = viewModel.state {} else {
+                        appState.llmConfigVersion += 1
+                    }
+                }
             } label: {
                 HStack {
                     Spacer()

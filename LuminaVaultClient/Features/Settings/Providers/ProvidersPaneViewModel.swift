@@ -121,7 +121,7 @@ final class ProvidersPaneViewModel {
 
     static func defaultKind(for provider: ProviderID) -> ProviderCredentialKind {
         switch provider {
-        case .xai, .nvidia, .anthropic, .openai, .openRouter: .apiKey
+        case .xai, .nvidia, .anthropic, .openai, .openRouter, .gemini: .apiKey
         case .ollama: .hostURL
         }
     }
@@ -134,6 +134,7 @@ final class ProvidersPaneViewModel {
         case .openai: "OpenAI"
         case .openRouter: "OpenRouter"
         case .ollama: "Ollama (self-hosted)"
+        case .gemini: "Google Gemini"
         }
     }
 

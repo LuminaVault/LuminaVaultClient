@@ -117,6 +117,7 @@ extension ProviderID {
         case .ollama: return "Ollama"
         case .openRouter: return "OpenRouter"
         case .nvidia: return "NVIDIA NIM"
+        case .gemini: return "Google Gemini"
         }
     }
 }

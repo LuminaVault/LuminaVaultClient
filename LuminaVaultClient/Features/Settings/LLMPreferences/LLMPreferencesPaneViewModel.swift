@@ -48,15 +48,42 @@ final class LLMPreferencesPaneViewModel {
     /// A provider is never in both sets.
     var allowedProviders: Set<ProviderID> = []
     var blockedProviders: Set<ProviderID> = []
+    /// BYOK v2 — inline API key entry for the selected primary provider, so
+    /// provider + model + key live on one screen. Saved (PUT credential)
+    /// alongside the preference on Save; cleared after a successful write so
+    /// the field never displays a stored secret.
+    var apiKeyInput: String = ""
     /// Tracks whether local state has diverged from the last server
     /// snapshot. Save button uses it to enable/disable.
     var hasUnsavedChanges: Bool = false
 
     private let client: LLMPreferencesClientProtocol
+    private let providersClient: ProvidersClientProtocol
     private var lastServerSnapshot: LLMPreferencesGetResponse?
 
-    init(client: LLMPreferencesClientProtocol) {
+    init(client: LLMPreferencesClientProtocol, providersClient: ProvidersClientProtocol) {
         self.client = client
+        self.providersClient = providersClient
+    }
+
+    /// Curated model list for the selected provider. Empty → the provider
+    /// (e.g. ollama) uses a free-text model field instead of a picker.
+    var availableModels: [LLMModelInfo] {
+        LLMModelCatalog.models(for: primaryProvider)
+    }
+
+    var usesModelCatalog: Bool { !availableModels.isEmpty }
+
+    /// Switch primary provider and seed a sensible default model from the
+    /// catalog so the picker is never left on a model the provider can't serve.
+    func selectProvider(_ provider: ProviderID) {
+        primaryProvider = provider
+        let models = LLMModelCatalog.models(for: provider)
+        if let first = models.first, !models.contains(where: { $0.id == primaryModel }) {
+            primaryModel = first.id
+        }
+        apiKeyInput = ""
+        markDirty()
     }
 
     func load() async {
@@ -86,6 +113,21 @@ final class LLMPreferencesPaneViewModel {
                     fallbackChain: []
                 )
             case .byok:
+                // BYOK v2 — persist the inline API key for the selected
+                // provider first (if entered) so the credential exists before
+                // the preference points routing at it. ollama uses a host URL
+                // (baseUrl), every other provider an apiKey.
+                let trimmedKey = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmedKey.isEmpty {
+                    let kind = ProvidersPaneViewModel.defaultKind(for: primaryProvider)
+                    let credential = ProviderCredentialPutRequest(
+                        kind: kind,
+                        apiKey: kind == .hostURL ? nil : trimmedKey,
+                        baseUrl: kind == .hostURL ? trimmedKey : nil,
+                        label: nil,
+                    )
+                    _ = try await providersClient.upsert(primaryProvider, credential)
+                }
                 body = LLMPreferencesPutRequest(
                     mode: .byok,
                     primaryProvider: primaryProvider,
@@ -96,6 +138,7 @@ final class LLMPreferencesPaneViewModel {
                 )
             }
             let response = try await client.put(body)
+            apiKeyInput = ""
             apply(response)
         } catch {
             state = .failed(Self.message(for: error))
@@ -128,6 +171,11 @@ final class LLMPreferencesPaneViewModel {
     }
 
     func markDirty() {
+        // A pending inline API key is itself an unsaved change.
+        if !apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            hasUnsavedChanges = true
+            return
+        }
         guard let snapshot = lastServerSnapshot else {
             hasUnsavedChanges = true
             return

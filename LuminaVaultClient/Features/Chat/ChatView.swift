@@ -17,6 +17,7 @@ import SwiftUI
 
 struct ChatView: View {
     @Environment(\.lvPalette) private var palette
+    @Environment(AppState.self) private var appState
     @State var viewModel: ChatViewModel
     /// HER-107 — empty-state quick actions (the AI tab passes the
     /// server's `/v1/me/suggestions` payload). Tapping a card seeds the
@@ -83,6 +84,13 @@ struct ChatView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomBar
+        }
+        // BYOK v2 — when the user changes their LLM provider/model/mode in
+        // Settings, start a fresh conversation so a thread never mixes turns
+        // from two different models.
+        .onChange(of: appState.llmConfigVersion) { _, _ in
+            guard !viewModel.isStreaming, !viewModel.messages.isEmpty else { return }
+            viewModel.reset()
         }
     }
 

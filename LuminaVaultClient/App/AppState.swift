@@ -15,6 +15,10 @@ final class AppState {
     /// user completes the "Create My Vault" screen (or for any user whose
     /// `M37` backfill set them to true).
     var vaultInitialized = false
+    /// BYOK v2: bumped whenever the user saves a new LLM provider/model/mode in
+    /// Settings → Intelligence. ChatView watches this and starts a fresh
+    /// conversation so a thread never mixes turns from two different models.
+    var llmConfigVersion = 0
     /// HER-238: timestamp of the most recent successful `/v1/auth/me` fetch.
     /// `nil` means we've never refreshed since sign-in. Used by
     /// `refreshCurrentUserIfNeeded(authClient:now:)` to debounce.
