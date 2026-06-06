@@ -85,46 +85,33 @@ struct LVTabBar: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) { // zero-gap intentional — primary items flex equal-width
-            if overflowLeading {
-                moreButton
+        // Floating Liquid Glass capsule (iOS 26 `.glassEffect`). Icon-only,
+        // inset from the screen edges, sitting above the home indicator —
+        // content scrolls beneath and refracts through the glass.
+        GlassEffectContainer(spacing: LVSpacing.sm) {
+            HStack(spacing: 0) { // zero-gap intentional — items flex equal-width
+                if overflowLeading {
+                    moreButton
+                }
+                ForEach(primaryItems) { item in
+                    LVTabBarButton(
+                        item: item,
+                        isActive: item.id == selection,
+                        underlineNamespace: underlineNamespace,
+                        onTap: { selectWithAnimation(item.id) }
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                if !overflowLeading {
+                    moreButton
+                }
             }
-            ForEach(primaryItems) { item in
-                LVTabBarButton(
-                    item: item,
-                    isActive: item.id == selection,
-                    underlineNamespace: underlineNamespace,
-                    onTap: { selectWithAnimation(item.id) }
-                )
-                .frame(maxWidth: .infinity)
-            }
-            if !overflowLeading {
-                moreButton
-            }
+            .padding(.horizontal, LVSpacing.xs)
+            .padding(.vertical, LVSpacing.xs)
+            .glassEffect(.regular.interactive(), in: Capsule())
         }
-        .padding(.horizontal, LVSpacing.sm)
-        .padding(.top, LVSpacing.sm)
-        .padding(.bottom, LVSpacing.sm)
-        .background {
-            // HER-255 redesign — deep frosted "glass" slab. The base material
-            // is darkened with a `backgroundBase` wash so the holographic icons
-            // and active pill read with high contrast, and the top edge gets a
-            // cyan-tinted "lit rim" (hairline + soft glow) for the sci-fi look.
-            ZStack(alignment: .top) {
-                Rectangle().fill(.ultraThinMaterial)
-                Rectangle().fill(palette.backgroundBase.opacity(0.6))
-                LinearGradient(
-                    colors: [palette.backgroundBase.opacity(0.35), .clear],
-                    startPoint: .bottom,
-                    endPoint: .top
-                )
-                Rectangle()
-                    .fill(palette.glowPrimary.opacity(0.28))
-                    .frame(height: 0.75)
-                    .shadow(color: palette.glowPrimary.opacity(0.18), radius: 8, y: -2)
-            }
-            .ignoresSafeArea(edges: .bottom)
-        }
+        .padding(.horizontal, LVSpacing.lg)
+        .padding(.bottom, LVSpacing.xs)
     }
 
     /// The More overflow button. Rendered leading or trailing per
@@ -225,106 +212,29 @@ private struct LVTabBarItemContent: View {
     let underlineNamespace: Namespace.ID
 
     var body: some View {
-        VStack(spacing: LVSpacing.xs) {
-            ZStack {
-                // HER-255 redesign — orbiting sparkle shimmer behind the active
-                // icon. Reuses `SparkleField` (30fps-throttled Canvas that goes
-                // static under Reduce Motion). Only the active tab mounts it, so
-                // at most one particle field is ever alive.
-                if isActive {
-                    SparkleField(
-                        density: 6,
-                        maxRadius: 1.4,
-                        driftSpeed: 0.8,
-                        colors: [palette.primary, palette.accent, .white]
-                    )
-                    .frame(width: 34, height: 34)
-                    .allowsHitTesting(false)
-                }
-                iconView
-                    .frame(width: 26, height: 26)
-            }
+        // Icon-only, Instagram-style: monochrome glyph that fills + tints when
+        // active. A soft palette-tinted circle slides behind the active glyph
+        // via `matchedGeometryEffect` (driven by `selectWithAnimation`'s spring).
+        iconView
+            .frame(width: 44, height: 44) // ≥44pt HIG tap target
             .lvPulse(active: item.pulses && !reduceMotion)
-            Text(item.label)
-                .font(LVTypography.microTag.font.weight(isActive ? .semibold : .regular))
-                .foregroundStyle(isActive ? palette.primary : palette.textSecondary.opacity(0.85))
-                .lineLimit(1)
-        }
-        .padding(.horizontal, LVSpacing.sm)
-        .padding(.vertical, LVSpacing.xs)
-        .background {
-            // HER-255 redesign — glowing active "pill" wrapping icon+label.
-            // Slides between tabs via `matchedGeometryEffect` on the shared
-            // `underlineNamespace` (driven by `selectWithAnimation`'s spring),
-            // replacing the old circle-blur + underline-capsule pair.
-            if isActive {
-                activePill
-            }
-        }
-        .contentShape(Rectangle())
-    }
-
-    /// Volumetric active highlight: a cyan-gradient rounded-rect with a glowing
-    /// stroke and soft outer shadow. Theme-tinted via `palette.glowPrimary`.
-    private var activePill: some View {
-        RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [
-                        palette.glowPrimary.opacity(0.22),
-                        palette.glowPrimary.opacity(0.06)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous)
-                    .stroke(palette.glowPrimary.opacity(0.5), lineWidth: 1)
-            }
-            .shadow(color: palette.glowPrimary.opacity(0.45), radius: 12)
-            .matchedGeometryEffect(id: "activeTabPill", in: underlineNamespace)
-    }
-
-    // HER-291 — name + custom-asset resolution comes from `LVIcon`,
-    // but rendering stays tab-specific: branded `Lumina/Tab/*` glyphs
-    // load with `renderingMode(.original)` so the full-colour artwork
-    // shows through, with saturation damping on inactive tabs.
-    // `LVIconView` is intentionally NOT used here — it forces template
-    // rendering, which would flatten the brand artwork to a single
-    // tint and break the existing tab-bar look.
-    //
-    // HER-255 redesign — the active icon gets a holographic treatment: a
-    // blurred, cyan-multiplied bloom copy sits behind the sharp glyph, plus a
-    // saturation lift and a cyan drop-shadow. Inactive icons stay dim and
-    // desaturated.
-    @ViewBuilder
-    private var iconView: some View {
-        if let assetName = item.icon.customAssetName,
-           UIImage(named: assetName) != nil {
-            ZStack {
+            .background {
                 if isActive {
-                    Image(assetName)
-                        .resizable()
-                        .renderingMode(.original)
-                        .aspectRatio(contentMode: .fit)
-                        .blur(radius: 6)
-                        .colorMultiply(palette.glowPrimary)
-                        .opacity(0.7)
+                    Circle()
+                        .fill(palette.primary.opacity(0.14))
+                        .matchedGeometryEffect(id: "activeTab", in: underlineNamespace)
                 }
-                Image(assetName)
-                    .resizable()
-                    .renderingMode(.original)
-                    .aspectRatio(contentMode: .fit)
-                    .saturation(isActive ? 1.15 : 0.55)
-                    .opacity(isActive ? 1.0 : 0.75)
-                    .shadow(color: isActive ? palette.glowPrimary.opacity(0.7) : .clear, radius: 8)
             }
-        } else {
-            Image(systemName: item.icon.sfSymbol)
-                .font(.system(size: LVSize.tabBarGlyph, weight: .medium))
-                .foregroundStyle(isActive ? palette.primary : palette.textSecondary.opacity(0.85))
-                .shadow(color: isActive ? palette.glowPrimary.opacity(0.7) : .clear, radius: 8)
-        }
+            .contentShape(Rectangle())
+    }
+
+    // Minimal monochrome glyph. SF Symbols render the clean Liquid-Glass look;
+    // the branded `Lumina/Tab/*` artwork is intentionally not used here so the
+    // bar reads as a calm, modern, icon-only capsule.
+    private var iconView: some View {
+        Image(systemName: item.icon.sfSymbol)
+            .font(.system(size: LVSize.tabBarGlyph, weight: isActive ? .semibold : .regular))
+            .symbolVariant(isActive ? .fill : .none)
+            .foregroundStyle(isActive ? palette.primary : palette.textSecondary)
     }
 }

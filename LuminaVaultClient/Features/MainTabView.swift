@@ -64,6 +64,9 @@ struct MainTabView: View {
                 if Self.isOverflow(selection) {
                     overflowDestination
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        // Clear the floating glass tab bar so content isn't
+                        // hidden behind the capsule.
+                        .safeAreaPadding(.bottom, 60)
                 } else {
                     TabView(selection: $selection) {
                         // HER-249 — Workspaces wraps Spaces with workspace-aware
@@ -118,6 +121,9 @@ struct MainTabView: View {
                         .tag(Self.tabIds.think)
                         .toolbar(.hidden, for: .tabBar)
                     }
+                    // Clear the floating glass tab bar so page content isn't
+                    // hidden behind the capsule.
+                    .safeAreaPadding(.bottom, 60)
                 }
             }
 
