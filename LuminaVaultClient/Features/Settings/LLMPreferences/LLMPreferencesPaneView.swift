@@ -61,6 +61,9 @@ struct LLMPreferencesPaneView: View {
         }
         .navigationTitle("Intelligence")
         .navigationBarTitleDisplayMode(.inline)
+        // Clear the app-wide floating LVTabBar so the Save section isn't
+        // hidden under it (matches SettingsRootView's bottom clearance).
+        .contentMargins(.bottom, LVSpacing.hero + LVSpacing.xxl, for: .scrollContent)
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
     }
