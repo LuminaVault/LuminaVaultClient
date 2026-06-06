@@ -133,7 +133,7 @@ struct MainTabView: View {
             LVTabBar(
                 primaryItems: primaryTabItems,
                 overflowItems: overflowTabItems,
-                overflowLeading: true,
+                overflowLeading: false,
                 selection: $selection,
                 underlineNamespace: tabUnderline,
             )
@@ -199,18 +199,16 @@ struct MainTabView: View {
     // HER-291: tab icons resolve via `LVIcon`; the `.tab*` cases carry
     // their `Lumina/Tab/*` branded asset paths.
     private var primaryTabItems: [LVTabItem] {
+        // Order: Home · Spaces · AI · Brain · Reflect · (More trailing).
         [
-            LVTabItem(id: Self.tabIds.workspaces, label: "Spaces", icon: .tabSpaces),
             LVTabItem(id: Self.tabIds.home, label: "Home", icon: .tabHome),
-            // HER-194 — Reflect lives between Home and Think; the
-            // synthesis-intelligence cluster is the premium-flawless
-            // surface that justifies a primary tab.
-            LVTabItem(id: Self.tabIds.reflect, label: "Reflect", icon: .sparklesRectangleStack),
+            LVTabItem(id: Self.tabIds.workspaces, label: "Spaces", icon: .tabSpaces),
             LVTabItem(id: Self.tabIds.think, label: "AI", icon: .tabThink),
-            // HER-235 — Brain (knowledge graph). 5th primary tab (Apple
-            // HIG ceiling); the graph is the premium "see your second
-            // brain" surface, so it earns a primary slot over More.
+            // HER-235 — Brain (knowledge graph): the premium "see your
+            // second brain" surface.
             LVTabItem(id: Self.tabIds.brain, label: "Brain", icon: .brain),
+            // HER-194 — Reflect: the synthesis-intelligence cluster.
+            LVTabItem(id: Self.tabIds.reflect, label: "Reflect", icon: .sparklesRectangleStack),
         ]
     }
 

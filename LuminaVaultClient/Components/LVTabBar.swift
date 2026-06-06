@@ -212,29 +212,48 @@ private struct LVTabBarItemContent: View {
     let underlineNamespace: Namespace.ID
 
     var body: some View {
-        // Icon-only, Instagram-style: monochrome glyph that fills + tints when
-        // active. A soft palette-tinted circle slides behind the active glyph
-        // via `matchedGeometryEffect` (driven by `selectWithAnimation`'s spring).
-        iconView
-            .frame(width: 44, height: 44) // ≥44pt HIG tap target
-            .lvPulse(active: item.pulses && !reduceMotion)
-            .background {
-                if isActive {
-                    Circle()
-                        .fill(palette.primary.opacity(0.14))
-                        .matchedGeometryEffect(id: "activeTab", in: underlineNamespace)
-                }
+        // Branded glyph + small label. A soft palette-tinted capsule slides
+        // behind the active item via `matchedGeometryEffect` (driven by
+        // `selectWithAnimation`'s spring). Clean — no sparkle/bloom/heavy glow.
+        VStack(spacing: 2) {
+            iconView
+                .frame(width: 26, height: 26)
+                .lvPulse(active: item.pulses && !reduceMotion)
+            Text(item.label)
+                .font(LVTypography.microTag.font.weight(isActive ? .semibold : .regular))
+                .foregroundStyle(isActive ? palette.primary : palette.textSecondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, LVSpacing.sm)
+        .padding(.vertical, LVSpacing.xs)
+        .background {
+            if isActive {
+                Capsule()
+                    .fill(palette.primary.opacity(0.14))
+                    .matchedGeometryEffect(id: "activeTab", in: underlineNamespace)
             }
-            .contentShape(Rectangle())
+        }
+        .contentShape(Rectangle())
     }
 
-    // Minimal monochrome glyph. SF Symbols render the clean Liquid-Glass look;
-    // the branded `Lumina/Tab/*` artwork is intentionally not used here so the
-    // bar reads as a calm, modern, icon-only capsule.
+    // Branded `Lumina/Tab/*` artwork when present (full-colour, fit), with mild
+    // desaturation/dimming on inactive tabs. Falls back to the SF Symbol for
+    // tabs without custom artwork (e.g. the More "ellipsis"). No holographic
+    // bloom — keeps the floating-glass bar calm and modern.
+    @ViewBuilder
     private var iconView: some View {
-        Image(systemName: item.icon.sfSymbol)
-            .font(.system(size: LVSize.tabBarGlyph, weight: isActive ? .semibold : .regular))
-            .symbolVariant(isActive ? .fill : .none)
-            .foregroundStyle(isActive ? palette.primary : palette.textSecondary)
+        if let assetName = item.icon.customAssetName, UIImage(named: assetName) != nil {
+            Image(assetName)
+                .resizable()
+                .renderingMode(.original)
+                .aspectRatio(contentMode: .fit)
+                .saturation(isActive ? 1.0 : 0.7)
+                .opacity(isActive ? 1.0 : 0.8)
+        } else {
+            Image(systemName: item.icon.sfSymbol)
+                .font(.system(size: LVSize.tabBarGlyph, weight: isActive ? .semibold : .regular))
+                .symbolVariant(isActive ? .fill : .none)
+                .foregroundStyle(isActive ? palette.primary : palette.textSecondary)
+        }
     }
 }
