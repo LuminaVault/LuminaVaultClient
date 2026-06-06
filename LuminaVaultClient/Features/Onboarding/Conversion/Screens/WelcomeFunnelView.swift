@@ -16,9 +16,11 @@ struct WelcomeFunnelView: View {
                 HermieMascotView(state: .idle, size: 180, fallbackImageName: "OnboardingMascot")
                     .lvPulse()
                     .padding(.top, 24)
+                    .accessibilityHidden(true)
                 heroPreview
+                    .accessibilityHidden(true)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, minHeight: 300)
         }
     }
 

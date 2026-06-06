@@ -39,9 +39,16 @@ struct ConversionFunnelContainer: View {
                 // collapsing the scroll content to ~0pt — headline, options
                 // and hero art vanish and the CTA floats up under the progress
                 // bar. `stepContent` already fills via `.frame(maxHeight:)`.
+                //
+                // FIX: previously used `.transition(.opacity)` +
+                // `.animation(_, value:)` which suppressed the initial
+                // render — the welcome screen appeared at opacity 0 because
+                // no `withAnimation` block drove the insertion. Using `.id()`
+                // instead so SwiftUI treats each step as a new identity and
+                // animates only step-to-step swaps.
                 stepContent
+                    .id(state.currentStep)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .transition(.opacity)
                     .animation(.easeInOut(duration: 0.25), value: state.currentStep)
             }
         }

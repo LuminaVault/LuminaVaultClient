@@ -7,6 +7,7 @@
 import SwiftUI
 
 struct FunnelScreenChrome<Content: View>: View {
+    @Environment(\.lvPalette) private var palette
     let headline: String
     let subhead: String?
     let primaryCTA: String?
@@ -37,29 +38,40 @@ struct FunnelScreenChrome<Content: View>: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(headline)
-                        .font(.system(size: 28, weight: .heavy))
-                        .lineSpacing(2)
-                        .padding(.top, 24)
-                    if let subhead {
-                        Text(subhead)
-                            .font(.system(size: 16))
-                            .foregroundStyle(.secondary)
-                    }
-                    content()
-                        .padding(.top, 12)
+        // A `ScrollView` whose CTA is pinned via `.safeAreaInset(edge:.bottom)`
+        // instead of being a `VStack` sibling. A sibling competes with the
+        // ScrollView for the parent's flexible height, and in this funnel that
+        // repeatedly collapsed the scroll content to ~0pt (headline + hero
+        // vanish, CTA floats up under the progress bar). `safeAreaInset`
+        // reserves the CTA's height and lets the ScrollView fill everything
+        // else, so the content can never be starved.
+        ScrollView {
+            VStack(alignment: .leading, spacing: LVSpacing.base) {
+                Text(headline)
+                    .font(.title.bold())
+                    .foregroundStyle(palette.textPrimary)
+                    .lineSpacing(2)
+                    .padding(.top, LVSpacing.xl)
+                if let subhead {
+                    Text(subhead)
+                        .font(.body)
+                        .foregroundStyle(palette.textSecondary)
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 24)
+                content()
+                    .padding(.top, LVSpacing.md)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, LVSpacing.xl)
+            .padding(.bottom, LVSpacing.xl)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .safeAreaInset(edge: .bottom) {
             if primaryCTA != nil || secondaryCTA != nil {
                 ctaStack
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 16)
+                    .padding(.horizontal, LVSpacing.xl)
+                    .padding(.top, LVSpacing.md)
+                    .padding(.bottom, LVSpacing.base)
+                    .background(.ultraThinMaterial)
             }
         }
     }
@@ -70,7 +82,7 @@ struct FunnelScreenChrome<Content: View>: View {
             if let label = primaryCTA, let onPrimary {
                 Button(action: onPrimary) {
                     Text(label)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.headline)
                         .frame(maxWidth: .infinity, minHeight: 50)
                 }
                 .buttonStyle(.borderedProminent)
@@ -81,7 +93,7 @@ struct FunnelScreenChrome<Content: View>: View {
             if let label = secondaryCTA, let onSecondary {
                 Button(action: onSecondary) {
                     Text(label)
-                        .font(.system(size: 15, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
             }

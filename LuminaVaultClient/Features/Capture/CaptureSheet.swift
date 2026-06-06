@@ -23,10 +23,20 @@ struct CaptureSheet: View {
         }
     }
 
-    @Environment(\.lvPalette) private var palette
+    @Environment(\.lvThemeManager) private var themeManager
     @Environment(\.dismiss) private var dismiss
 
     @State private var mode: Mode = .photo
+
+    /// The Capture sheet is an intentionally always-dark cinematic surface
+    /// (`.preferredColorScheme(.dark)` below). The inherited `\.lvPalette` is
+    /// resolved by the scene root for the *device* color scheme, so on a Light
+    /// device it would carry light-mode colors into this force-dark sheet —
+    /// painting dark text on dark glass. Re-resolve the active theme for `.dark`
+    /// and re-inject it so palette + scheme always agree.
+    private var darkPalette: LVPalette {
+        (themeManager?.theme ?? .cyanGold).palette(for: .dark)
+    }
 
     private let photoViewModel: CapturePhotosViewModel
     private let textViewModel: TextCaptureViewModel
@@ -44,7 +54,7 @@ struct CaptureSheet: View {
 
     var body: some View {
         ZStack {
-            palette.backgroundBase.ignoresSafeArea()
+            darkPalette.backgroundBase.ignoresSafeArea()
             AuroraBackdrop()
             CaptureMascotVignette()
             SparkleField(density: 12, maxRadius: 1.4)
@@ -77,6 +87,7 @@ struct CaptureSheet: View {
                 toolbar
             }
         }
+        .environment(\.lvPalette, darkPalette)
         .presentationBackground(.clear)
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(LVRadius.sheet)

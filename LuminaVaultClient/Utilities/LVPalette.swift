@@ -72,7 +72,7 @@ extension LVPalette {
         auroraBottom:   Color(red: 0.000, green: 0.831, blue: 1.000).opacity(0.14),
         auroraCenter:   Color(red: 0.000, green: 0.588, blue: 1.000).opacity(0.08),
         textPrimary:    Color.white,
-        textSecondary:  Color.white.opacity(0.62)
+        textSecondary:  Color.white.opacity(0.72)
     )
 
     static let cyanGoldLight = LVPalette(
@@ -88,7 +88,7 @@ extension LVPalette {
         auroraBottom:   Color(red: 0.000, green: 0.831, blue: 1.000).opacity(0.08),
         auroraCenter:   Color(red: 0.000, green: 0.588, blue: 1.000).opacity(0.05),
         textPrimary:    Color(red: 0.05, green: 0.08, blue: 0.18),
-        textSecondary:  Color(red: 0.05, green: 0.08, blue: 0.18).opacity(0.62)
+        textSecondary:  Color(red: 0.05, green: 0.08, blue: 0.18).opacity(0.72)
     )
 
     // Nebula (magenta + violet)
@@ -105,7 +105,7 @@ extension LVPalette {
         auroraBottom:   Color(red: 0.486, green: 0.302, blue: 1.000).opacity(0.18),
         auroraCenter:   Color(red: 0.878, green: 0.251, blue: 0.984).opacity(0.10),
         textPrimary:    Color.white,
-        textSecondary:  Color.white.opacity(0.62)
+        textSecondary:  Color.white.opacity(0.72)
     )
 
     static let nebulaLight = LVPalette(
@@ -121,7 +121,7 @@ extension LVPalette {
         auroraBottom:   Color(red: 0.486, green: 0.302, blue: 1.000).opacity(0.08),
         auroraCenter:   Color(red: 0.878, green: 0.251, blue: 0.984).opacity(0.05),
         textPrimary:    Color(red: 0.10, green: 0.05, blue: 0.18),
-        textSecondary:  Color(red: 0.10, green: 0.05, blue: 0.18).opacity(0.62)
+        textSecondary:  Color(red: 0.10, green: 0.05, blue: 0.18).opacity(0.72)
     )
 
     // Solar (amber + rose)
@@ -138,7 +138,7 @@ extension LVPalette {
         auroraBottom:   Color(red: 1.000, green: 0.361, blue: 0.553).opacity(0.18),
         auroraCenter:   Color(red: 1.000, green: 0.702, blue: 0.000).opacity(0.10),
         textPrimary:    Color.white,
-        textSecondary:  Color.white.opacity(0.62)
+        textSecondary:  Color.white.opacity(0.72)
     )
 
     static let solarLight = LVPalette(
@@ -154,7 +154,7 @@ extension LVPalette {
         auroraBottom:   Color(red: 1.000, green: 0.361, blue: 0.553).opacity(0.08),
         auroraCenter:   Color(red: 1.000, green: 0.702, blue: 0.000).opacity(0.05),
         textPrimary:    Color(red: 0.18, green: 0.08, blue: 0.05),
-        textSecondary:  Color(red: 0.18, green: 0.08, blue: 0.05).opacity(0.62)
+        textSecondary:  Color(red: 0.18, green: 0.08, blue: 0.05).opacity(0.72)
     )
 }
 

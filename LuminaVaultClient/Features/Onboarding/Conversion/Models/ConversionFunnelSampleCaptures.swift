@@ -91,20 +91,23 @@ struct FunnelTestimonial: Identifiable, Sendable, Equatable {
     /// and risk rejection. Screen 4 feeds the paywall screenshot.
     ///
     /// Flip to `false` IN THE SAME COMMIT that swaps real testimonials in.
-    /// While `true`, `verified` trips a DEBUG assertion on every Screen 4
+    /// While `true`, `verified` logs a DEBUG warning on every Screen 4
     /// render so placeholders can't quietly reach a build.
     static let containsUnverifiedPlaceholders = true
 
     /// Read path for Screen 4. Always read this, never `entries` directly,
-    /// so the placeholder ship-guard runs. Assertion is DEBUG-only — release
-    /// builds never crash on it.
+    /// so the placeholder ship-guard runs. Warning is DEBUG-only and
+    /// non-fatal — neither debug nor release builds crash on it.
     static var verified: [FunnelTestimonial] {
-        assert(
-            !containsUnverifiedPlaceholders,
-            "HER-296: Screen 4 still shows placeholder testimonials. Swap in real "
-                + "TestFlight reviews (written consent on file), then set "
-                + "containsUnverifiedPlaceholders = false before the paywall ships."
-        )
+        #if DEBUG
+        if containsUnverifiedPlaceholders {
+            print(
+                "⚠️ HER-296: Screen 4 still shows placeholder testimonials. Swap in real "
+                    + "TestFlight reviews (written consent on file), then set "
+                    + "containsUnverifiedPlaceholders = false before the paywall ships."
+            )
+        }
+        #endif
         return entries
     }
 

@@ -35,8 +35,10 @@ struct CaptureCard<Content: View>: View {
                     }
                     if let title = eyebrowTitle {
                         Text(title)
+                            // Section header — bump above palette.textSecondary
+                            // (white 0.62, ~4:1 on glass) to clear WCAG 4.5:1.
                             .lvFont(.microTag)
-                            .foregroundStyle(palette.textSecondary)
+                            .foregroundStyle(palette.textPrimary.opacity(0.85))
                             .textCase(.uppercase)
                             .tracking(0.6)
                     }
