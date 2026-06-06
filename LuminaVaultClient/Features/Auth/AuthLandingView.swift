@@ -232,17 +232,20 @@ private struct AuthLandingButton: View {
             NavigationLink {
                 PhoneEntryView(vm: vm)
             } label: { card }
-                .simultaneousGesture(TapGesture().onEnded { action() })
                 .buttonStyle(.plain)
+                .simultaneousGesture(TapGesture().onEnded { action() })
+                .lvGlowPress()
         case .email:
             NavigationLink {
                 EmailMagicLinkView(vm: vm)
             } label: { card }
-                .simultaneousGesture(TapGesture().onEnded { action() })
                 .buttonStyle(.plain)
+                .simultaneousGesture(TapGesture().onEnded { action() })
+                .lvGlowPress()
         default:
             Button(action: action) { card }
                 .buttonStyle(.plain)
+                .lvGlowPress()
         }
     }
 
@@ -275,7 +278,7 @@ private struct AuthLandingButton: View {
         )
         .scaleEffect(isPreferred ? 1.02 : 1.0)
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPreferred)
-        .lvGlowPress()
+        .contentShape(Rectangle())
         .accessibilityLabel(option.label)
         .accessibilityAddTraits(isPreferred ? [.isSelected] : [])
     }
