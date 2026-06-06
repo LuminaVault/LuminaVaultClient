@@ -50,71 +50,74 @@ struct MainTabView: View {
                     onMascotTap: { showQuickSettings = true }
                 )
 
-                TabView(selection: $selection) {
-                    // HER-249 — Workspaces wraps Spaces with workspace-aware
-                    // chrome. Underlying file/folder UI is unchanged for v1.
-                    WorkspacesView(
-                        vm: SpacesViewModel(spacesClient: spacesClient),
-                        vaultClient: vaultClient,
-                        memoryClient: memoryClient,
-                        memoryDetailClient: memoryUpsertClient,
-                        uploadClient: vaultUploadClient,
-                    )
-                    .tag(Self.tabIds.workspaces)
-                    .toolbar(.hidden, for: .tabBar)
-
-                    home
-                        .tag(Self.tabIds.home)
+                // HER-fix — overflow destinations (Settings / Visual Search)
+                // live OUTSIDE the TabView. A SwiftUI `TabView` on iPhone
+                // buckets the 6th+ tab into the system "More" list
+                // (`UIMoreListController`), which `.toolbar(.hidden,for:.tabBar)`
+                // does NOT suppress — that produced the blank "More" screen and
+                // the double back-chevron (More's own nav controller wrapping
+                // the app's NavigationStack). Keeping the TabView at exactly 5
+                // primary tabs avoids the overflow entirely. The overflow views
+                // are swapped in as siblings so the primary TabView is fully
+                // removed from the hierarchy while they're shown — which lets
+                // Brain's `onAppear/onDisappear` pause fire correctly.
+                if Self.isOverflow(selection) {
+                    overflowDestination
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    TabView(selection: $selection) {
+                        // HER-249 — Workspaces wraps Spaces with workspace-aware
+                        // chrome. Underlying file/folder UI is unchanged for v1.
+                        WorkspacesView(
+                            vm: SpacesViewModel(spacesClient: spacesClient),
+                            vaultClient: vaultClient,
+                            memoryClient: memoryClient,
+                            memoryDetailClient: memoryUpsertClient,
+                            uploadClient: vaultUploadClient,
+                        )
+                        .tag(Self.tabIds.workspaces)
                         .toolbar(.hidden, for: .tabBar)
 
-                    // HER-194 — Reflect tab. Synth-cluster skills
-                    // (Patterns / Contradictions / Beliefs) with topic
-                    // input, full-screen result + Save-to-Vault.
-                    reflect
-                        .tag(Self.tabIds.reflect)
-                        .toolbar(.hidden, for: .tabBar)
+                        home
+                            .tag(Self.tabIds.home)
+                            .toolbar(.hidden, for: .tabBar)
 
-                    // HER-235 — Brain tab. The Obsidian-style knowledge
-                    // graph. Re-surfaced as a primary tab after the HER-243
-                    // OS-shell rebuild dropped it from the bar (the view +
-                    // client survived, only the nav wiring was lost).
-                    BrainTabView(client: memoryGraphClient)
-                        .tag(Self.tabIds.brain)
-                        .toolbar(.hidden, for: .tabBar)
+                        // HER-194 — Reflect tab. Synth-cluster skills
+                        // (Patterns / Contradictions / Beliefs) with topic
+                        // input, full-screen result + Save-to-Vault.
+                        reflect
+                            .tag(Self.tabIds.reflect)
+                            .toolbar(.hidden, for: .tabBar)
 
-                    // HER-107: Think tab — multi-turn chat. Memory-grounded
-                    // mode streams over SSE; fresh mode hits
-                    // /v1/chat/completions. Both routes are BYO-Hermes-aware
-                    // server-side.
-                    ThinkWithLuminaView(
-                        chatVM: ChatViewModel(
-                            conversationsClient: conversationsClient,
-                            chatClient: chatClient,
+                        // HER-235 — Brain tab. The Obsidian-style knowledge
+                        // graph. Re-surfaced as a primary tab after the HER-243
+                        // OS-shell rebuild dropped it from the bar (the view +
+                        // client survived, only the nav wiring was lost).
+                        BrainTabView(client: memoryGraphClient)
+                            .tag(Self.tabIds.brain)
+                            .toolbar(.hidden, for: .tabBar)
+
+                        // HER-107: Think tab — multi-turn chat. Memory-grounded
+                        // mode streams over SSE; fresh mode hits
+                        // /v1/chat/completions. Both routes are BYO-Hermes-aware
+                        // server-side.
+                        ThinkWithLuminaView(
+                            chatVM: ChatViewModel(
+                                conversationsClient: conversationsClient,
+                                chatClient: chatClient,
+                                memoryClient: memoryUpsertClient,
+                                historyStore: chatHistoryStore,
+                                jobsClient: jobsClient,
+                            ),
+                            memoClient: memoClient,
+                            suggestionsClient: suggestionsClient,
+                            vaultClient: vaultClient,
                             memoryClient: memoryUpsertClient,
-                            historyStore: chatHistoryStore,
-                            jobsClient: jobsClient,
-                        ),
-                        memoClient: memoClient,
-                        suggestionsClient: suggestionsClient,
-                        vaultClient: vaultClient,
-                        memoryClient: memoryUpsertClient,
-                        vaultUploadClient: vaultUploadClient,
-                    )
-                    .tag(Self.tabIds.think)
-                    .toolbar(.hidden, for: .tabBar)
-
-                    // HER-212: Settings tab — Privacy & Data + Advanced (Hermes Gateway).
-                    SettingsRootView()
-                        .tag(Self.tabIds.settings)
+                            vaultUploadClient: vaultUploadClient,
+                        )
+                        .tag(Self.tabIds.think)
                         .toolbar(.hidden, for: .tabBar)
-
-                    VisualSearchView(viewModel: VisualSearchViewModel(
-                        ocr: ImageOCRService(),
-                        client: memoryClient,
-                        telemetry: LoggerTelemetry(),
-                    ))
-                    .tag("visual_search")
-                    .toolbar(.hidden, for: .tabBar)
+                    }
                 }
             }
 
@@ -156,6 +159,31 @@ struct MainTabView: View {
         case Self.tabIds.settings:   return "Settings"
         case "visual_search":        return "Visual Search"
         default:                     return "LuminaVault"
+        }
+    }
+
+    // HER-fix — overflow tab ids rendered outside the 5-tab TabView to
+    // avoid the system "More" overflow list.
+    static let visualSearchTabId = "visual_search"
+
+    private static func isOverflow(_ id: String) -> Bool {
+        id == tabIds.settings || id == visualSearchTabId
+    }
+
+    @ViewBuilder
+    private var overflowDestination: some View {
+        switch selection {
+        case Self.tabIds.settings:
+            // HER-212: Settings — Privacy & Data + Advanced (Hermes Gateway).
+            SettingsRootView()
+        case Self.visualSearchTabId:
+            VisualSearchView(viewModel: VisualSearchViewModel(
+                ocr: ImageOCRService(),
+                client: memoryClient,
+                telemetry: LoggerTelemetry(),
+            ))
+        default:
+            EmptyView()
         }
     }
 

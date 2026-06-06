@@ -136,6 +136,16 @@ struct HermesGatewayPaneView: View {
     @ViewBuilder
     private func editingSection(prefilledBaseUrl: String?, prefilledHasAuthHeader: Bool) -> some View {
         Section {
+            TextField("My VPS (optional)", text: $viewModel.nameInput)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+        } header: {
+            Text("Name")
+        } footer: {
+            Text("A friendly label for this Hermes. Optional.")
+        }
+
+        Section {
             TextField("https://hermes.example.com", text: $viewModel.baseUrlInput)
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)

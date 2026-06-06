@@ -10,7 +10,7 @@ protocol SettingsClientProtocol {
     /// `nil` when the server returns 404 (no config). Other HTTP errors
     /// propagate as `APIError.httpError`.
     func getHermesConfig() async throws -> HermesConfigGetResponse?
-    func putHermesConfig(baseUrl: String, authHeader: String?) async throws -> HermesConfigGetResponse
+    func putHermesConfig(baseUrl: String, authHeader: String?, name: String?) async throws -> HermesConfigGetResponse
     func deleteHermesConfig() async throws
     func testHermesConfig() async throws -> HermesConfigTestResponse
 }

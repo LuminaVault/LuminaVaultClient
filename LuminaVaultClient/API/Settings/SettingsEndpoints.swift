@@ -19,10 +19,11 @@ enum SettingsEndpoints {
         typealias Response = HermesConfigGetResponse
         let baseUrl: String
         let authHeader: String?
+        let name: String?
         var path: String { "/v1/settings/hermes" }
         var method: HTTPMethod { .put }
         var body: (any Encodable)? {
-            HermesConfigPutRequest(baseUrl: baseUrl, authHeader: authHeader)
+            HermesConfigPutRequest(baseUrl: baseUrl, authHeader: authHeader, name: name)
         }
         var encoder: JSONEncoder {
             let e = JSONEncoder()

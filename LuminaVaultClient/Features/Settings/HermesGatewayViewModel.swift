@@ -53,6 +53,8 @@ final class HermesGatewayViewModel {
 
     // Form fields
     var baseUrlInput: String = ""
+    /// Optional friendly label for the endpoint (e.g. "My VPS").
+    var nameInput: String = ""
     var authMode: AuthMode = .none
     /// Raw value for `.bearer` — the token, with or without a `Bearer ` prefix.
     var authHeaderInput: String = ""
@@ -80,6 +82,7 @@ final class HermesGatewayViewModel {
         verifyError = nil
         do {
             if let config = try await client.getHermesConfig() {
+                nameInput = config.name ?? ""
                 state = Self.makeConfiguredState(from: config)
             } else {
                 state = .empty
@@ -93,6 +96,7 @@ final class HermesGatewayViewModel {
     /// Empty-state CTA. Opens the form with no prefill.
     func useMyOwnGateway() {
         baseUrlInput = ""
+        nameInput = ""
         resetAuthInputs()
         state = .editing(prefilledBaseUrl: nil, prefilledHasAuthHeader: false)
         verifyError = nil
@@ -156,9 +160,11 @@ final class HermesGatewayViewModel {
         lastError = nil
         verifyError = nil
         do {
+            let trimmedName = nameInput.trimmingCharacters(in: .whitespacesAndNewlines)
             let put = try await client.putHermesConfig(
                 baseUrl: baseUrlInput,
                 authHeader: buildAuthHeader(),
+                name: trimmedName.isEmpty ? nil : trimmedName,
             )
             do {
                 let test = try await client.testHermesConfig()
@@ -166,6 +172,7 @@ final class HermesGatewayViewModel {
                     baseUrl: put.baseUrl,
                     hasAuthHeader: put.hasAuthHeader,
                     verifiedAt: test.verifiedAt,
+                    name: put.name,
                 )
                 state = Self.makeConfiguredState(from: merged)
                 // PostHog: capture gateway configured and verified

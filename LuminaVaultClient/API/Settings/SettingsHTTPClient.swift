@@ -19,8 +19,8 @@ final class SettingsHTTPClient: SettingsClientProtocol {
         }
     }
 
-    func putHermesConfig(baseUrl: String, authHeader: String?) async throws -> HermesConfigGetResponse {
-        try await client.execute(SettingsEndpoints.PutHermesConfig(baseUrl: baseUrl, authHeader: authHeader))
+    func putHermesConfig(baseUrl: String, authHeader: String?, name: String?) async throws -> HermesConfigGetResponse {
+        try await client.execute(SettingsEndpoints.PutHermesConfig(baseUrl: baseUrl, authHeader: authHeader, name: name))
     }
 
     func deleteHermesConfig() async throws {

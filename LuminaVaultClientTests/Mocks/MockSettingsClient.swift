@@ -26,7 +26,7 @@ final class MockSettingsClient: SettingsClientProtocol, @unchecked Sendable {
         return try getResult.get()
     }
 
-    func putHermesConfig(baseUrl: String, authHeader: String?) async throws -> HermesConfigGetResponse {
+    func putHermesConfig(baseUrl: String, authHeader: String?, name: String?) async throws -> HermesConfigGetResponse {
         calls.append(.put(baseUrl: baseUrl, authHeader: authHeader))
         return try putResult.get()
     }

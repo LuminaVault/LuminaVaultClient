@@ -176,7 +176,7 @@ struct LLMPreferencesPaneView: View {
             // Providers without a catalog (ollama) keep a free-text field.
             if viewModel.usesModelCatalog {
                 Picker("Model", selection: Binding(
-                    get: { viewModel.primaryModel },
+                    get: { viewModel.pickerSelectedModel },
                     set: { newValue in
                         viewModel.primaryModel = newValue
                         viewModel.markDirty()
