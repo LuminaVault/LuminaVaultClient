@@ -74,6 +74,18 @@ final class LLMPreferencesPaneViewModel {
 
     var usesModelCatalog: Bool { !availableModels.isEmpty }
 
+    /// Picker rows: the curated catalog plus the currently-selected model when
+    /// it isn't in the catalog (e.g. a previously-saved managed default like
+    /// `qwen/...`, or a custom id). Guarantees the Picker selection always has
+    /// a matching tag — otherwise SwiftUI warns + behaves undefined.
+    var modelPickerOptions: [LLMModelInfo] {
+        var options = availableModels
+        if !primaryModel.isEmpty, !options.contains(where: { $0.id == primaryModel }) {
+            options.insert(LLMModelInfo(id: primaryModel, displayName: primaryModel), at: 0)
+        }
+        return options
+    }
+
     /// Switch primary provider and seed a sensible default model from the
     /// catalog so the picker is never left on a model the provider can't serve.
     func selectProvider(_ provider: ProviderID) {

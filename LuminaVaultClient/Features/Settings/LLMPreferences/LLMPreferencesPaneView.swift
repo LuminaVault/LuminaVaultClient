@@ -179,7 +179,7 @@ struct LLMPreferencesPaneView: View {
                         viewModel.markDirty()
                     },
                 )) {
-                    ForEach(viewModel.availableModels) { model in
+                    ForEach(viewModel.modelPickerOptions) { model in
                         Text(model.displayName).tag(model.id)
                     }
                 }
