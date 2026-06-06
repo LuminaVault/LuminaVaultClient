@@ -118,6 +118,7 @@ extension ProviderID {
         case .openRouter: return "OpenRouter"
         case .nvidia: return "NVIDIA NIM"
         case .gemini: return "Google Gemini"
+        case .nous: return "Nous Research"
         }
     }
 }

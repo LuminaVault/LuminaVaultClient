@@ -14,6 +14,9 @@ protocol ProvidersClientProtocol {
     func delete(_ provider: ProviderID) async throws
     func test(_ provider: ProviderID) async throws -> ProviderTestResponse
 
+    /// Live model list for the provider (or offline catalog fallback).
+    func models(_ provider: ProviderID) async throws -> ProviderModelsResponse
+
     /// Round-robin credential pool (extra keys beyond the primary).
     func listPool(_ provider: ProviderID) async throws -> ProviderPoolListResponse
     func addPool(_ provider: ProviderID, _ body: ProviderPoolAddRequest) async throws -> ProviderPoolKeyDTO

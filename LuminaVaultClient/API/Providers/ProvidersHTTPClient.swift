@@ -26,6 +26,10 @@ final class ProvidersHTTPClient: ProvidersClientProtocol {
         try await client.execute(ProvidersEndpoints.Test(provider: provider))
     }
 
+    func models(_ provider: ProviderID) async throws -> ProviderModelsResponse {
+        try await client.execute(ProvidersEndpoints.Models(provider: provider))
+    }
+
     func listPool(_ provider: ProviderID) async throws -> ProviderPoolListResponse {
         try await client.execute(ProvidersEndpoints.ListPool(provider: provider))
     }

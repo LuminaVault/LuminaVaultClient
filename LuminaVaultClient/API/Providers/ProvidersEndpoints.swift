@@ -39,6 +39,15 @@ enum ProvidersEndpoints {
         var method: HTTPMethod { .post }
     }
 
+    /// Live model list — fetched from the provider's `/v1/models` when the
+    /// provider is OpenAI-compatible, else the offline catalog. Always 200.
+    struct Models: Endpoint {
+        typealias Response = ProviderModelsResponse
+        let provider: ProviderID
+        var path: String { "/v1/me/providers/\(provider.rawValue)/models" }
+        var method: HTTPMethod { .get }
+    }
+
     // Round-robin credential pool.
     struct ListPool: Endpoint {
         typealias Response = ProviderPoolListResponse

@@ -117,6 +117,7 @@ struct ProviderEditSheet: View {
         case .openai: "Get a key at https://platform.openai.com/api-keys."
         case .openRouter: "Get a key at https://openrouter.ai/keys. Works as a fallback chain entry."
         case .ollama: "Host URL of your self-hosted Ollama (e.g. http://192.168.1.42:11434 or a Tailscale name)."
+        case .nous: "Get a key at https://portal.nousresearch.com. Includes rotating free models (e.g. stepfun/step-3.7-flash:free). Stored encrypted at rest."
         }
     }
 

@@ -57,6 +57,13 @@ final class LLMPreferencesPaneViewModel {
     /// snapshot. Save button uses it to enable/disable.
     var hasUnsavedChanges: Bool = false
 
+    /// Live model lists fetched per provider from
+    /// `GET /v1/me/providers/{id}/models`. Takes precedence over the offline
+    /// catalog so rotating lists (e.g. Nous free models) stay current.
+    var liveModels: [ProviderID: [LLMModelInfo]] = [:]
+    /// True while a live model fetch for the current provider is in flight.
+    var modelsLoading: Bool = false
+
     private let client: LLMPreferencesClientProtocol
     private let providersClient: ProvidersClientProtocol
     private var lastServerSnapshot: LLMPreferencesGetResponse?
@@ -66,10 +73,29 @@ final class LLMPreferencesPaneViewModel {
         self.providersClient = providersClient
     }
 
-    /// Curated model list for the selected provider. Empty → the provider
-    /// (e.g. ollama) uses a free-text model field instead of a picker.
+    /// Model list for the selected provider: the live fetch when available,
+    /// else the curated offline catalog. Empty → the provider (e.g. ollama)
+    /// uses a free-text model field instead of a picker.
     var availableModels: [LLMModelInfo] {
-        LLMModelCatalog.models(for: primaryProvider)
+        liveModels[primaryProvider] ?? LLMModelCatalog.models(for: primaryProvider)
+    }
+
+    /// Fetch the live model list for a provider and merge it over the
+    /// catalog. Failures are swallowed — the offline catalog already backs
+    /// `availableModels`, so a dead fetch must not break the picker.
+    func refreshModels(for provider: ProviderID) async {
+        modelsLoading = true
+        defer { if provider == primaryProvider { modelsLoading = false } }
+        guard let response = try? await providersClient.models(provider),
+              !response.models.isEmpty
+        else { return }
+        liveModels[provider] = response.models
+        // If the freshly-loaded list doesn't contain the current model and
+        // this is still the active provider, seed a valid default.
+        if provider == primaryProvider,
+           !response.models.contains(where: { $0.id == primaryModel }) {
+            primaryModel = response.models.first?.id ?? primaryModel
+        }
     }
 
     var usesModelCatalog: Bool { !availableModels.isEmpty }
@@ -86,6 +112,20 @@ final class LLMPreferencesPaneViewModel {
         return options
     }
 
+    /// The value the Model `Picker` should bind its `selection` to. SwiftUI
+    /// emits "selection is invalid and does not have an associated tag" when
+    /// the bound value isn't among the rendered `.tag`s — which happens on the
+    /// pre-load empty default and during the multi-property `apply()` update,
+    /// where `selection` can be read a frame before `modelPickerOptions`
+    /// recomputes. Coercing the getter to an always-present option silences the
+    /// warning and keeps the picker deterministic; the real value is still
+    /// written through the setter.
+    var pickerSelectedModel: String {
+        let options = modelPickerOptions
+        if options.contains(where: { $0.id == primaryModel }) { return primaryModel }
+        return options.first?.id ?? ""
+    }
+
     /// Switch primary provider and seed a sensible default model from the
     /// catalog so the picker is never left on a model the provider can't serve.
     func selectProvider(_ provider: ProviderID) {
@@ -96,6 +136,8 @@ final class LLMPreferencesPaneViewModel {
         }
         apiKeyInput = ""
         markDirty()
+        let target = provider
+        Task { await refreshModels(for: target) }
     }
 
     func load() async {
@@ -104,6 +146,7 @@ final class LLMPreferencesPaneViewModel {
             let response = try await client.get()
             apply(response)
             state = .loaded
+            await refreshModels(for: primaryProvider)
         } catch {
             state = .failed(Self.message(for: error))
         }
@@ -247,6 +290,12 @@ final class LLMPreferencesPaneViewModel {
         fallbackChain = response.fallbackChain
         allowedProviders = Set(response.allowedProviders)
         blockedProviders = Set(response.blockedProviders)
+        // Catalog-backed providers should never sit on an empty model (the
+        // Picker has no "" tag). Seed the first catalog entry; free-text
+        // providers (e.g. ollama) keep whatever the server sent.
+        if usesModelCatalog, primaryModel.isEmpty {
+            primaryModel = availableModels.first?.id ?? ""
+        }
         lastServerSnapshot = response
         hasUnsavedChanges = false
     }
