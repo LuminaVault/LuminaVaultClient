@@ -25,11 +25,10 @@ enum SettingsEndpoints {
         var body: (any Encodable)? {
             HermesConfigPutRequest(baseUrl: baseUrl, authHeader: authHeader, name: name)
         }
-        var encoder: JSONEncoder {
-            let e = JSONEncoder()
-            e.keyEncodingStrategy = .convertToSnakeCase
-            return e
-        }
+        // Wire is camelCase: the server's HermesConfigController.PutRequest uses
+        // the default decoder (no snake conversion), matching LLMPreferences.Put.
+        // A `convertToSnakeCase` override here sent `base_url` → server 400
+        // "Coding key `baseUrl` not found".
     }
 
     struct DeleteHermesConfig: Endpoint {
