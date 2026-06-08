@@ -28,6 +28,40 @@ final class RemindersListViewModel {
         }
     }
 
+    /// HER-55 — create a reminder from an edit-sheet draft, then refresh.
+    /// Throws so the sheet can keep itself open and show the error.
+    func create(_ draft: ReminderDraft) async throws {
+        _ = try await client.create(ReminderCreateRequest(
+            title: draft.title,
+            body: draft.body,
+            fireAt: draft.fireAt,
+            recurrenceCron: draft.recurrenceCron,
+        ))
+        await load()
+    }
+
+    /// HER-55 — patch an existing reminder. An empty `recurrenceCron` string
+    /// clears recurrence server-side (nil means "no change"), so a draft with
+    /// no recurrence sends "" to turn a recurring reminder back into a one-shot.
+    func update(id: UUID, _ draft: ReminderDraft) async throws {
+        _ = try await client.update(id: id, ReminderPatchRequest(
+            title: draft.title,
+            body: draft.body,
+            fireAt: draft.fireAt,
+            recurrenceCron: draft.recurrenceCron ?? "",
+        ))
+        await load()
+    }
+
+    func delete(_ reminder: ReminderDTO) async {
+        do {
+            try await client.delete(id: reminder.id)
+            reminders.removeAll { $0.id == reminder.id }
+        } catch {
+            // Leave the row in place on failure; a refresh will reconcile.
+        }
+    }
+
     /// Pending = not yet fired, soonest first. Fired drop to a history group.
     var pending: [ReminderDTO] {
         reminders.filter { $0.firedAt == nil }.sorted { $0.fireAt < $1.fireAt }
@@ -39,9 +73,22 @@ final class RemindersListViewModel {
 
 struct RemindersListView: View {
 
+    /// Identifiable target for the single create/edit sheet.
+    private enum EditTarget: Identifiable {
+        case create
+        case edit(ReminderDTO)
+        var id: String {
+            switch self {
+            case .create: "create"
+            case .edit(let reminder): reminder.id.uuidString
+            }
+        }
+    }
+
     @Environment(\.lvPalette) private var palette
 
     @State var vm: RemindersListViewModel
+    @State private var editTarget: EditTarget?
 
     var body: some View {
         ZStack {
@@ -50,6 +97,22 @@ struct RemindersListView: View {
         }
         .navigationTitle("Reminders")
         .lvBackground()
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { editTarget = .create } label: {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel("New reminder")
+            }
+        }
+        .sheet(item: $editTarget) { target in
+            switch target {
+            case .create:
+                ReminderEditView(existing: nil) { draft in try await vm.create(draft) }
+            case .edit(let reminder):
+                ReminderEditView(existing: reminder) { draft in try await vm.update(id: reminder.id, draft) }
+            }
+        }
         .task { await vm.load() }
         .refreshable { await vm.load() }
     }
@@ -102,7 +165,16 @@ struct RemindersListView: View {
                             .font(.system(size: 11))
                             .foregroundStyle(Color.lvTextMuted)
                     }
+                    .contentShape(Rectangle())
+                    .onTapGesture { editTarget = .edit(reminder) }
                     .listRowBackground(palette.backgroundBase.opacity(0.5))
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            Task { await vm.delete(reminder) }
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
                 }
             }
         }

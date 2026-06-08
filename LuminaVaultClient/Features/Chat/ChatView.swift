@@ -203,12 +203,26 @@ struct ChatView: View {
             if let toast = viewModel.jobToast {
                 SavedToast(text: toast)
             }
+            if let toast = viewModel.reminderToast {
+                SavedToast(text: toast)
+            }
             // Jobs P3 — recurring-job proposal surfaced from the last turn.
             if let proposal = viewModel.jobProposal {
                 JobProposalCard(
                     proposal: proposal,
                     onCreate: viewModel.confirmJob,
                     onDismiss: viewModel.dismissJob,
+                )
+                .padding(.horizontal, LVSpacing.base)
+                .padding(.bottom, LVSpacing.sm)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            // HER-55 — reminder proposal surfaced from the last turn.
+            if let proposal = viewModel.reminderProposal {
+                ReminderProposalCard(
+                    proposal: proposal,
+                    onCreate: viewModel.confirmReminder,
+                    onDismiss: viewModel.dismissReminder,
                 )
                 .padding(.horizontal, LVSpacing.base)
                 .padding(.bottom, LVSpacing.sm)

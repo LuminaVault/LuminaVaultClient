@@ -11,6 +11,8 @@ protocol RemindersClientProtocol: Sendable {
     func create(_ request: ReminderCreateRequest) async throws -> ReminderDTO
     func update(id: UUID, _ request: ReminderPatchRequest) async throws -> ReminderDTO
     func delete(id: UUID) async throws
+    /// HER-55 — classify a chat turn for reminder intent (POST /v1/reminders/detect).
+    func detect(text: String) async throws -> ReminderProposalDTO
 }
 
 enum RemindersEndpoints {
@@ -44,6 +46,14 @@ enum RemindersEndpoints {
         var path: String { "/v1/reminders/\(id.uuidString.lowercased())" }
         var method: HTTPMethod { .delete }
     }
+
+    struct Detect: Endpoint {
+        typealias Response = ReminderProposalDTO
+        let text: String
+        var path: String { "/v1/reminders/detect" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { ["text": text] }
+    }
 }
 
 final class RemindersHTTPClient: RemindersClientProtocol {
@@ -64,5 +74,9 @@ final class RemindersHTTPClient: RemindersClientProtocol {
 
     func delete(id: UUID) async throws {
         _ = try await client.execute(RemindersEndpoints.Delete(id: id))
+    }
+
+    func detect(text: String) async throws -> ReminderProposalDTO {
+        try await client.execute(RemindersEndpoints.Detect(text: text))
     }
 }

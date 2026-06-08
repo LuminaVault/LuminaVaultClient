@@ -111,6 +111,7 @@ struct MainTabView: View {
                                 memoryClient: memoryUpsertClient,
                                 historyStore: chatHistoryStore,
                                 jobsClient: jobsClient,
+                                remindersClient: remindersClient,
                             ),
                             memoClient: memoClient,
                             suggestionsClient: suggestionsClient,

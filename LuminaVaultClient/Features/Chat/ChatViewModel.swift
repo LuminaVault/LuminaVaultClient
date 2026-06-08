@@ -92,6 +92,12 @@ final class ChatViewModel {
     var jobProposal: JobProposalDTO?
     /// Transient confirmation after a job is created (auto-clears ~2.5s).
     var jobToast: String?
+    /// HER-55 — when the last user message reads as a "remind me…" request,
+    /// the server classifier returns a proposal and the chat shows a
+    /// "Set a reminder?" card. Cleared on confirm/dismiss/next send.
+    var reminderProposal: ReminderProposalDTO?
+    /// Transient confirmation after a reminder is created (auto-clears ~2.5s).
+    var reminderToast: String?
     /// Client-extracted file staged for the next send. There is no
     /// per-message attachment contract on the server, so the extracted
     /// text is prepended into the outgoing message `content` (see
@@ -119,6 +125,9 @@ final class ChatViewModel {
     /// Lumina Jobs P3 — optional; when wired, each user turn is classified for
     /// recurring-job intent and a proposal card may surface.
     private let jobsClient: (any JobsClientProtocol)?
+    /// HER-55 — optional; when wired, each user turn is classified for
+    /// reminder intent and a "Set a reminder?" card may surface.
+    private let remindersClient: (any RemindersClientProtocol)?
     /// HER-153 — owns the hold-to-talk recording state and Lumina's
     /// spoken-reply pipeline. Lazily wired through the init chain so
     /// existing call sites and previews don't need to know about it.
@@ -147,12 +156,14 @@ final class ChatViewModel {
         historyStore: ChatHistoryStore? = nil,
         voice: VoiceModeController = VoiceModeController(),
         jobsClient: (any JobsClientProtocol)? = nil,
+        remindersClient: (any RemindersClientProtocol)? = nil,
     ) {
         self.conversationsClient = conversationsClient
         self.chatClient = chatClient
         self.memoryClient = memoryClient
         self.historyStore = historyStore
         self.jobsClient = jobsClient
+        self.remindersClient = remindersClient
         self.voice = voice
         self.voice.onFinalTranscript = { [weak self] transcript in
             self?.sendVoiceTranscript(transcript)
@@ -240,6 +251,14 @@ final class ChatViewModel {
             Task { [weak self] in await self?.detectJob(probe) }
         }
 
+        // HER-55 — classify the turn for reminder intent in the background;
+        // never blocks the chat stream.
+        reminderProposal = nil
+        if remindersClient != nil, !trimmed.isEmpty {
+            let probe = trimmed
+            Task { [weak self] in await self?.detectReminder(probe) }
+        }
+
         streamTask?.cancel()
         streamTask = Task { [weak self] in
             await self?.runSend(content: wireContent)
@@ -283,6 +302,49 @@ final class ChatViewModel {
         toastDecayTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(2.5))
             self?.jobToast = nil
+        }
+    }
+
+    // MARK: - Reminders (HER-55)
+
+    private var reminderToastDecayTask: Task<Void, Never>?
+
+    private func detectReminder(_ text: String) async {
+        guard let remindersClient else { return }
+        guard let proposal = try? await remindersClient.detect(text: text),
+              proposal.isReminder, proposal.fireAt != nil
+        else { return }
+        reminderProposal = proposal
+    }
+
+    /// Create the proposed reminder, then clear the card and show a toast.
+    func confirmReminder() {
+        guard let remindersClient, let proposal = reminderProposal,
+              let fireAt = proposal.fireAt
+        else { reminderProposal = nil; return }
+        let request = ReminderCreateRequest(
+            title: proposal.title ?? "Reminder",
+            body: proposal.body ?? "",
+            fireAt: fireAt,
+            recurrenceCron: proposal.recurrenceCron,
+        )
+        reminderProposal = nil
+        Task { [weak self] in
+            guard let self else { return }
+            if (try? await remindersClient.create(request)) != nil {
+                self.reminderToast = "Reminder set — find it in the Reminders tab."
+                self.scheduleReminderToastDecay()
+            }
+        }
+    }
+
+    func dismissReminder() { reminderProposal = nil }
+
+    private func scheduleReminderToastDecay() {
+        reminderToastDecayTask?.cancel()
+        reminderToastDecayTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2.5))
+            self?.reminderToast = nil
         }
     }
 
