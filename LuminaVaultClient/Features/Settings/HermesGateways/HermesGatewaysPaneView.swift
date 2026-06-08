@@ -106,6 +106,8 @@ struct HermesGatewaysPaneView: View {
         case .slack: "number"
         case .whatsapp: "bubble.left.fill"
         case .email: "envelope.fill"
+        case .matrix: "circle.grid.cross.fill"
+        case .ntfy: "bell.fill"
         }
     }
 }
