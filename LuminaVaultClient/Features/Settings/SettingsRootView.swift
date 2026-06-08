@@ -121,6 +121,12 @@ struct SettingsRootView: View {
                             LVSettingsRow("Plugins", icon: .puzzlepieceExtension) {
                                 PluginStoreView(client: pluginsClient)
                             }
+                            LVSettingsDivider()
+                            // Import an Obsidian/Hermes vault folder → Spaces +
+                            // Brain graph + grounding (POST /v1/import/vault-bulk).
+                            LVSettingsRow("Import Vault", icon: .trayAndArrowDown) {
+                                VaultImportView(client: VaultImportHTTPClient(client: appState.makeHTTPClient()))
+                            }
                         }
 
                         LVSectionCard("Automation & Alerts") {
