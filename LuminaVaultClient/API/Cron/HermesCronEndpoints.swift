@@ -21,10 +21,35 @@ struct HermesCronListDTO: Decodable {
     let jobs: [HermesCronJobDTO]
 }
 
+struct CronSpecDTO: Codable {
+    let schedule: String
+    let prompt: String?
+    let name: String?
+    let deliver: String?
+    let skills: [String]?
+}
+
 enum HermesCronEndpoints {
     struct List: Endpoint {
         typealias Response = HermesCronListDTO
         var path: String { "/v1/me/hermes/cron" }
         var method: HTTPMethod { .get }
+    }
+
+    /// Natural language → a cron spec for confirmation (no write).
+    struct Preview: Endpoint {
+        typealias Response = CronSpecDTO
+        let text: String
+        var path: String { "/v1/me/hermes/cron/preview" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { ["text": text] }
+    }
+
+    struct Create: Endpoint {
+        typealias Response = HermesCronListDTO
+        let spec: CronSpecDTO
+        var path: String { "/v1/me/hermes/cron" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { spec }
     }
 }

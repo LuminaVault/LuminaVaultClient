@@ -38,10 +38,47 @@ final class HermesCronListViewModel {
             state = .failed("Couldn't load Hermes cron jobs.")
         }
     }
+
+    // MARK: - Create from chat
+
+    var createText = ""
+    var previewedSpec: CronSpecDTO?
+    var createBusy = false
+    var createError: String?
+
+    func preview() async {
+        let text = createText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        createBusy = true; createError = nil; previewedSpec = nil
+        defer { createBusy = false }
+        do { previewedSpec = try await client.preview(text: text) }
+        catch {
+            createError = "Couldn't turn that into a schedule. Try e.g. \"every weekday 9am, AI news digest to Telegram\"."
+        }
+    }
+
+    /// Returns true on success (caller dismisses the sheet).
+    func create() async -> Bool {
+        guard let spec = previewedSpec else { return false }
+        createBusy = true; createError = nil
+        defer { createBusy = false }
+        do {
+            let response = try await client.create(spec: spec)
+            source = response.source
+            jobs = response.jobs
+            previewedSpec = nil
+            createText = ""
+            return true
+        } catch {
+            createError = "Couldn't create the job."
+            return false
+        }
+    }
 }
 
 struct HermesCronListView: View {
     @State private var viewModel: HermesCronListViewModel
+    @State private var showCreate = false
 
     init(client: HermesCronClientProtocol) {
         _viewModel = State(initialValue: HermesCronListViewModel(client: client))
@@ -72,8 +109,61 @@ struct HermesCronListView: View {
         }
         .navigationTitle("Hermes Cron")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { showCreate = true } label: { Image(systemName: "plus") }
+            }
+        }
+        .sheet(isPresented: $showCreate) { createSheet }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
+    }
+
+    private var createSheet: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField(
+                        "Describe a job — e.g. \"every weekday 9am, AI news digest to Telegram\"",
+                        text: $viewModel.createText,
+                        axis: .vertical,
+                    )
+                    .lineLimit(2 ... 5)
+                    Button("Preview") { Task { await viewModel.preview() } }
+                        .disabled(viewModel.createBusy || viewModel.createText.trimmingCharacters(in: .whitespaces).isEmpty)
+                } footer: {
+                    Text("Plain English → a scheduled Hermes job. You confirm before it's created.")
+                }
+
+                if let spec = viewModel.previewedSpec {
+                    Section("Will create") {
+                        LabeledContent("Schedule", value: spec.schedule)
+                        if let name = spec.name, !name.isEmpty { LabeledContent("Name", value: name) }
+                        if let deliver = spec.deliver, !deliver.isEmpty { LabeledContent("Deliver", value: deliver) }
+                        if let prompt = spec.prompt, !prompt.isEmpty {
+                            Text(prompt).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Section {
+                        Button("Create job") {
+                            Task { if await viewModel.create() { showCreate = false } }
+                        }
+                        .disabled(viewModel.createBusy)
+                    }
+                }
+
+                if let error = viewModel.createError {
+                    Section { Text(error).foregroundStyle(.red).font(.footnote) }
+                }
+            }
+            .navigationTitle("New Hermes Job")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { showCreate = false }
+                }
+            }
+        }
     }
 
     private func row(_ job: HermesCronJobDTO) -> some View {
