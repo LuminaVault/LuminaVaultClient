@@ -108,6 +108,7 @@ struct HermesGatewaysPaneView: View {
         case .email: "envelope.fill"
         case .matrix: "circle.grid.cross.fill"
         case .ntfy: "bell.fill"
+        case .mattermost: "bubble.left.and.bubble.right.fill"
         }
     }
 }
