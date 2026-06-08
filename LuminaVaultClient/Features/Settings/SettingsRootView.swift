@@ -127,6 +127,12 @@ struct SettingsRootView: View {
                             LVSettingsRow("Import Vault", icon: .trayAndArrowDown) {
                                 VaultImportView(client: VaultImportHTTPClient(client: appState.makeHTTPClient()))
                             }
+                            LVSettingsDivider()
+                            // TUI-parity: list the connected Hermes's cron jobs
+                            // (managed exec or BYO dashboard API).
+                            LVSettingsRow("Hermes Cron", icon: .arrowClockwiseCircle) {
+                                HermesCronListView(client: HermesCronHTTPClient(client: appState.makeHTTPClient()))
+                            }
                         }
 
                         LVSectionCard("Automation & Alerts") {
