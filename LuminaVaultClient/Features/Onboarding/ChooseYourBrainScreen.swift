@@ -74,26 +74,18 @@ struct ChooseYourBrainScreen: View {
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, LVSpacing.base)
                         }
+
+                        VStack(spacing: LVSpacing.md) {
+                            primaryCTA
+                            secondaryCTA
+                        }
+                        .padding(.top, LVSpacing.lg)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, LVSpacing.xl)
-                    .padding(.bottom, LVSpacing.md)
+                    .padding(.bottom, LVSpacing.hero)
                 }
                 .scrollBounceBehavior(.basedOnSize)
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                VStack(spacing: LVSpacing.md) {
-                    primaryCTA
-                    secondaryCTA
-                }
-                .padding(.horizontal, LVSpacing.xl)
-                .padding(.top, LVSpacing.md)
-                .safeAreaPadding(.bottom, LVSpacing.base)
-                .background {
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .ignoresSafeArea(edges: .bottom)
-                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationDestination(isPresented: $viewModel.shouldNavigateToProviders) {
