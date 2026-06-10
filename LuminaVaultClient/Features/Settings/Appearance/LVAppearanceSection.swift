@@ -2,7 +2,7 @@
 // HER-255: Theme + light/dark switch inside Settings.
 //
 // Two pickers stacked inside a single Section:
-//   1. Theme  — Cyan-Gold / Nebula / Solar palettes (swatches)
+//   1. Theme  — System / Cyan-Gold / Nebula / Solar palettes (swatches)
 //   2. Mode   — System / Light / Dark (segmented)
 import SwiftUI
 
@@ -67,8 +67,14 @@ private struct LVThemeSwatch: View {
                             )
                         )
                         .frame(width: isSelected ? 56 : 48, height: isSelected ? 56 : 48)
-                        .shadow(color: theme.swatch[0].opacity(0.55), radius: isSelected ? 16 : 8)
-                        .shadow(color: theme.swatch[1].opacity(0.35), radius: isSelected ? 26 : 14)
+                        .shadow(
+                            color: theme.swatch[0].opacity(theme == .system ? 0.2 : 0.55),
+                            radius: isSelected ? 16 : 8
+                        )
+                        .shadow(
+                            color: theme.swatch[1].opacity(theme == .system ? 0.12 : 0.35),
+                            radius: isSelected ? 26 : 14
+                        )
                     if isSelected {
                         Circle()
                             .stroke(.white.opacity(0.85), lineWidth: 2)

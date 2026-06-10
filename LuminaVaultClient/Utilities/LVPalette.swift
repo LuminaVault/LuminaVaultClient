@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// A bundle of colors that fully describes the active LuminaVault theme.
 /// Resolved once per ColorScheme inside `LVTheme.palette(for:)` and injected
@@ -26,6 +27,7 @@ struct LVPalette: Equatable {
 /// Available palettes shown in the Settings → Appearance picker.
 /// Each case knows how to materialize itself for the active color scheme.
 enum LVTheme: String, CaseIterable, Identifiable, Codable {
+    case system
     case cyanGold
     case nebula
     case solar
@@ -34,6 +36,7 @@ enum LVTheme: String, CaseIterable, Identifiable, Codable {
 
     var displayName: String {
         switch self {
+        case .system:   return "System"
         case .cyanGold: return "Cyan Gold"
         case .nebula:   return "Nebula"
         case .solar:    return "Solar"
@@ -42,12 +45,18 @@ enum LVTheme: String, CaseIterable, Identifiable, Codable {
 
     /// Two-tone swatch shown in the theme picker.
     var swatch: [Color] {
-        let p = palette(for: .dark)
-        return [p.primary, p.accent]
+        switch self {
+        case .system:
+            return [Color(uiColor: .secondaryLabel), Color.accentColor]
+        case .cyanGold, .nebula, .solar:
+            let p = palette(for: .dark)
+            return [p.primary, p.accent]
+        }
     }
 
     func palette(for scheme: ColorScheme) -> LVPalette {
         switch self {
+        case .system:   return scheme == .dark ? .systemDark : .systemLight
         case .cyanGold: return scheme == .dark ? .cyanGoldDark : .cyanGoldLight
         case .nebula:   return scheme == .dark ? .nebulaDark   : .nebulaLight
         case .solar:    return scheme == .dark ? .solarDark    : .solarLight
@@ -58,6 +67,39 @@ enum LVTheme: String, CaseIterable, Identifiable, Codable {
 // MARK: - Concrete palettes
 
 extension LVPalette {
+    // System — native iOS semantic colors; no custom aurora identity.
+    static let systemDark = LVPalette(
+        primary:        Color.accentColor,
+        secondary:      Color(uiColor: .systemBlue),
+        accent:         Color(uiColor: .systemOrange),
+        glowPrimary:    Color.accentColor,
+        glowSecondary:  Color(uiColor: .systemIndigo),
+        surface:        Color(uiColor: .secondarySystemGroupedBackground).opacity(0.72),
+        surfaceStroke:  Color(uiColor: .separator),
+        backgroundBase: Color(uiColor: .systemBackground),
+        auroraTop:      .clear,
+        auroraBottom:   .clear,
+        auroraCenter:   .clear,
+        textPrimary:    Color(uiColor: .label),
+        textSecondary:  Color(uiColor: .secondaryLabel)
+    )
+
+    static let systemLight = LVPalette(
+        primary:        Color.accentColor,
+        secondary:      Color(uiColor: .systemBlue),
+        accent:         Color(uiColor: .systemOrange),
+        glowPrimary:    Color.accentColor,
+        glowSecondary:  Color(uiColor: .systemIndigo),
+        surface:        Color(uiColor: .secondarySystemGroupedBackground).opacity(0.88),
+        surfaceStroke:  Color(uiColor: .separator),
+        backgroundBase: Color(uiColor: .systemBackground),
+        auroraTop:      .clear,
+        auroraBottom:   .clear,
+        auroraCenter:   .clear,
+        textPrimary:    Color(uiColor: .label),
+        textSecondary:  Color(uiColor: .secondaryLabel)
+    )
+
     // Cyan-Gold (default LuminaVault aesthetic)
     static let cyanGoldDark = LVPalette(
         primary:        Color(red: 0.000, green: 0.831, blue: 1.000), // #00D4FF cyan

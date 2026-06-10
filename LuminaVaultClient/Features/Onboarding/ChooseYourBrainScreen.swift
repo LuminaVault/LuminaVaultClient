@@ -42,20 +42,19 @@ struct ChooseYourBrainScreen: View {
             ZStack {
                 Color.clear.lvBackground()
 
-                LVHaloBackdrop(focalSize: 220, intensity: LVGlow.hero)
+                LVHaloBackdrop(focalSize: 200, intensity: LVGlow.hero)
                     .allowsHitTesting(false)
 
                 ScrollView {
-                    VStack(spacing: LVSpacing.xl) {
-                        Spacer(minLength: LVSpacing.heroTop)
-
+                    VStack(spacing: LVSpacing.lg) {
                         Image("Lumina/Icons/brain-neural")
                             .resizable()
                             .renderingMode(.original)
                             .scaledToFit()
-                            .frame(width: 240, height: 240)
+                            .frame(width: 200, height: 200)
                             .shadow(color: palette.glowPrimary.opacity(0.6), radius: 40, y: 0)
                             .accessibilityHidden(true)
+                            .padding(.top, LVSpacing.xl)
 
                         VStack(spacing: LVSpacing.sm) {
                             Text("Choose your Brain")
@@ -75,18 +74,26 @@ struct ChooseYourBrainScreen: View {
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, LVSpacing.base)
                         }
-
-                        Spacer(minLength: LVSpacing.base)
-
-                        VStack(spacing: LVSpacing.md) {
-                            primaryCTA
-                            secondaryCTA
-                        }
-                        .padding(.horizontal, LVSpacing.xl)
-                        .padding(.bottom, LVSpacing.xl)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, LVSpacing.xl)
+                    .padding(.bottom, LVSpacing.md)
                 }
-                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                VStack(spacing: LVSpacing.md) {
+                    primaryCTA
+                    secondaryCTA
+                }
+                .padding(.horizontal, LVSpacing.xl)
+                .padding(.top, LVSpacing.md)
+                .safeAreaPadding(.bottom, LVSpacing.base)
+                .background {
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .ignoresSafeArea(edges: .bottom)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationDestination(isPresented: $viewModel.shouldNavigateToProviders) {
@@ -148,15 +155,14 @@ struct ChooseYourBrainScreen: View {
     }
 
     private var secondaryCTA: some View {
-        let localPalette = LVPalette.nebulaDark
-        return VStack(spacing: LVSpacing.md) {
+        VStack(spacing: LVSpacing.md) {
             VStack(spacing: LVSpacing.xs) {
                 Text("Use my own API key")
                     .lvFont(.subtitle)
-                    .foregroundStyle(localPalette.textPrimary)
+                    .foregroundStyle(palette.textPrimary)
                 Text("Anthropic, OpenAI, Gemini, Qwen, DeepSeek…")
                     .lvFont(.footnote)
-                    .foregroundStyle(localPalette.textSecondary)
+                    .foregroundStyle(palette.textSecondary)
             }
 
             Button {
@@ -164,16 +170,16 @@ struct ChooseYourBrainScreen: View {
             } label: {
                 Text("Enter API Key")
                     .lvFont(.bodyEmphasis)
-                    .foregroundStyle(localPalette.textPrimary)
+                    .foregroundStyle(palette.textPrimary)
                     .frame(maxWidth: .infinity)
                     .frame(height: LVSize.buttonHeight)
                     .background(
                         RoundedRectangle(cornerRadius: LVRadius.pill, style: .continuous)
-                            .fill(localPalette.surface)
+                            .fill(palette.surface)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: LVRadius.pill, style: .continuous)
-                            .stroke(localPalette.surfaceStroke, lineWidth: 1)
+                            .stroke(palette.surfaceStroke, lineWidth: 1)
                     )
             }
             .buttonStyle(.plain)
@@ -182,8 +188,7 @@ struct ChooseYourBrainScreen: View {
         }
         .padding(.horizontal, LVSpacing.lg)
         .padding(.vertical, LVSpacing.lg)
-        .environment(\.lvPalette, localPalette)
-        .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.hero)
+        .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.card)
         .lvInnerGlow(cornerRadius: LVRadius.card, intensity: LVGlow.subtle)
     }
 }

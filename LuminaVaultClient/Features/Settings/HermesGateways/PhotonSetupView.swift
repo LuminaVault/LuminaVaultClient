@@ -30,7 +30,7 @@ struct PhotonSetupView: View {
             }
 
             if viewModel.isPaired, case .done = viewModel.phase {
-                doneSection
+                doneSection()
             } else if viewModel.isPaired {
                 pairedRestingSection
             } else {
@@ -60,7 +60,7 @@ struct PhotonSetupView: View {
             }
 
         case let .awaitingApproval(verificationUri, userCode, expiresIn):
-            Section("Approve in your browser") {
+            Section {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Open this link (or enter the code on photon.codes):")
                         .font(.callout)
@@ -81,6 +81,8 @@ struct PhotonSetupView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            } header: {
+                Text("Approve in your browser")
             } footer: {
                 Text("After you approve, come back here and enter the E.164 phone number you want to bind (e.g. +15551234567).")
             }
@@ -187,7 +189,7 @@ struct PhotonSetupView: View {
 
     @ViewBuilder
     private func doneSection(assignedLine: String? = nil) -> some View {
-        let line = assignedLine ?? (if case .done(let l) = viewModel.phase { l } else { "" })
+        let line = resolvedAssignedLine(explicit: assignedLine)
 
         Section {
             VStack(alignment: .leading, spacing: 8) {
@@ -216,5 +218,11 @@ struct PhotonSetupView: View {
             }
             .buttonStyle(.borderedProminent)
         }
+    }
+
+    private func resolvedAssignedLine(explicit: String?) -> String {
+        if let explicit, !explicit.isEmpty { return explicit }
+        if case let .done(line) = viewModel.phase { return line }
+        return ""
     }
 }

@@ -17,27 +17,31 @@ struct SoulQuizStepScaffold<Content: View, Footer: View>: View {
     @Environment(\.lvPalette) private var palette
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("Step \(number) of 5")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(palette.accent)
-                    Text(title)
-                        .font(.system(size: 24, weight: .heavy))
-                        .foregroundStyle(palette.textPrimary)
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(palette.textSecondary)
-                    content()
-                        .padding(.top, 8)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(24)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Step \(number) of 5")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(palette.accent)
+                Text(title)
+                    .font(.system(size: 24, weight: .heavy))
+                    .foregroundStyle(palette.textPrimary)
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(palette.textSecondary)
+                content()
+                    .padding(.top, 8)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(24)
+            .padding(.bottom, LVSpacing.xl)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .safeAreaInset(edge: .bottom) {
             footer()
                 .padding(.horizontal, 24)
-                .padding(.bottom, 24)
+                .padding(.top, LVSpacing.md)
+                .safeAreaPadding(.bottom, LVSpacing.sm)
+                .background(.ultraThinMaterial)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

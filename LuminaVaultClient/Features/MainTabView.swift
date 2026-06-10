@@ -22,6 +22,7 @@ struct MainTabView: View {
     // HER-255 — QuickSettings now opens from the global header's mascot tap
     // (was owned by HomeView's per-screen header).
     @State private var showQuickSettings = false
+    @State private var tabBarHeight: CGFloat = LVTabBarHeightKey.defaultValue
     @Namespace private var tabUnderline
 
     private static let tabIds = (
@@ -66,7 +67,7 @@ struct MainTabView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         // Clear the floating glass tab bar so content isn't
                         // hidden behind the capsule.
-                        .safeAreaPadding(.bottom, 60)
+                        .safeAreaPadding(.bottom, tabBarHeight)
                 } else {
                     TabView(selection: $selection) {
                         // HER-249 — Workspaces wraps Spaces with workspace-aware
@@ -124,7 +125,7 @@ struct MainTabView: View {
                     }
                     // Clear the floating glass tab bar so page content isn't
                     // hidden behind the capsule.
-                    .safeAreaPadding(.bottom, 60)
+                    .safeAreaPadding(.bottom, tabBarHeight)
                 }
             }
 
@@ -141,6 +142,7 @@ struct MainTabView: View {
             // HER-255 — capture "+" moved into LuminaHeader (compact style);
             // the floating FAB over the tab bar is retired.
         }
+        .onPreferenceChange(LVTabBarHeightKey.self) { tabBarHeight = $0 }
         .onChange(of: selection) { _, newValue in
             // HER-243 — drive Hermie state from the active tab. ".thinking"
             // for Think tab; calm idle elsewhere. Streaming-aware sub-state

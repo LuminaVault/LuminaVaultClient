@@ -291,21 +291,22 @@ struct LuminaVaultClientApp: App {
                             GetStartedView {
                                 withAnimation { hasSeenGetStarted = true }
                             }
+                            .animation(nil, value: hasSeenGetStarted)
                         } else {
                             NavigationStack {
                                 AuthLandingView(vm: makeAuthViewModel())
                             }
+                            #if DEBUG
+                            .overlay(alignment: .bottom) {
+                                if !showSplash && !appState.isAuthenticated {
+                                    EnvironmentTagView()
+                                        .padding(.bottom, 8)
+                                }
+                            }
+                            #endif
                         }
                     }
                     .transition(.opacity)
-                    .safeAreaInset(edge: .bottom) {
-                        #if DEBUG
-                        if !showSplash && !appState.isAuthenticated {
-                            EnvironmentTagView()
-                                .padding(.bottom, 8)
-                        }
-                        #endif
-                    }
                 }
             }
             .animation(.easeInOut(duration: 0.4), value: showSplash)

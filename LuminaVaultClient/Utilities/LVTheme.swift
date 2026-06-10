@@ -33,7 +33,7 @@ final class LVThemeManager {
         appearance = LVAppearance(rawValue: savedAppearance) ?? .system
 
         let savedTheme = UserDefaults.standard.string(forKey: Self.themeKey) ?? ""
-        theme = LVTheme(rawValue: savedTheme) ?? .cyanGold
+        theme = LVTheme(rawValue: savedTheme) ?? .system
     }
 
     /// Resolve the active palette given the current system color scheme.

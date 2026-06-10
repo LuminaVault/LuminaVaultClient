@@ -120,8 +120,9 @@ struct AuthLandingView: View {
             }
             .padding(.horizontal, 24)
             .padding(.top, 32)
-            .padding(.bottom, 40)
+            .padding(.bottom, LVSpacing.xl)
         }
+        .safeAreaPadding(.bottom, LVSpacing.base)
         .lvBackground()
         .navigationBarBackButtonHidden(true)
         .navigationDestination(isPresented: Binding(

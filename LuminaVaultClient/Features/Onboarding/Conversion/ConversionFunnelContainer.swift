@@ -70,7 +70,8 @@ struct ConversionFunnelContainer: View {
             }
             .padding(.horizontal, 16)
         }
-        .padding(.top, 12)
+        .safeAreaPadding(.top, LVSpacing.sm)
+        .padding(.top, LVSpacing.md)
     }
 
     private var progressBar: some View {

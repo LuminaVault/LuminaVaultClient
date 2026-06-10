@@ -70,8 +70,16 @@ struct FunnelScreenChrome<Content: View>: View {
                 ctaStack
                     .padding(.horizontal, LVSpacing.xl)
                     .padding(.top, LVSpacing.md)
-                    .padding(.bottom, LVSpacing.base)
-                    .background(.ultraThinMaterial)
+                    .safeAreaPadding(.bottom, LVSpacing.sm)
+                    .background {
+                        VStack(spacing: 0) {
+                            Rectangle()
+                                .fill(palette.glowPrimary.opacity(0.2))
+                                .frame(height: 1)
+                            Rectangle()
+                                .fill(.ultraThinMaterial)
+                        }
+                    }
             }
         }
     }

@@ -112,6 +112,11 @@ struct LVTabBar: View {
         }
         .padding(.horizontal, LVSpacing.lg)
         .padding(.bottom, LVSpacing.xs)
+        .background {
+            GeometryReader { geo in
+                Color.clear.preference(key: LVTabBarHeightKey.self, value: geo.size.height)
+            }
+        }
     }
 
     /// The More overflow button. Rendered leading or trailing per
@@ -255,5 +260,15 @@ private struct LVTabBarItemContent: View {
                 .symbolVariant(isActive ? .fill : .none)
                 .foregroundStyle(isActive ? palette.primary : palette.textSecondary)
         }
+    }
+}
+
+/// Reports the measured height of the floating tab bar so scroll content can
+/// clear the capsule on any device without hard-coded padding.
+enum LVTabBarHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 60
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }

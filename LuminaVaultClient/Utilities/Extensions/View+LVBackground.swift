@@ -10,41 +10,48 @@ extension View {
 private struct LVBackgroundModifier: ViewModifier {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lvPalette) private var palette
+    @Environment(\.lvThemeManager) private var themeManager
+
+    private var usesCinematicBackdrop: Bool {
+        themeManager?.theme != .system
+    }
 
     func body(content: Content) -> some View {
         ZStack {
             palette.backgroundBase.ignoresSafeArea()
 
-            // Starfield — only in dark mode.
-            if scheme == .dark {
-                LVStarField().ignoresSafeArea()
-            }
+            if usesCinematicBackdrop {
+                // Starfield — only in dark mode for branded themes.
+                if scheme == .dark {
+                    LVStarField().ignoresSafeArea()
+                }
 
-            GeometryReader { geo in
-                // Top-trailing aurora wash (warm in cyanGold, pink in nebula, gold in solar).
-                RadialGradient(
-                    colors: [palette.auroraTop, .clear],
-                    center: .topTrailing,
-                    startRadius: 0,
-                    endRadius: geo.size.width * 0.85
-                )
-                .ignoresSafeArea()
-                // Bottom-leading nebula wash.
-                RadialGradient(
-                    colors: [palette.auroraBottom, .clear],
-                    center: .bottomLeading,
-                    startRadius: 0,
-                    endRadius: geo.size.width * 0.75
-                )
-                .ignoresSafeArea()
-                // Mid-depth pulse for added depth.
-                RadialGradient(
-                    colors: [palette.auroraCenter, .clear],
-                    center: .center,
-                    startRadius: 0,
-                    endRadius: geo.size.width * 0.55
-                )
-                .ignoresSafeArea()
+                GeometryReader { geo in
+                    // Top-trailing aurora wash (warm in cyanGold, pink in nebula, gold in solar).
+                    RadialGradient(
+                        colors: [palette.auroraTop, .clear],
+                        center: .topTrailing,
+                        startRadius: 0,
+                        endRadius: geo.size.width * 0.85
+                    )
+                    .ignoresSafeArea()
+                    // Bottom-leading nebula wash.
+                    RadialGradient(
+                        colors: [palette.auroraBottom, .clear],
+                        center: .bottomLeading,
+                        startRadius: 0,
+                        endRadius: geo.size.width * 0.75
+                    )
+                    .ignoresSafeArea()
+                    // Mid-depth pulse for added depth.
+                    RadialGradient(
+                        colors: [palette.auroraCenter, .clear],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: geo.size.width * 0.55
+                    )
+                    .ignoresSafeArea()
+                }
             }
 
             content

@@ -4,15 +4,15 @@ import SwiftUI
 struct GetStartedView: View {
 
     @Environment(\.lvPalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var onContinue: () -> Void
 
     private let mascotSize: CGFloat = 300
 
-    @State private var mascotOpacity: Double = 0
-    @State private var titleOpacity: Double = 0
-    @State private var subtitleOpacity: Double = 0
-    @State private var ctaOpacity: Double = 0
+    /// Offset-based intro — content stays fully opaque so a stalled animation
+    /// on device never leaves an empty screen with only glass-card chrome.
+    @State private var introOffset: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -26,7 +26,6 @@ struct GetStartedView: View {
 
                 GetStartedHeroRiveView(size: mascotSize)
                     .lvPulse(active: true)
-                    .opacity(mascotOpacity)
 
                 VStack(spacing: LVSpacing.sm) {
                     Text("Your Knowledge, Transcended")
@@ -39,13 +38,11 @@ struct GetStartedView: View {
                             )
                         )
                         .multilineTextAlignment(.center)
-                        .opacity(titleOpacity)
 
                     Text("Your memories, illuminated. Let Lumina remember everything for you — privately, on your own server.")
                         .lvFont(.body)
                         .foregroundStyle(palette.textSecondary)
                         .multilineTextAlignment(.center)
-                        .opacity(subtitleOpacity)
                 }
                 .padding(.horizontal, LVSpacing.lg)
                 .padding(.vertical, LVSpacing.lg)
@@ -60,19 +57,19 @@ struct GetStartedView: View {
                 }
                 .padding(.horizontal, LVSpacing.xl)
                 .padding(.bottom, LVSpacing.xl)
-                .opacity(ctaOpacity)
                 .shadow(color: palette.glowPrimary.opacity(LVGlow.subtle), radius: 28, y: 12)
             }
+            .offset(y: introOffset)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(nil, value: introOffset)
         .onAppear { runIntro() }
     }
 
     private func runIntro() {
-        withAnimation(.easeOut(duration: 0.6)) { mascotOpacity = 1 }
-        withAnimation(.easeIn(duration: 0.5).delay(0.25)) { titleOpacity = 1 }
-        withAnimation(.easeIn(duration: 0.5).delay(0.45)) { subtitleOpacity = 1 }
-        withAnimation(.easeIn(duration: 0.5).delay(0.65)) { ctaOpacity = 1 }
+        guard !reduceMotion else { return }
+        introOffset = 24
+        withAnimation(.easeOut(duration: 0.6)) { introOffset = 0 }
     }
 }
 
@@ -85,4 +82,3 @@ struct GetStartedView: View {
     GetStartedView(onContinue: {})
         .preferredColorScheme(.light)
 }
-

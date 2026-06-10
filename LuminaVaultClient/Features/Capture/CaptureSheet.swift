@@ -35,7 +35,7 @@ struct CaptureSheet: View {
     /// painting dark text on dark glass. Re-resolve the active theme for `.dark`
     /// and re-inject it so palette + scheme always agree.
     private var darkPalette: LVPalette {
-        (themeManager?.theme ?? .cyanGold).palette(for: .dark)
+        (themeManager?.theme ?? .system).palette(for: .dark)
     }
 
     private let photoViewModel: CapturePhotosViewModel
