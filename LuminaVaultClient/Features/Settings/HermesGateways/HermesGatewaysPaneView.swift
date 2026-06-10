@@ -109,6 +109,7 @@ struct HermesGatewaysPaneView: View {
         case .matrix: "circle.grid.cross.fill"
         case .ntfy: "bell.fill"
         case .mattermost: "bubble.left.and.bubble.right.fill"
+        case .photon: "message.fill" // iMessage / Photon free path
         }
     }
 }

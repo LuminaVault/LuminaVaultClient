@@ -38,6 +38,13 @@ final class HermesGatewayDetailViewSnapshotTests: XCTestCase {
         func test(_: HermesGatewayID) async throws -> HermesGatewayTestResponse {
             HermesGatewayTestResponse(ok: true, verifiedAt: Date())
         }
+
+        // Photon (new pairing kind)
+        func startPhotonSetup() async throws -> StartPhotonSetupResponse { StartPhotonSetupResponse(sessionID: UUID()) }
+        func photonSetupPhone(sessionID: UUID, phone: String) async throws {}
+        func photonSetupStream(_ sessionID: UUID) -> AsyncThrowingStream<HermesPhotonSetupEvent, any Error> {
+            AsyncThrowingStream { _ in }
+        }
     }
 
     private static func telegramEntry(status: HermesGatewayStatus, hasConfig: Bool) -> HermesGatewayCatalogEntry {

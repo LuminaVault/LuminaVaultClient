@@ -1,10 +1,11 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Settings/ServerConnection/ServerConnectionView.swift
 //
 // HER-250 — Settings → Server Connection. Backend mode picker + SOUL.md
-// editor. Tailscale reachability detection is best-effort (manual host
-// entry today; iOS doesn't expose tailnet state directly). Backend-mode
-// hot-swap is deferred — the picker just persists the user choice; the
-// existing HermesGateway pane (HER-218) handles override URLs today.
+// editor. Both `.byo` (self-hosted LuminaVault server) and `.tailscale`
+// (tailnet host) take a user-entered URL, health-probe it, persist it
+// (BYOServerStore / TailscaleServerStore), and switch mode — which forces a
+// clean re-login against the new server. Tailscale host entry is manual
+// (iOS doesn't expose tailnet state to apps).
 
 import LuminaVaultShared
 import SwiftUI
@@ -25,6 +26,10 @@ final class ServerConnectionViewModel {
     var byoURLInput: String = ""
     var byoTesting: Bool = false
     var byoError: String?
+    // Tailscale tailnet-host editor state.
+    var tailscaleURLInput: String = ""
+    var tailscaleTesting: Bool = false
+    var tailscaleError: String?
     private let soulClient: SoulClientProtocol
     private let healthClient: HealthClientProtocol
 
@@ -33,11 +38,18 @@ final class ServerConnectionViewModel {
         self.healthClient = healthClient
         self.mode = BackendModeStore.current
         self.byoURLInput = BYOServerStore.url?.absoluteString ?? ""
+        self.tailscaleURLInput = TailscaleServerStore.url?.absoluteString ?? ""
     }
 
     /// Caution banner when the typed BYO URL trades away transport security.
     var byoTransportWarning: String? {
         URLValidation.transportWarning(for: byoURLInput)
+    }
+
+    /// Tailscale runs over WireGuard, so `http://` to a tailnet host is fine —
+    /// suppress the plaintext/bare-IP cautions that apply to public URLs.
+    var tailscaleTransportWarning: String? {
+        URLValidation.transportWarning(for: tailscaleURLInput, assumeSecureTunnel: true)
     }
 
     /// Validates + health-probes the typed URL, then persists it and switches
@@ -61,6 +73,28 @@ final class ServerConnectionViewModel {
         }
         BYOServerStore.set(trimmed)
         setMode(.byo)
+    }
+
+    /// Tailnet equivalent of `testAndSave`: validate + health-probe the typed
+    /// tailnet host, persist it, then switch to `.tailscale` (which forces a
+    /// clean re-login against the new server via `modeChangedNotification`).
+    func testAndSaveTailscale() async {
+        let trimmed = tailscaleURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard URLValidation.isValidBaseURL(trimmed), let url = URL(string: trimmed) else {
+            tailscaleError = "Enter a valid http:// or https:// URL with a host."
+            return
+        }
+        tailscaleError = nil
+        tailscaleTesting = true
+        defer { tailscaleTesting = false }
+        let ok = await healthClient.isReachable(baseURL: url)
+        guard ok else {
+            tailscaleError = "Couldn't reach \(url.host ?? trimmed)/health. "
+                + "Check the host and that you're connected to the tailnet."
+            return
+        }
+        TailscaleServerStore.set(trimmed)
+        setMode(.tailscale)
     }
 
     func load() async {
@@ -151,9 +185,9 @@ struct ServerConnectionView: View {
             if vm.mode == .byo {
                 byoEditor
             }
-            Text("Tailscale URLs are configured in Advanced → Hermes Gateway (HER-218).")
-                .font(LVTypography.caption.font)
-                .foregroundStyle(Color.lvTextMuted)
+            if vm.mode == .tailscale {
+                tailscaleEditor
+            }
         }
     }
 
@@ -188,6 +222,47 @@ struct ServerConnectionView: View {
                     .disabled(vm.byoTesting || vm.byoURLInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             Text("Saving signs you out so you can log in against your server.")
+                .font(LVTypography.caption.font)
+                .foregroundStyle(palette.textSecondary)
+        }
+        .padding(LVSpacing.md)
+        .background(palette.backgroundBase.opacity(0.4))
+        .clipShape(RoundedRectangle(cornerRadius: LVRadius.md))
+    }
+
+    private var tailscaleEditor: some View {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
+            Text("Tailnet host")
+                .font(LVTypography.fieldLabel.font)
+                .foregroundStyle(palette.textPrimary)
+            TextField("http://vault.tailnet-name.ts.net:8080", text: $vm.tailscaleURLInput)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.URL)
+                .font(LVTypography.mono.font)
+                .padding(LVSpacing.sm)
+                .background(palette.backgroundBase.opacity(0.6))
+                .clipShape(RoundedRectangle(cornerRadius: LVRadius.md))
+            if let warning = vm.tailscaleTransportWarning {
+                Text(warning)
+                    .font(LVTypography.caption.font)
+                    .foregroundStyle(.orange)
+            }
+            if let error = vm.tailscaleError {
+                Text(error)
+                    .font(LVTypography.caption.font)
+                    .foregroundStyle(.red)
+            }
+            HStack {
+                Spacer()
+                Button("Test & Save") { Task { await vm.testAndSaveTailscale() } }
+                    .buttonStyle(.borderedProminent)
+                    .tint(palette.primary)
+                    .disabled(vm.tailscaleTesting || vm.tailscaleURLInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            Text("Enter the MagicDNS name or tailnet IP of your LuminaVault server. "
+                + "Tailscale (WireGuard) encrypts the connection, so plain http:// is fine here. "
+                + "Saving signs you out so you can log in against that server.")
                 .font(LVTypography.caption.font)
                 .foregroundStyle(palette.textSecondary)
         }
@@ -231,7 +306,7 @@ struct ServerConnectionView: View {
     private var debugSection: some View {
         VStack(alignment: .leading, spacing: LVSpacing.sm) {
             sectionLabel("Diagnostics")
-            Text("Tailscale reachability isn't exposed to iOS apps. If you're on Tailscale, set the host manually in Hermes Gateway.")
+            Text("Tailscale reachability isn't exposed to iOS apps. Pick the Tailscale mode above and enter your tailnet host manually; make sure the Tailscale app is connected first.")
                 .font(LVTypography.caption.font)
                 .foregroundStyle(palette.textSecondary)
         }

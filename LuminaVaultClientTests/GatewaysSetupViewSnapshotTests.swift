@@ -61,6 +61,12 @@ final class GatewaysSetupViewSnapshotTests: XCTestCase {
         func unlinkWhatsApp() async throws -> HermesGatewayCatalogEntry {
             try listResult.get().items.first!
         }
+
+        func startPhotonSetup() async throws -> StartPhotonSetupResponse { StartPhotonSetupResponse(sessionID: UUID()) }
+        func photonSetupPhone(sessionID: UUID, phone: String) async throws {}
+        func photonSetupStream(_ sessionID: UUID) -> AsyncThrowingStream<HermesPhotonSetupEvent, any Error> {
+            AsyncThrowingStream { $0.finish() }
+        }
     }
 
     private static func entry(_ id: HermesGatewayID, status: HermesGatewayStatus) -> HermesGatewayCatalogEntry {
@@ -69,6 +75,7 @@ final class GatewaysSetupViewSnapshotTests: XCTestCase {
             .discord: ("Discord", "Connect Lumina to a Discord server."),
             .slack: ("Slack", "Pipe Lumina into a Slack workspace."),
             .whatsapp: ("WhatsApp", "Reach Lumina from WhatsApp."),
+            .photon: ("iMessage (Photon)", "Free iMessage via Photon shared lines."),
         ]
         let (displayName, desc) = descs[id]!
         return HermesGatewayCatalogEntry(

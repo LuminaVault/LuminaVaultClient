@@ -54,4 +54,16 @@ final class HermesGatewaysHTTPClient: HermesGatewaysClientProtocol {
     func unlinkWhatsApp() async throws -> HermesGatewayCatalogEntry {
         try await client.execute(HermesGatewaysEndpoints.DeleteWhatsAppSession())
     }
+
+    func startPhotonSetup() async throws -> StartPhotonSetupResponse {
+        try await client.execute(HermesGatewaysEndpoints.StartPhotonSetup())
+    }
+
+    func photonSetupPhone(sessionID: UUID, phone: String) async throws {
+        _ = try await client.execute(HermesGatewaysEndpoints.SubmitPhotonPhone(sessionID: sessionID, phone: phone))
+    }
+
+    func photonSetupStream(_ sessionID: UUID) -> AsyncThrowingStream<HermesPhotonSetupEvent, any Error> {
+        client.executeStreamWithRefresh(HermesGatewaysEndpoints.PhotonSetupStream(sessionID: sessionID))
+    }
 }

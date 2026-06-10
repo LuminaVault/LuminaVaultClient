@@ -22,10 +22,15 @@ struct HermesGatewayDetailView: View {
 
     var body: some View {
         Group {
-            // A pairing gateway (WhatsApp QR) replaces the whole credential
-            // screen with its dedicated flow once the catalog entry has loaded.
-            if let entry = viewModel.entry, entry.pairingKind == .whatsappQR {
-                WhatsAppPairingView(entry: entry, client: client)
+            // Pairing/setup gateways replace the credential form with dedicated flows.
+            if let entry = viewModel.entry {
+                if entry.pairingKind == .whatsappQR {
+                    WhatsAppPairingView(entry: entry, client: client)
+                } else if entry.pairingKind == .photonSetup {
+                    PhotonSetupView(entry: entry, client: client)
+                } else {
+                    credentialForm
+                }
             } else {
                 credentialForm
             }

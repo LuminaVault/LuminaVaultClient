@@ -30,14 +30,17 @@ actor ChatHistoryStore {
     static let maxTurns = 50
     static let fileName = "chatHistory.json"
 
-    struct Snapshot: Codable, Sendable, Equatable {
+    // `nonisolated`: SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor would make these
+    // @MainActor, breaking the synthesized `Decodable` (which must be
+    // nonisolated). They're plain value types, so opting out is safe.
+    nonisolated struct Snapshot: Codable, Sendable, Equatable {
         let id: UUID
         let transport: ChatViewModel.Transport
         var messages: [ChatViewModel.Message]
         var updatedAt: Date
     }
 
-    private struct Container: Codable, Sendable {
+    nonisolated private struct Container: Codable, Sendable {
         var conversations: [Snapshot]
     }
 

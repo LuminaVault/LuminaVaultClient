@@ -21,7 +21,11 @@ import Foundation
 @Observable
 @MainActor
 final class ChatViewModel {
-    struct Message: Identifiable, Equatable, Sendable, Codable {
+    // `nonisolated`: the target builds with SWIFT_DEFAULT_ACTOR_ISOLATION =
+    // MainActor, which would otherwise make this nested type @MainActor and
+    // break its synthesized (nonisolated) `Decodable` conformance — which
+    // `ChatHistoryStore.Snapshot` relies on when decoding from its actor.
+    nonisolated struct Message: Identifiable, Equatable, Sendable, Codable {
         let id: UUID
         let role: ConversationMessageRole
         var content: String
@@ -54,7 +58,7 @@ final class ChatViewModel {
     /// - `.fresh` (☁️) — one-shot `/v1/chat/completions`. No memory
     ///   retrieval, no streaming, single bubble lands when reply
     ///   arrives.
-    enum Transport: String, Sendable, Equatable, CaseIterable, Codable {
+    nonisolated enum Transport: String, Sendable, Equatable, CaseIterable, Codable {
         case memoryGrounded = "memory_grounded"
         case fresh
     }

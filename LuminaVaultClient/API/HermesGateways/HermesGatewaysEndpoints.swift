@@ -102,4 +102,32 @@ enum HermesGatewaysEndpoints {
         var path: String { "/v1/me/hermes-gateways/whatsapp/session" }
         var method: HTTPMethod { .delete }
     }
+
+    // Photon setup (device-code login + phone bind + SSE for the free iMessage path):
+    //   POST   /v1/me/hermes-gateways/photon/setup                     -> StartPhotonSetupResponse
+    //   POST   /v1/me/hermes-gateways/photon/setup/{sessionID}/phone
+    //   GET    /v1/me/hermes-gateways/photon/setup/{sessionID}/stream  (SSE HermesPhotonSetupEvent)
+
+    struct StartPhotonSetup: Endpoint {
+        typealias Response = StartPhotonSetupResponse
+        var path: String { "/v1/me/hermes-gateways/photon/setup" }
+        var method: HTTPMethod { .post }
+    }
+
+    struct SubmitPhotonPhone: Endpoint {
+        typealias Response = EmptyResponse
+        let sessionID: UUID
+        let phone: String
+        var path: String { "/v1/me/hermes-gateways/photon/setup/\(sessionID.uuidString.lowercased())/phone" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { ["phone": phone] }
+    }
+
+    struct PhotonSetupStream: StreamingEndpoint {
+        typealias Event = HermesPhotonSetupEvent
+        let sessionID: UUID
+        var path: String { "/v1/me/hermes-gateways/photon/setup/\(sessionID.uuidString.lowercased())/stream" }
+        var method: HTTPMethod { .get }
+        var streamTimeout: TimeInterval { 600 } // generous for device approval + provisioning
+    }
 }

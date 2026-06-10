@@ -24,4 +24,10 @@ protocol HermesGatewaysClientProtocol: Sendable {
     func startWhatsAppPair() async throws -> StartWhatsAppPairResponse
     func whatsAppPairStream(_ sessionID: UUID) -> AsyncThrowingStream<HermesWhatsAppPairEvent, any Error>
     func unlinkWhatsApp() async throws -> HermesGatewayCatalogEntry
+
+    // Photon iMessage setup (device code + phone bind for the free path).
+    // Mirrors the server routes under /v1/me/hermes-gateways/photon/setup...
+    func startPhotonSetup() async throws -> StartPhotonSetupResponse
+    func photonSetupPhone(sessionID: UUID, phone: String) async throws
+    func photonSetupStream(_ sessionID: UUID) -> AsyncThrowingStream<HermesPhotonSetupEvent, any Error>
 }

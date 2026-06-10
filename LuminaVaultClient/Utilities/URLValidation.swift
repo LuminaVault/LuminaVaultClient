@@ -18,7 +18,13 @@ enum URLValidation {
     /// Non-nil when the URL trades away transport security: `http://` sends
     /// the auth token in plaintext, and a bare IP can't present a valid TLS
     /// certificate. Shown as a caution banner; not a hard block.
-    static func transportWarning(for raw: String) -> String? {
+    ///
+    /// `assumeSecureTunnel` suppresses both warnings for transports that
+    /// provide their own encryption + authentication underneath (e.g.
+    /// Tailscale/WireGuard), where plain `http://` to a tailnet host or IP is
+    /// expected and safe.
+    static func transportWarning(for raw: String, assumeSecureTunnel: Bool = false) -> String? {
+        if assumeSecureTunnel { return nil }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: trimmed), let host = url.host, !host.isEmpty else {
             return nil

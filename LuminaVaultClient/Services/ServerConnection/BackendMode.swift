@@ -35,15 +35,14 @@ enum BackendMode: String, CaseIterable, Identifiable, Sendable {
     }
 
     /// Default URL for the mode. `.byo` resolves to the user-entered
-    /// self-hosted server URL (`BYOServerStore`); when none is set yet
-    /// we fall back to the hosted URL so the app never points at nil.
-    /// `.tailscale` still falls through to the Hermes Gateway override
-    /// (HER-218) — out of scope for the BYO-server feature.
+    /// self-hosted server URL (`BYOServerStore`) and `.tailscale` to the
+    /// user-entered tailnet host (`TailscaleServerStore`); when neither is
+    /// set yet we fall back to the hosted URL so the app never points at nil.
     var defaultBaseURL: URL {
         switch self {
         case .hosted: return Config.hostedAPIBaseURL
         case .byo: return BYOServerStore.url ?? Config.hostedAPIBaseURL
-        case .tailscale: return Config.hostedAPIBaseURL
+        case .tailscale: return TailscaleServerStore.url ?? Config.hostedAPIBaseURL
         case .localhost: return URL(string: "http://localhost:8080")!
         }
     }
@@ -55,6 +54,29 @@ enum BackendMode: String, CaseIterable, Identifiable, Sendable {
 /// the keychain like any other session.
 enum BYOServerStore {
     static let userDefaultsKey = "lv.serverConnection.byoBaseURL"
+
+    static var url: URL? {
+        guard let raw = UserDefaults.standard.string(forKey: userDefaultsKey),
+              !raw.isEmpty,
+              let url = URL(string: raw) else { return nil }
+        return url
+    }
+
+    /// Pass a trimmed `http(s)://host` string, or `nil` to clear.
+    static func set(_ raw: String?) {
+        UserDefaults.standard.set(raw, forKey: userDefaultsKey)
+    }
+}
+
+/// Persists the user-entered tailnet host for `.tailscale` mode — a MagicDNS
+/// name or tailnet IP for a LuminaVault server reachable over the user's
+/// Tailscale network (e.g. `http://vault.tailnet-name.ts.net:8080`). iOS does
+/// not expose tailnet state to apps, so the host is entered manually. Same
+/// secrecy rationale as `BYOServerStore`: the URL is not a secret, the session
+/// bearer stays in the keychain. WireGuard provides transport encryption, so
+/// plain `http://` over the tailnet is acceptable here.
+enum TailscaleServerStore {
+    static let userDefaultsKey = "lv.serverConnection.tailscaleBaseURL"
 
     static var url: URL? {
         guard let raw = UserDefaults.standard.string(forKey: userDefaultsKey),

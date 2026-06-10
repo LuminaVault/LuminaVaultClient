@@ -41,6 +41,12 @@ final class HermesGatewaysPaneViewSnapshotTests: XCTestCase {
         func test(_: HermesGatewayID) async throws -> HermesGatewayTestResponse {
             HermesGatewayTestResponse(ok: true, verifiedAt: Date())
         }
+
+        func startPhotonSetup() async throws -> StartPhotonSetupResponse { StartPhotonSetupResponse(sessionID: UUID()) }
+        func photonSetupPhone(sessionID: UUID, phone: String) async throws {}
+        func photonSetupStream(_ sessionID: UUID) -> AsyncThrowingStream<HermesPhotonSetupEvent, any Error> {
+            AsyncThrowingStream { _ in }
+        }
     }
 
     private static func stubEntry(
