@@ -70,7 +70,10 @@ final class KanbanBoardViewModelTests: XCTestCase {
         await sut.moveCard(cardID, toColumn: c2, before: nil, after: nil)
 
         // Assert: card is in c2, gone from c1
-        let updatedBoard = try! XCTUnwrap(sut.board)
+        guard let updatedBoard = try? XCTUnwrap(sut.board) else {
+            XCTFail("Expected board after moveCard")
+            return
+        }
         let c2Cards = updatedBoard.columns.first(where: { $0.id == c2 })?.cards ?? []
         let c1Cards = updatedBoard.columns.first(where: { $0.id == c1 })?.cards ?? []
 
@@ -98,7 +101,10 @@ final class KanbanBoardViewModelTests: XCTestCase {
         await sut.addCard(columnID: columnID, title: "New Task")
 
         // Assert: the column now contains the card
-        let updatedBoard = try! XCTUnwrap(sut.board)
+        guard let updatedBoard = try? XCTUnwrap(sut.board) else {
+            XCTFail("Expected board after addCard")
+            return
+        }
         let cards = updatedBoard.columns.first(where: { $0.id == columnID })?.cards ?? []
 
         XCTAssertTrue(cards.contains(where: { $0.id == newCard.id }), "Column should contain newly added card")

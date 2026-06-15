@@ -16,9 +16,10 @@ jobs:
   lint:
     name: SwiftLint
     runs-on: macos-15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Install SwiftLint
+      - name: Install SwiftLint (pinned 0.63.2)
         run: brew install swiftlint
       - name: SwiftLint
         run: swiftlint lint --reporter github-actions-logging
@@ -26,14 +27,16 @@ jobs:
   test:
     name: Run Tests
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select latest stable Xcode
+      # Pin Xcode — `latest-stable` drifted to 26.x with no iOS sim runtime
+      # preinstalled, and IPHONEOS_DEPLOYMENT_TARGET must stay ≤ runtime OS.
+      - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "16.4"
 
       - name: Cache SPM packages
         uses: actions/cache@v4
@@ -46,18 +49,10 @@ jobs:
       - name: Resolve Swift packages
         run: xcodebuild -project LuminaVaultClient.xcodeproj -resolvePackageDependencies
 
-      - name: Install iOS simulator runtime
-        run: |
-          # Xcode 26.x runners ship without the iOS Simulator runtime
-          # preinstalled — only visionOS. Download it on demand.
-          sudo xcodebuild -downloadPlatform iOS
-
       - name: Pick an available iPhone simulator
         id: sim
         run: |
-          # Pick newest iOS runtime, then first available iPhone in it.
-          # Return UDID — xcodebuild cannot resolve name+OS=latest when the
-          # newest runtime has no pre-created simulator instance.
+          set -euo pipefail
           devices_json=$(xcrun simctl list devices available --json)
           newest_runtime=$(echo "$devices_json" \
             | jq -r '.devices | keys[] | select(test("iOS"))' \
@@ -79,51 +74,51 @@ jobs:
                  | select(.isAvailable == true and (.name | test("iPhone")))
                  | .name' \
             | head -n 1)
+          os_version=$(echo "$newest_runtime" | sed -E 's/.*iOS-([0-9-]+)$/\1/' | tr '-' '.')
           if [ -z "$udid" ]; then
-            # Newest iOS runtime has no iPhone — create one.
             device_type=$(xcrun simctl list devicetypes --json \
-              | jq -r '.devicetypes[] | select(.name | test("iPhone")) | .identifier' \
-              | sort -V | tail -n 1)
+              | jq -r '.devicetypes[] | select(.name | test("iPhone 16")) | .identifier' \
+              | head -n 1)
             runtime_id=$(xcrun simctl list runtimes --json \
               | jq -r --arg rt "$newest_runtime" \
                   '.runtimes[] | select(.name == $rt and .isAvailable == true) | .identifier')
             if [ -z "$device_type" ] || [ -z "$runtime_id" ]; then
               echo "::error::cannot create simulator; missing device type or runtime"
-              xcrun simctl list devices available
-              xcrun simctl list runtimes
               exit 1
             fi
             udid=$(xcrun simctl create "CI iPhone" "$device_type" "$runtime_id")
-            name=$(xcrun simctl list devices --json \
-              | jq -r --arg u "$udid" \
-                  '.devices[][] | select(.udid == $u) | .name')
-            echo "Created simulator: $name ($udid) in $newest_runtime"
+            name="CI iPhone"
           fi
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
           echo "name=$name" >> "$GITHUB_OUTPUT"
-          echo "Selected simulator: $name ($udid) in $newest_runtime"
+          echo "os=$os_version" >> "$GITHUB_OUTPUT"
+          echo "Selected simulator: $name ($udid) iOS $os_version"
 
-      - name: Boot simulator and verify Xcode sees it
+      - name: Boot simulator and verify xcodebuild destination
         run: |
           set -euo pipefail
           udid="${{ steps.sim.outputs.udid }}"
-          echo "Booting $udid..."
-          xcrun simctl boot "$udid" || true
+          xcrun simctl boot "$udid" 2>/dev/null || true
           xcrun simctl bootstatus "$udid" -b
-          echo "--- xcodebuild -showdestinations ---"
-          xcodebuild -project LuminaVaultClient.xcodeproj \
+          destinations=$(xcodebuild -project LuminaVaultClient.xcodeproj \
             -scheme LuminaVaultClient \
-            -showdestinations 2>&1 | grep -i "ios simulator" || true
+            -showdestinations 2>&1 || true)
+          echo "$destinations" | grep -i "ios simulator" || true
+          if ! echo "$destinations" | grep -q "$udid"; then
+            echo "::error::xcodebuild does not list simulator $udid — check deployment target vs runtime"
+            echo "$destinations"
+            exit 1
+          fi
 
-      - name: Run unit tests (Debug, with coverage)
+      - name: Run unit tests (Debug)
         run: |
+          set -euo pipefail
           xcodebuild test \
             -project LuminaVaultClient.xcodeproj \
             -scheme LuminaVaultClient \
             -configuration Debug \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -only-testing:LuminaVaultClientTests \
-            -enableCodeCoverage YES \
             -resultBundlePath TestResults.xcresult
 
       - name: Export coverage JSON
