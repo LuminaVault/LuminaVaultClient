@@ -1,0 +1,40 @@
+---
+description: LuminaVaultClient — SwiftUI iOS app conventions
+alwaysApply: true
+---
+
+# LuminaVaultClient
+
+SwiftUI iOS app (TestFlight/App Store). Full agent instructions: `AGENTS.md`.
+
+## Sibling repos
+
+| Repo | Role |
+| --- | --- |
+| `LuminaVaultServer` | API contract (`Sources/AppAPI/openapi.yaml`) |
+| `LuminaVaultShared` | Wire DTOs consumed via SPM |
+
+The client does **not** author the API. When opened in ObsidianClaudeBrain, see root `LUMINAVAULT_DEPLOYMENT_CONFIG_GUIDE.md` for TestFlight, APNS, and xcconfig wiring.
+
+## Swift 6 & SwiftUI
+
+- Strict concurrency on the iOS target; cross-boundary types must be `Sendable`.
+- New code: prefer `@Observable` + `@State` over `@StateObject`. View models should be `@Observable final class`.
+- Spawn async work from `.task { }` or explicit lifecycle hooks — not from view bodies.
+- No `@unchecked Sendable` without a comment explaining why.
+
+## API & DTOs
+
+- Import wire DTOs from **LuminaVaultShared** — never redefine them locally.
+- UI-only types: suffix with `ViewState` or `UIModel` and keep them in this repo.
+
+## Build & CI
+
+- **Deployment target:** `IPHONEOS_DEPLOYMENT_TARGET` is 18.0 (must stay ≤ CI simulator OS).
+- **CI:** Xcode 16.4, SwiftLint (errors block merge; warnings are non-blocking).
+- **Config:** committed `.xcconfig.sample` files; real `.xcconfig` is gitignored. See `LuminaVaultClient/Config/README.md`.
+- **Verify locally:** `xcodebuild -project LuminaVaultClient.xcodeproj -scheme LuminaVaultClient -destination 'platform=iOS Simulator,name=iPhone 16' build test`
+
+## Skills
+
+When editing SwiftUI views, apply: `swiftui-pro`, `swiftui-design-principles`, `swiftui-view-refactor`.
