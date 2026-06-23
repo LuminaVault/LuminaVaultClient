@@ -129,7 +129,7 @@ final class XSignInService: NSObject, SignInServiceProtocol {
         guard let code = Self.queryItem(callbackURL, "code") else {
             throw XSignInError.badRedirect
         }
-        if let returnedState = Self.queryItem(callbackURL, "state"), returnedState != state {
+        guard let returnedState = Self.queryItem(callbackURL, "state"), returnedState == state else {
             throw XSignInError.stateMismatch
         }
 

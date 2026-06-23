@@ -96,6 +96,7 @@ final class KeychainService: Sendable {
             "accessToken",
             "refreshToken",
             "biometricsEnabled",
+            "hermesAdminToken",
             "appleUserId",
             "appleFullName",
             "localEndpointAPIKey",
