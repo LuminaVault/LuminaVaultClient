@@ -92,6 +92,21 @@ final class XSignInServiceTests: XCTestCase {
         }
     }
 
+    func testMissingStateThrowsXSignInError() async {
+        let driver = StubWebAuthDriver(responder: { _ in
+            URL(string: "x://cb?code=abc")!
+        })
+        let svc = makeService(driver: driver, urlSessionData: tokenSuccessData(token: "tok"))
+        do {
+            _ = try await svc.signIn(presentationAnchor: ASPresentationAnchor())
+            XCTFail("expected throw")
+        } catch XSignInError.stateMismatch {
+            // ok
+        } catch {
+            XCTFail("unexpected error \(error)")
+        }
+    }
+
     func testCancellationPropagatesAsSignInCancelled() async {
         let driver = StubWebAuthDriver(responder: { _ in throw SignInCancelled() })
         let svc = makeService(driver: driver, urlSessionData: Data())
@@ -112,7 +127,8 @@ final class XSignInServiceTests: XCTestCase {
             if attempt == 1 {
                 return URL(string: "x://cb?state=STATE")!  // missing code → badRedirect
             }
-            return URL(string: "x://cb?code=goodcode")!
+            let state = XSignInService.queryItem(url, "state")!
+            return URL(string: "x://cb?code=goodcode&state=\(state)")!
         })
         // Inject capturing URLSession; on the retry path the token exchange runs.
         let svc = makeService(driver: driver, urlSessionData: tokenSuccessData(token: "TOK"))
@@ -136,7 +152,10 @@ final class XSignInServiceTests: XCTestCase {
     }
 
     func testTokenExchangeNon2xxThrowsInvalidGrant() async {
-        let driver = StubWebAuthDriver(responder: { _ in URL(string: "x://cb?code=abc")! })
+        let driver = StubWebAuthDriver(responder: { url in
+            let state = XSignInService.queryItem(url, "state")!
+            return URL(string: "x://cb?code=abc&state=\(state)")!
+        })
         URLProtocolStub.handler = { _ in
             let body = #"{"error":"invalid_grant","error_description":"bad pkce"}"#.data(using: .utf8)!
             return (HTTPURLResponse(url: URL(string: "https://api.twitter.com/2/oauth2/token")!,
@@ -161,7 +180,10 @@ final class XSignInServiceTests: XCTestCase {
     }
 
     func testTokenExchangeNetworkErrorMapsToNetworkCase() async {
-        let driver = StubWebAuthDriver(responder: { _ in URL(string: "x://cb?code=abc")! })
+        let driver = StubWebAuthDriver(responder: { url in
+            let state = XSignInService.queryItem(url, "state")!
+            return URL(string: "x://cb?code=abc&state=\(state)")!
+        })
         URLProtocolStub.handler = { _ in
             throw NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet)
         }

@@ -36,6 +36,14 @@ final class KeychainServiceTests: XCTestCase {
         XCTAssertTrue(sut.biometricsEnabled)
     }
 
+    func testClearAllRemovesHermesAdminToken() {
+        sut.hermesAdminToken = "admin-secret"
+
+        sut.clearAll()
+
+        XCTAssertNil(sut.hermesAdminToken)
+    }
+
     // HER-209: Apple-specific Keychain entries — userID for credential-state
     // polling, fullName for display-name retention across sign-ins.
     func testAppleUserIdRoundTrip() {
