@@ -76,6 +76,7 @@ final class KeychainService: Sendable {
             "accessToken",
             "refreshToken",
             "biometricsEnabled",
+            "hermesAdminToken",
             "appleUserId",
             "appleFullName",
         ].forEach { write(key: $0, value: nil) }
