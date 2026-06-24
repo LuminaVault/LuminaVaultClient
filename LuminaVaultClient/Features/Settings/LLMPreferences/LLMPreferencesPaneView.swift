@@ -222,8 +222,13 @@ struct LLMPreferencesPaneView: View {
                 Text("Switch to **My API Keys** to edit your primary provider.")
                     .font(.footnote)
             } else {
-                Text("Tried first on every chat. Leave the key blank to keep the one already saved; enter a new key to replace it. Stored encrypted.")
-                    .font(.footnote)
+                if viewModel.primaryProvider == .xai {
+                    Text("For Grok (xAI): leave blank to use linked SuperGrok account (after Connect in Linked Accounts). Enter key to override with a developer API key.")
+                        .font(.footnote)
+                } else {
+                    Text("Tried first on every chat. Leave the key blank to keep the one already saved; enter a new key to replace it. Stored encrypted.")
+                        .font(.footnote)
+                }
             }
         }
         .disabled(isEditorDisabled)

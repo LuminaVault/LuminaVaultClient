@@ -40,6 +40,9 @@ struct ProviderRowView: View {
         guard let dto, dto.hasCredential else {
             return "Not configured"
         }
+        if provider == .xai && dto.kind == .oauth {
+            return "Linked SuperGrok account"
+        }
         if let failed = dto.lastFailureAt, let code = dto.lastFailureCode {
             return "Failed \(Self.relative.localizedString(for: failed, relativeTo: Date())) — \(code)"
         }

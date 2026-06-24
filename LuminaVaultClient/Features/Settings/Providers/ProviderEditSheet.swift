@@ -38,6 +38,12 @@ struct ProviderEditSheet: View {
                             Text("Linked xAI account (SuperGrok)").tag(XaiAuthChoice.linked)
                         }
                         .pickerStyle(.segmented)
+                        .onChange(of: xaiChoice) { _, newValue in
+                            if newValue == .linked {
+                                apiKey = ""
+                                baseUrl = ""
+                            }
+                        }
                     }
 
                     if provider == .xai && xaiChoice == .linked {
@@ -101,7 +107,7 @@ struct ProviderEditSheet: View {
                         Button(action: test) {
                             Label("Test connection", systemImage: "bolt.horizontal")
                         }
-                        .disabled(isTesting || existing?.hasCredential != true && !canSave)
+                        .disabled(isTesting || (existing?.hasCredential != true && !canSave))
                     } label: {
                         if isSaving || isTesting {
                             ProgressView()
@@ -129,7 +135,7 @@ struct ProviderEditSheet: View {
 
     private var canSave: Bool {
         let effectiveKind = (provider == .xai && xaiChoice == .linked) ? ProviderCredentialKind.oauth : credentialKind
-        switch effectiveKind {
+        return switch effectiveKind {
         case .oauth: true // marker row from linked account
         case .apiKey: !apiKey.isEmpty
         case .hostURL: !baseUrl.isEmpty
