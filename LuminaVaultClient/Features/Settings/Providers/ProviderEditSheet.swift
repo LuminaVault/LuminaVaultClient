@@ -23,27 +23,48 @@ struct ProviderEditSheet: View {
     @State private var isSaving = false
     @State private var isTesting = false
 
+    /// For xAI we support two modes: normal apiKey or oauth marker (linked SuperGrok).
+    /// When .linked we save kind=.oauth with no key.
+    private enum XaiAuthChoice { case apiKey, linked }
+    @State private var xaiChoice: XaiAuthChoice = .apiKey
+
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    switch credentialKind {
-                    case .apiKey, .oauth:
-                        SecureField("API key", text: $apiKey)
-                            .textContentType(.password)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
-                        TextField("Base URL (optional)", text: $baseUrl)
-                            .keyboardType(.URL)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
-                    case .hostURL:
-                        TextField("Host URL", text: $baseUrl)
-                            .keyboardType(.URL)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
+                    if provider == .xai {
+                        Picker("Authentication", selection: $xaiChoice) {
+                            Text("API key").tag(XaiAuthChoice.apiKey)
+                            Text("Linked xAI account (SuperGrok)").tag(XaiAuthChoice.linked)
+                        }
+                        .pickerStyle(.segmented)
                     }
-                    TextField("Label (optional)", text: $label)
+
+                    if provider == .xai && xaiChoice == .linked {
+                        Text("Using your connected SuperGrok subscription via the secure container link. No separate API key is required or stored.")
+                            .font(LVTypography.footnote.font)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        switch credentialKind {
+                        case .apiKey, .oauth:
+                            SecureField("API key", text: $apiKey)
+                                .textContentType(.password)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                            TextField("Base URL (optional)", text: $baseUrl)
+                                .keyboardType(.URL)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                        case .hostURL:
+                            TextField("Host URL", text: $baseUrl)
+                                .keyboardType(.URL)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                        }
+                    }
+                    if provider != .xai || xaiChoice != .linked {
+                        TextField("Label (optional)", text: $label)
+                    }
                 } header: {
                     Text(ProvidersPaneViewModel.displayName(for: provider))
                 } footer: {
@@ -93,6 +114,11 @@ struct ProviderEditSheet: View {
             .onAppear {
                 baseUrl = existing?.baseUrl ?? ""
                 label = existing?.label ?? ""
+                if provider == .xai, existing?.kind == .oauth {
+                    xaiChoice = .linked
+                } else if provider == .xai {
+                    xaiChoice = .apiKey
+                }
             }
         }
     }
@@ -102,15 +128,17 @@ struct ProviderEditSheet: View {
     }
 
     private var canSave: Bool {
-        switch credentialKind {
-        case .apiKey, .oauth: !apiKey.isEmpty
+        let effectiveKind = (provider == .xai && xaiChoice == .linked) ? ProviderCredentialKind.oauth : credentialKind
+        switch effectiveKind {
+        case .oauth: true // marker row from linked account
+        case .apiKey: !apiKey.isEmpty
         case .hostURL: !baseUrl.isEmpty
         }
     }
 
     private var footer: String {
         switch provider {
-        case .xai: "Get a key at https://x.ai. Stored encrypted at rest."
+        case .xai: "API key from https://x.ai, or connect your SuperGrok account in Linked Accounts to use without a separate key."
         case .nvidia: "Get a key at https://build.nvidia.com (prefix nvapi-). Stored encrypted at rest."
         case .gemini: "Get a key at https://aistudio.google.com/apikey. Free tier handles large prompts. Stored encrypted at rest."
         case .anthropic: "Get a key at https://console.anthropic.com."
@@ -124,7 +152,10 @@ struct ProviderEditSheet: View {
     private func save() {
         Task {
             isSaving = true
-            let ok = await onSave(credentialKind, apiKey.isEmpty ? nil : apiKey, baseUrl.isEmpty ? nil : baseUrl, label.isEmpty ? nil : label)
+            let kindToSend: ProviderCredentialKind = (provider == .xai && xaiChoice == .linked) ? .oauth : credentialKind
+            let keyToSend: String? = (kindToSend == .oauth) ? nil : (apiKey.isEmpty ? nil : apiKey)
+            let urlToSend: String? = (kindToSend == .oauth && provider == .xai) ? nil : (baseUrl.isEmpty ? nil : baseUrl)
+            let ok = await onSave(kindToSend, keyToSend, urlToSend, label.isEmpty ? nil : label)
             isSaving = false
             if ok { apiKey = "" }
         }

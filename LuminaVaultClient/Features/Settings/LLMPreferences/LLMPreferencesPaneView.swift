@@ -159,6 +159,9 @@ struct LLMPreferencesPaneView: View {
         if ProvidersPaneViewModel.defaultKind(for: viewModel.primaryProvider) == .hostURL {
             return "\(name) host URL (e.g. http://…:11434)"
         }
+        if viewModel.primaryProvider == .xai {
+            return "Grok (xAI) API key (leave blank to use linked SuperGrok)"
+        }
         return "\(name) API key"
     }
 
