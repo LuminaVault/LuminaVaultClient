@@ -24,7 +24,7 @@ struct SettingsHeroBand: View {
                             endPoint: .trailing
                         )
                     )
-                Text("Your second brain.")
+                Text(BrandCopy.motto)
                     .lvFont(.callout)
                     .foregroundStyle(palette.textSecondary)
             }

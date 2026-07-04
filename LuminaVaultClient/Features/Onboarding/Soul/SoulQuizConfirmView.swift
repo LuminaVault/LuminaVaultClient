@@ -24,7 +24,7 @@ struct SoulQuizConfirmView: View {
     var body: some View {
         SoulQuizStepScaffold(
             number: 5,
-            title: "Your second brain, in your voice",
+            title: BrandCopy.soulConfirmTitle,
             subtitle: "Review the SOUL.md below. Tweak anything you want, then save."
         ) {
             VStack(alignment: .leading, spacing: 12) {

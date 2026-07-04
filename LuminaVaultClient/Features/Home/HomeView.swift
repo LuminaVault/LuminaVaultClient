@@ -338,7 +338,7 @@ private struct MascotHero: View {
                 .shadow(color: palette.accent.opacity(0.25), radius: 48)
                 .accessibilityHidden(true)
 
-            Text("Your second brain is online.")
+            Text(BrandCopy.brainOnline)
                 .font(LVTypography.callout.font)
                 .foregroundStyle(palette.textSecondary)
         }

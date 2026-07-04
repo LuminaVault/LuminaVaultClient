@@ -103,10 +103,10 @@ struct ValueDeliveryView: View {
         state.telemetryClient.demoShare(captureCount: pickedCaptures.count)
         let lines = pickedCaptures.map { "• \($0.title)" }.joined(separator: "\n")
         shareItem = ShareItem(text: """
-        I just set up my Lumina second brain. First captures:
+        I just gave my AI agent a brain with Lumina. First captures:
         \(lines)
 
-        Lumina is an AI that remembers everything you save — Safari articles, photos, voice memos, even Slack threads. In your voice.
+        Lumina is the infra brain for AI agents — everything you save (articles, photos, voice memos, Slack threads) becomes a wiki-linked vault your agent grounds every answer in.
 
         https://luminavault.com
         """)

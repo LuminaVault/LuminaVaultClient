@@ -24,7 +24,7 @@ struct CreateVaultView: View {
                     Text("Welcome to LuminaVault.")
                         .font(.system(size: 28, weight: .heavy))
                         .multilineTextAlignment(.center)
-                    Text("Let's build your second brain.")
+                    Text(BrandCopy.createVault)
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

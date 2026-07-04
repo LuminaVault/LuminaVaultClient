@@ -15,9 +15,9 @@ struct ComparisonTableView: View {
     private let rows: [Row] = [
         .init(id: 0, label: "Remembers you across sessions",         lumina: true, generic: false),
         .init(id: 1, label: "Replies in YOUR voice",                 lumina: true, generic: false),
-        .init(id: 2, label: "Reads captures + Health + Safari saves", lumina: true, generic: false),
-        .init(id: 3, label: "Self-host on your own server",          lumina: true, generic: false),
-        .init(id: 4, label: "Surfaces patterns from your past",      lumina: true, generic: false),
+        .init(id: 2, label: "Wiki-linked vault + knowledge graph",   lumina: true, generic: false),
+        .init(id: 3, label: "Your own Hermes agent, your own VPS",   lumina: true, generic: false),
+        .init(id: 4, label: "Bring your own LLM keys",               lumina: true, generic: false),
     ]
 
     var body: some View {

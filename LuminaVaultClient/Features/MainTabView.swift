@@ -208,7 +208,7 @@ struct MainTabView: View {
             LVTabItem(id: Self.tabIds.workspaces, label: "Spaces", icon: .tabSpaces),
             LVTabItem(id: Self.tabIds.think, label: "AI", icon: .tabThink),
             // HER-235 — Brain (knowledge graph): the premium "see your
-            // second brain" surface.
+            // infra brain" surface.
             LVTabItem(id: Self.tabIds.brain, label: "Brain", icon: .brain),
             // HER-194 — Reflect: the synthesis-intelligence cluster.
             LVTabItem(id: Self.tabIds.reflect, label: "Reflect", icon: .sparklesRectangleStack),

@@ -7,8 +7,8 @@ struct WelcomeFunnelView: View {
 
     var body: some View {
         FunnelScreenChrome(
-            headline: "An AI that actually knows you.",
-            subhead: "Your captures. Your voice. One Lumina.",
+            headline: "Give your AI a real brain.",
+            subhead: "Your vault. Your models. Your infra. One Lumina.",
             primaryCTA: "Show me how →",
             onPrimary: { state.advance() }
         ) {

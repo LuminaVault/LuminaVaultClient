@@ -26,7 +26,7 @@ struct DashboardGreetingView: View {
                 )
                 .multilineTextAlignment(.center)
 
-            Text("Your second brain is online.")
+            Text(BrandCopy.brainOnline)
                 .font(.system(size: 13))
                 .foregroundStyle(palette.textSecondary)
         }
