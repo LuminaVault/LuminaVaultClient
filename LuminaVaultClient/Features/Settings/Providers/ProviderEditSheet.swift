@@ -62,10 +62,18 @@ struct ProviderEditSheet: View {
                                 .autocorrectionDisabled()
                                 .textInputAutocapitalization(.never)
                         case .hostURL:
-                            TextField("Host URL", text: $baseUrl)
+                            TextField(provider == .custom ? "Base URL (e.g. https://api.groq.com/openai)" : "Host URL", text: $baseUrl)
                                 .keyboardType(.URL)
                                 .autocorrectionDisabled()
                                 .textInputAutocapitalization(.never)
+                            // Generic OpenAI-compatible endpoints may also
+                            // need a key (Groq, Together); Ollama does not.
+                            if provider == .custom {
+                                SecureField("API key (optional)", text: $apiKey)
+                                    .textContentType(.password)
+                                    .autocorrectionDisabled()
+                                    .textInputAutocapitalization(.never)
+                            }
                         }
                     }
                     if provider != .xai || xaiChoice != .linked {
@@ -152,6 +160,7 @@ struct ProviderEditSheet: View {
         case .openRouter: "Get a key at https://openrouter.ai/keys. Works as a fallback chain entry."
         case .ollama: "Host URL of your self-hosted Ollama (e.g. http://192.168.1.42:11434 or a Tailscale name)."
         case .nous: "Get a key at https://portal.nousresearch.com. Includes rotating free models (e.g. stepfun/step-3.7-flash:free). Stored encrypted at rest."
+        case .custom: "Any OpenAI-compatible endpoint — Groq, Together, LM Studio, vLLM, LiteLLM. Enter the base URL (up to /v1); add a key if the endpoint needs one. Models load live from /v1/models."
         }
     }
 
