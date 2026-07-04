@@ -3,12 +3,23 @@
 // HER-100 — value type holding every answer the user gives during the
 // 5-step SOUL.md onboarding quiz. Kept `Codable` so the in-progress
 // state can round-trip through `UserDefaults` for resume-on-relaunch.
+//
+// Template v2: the enums are the shared wire types (`LuminaVaultShared`)
+// because the quiz now posts them to `POST /v1/soul/compose`. Raw values
+// are identical to the old client-local enums, so persisted quiz state
+// keeps decoding. UI-only affordances (labels, Identifiable) live in the
+// extensions below — LuminaVaultShared stays presentation-free.
 
 import Foundation
+import LuminaVaultShared
 
-enum SoulTone: String, Codable, CaseIterable, Identifiable, Sendable {
-    case formal, casual, playful, dry, warm
-    var id: String { rawValue }
+extension SoulTone: @retroactive Identifiable {
+    public var id: String { rawValue }
+
+    /// The curated tones offered on the quiz chip grid. The shared enum
+    /// also carries the server-composer tones (`conciseTechnical`, `coach`)
+    /// which the quiz doesn't surface.
+    static var quizCases: [SoulTone] { [.formal, .casual, .playful, .dry, .warm] }
 
     var label: String {
         switch self {
@@ -17,17 +28,14 @@ enum SoulTone: String, Codable, CaseIterable, Identifiable, Sendable {
         case .playful: "Playful"
         case .dry: "Dry"
         case .warm: "Warm"
+        case .conciseTechnical: "Concise technical"
+        case .coach: "Coach"
         }
     }
 }
 
-/// HER-100 step 2 — multi-select priorities the user wants Hermes to
-/// focus on. `other` is paired with a free-text payload captured on
-/// the same screen so a unique priority can be added without bloating
-/// the chip grid.
-enum SoulPriority: String, Codable, CaseIterable, Identifiable, Sendable {
-    case focus, health, learning, family, money, creative, other
-    var id: String { rawValue }
+extension SoulPriority: @retroactive Identifiable {
+    public var id: String { rawValue }
 
     var label: String {
         switch self {
@@ -42,15 +50,13 @@ enum SoulPriority: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
-enum SoulFormat: String, Codable, CaseIterable, Identifiable, Sendable {
-    case bullets, prose
-    var id: String { rawValue }
+extension SoulFormat: @retroactive Identifiable {
+    public var id: String { rawValue }
     var label: String { self == .bullets ? "Bullet points" : "Prose" }
 }
 
-enum SoulLength: String, Codable, CaseIterable, Identifiable, Sendable {
-    case short, long
-    var id: String { rawValue }
+extension SoulLength: @retroactive Identifiable {
+    public var id: String { rawValue }
     var label: String { self == .short ? "Short" : "Long" }
 }
 
@@ -70,4 +76,25 @@ struct SoulQuizAnswers: Codable, Equatable, Sendable {
     /// first time; subsequent screens treat a non-nil value as the
     /// user's authoritative override of the generated default.
     var editedMarkdown: String?
+}
+
+extension SoulComposeRequest {
+    /// Maps the quiz snapshot onto the compose wire request. Stable
+    /// priority order (declaration order) so the composed draft doesn't
+    /// reflow between renders of the same answers.
+    init(from answers: SoulQuizAnswers, dryRun: Bool) {
+        self.init(
+            agentName: nil,
+            tone: answers.tone,
+            role: nil,
+            autonomy: nil,
+            priorities: SoulPriority.allCases.filter { answers.priorities.contains($0) },
+            otherPriority: answers.otherPriority.trimmingCharacters(in: .whitespacesAndNewlines),
+            format: answers.format,
+            length: answers.length,
+            emojis: answers.emojis,
+            voiceSamples: answers.voiceSamples,
+            dryRun: dryRun
+        )
+    }
 }

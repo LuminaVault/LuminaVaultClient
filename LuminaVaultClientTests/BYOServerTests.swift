@@ -134,5 +134,8 @@ private struct StubSoulClient: SoulClientProtocol {
     func put(_ body: SoulPutRequest) async throws -> SoulResponse {
         SoulResponse(markdown: body.markdown, updatedAt: nil)
     }
+    func compose(_ body: SoulComposeRequest) async throws -> SoulResponse {
+        SoulResponse(markdown: "", updatedAt: nil)
+    }
     func delete() async throws {}
 }

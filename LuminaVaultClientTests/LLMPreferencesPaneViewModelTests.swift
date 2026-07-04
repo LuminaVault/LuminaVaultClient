@@ -35,6 +35,36 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
         }
     }
 
+    private final class MockProvidersClient: ProvidersClientProtocol {
+        func list() async throws -> ProviderCredentialsListResponse {
+            ProviderCredentialsListResponse(providers: [])
+        }
+
+        func upsert(_ provider: ProviderID, _ body: ProviderCredentialPutRequest) async throws -> ProviderCredentialDTO {
+            throw URLError(.unsupportedURL)
+        }
+
+        func delete(_ provider: ProviderID) async throws {}
+
+        func test(_ provider: ProviderID) async throws -> ProviderTestResponse {
+            throw URLError(.unsupportedURL)
+        }
+
+        func models(_ provider: ProviderID) async throws -> ProviderModelsResponse {
+            ProviderModelsResponse(provider: provider, models: [], fetchedLive: false)
+        }
+
+        func listPool(_ provider: ProviderID) async throws -> ProviderPoolListResponse {
+            ProviderPoolListResponse(provider: provider, keys: [])
+        }
+
+        func addPool(_ provider: ProviderID, _ body: ProviderPoolAddRequest) async throws -> ProviderPoolKeyDTO {
+            throw URLError(.unsupportedURL)
+        }
+
+        func deletePool(_ provider: ProviderID, keyID: UUID) async throws {}
+    }
+
     // MARK: Fixtures
 
     private var client: MockLLMPreferencesClient!
@@ -45,7 +75,7 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
     }
 
     private func makeSUT() -> LLMPreferencesPaneViewModel {
-        LLMPreferencesPaneViewModel(client: client)
+        LLMPreferencesPaneViewModel(client: client, providersClient: MockProvidersClient())
     }
 
     // MARK: Loading

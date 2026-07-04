@@ -55,6 +55,16 @@ struct SoulEditorView: View {
                 Text("Presets fill the editor with a starting personality. Review and save to apply.")
             }
 
+            if let core = viewModel.lockedCore {
+                Section {
+                    SoulLockedCoreCard(core: core)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                } footer: {
+                    Text("The core covenant is managed by LuminaVault and re-applied on every save.")
+                }
+            }
+
             Section {
                 TextEditor(text: $viewModel.markdown)
                     .font(.system(.body, design: .monospaced))

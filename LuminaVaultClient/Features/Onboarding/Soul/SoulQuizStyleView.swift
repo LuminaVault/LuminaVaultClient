@@ -3,6 +3,7 @@
 // HER-100 step 3 — three quick style controls: bullets vs prose,
 // short vs long, emojis y/n.
 
+import LuminaVaultShared
 import SwiftUI
 
 struct SoulQuizStyleView: View {

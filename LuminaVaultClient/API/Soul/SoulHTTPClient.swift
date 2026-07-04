@@ -28,11 +28,23 @@ enum SoulEndpoints {
         var path: String { "/v1/soul" }
         var method: HTTPMethod { .delete }
     }
+
+    struct Compose: Endpoint {
+        typealias Response = SoulResponse
+        let request: SoulComposeRequest
+        var path: String { "/v1/soul/compose" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { request }
+    }
 }
 
 protocol SoulClientProtocol: Sendable {
     func get() async throws -> SoulResponse
     func put(_ body: SoulPutRequest) async throws -> SoulResponse
+    /// Renders the quiz answers into the canonical template server-side.
+    /// With `dryRun: true` nothing is persisted — onboarding previews the
+    /// draft, lets the user edit, and saves via `put`.
+    func compose(_ body: SoulComposeRequest) async throws -> SoulResponse
     /// Resets SOUL.md to the bootstrap template (server returns 204).
     func delete() async throws
 }
@@ -51,6 +63,10 @@ final class SoulHTTPClient: SoulClientProtocol {
 
     func put(_ body: SoulPutRequest) async throws -> SoulResponse {
         try await client.execute(SoulEndpoints.Put(request: body))
+    }
+
+    func compose(_ body: SoulComposeRequest) async throws -> SoulResponse {
+        try await client.execute(SoulEndpoints.Compose(request: body))
     }
 
     func delete() async throws {

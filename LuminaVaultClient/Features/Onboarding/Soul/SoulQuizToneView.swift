@@ -2,6 +2,7 @@
 //
 // HER-100 step 1 — single-select tone chip grid.
 
+import LuminaVaultShared
 import SwiftUI
 
 struct SoulQuizToneView: View {
@@ -16,7 +17,7 @@ struct SoulQuizToneView: View {
             title: "How should Hermes speak to you?",
             subtitle: "Pick the tone Lumina will mirror in every reply."
         ) {
-            LVChipGrid(items: SoulTone.allCases) { tone in
+            LVChipGrid(items: SoulTone.quizCases) { tone in
                 LVSelectionChip(
                     label: tone.label,
                     isSelected: state.answers.tone == tone

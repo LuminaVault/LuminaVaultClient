@@ -119,6 +119,7 @@ extension ProviderID {
         case .nvidia: return "NVIDIA NIM"
         case .gemini: return "Google Gemini"
         case .nous: return "Nous Research"
+        case .custom: return "Custom (OpenAI-compatible)"
         }
     }
 }

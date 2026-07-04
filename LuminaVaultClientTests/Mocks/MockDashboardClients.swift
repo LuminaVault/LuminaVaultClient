@@ -52,6 +52,12 @@ final class MockInsightsClient: InsightsClientProtocol, @unchecked Sendable {
         lastLimit = limit
         return try result.get()
     }
+
+    private(set) var dismissedIDs: [UUID] = []
+
+    func dismiss(id: UUID) async throws {
+        dismissedIDs.append(id)
+    }
 }
 
 final class MockHealthClient: HealthClientProtocol, @unchecked Sendable {

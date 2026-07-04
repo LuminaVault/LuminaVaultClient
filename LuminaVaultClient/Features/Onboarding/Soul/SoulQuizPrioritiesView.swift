@@ -3,6 +3,7 @@
 // HER-100 step 2 — multi-select priority chip grid with optional
 // free-text payload for the "other" chip.
 
+import LuminaVaultShared
 import SwiftUI
 
 struct SoulQuizPrioritiesView: View {

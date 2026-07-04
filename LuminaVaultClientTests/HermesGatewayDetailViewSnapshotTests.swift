@@ -39,6 +39,18 @@ final class HermesGatewayDetailViewSnapshotTests: XCTestCase {
             HermesGatewayTestResponse(ok: true, verifiedAt: Date())
         }
 
+        // Actuation + WhatsApp — not exercised by snapshot tests.
+        func startApply() async throws -> StartHermesGatewayApplyResponse { throw URLError(.unsupportedURL) }
+        func applyStatus(_ jobID: UUID) async throws -> HermesGatewayApplyJobStatus { throw URLError(.unsupportedURL) }
+        func applyStream(_ jobID: UUID) -> AsyncThrowingStream<HermesGatewayApplyEvent, any Error> {
+            AsyncThrowingStream { _ in }
+        }
+        func startWhatsAppPair() async throws -> StartWhatsAppPairResponse { StartWhatsAppPairResponse(sessionID: UUID()) }
+        func whatsAppPairStream(_ sessionID: UUID) -> AsyncThrowingStream<HermesWhatsAppPairEvent, any Error> {
+            AsyncThrowingStream { _ in }
+        }
+        func unlinkWhatsApp() async throws -> HermesGatewayCatalogEntry { try getResult.get() }
+
         // Photon (new pairing kind)
         func startPhotonSetup() async throws -> StartPhotonSetupResponse { StartPhotonSetupResponse(sessionID: UUID()) }
         func photonSetupPhone(sessionID: UUID, phone: String) async throws {}

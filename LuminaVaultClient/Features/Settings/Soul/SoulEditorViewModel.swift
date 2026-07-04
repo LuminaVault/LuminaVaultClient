@@ -68,14 +68,21 @@ final class SoulEditorViewModel {
     }
 
     /// Mirrors the server's 64 KiB SOUL.md cap (`SOULService.maxSizeBytes`).
+    /// The cap applies to the FULL document (locked core included), so the
+    /// user's editable budget is `maxBytes − (prefix + core)`.
     static let maxBytes = 64 * 1024
 
     private let client: any SoulClientProtocol
 
     var state: LoadState = .loading
-    /// Live editor buffer.
+    /// Live editor buffer — the EDITABLE portion only (template v2 splits
+    /// the document around the server-managed locked core covenant).
     var markdown: String = ""
-    /// Last value loaded from / saved to the server — basis for dirty/revert.
+    /// Locked front-matter + core covenant from the last load; nil core for
+    /// pre-v2 documents the server hasn't migrated yet.
+    private(set) var parts: SoulDocumentParts?
+    /// Last editable value loaded from / saved to the server — basis for
+    /// dirty/revert.
     private(set) var loadedMarkdown: String = ""
     private(set) var updatedAt: Date?
     var isSaving = false
@@ -85,10 +92,19 @@ final class SoulEditorViewModel {
         self.client = client
     }
 
+    /// The read-only core covenant to render above the editor, if any.
+    var lockedCore: String? { parts?.core }
+
     var isDirty: Bool { markdown != loadedMarkdown }
-    var byteCount: Int { markdown.lengthOfBytes(using: .utf8) }
+    /// Byte size of the assembled document — what the server actually caps.
+    var byteCount: Int { assembled().lengthOfBytes(using: .utf8) }
     var isOverLimit: Bool { byteCount > Self.maxBytes }
     var canSave: Bool { isDirty && !isOverLimit && !isSaving }
+
+    private func assembled() -> String {
+        guard let parts else { return markdown }
+        return SoulCoreParser.assemble(parts, editable: markdown)
+    }
 
     func load() async {
         state = .loading
@@ -106,7 +122,7 @@ final class SoulEditorViewModel {
         actionError = nil
         defer { isSaving = false }
         do {
-            let response = try await client.put(SoulPutRequest(markdown: markdown))
+            let response = try await client.put(SoulPutRequest(markdown: assembled()))
             apply(response)
         } catch {
             actionError = "Couldn't save — \(error.localizedDescription)"
@@ -133,8 +149,9 @@ final class SoulEditorViewModel {
         }
     }
 
-    /// Fills the editor with a preset template. The user still reviews and
-    /// saves — this never writes on its own.
+    /// Fills the editor with a preset template. Replaces only the editable
+    /// portion — the locked core stays. The user still reviews and saves —
+    /// this never writes on its own.
     func applyPreset(_ preset: SoulPreset) {
         markdown = preset.template
         actionError = nil
@@ -148,8 +165,10 @@ final class SoulEditorViewModel {
     }
 
     private func apply(_ response: SoulResponse) {
-        loadedMarkdown = response.markdown
-        markdown = response.markdown
+        let split = SoulCoreParser.parse(response.markdown)
+        parts = split
+        loadedMarkdown = split.editable
+        markdown = split.editable
         updatedAt = response.updatedAt
     }
 }
