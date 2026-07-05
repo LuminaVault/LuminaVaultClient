@@ -17,16 +17,15 @@ while the asset is being authored.
 
 ### Inputs
 
-| Name   | Type    | Behavior                                            |
-|--------|---------|-----------------------------------------------------|
-| `flap` | Trigger | Plays a one-shot wing-flap burst (~0.8 s).          |
+| Name        | Type    | Behavior                                                  |
+|-------------|---------|-----------------------------------------------------------|
+| `isPlaying` | Boolean | `true` → plays looping `bounce`; `false` → idle rest pose. |
 
 ### Animations
 
-| Name          | Type     | Description                                  |
-|---------------|----------|----------------------------------------------|
-| `wings_idle`  | Looping  | Slow continuous wing flutter, ~3 s cycle.    |
-| `flap_burst`  | One-shot | Sharper flap, ~0.8 s. Fired by `flap`.       |
+| Name     | Type    | Description                                                        |
+|----------|---------|--------------------------------------------------------------------|
+| `bounce` | Looping | 2.0 s seamless bounce: rest → stretch on takeoff → ease-out rise → fall → squash on landing → recover to frame-0 pose. |
 
 ### Rigging notes
 

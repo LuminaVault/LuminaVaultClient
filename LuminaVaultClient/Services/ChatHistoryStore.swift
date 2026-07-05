@@ -121,7 +121,12 @@ actor ChatHistoryStore {
 
     private func writeContainer(_ container: Container) throws {
         let data = try Self.encoder.encode(container)
-        try data.write(to: fileURL, options: .atomic)
+        // Chat history is user PII. Encrypt at rest via Data Protection so the file
+        // is unreadable until first unlock after boot (survives backup extraction /
+        // offline disk access). `.completeUntilFirstUserAuthentication` — not
+        // `.complete` — so background writes/reads still work while the device is
+        // locked (the app group is accessed by the share extension too).
+        try data.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
     private static let decoder: JSONDecoder = {

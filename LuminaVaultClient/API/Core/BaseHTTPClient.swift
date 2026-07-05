@@ -34,7 +34,9 @@ final class BaseHTTPClient: Sendable {
     private let refreshCoordinator: TokenRefreshCoordinator?
 
     init(
-        session: URLSession = .shared,
+        // Audit I3 — default to the cert-pinned session so every app-side client pins
+        // the managed host. Tests inject `.shared` explicitly (no pinning), unchanged.
+        session: URLSession = .lvPinned,
         tokenProvider: @escaping TokenProvider = { nil },
         refreshHandler: RefreshHandler? = nil,
         onAuthFailure: AuthFailureHandler? = nil,

@@ -8,16 +8,17 @@ struct SplashHeroRiveView: View {
 
     var size: CGFloat = 220
     var fallbackImageName: String = "SplashHero"
-    var firePulseOnAppear: Bool = true
+    var playsOnAppear: Bool = true
 
     @State private var viewModel: RiveViewModel?
     @State private var fallbackBreathing: CGFloat = 1.0
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     private static let riveFileName = "splash_hero"
     private static let stateMachineName = "State Machine 1"
-    private static let pulseInput = "pulse"
+    private static let isPlayingInput = "isPlaying"
 
     var body: some View {
         Group {
@@ -36,25 +37,36 @@ struct SplashHeroRiveView: View {
         }
         .accessibilityLabel("LuminaVault splash mark")
         .task { loadIfAvailable() }
-        .onAppear { startFallbackBreathing() }
+        .onAppear {
+            startFallbackBreathing()
+            setLive(true)
+        }
+        .onDisappear { setLive(false) }
+        .onChange(of: scenePhase) { _, phase in setLive(phase == .active) }
+        .onChange(of: reduceMotion) { _, rm in setPlaying(playsOnAppear && !rm) }
     }
 
-    func firePulse() {
-        viewModel?.triggerInput(Self.pulseInput)
+    func setPlaying(_ playing: Bool) {
+        viewModel?.setInput(Self.isPlayingInput, value: playing)
     }
 
     private func loadIfAvailable() {
         guard viewModel == nil else { return }
-        guard Bundle.main.url(forResource: Self.riveFileName, withExtension: "riv") != nil else {
-            return
-        }
-        let vm = RiveViewModel(
-            fileName: Self.riveFileName,
+        guard let vm = RiveAssets.viewModel(
+            named: Self.riveFileName,
             stateMachineName: Self.stateMachineName
-        )
+        ) else { return }
         viewModel = vm
-        if firePulseOnAppear {
-            vm.triggerInput(Self.pulseInput)
+        vm.setInput(Self.isPlayingInput, value: playsOnAppear && !reduceMotion)
+    }
+
+    /// Pause the render loop offscreen/backgrounded — no idle CPU burn.
+    private func setLive(_ live: Bool) {
+        guard let viewModel else { return }
+        if live && !reduceMotion {
+            viewModel.play()
+        } else {
+            viewModel.pause()
         }
     }
 

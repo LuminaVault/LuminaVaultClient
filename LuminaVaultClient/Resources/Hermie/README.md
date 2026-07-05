@@ -9,13 +9,29 @@ name `hermie` and activates a state machine named **`State Machine 1`** (Rive's
 default name — rename your machine to match, or update
 `HermieMascotView.stateMachineName`).
 
-The view fires **Trigger inputs** named exactly:
+The machine exposes two inputs:
 
-| Trigger    | Fires when `HermieMascotState` is |
-| ---------- | --------------------------------- |
-| `idle`     | `.idle`                           |
-| `thinking` | `.thinking`                       |
-| `happy`    | `.happy`                          |
+| Input       | Type    | Behavior                                          |
+| ----------- | ------- | ------------------------------------------------- |
+| `state`     | Number  | Selects the active per-state timeline. Values match `HermieMascotState.stateValue`: idle=0, thinking=1, happy=2, sad=3, sleeping=4, learning=5, celebrating=6. Any State → timeline on `state == N`, 200 ms crossfade. |
+| `isPlaying` | Boolean | Reduce Motion gate. `false` → highest-priority transition to a 1-frame `rest` hold (frame-0 pose). Default `true`. |
+
+The view drives `state` from `HermieMascotState` and forces `isPlaying`
+`false` (plus pauses the render loop) when the user has Reduce Motion
+enabled — see `HermieMascotView.apply(state:)`.
+
+### Timelines (all loop; frame 0 == final frame == rest pose)
+
+| Timeline | Duration | Motion |
+| --- | --- | --- |
+| `idle` | 3.0 s | breathing: scaleY 1.00→1.03, y −4 px bob, ±1° |
+| `thinking` | 1.6 s | pendulum sway ±4° about bottom-center, y −3 px, glow dot pulse |
+| `happy` | 2.0 s | anticipation squash → stretch takeoff → 40 px rise → landing squash → rest |
+| `sad` | 4.0 s | slump +3°, y +6 px, scale 0.98, slow shallow breathing |
+| `sleeping` | 4.5 s | deep breathing, lean −2°, rising "Z" glyphs |
+| `learning` | 1.2 s | absorb pulse scale →1.05, glow-ring ripple |
+| `celebrating` | 0.9 s | clap: double hop (y −18 px ×2), ±6° wiggle, scale pulse, confetti burst layer |
+| `rest` | 1 frame | hold pose for `isPlaying == false` |
 
 If the `.riv` file is missing, the view falls back to the static
 `Mascot` image asset in `Assets.xcassets` — the app still ships.

@@ -2,6 +2,10 @@
 // HER-255: custom glow tab bar. Replaces stock TabView chrome with a glass
 // background + glowing underline on the active tab. Wires a "pending insights"
 // pulse on the Home tab.
+//
+// iOS 26+ uses the native `GlassEffectContainer` + `.glassEffect` for the
+// liquid glass capsule. Older deployment targets (currently iOS 18) fall back
+// to `.ultraThinMaterial` + subtle stroke (consistent with `lvGlassCard`).
 // HER-107: split into N primary items + a trailing More button. The bar
 // renders the first `primaryItems` inline and packs everything else into
 // a Menu attached to the More button. When an overflow item is the
@@ -85,30 +89,26 @@ struct LVTabBar: View {
     }
 
     var body: some View {
-        // Floating Liquid Glass capsule (iOS 26 `.glassEffect`). Icon-only,
-        // inset from the screen edges, sitting above the home indicator —
-        // content scrolls beneath and refracts through the glass.
-        GlassEffectContainer(spacing: LVSpacing.sm) {
-            HStack(spacing: 0) { // zero-gap intentional — items flex equal-width
-                if overflowLeading {
-                    moreButton
+        Group {
+            if #available(iOS 26.0, *) {
+                // Floating Liquid Glass capsule (iOS 26+ `.glassEffect`). Icon-only,
+                // inset from the screen edges, sitting above the home indicator —
+                // content scrolls beneath and refracts through the glass.
+                GlassEffectContainer(spacing: LVSpacing.sm) {
+                    tabItemsHStack
+                        .glassEffect(.regular.interactive(), in: Capsule())
                 }
-                ForEach(primaryItems) { item in
-                    LVTabBarButton(
-                        item: item,
-                        isActive: item.id == selection,
-                        underlineNamespace: underlineNamespace,
-                        onTap: { selectWithAnimation(item.id) }
-                    )
-                    .frame(maxWidth: .infinity)
-                }
-                if !overflowLeading {
-                    moreButton
-                }
+            } else {
+                // Fallback for older iOS: ultra-thin material capsule to approximate
+                // the floating glass look using the project's established material
+                // styling (consistent with lvGlassCard / palette.surface).
+                tabItemsHStack
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .overlay {
+                        Capsule()
+                            .stroke(palette.surfaceStroke.opacity(0.3), lineWidth: 0.5)
+                    }
             }
-            .padding(.horizontal, LVSpacing.xs)
-            .padding(.vertical, LVSpacing.xs)
-            .glassEffect(.regular.interactive(), in: Capsule())
         }
         .padding(.horizontal, LVSpacing.lg)
         .padding(.bottom, LVSpacing.xs)
@@ -117,6 +117,31 @@ struct LVTabBar: View {
                 Color.clear.preference(key: LVTabBarHeightKey.self, value: geo.size.height)
             }
         }
+    }
+
+    /// Common tab items row (HStack of primary + optional More).
+    /// Extracted so it can be wrapped by either GlassEffectContainer or the
+    /// material fallback without duplication.
+    private var tabItemsHStack: some View {
+        HStack(spacing: 0) { // zero-gap intentional — items flex equal-width
+            if overflowLeading {
+                moreButton
+            }
+            ForEach(primaryItems) { item in
+                LVTabBarButton(
+                    item: item,
+                    isActive: item.id == selection,
+                    underlineNamespace: underlineNamespace,
+                    onTap: { selectWithAnimation(item.id) }
+                )
+                .frame(maxWidth: .infinity)
+            }
+            if !overflowLeading {
+                moreButton
+            }
+        }
+        .padding(.horizontal, LVSpacing.xs)
+        .padding(.vertical, LVSpacing.xs)
     }
 
     /// The More overflow button. Rendered leading or trailing per

@@ -19,20 +19,18 @@ public enum HermieMascotState: String, CaseIterable, Sendable {
     /// dedicated celebrate animation ships in the .riv file.
     case celebrating
 
-    /// Rive trigger name fired on the state machine.
-    ///
-    /// HER-152 — `sad`, `sleeping`, `learning` and `celebrating` map onto
-    /// the four triggers that exist in `hermie.riv` today (`idle`,
-    /// `thinking`, `happy`) so the mascot degrades gracefully. Once the
-    /// Rive Pro file ships dedicated inputs per state (see acceptance),
-    /// drop the overrides and let each case fire its own `rawValue`.
-    var riveTrigger: String {
+    /// Value driven into the `state` number input on "State Machine 1".
+    /// Must match the transition conditions authored in `hermie.riv`
+    /// (see `Resources/Hermie/README.md`).
+    var stateValue: Double {
         switch self {
-        case .celebrating: "happy"
-        case .learning: "thinking"
-        case .sleeping: "idle"
-        case .sad: "idle"
-        default: rawValue
+        case .idle: 0
+        case .thinking: 1
+        case .happy: 2
+        case .sad: 3
+        case .sleeping: 4
+        case .learning: 5
+        case .celebrating: 6
         }
     }
 }
@@ -44,17 +42,31 @@ public struct HermieMascotView: View {
     public let state: HermieMascotState
     public var size: CGFloat = 220
     public var fallbackImageName: String = "Mascot"
+    /// Call-site opt-out from the Rive canvas. Small avatars skip Rive
+    /// regardless — dozens of live instances in a chat list is real CPU.
+    public var animated: Bool = true
 
     @State private var viewModel: RiveViewModel?
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+
     private static let riveFileName = "hermie"
     private static let stateMachineName = "State Machine 1"
+    private static let stateInput = "state"
+    private static let isPlayingInput = "isPlaying"
+    /// Below this point size the animation is unreadable and the Rive
+    /// canvas is not worth its runtime cost; the static PNG renders instead.
+    private static let animationSizeThreshold: CGFloat = 64
 
-    public init(state: HermieMascotState, size: CGFloat = 220, fallbackImageName: String = "Mascot") {
+    public init(state: HermieMascotState, size: CGFloat = 220, fallbackImageName: String = "Mascot", animated: Bool = true) {
         self.state = state
         self.size = size
         self.fallbackImageName = fallbackImageName
+        self.animated = animated
     }
+
+    private var riveEligible: Bool { animated && size >= Self.animationSizeThreshold }
 
     public var body: some View {
         Group {
@@ -73,26 +85,44 @@ public struct HermieMascotView: View {
         .accessibilityLabel("Hermie mascot — \(state.rawValue)")
         .task { loadIfAvailable() }
         .onChange(of: state) { _, newValue in
-            fire(state: newValue)
+            apply(state: newValue)
         }
+        .onChange(of: reduceMotion) { _, _ in
+            apply(state: state)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            setLive(phase == .active)
+        }
+        .onAppear { setLive(true) }
+        .onDisappear { setLive(false) }
     }
 
     private func loadIfAvailable() {
-        guard viewModel == nil else { return }
-        guard Bundle.main.url(forResource: Self.riveFileName, withExtension: "riv") != nil else {
-            return
-        }
-        let vm = RiveViewModel(
-            fileName: Self.riveFileName,
+        guard riveEligible, viewModel == nil else { return }
+        guard let vm = RiveAssets.viewModel(
+            named: Self.riveFileName,
             stateMachineName: Self.stateMachineName
-        )
+        ) else { return }
         viewModel = vm
-        fire(state: state)
+        apply(state: state)
     }
 
-    private func fire(state: HermieMascotState) {
+    private func apply(state: HermieMascotState) {
         guard let viewModel else { return }
-        viewModel.triggerInput(state.riveTrigger)
+        viewModel.setInput(Self.stateInput, value: state.stateValue)
+        viewModel.setInput(Self.isPlayingInput, value: !reduceMotion)
+        if reduceMotion { viewModel.pause() }
+    }
+
+    /// Pause the render loop whenever the view leaves the screen or the app
+    /// leaves the foreground — offscreen Rive canvases must not burn CPU.
+    private func setLive(_ live: Bool) {
+        guard let viewModel else { return }
+        if live && !reduceMotion {
+            viewModel.play()
+        } else {
+            viewModel.pause()
+        }
     }
 }
 
