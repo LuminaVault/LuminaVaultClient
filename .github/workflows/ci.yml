@@ -19,10 +19,14 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Install SwiftLint (pinned 0.63.2)
-        run: brew install swiftlint
+      - name: Install SwiftLint (pinned)
+        run: |
+          set -euo pipefail
+          curl -fsSL -o swiftlint.zip \
+            "https://github.com/realm/SwiftLint/releases/download/0.63.2/portable_swiftlint.zip"
+          unzip -o swiftlint.zip -d /tmp/swiftlint
       - name: SwiftLint
-        run: swiftlint lint --reporter github-actions-logging
+        run: /tmp/swiftlint/swiftlint lint --reporter github-actions-logging
 
   test:
     name: Run Tests
@@ -49,66 +53,12 @@ jobs:
       - name: Resolve Swift packages
         run: xcodebuild -project LuminaVaultClient.xcodeproj -resolvePackageDependencies
 
-      - name: Pick an available iPhone simulator
-        id: sim
-        run: |
-          set -euo pipefail
-          devices_json=$(xcrun simctl list devices available --json)
-          newest_runtime=$(echo "$devices_json" \
-            | jq -r '.devices | keys[] | select(test("iOS"))' \
-            | sort -V | tail -n 1)
-          if [ -z "$newest_runtime" ]; then
-            echo "::error::no iOS runtime installed"
-            xcrun simctl list runtimes
-            exit 1
-          fi
-          udid=$(echo "$devices_json" \
-            | jq -r --arg rt "$newest_runtime" \
-                '.devices[$rt][]
-                 | select(.isAvailable == true and (.name | test("iPhone")))
-                 | .udid' \
-            | head -n 1)
-          name=$(echo "$devices_json" \
-            | jq -r --arg rt "$newest_runtime" \
-                '.devices[$rt][]
-                 | select(.isAvailable == true and (.name | test("iPhone")))
-                 | .name' \
-            | head -n 1)
-          os_version=$(echo "$newest_runtime" | sed -E 's/.*iOS-([0-9-]+)$/\1/' | tr '-' '.')
-          if [ -z "$udid" ]; then
-            device_type=$(xcrun simctl list devicetypes --json \
-              | jq -r '.devicetypes[] | select(.name | test("iPhone 16")) | .identifier' \
-              | head -n 1)
-            runtime_id=$(xcrun simctl list runtimes --json \
-              | jq -r --arg rt "$newest_runtime" \
-                  '.runtimes[] | select(.name == $rt and .isAvailable == true) | .identifier')
-            if [ -z "$device_type" ] || [ -z "$runtime_id" ]; then
-              echo "::error::cannot create simulator; missing device type or runtime"
-              exit 1
-            fi
-            udid=$(xcrun simctl create "CI iPhone" "$device_type" "$runtime_id")
-            name="CI iPhone"
-          fi
-          echo "udid=$udid" >> "$GITHUB_OUTPUT"
-          echo "name=$name" >> "$GITHUB_OUTPUT"
-          echo "os=$os_version" >> "$GITHUB_OUTPUT"
-          echo "Selected simulator: $name ($udid) iOS $os_version"
-
-      - name: Boot simulator and verify xcodebuild destination
-        run: |
-          set -euo pipefail
-          udid="${{ steps.sim.outputs.udid }}"
-          xcrun simctl boot "$udid" 2>/dev/null || true
-          xcrun simctl bootstatus "$udid" -b
-          destinations=$(xcodebuild -project LuminaVaultClient.xcodeproj \
-            -scheme LuminaVaultClient \
-            -showdestinations 2>&1 || true)
-          echo "$destinations" | grep -i "ios simulator" || true
-          if ! echo "$destinations" | grep -q "$udid"; then
-            echo "::error::xcodebuild does not list simulator $udid — check deployment target vs runtime"
-            echo "$destinations"
-            exit 1
-          fi
+      # Pinned destination: with Xcode fixed at 16.4, "OS=latest" resolves to the
+      # runtime that ships with that Xcode (iOS 18.x) — deterministic per pin,
+      # and it fails LOUDLY if the device/runtime is missing instead of the old
+      # dynamic-discovery guard that exit-1'd on runner image drift.
+      - name: List simulator runtimes (diagnostics only)
+        run: xcrun simctl list runtimes
 
       - name: Run unit tests (Debug)
         run: |
@@ -117,7 +67,7 @@ jobs:
             -project LuminaVaultClient.xcodeproj \
             -scheme LuminaVaultClient \
             -configuration Debug \
-            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -destination "platform=iOS Simulator,name=iPhone 16 Pro,OS=latest" \
             -only-testing:LuminaVaultClientTests \
             -resultBundlePath TestResults.xcresult
 

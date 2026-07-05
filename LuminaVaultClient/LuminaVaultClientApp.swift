@@ -71,14 +71,18 @@ struct LuminaVaultClientApp: App {
 
     init() {
         SentrySDK.start { options in
-            options.dsn = Config.sentryDSN ?? "https://a3a94645381ee5af35e404c7299e019c@o4510766840872960.ingest.de.sentry.io/4511406692368464"
+            // No hardcoded fallback: a missing SENTRY_DSN disables the SDK
+            // instead of shipping crashes to a baked-in project.
+            options.dsn = Config.sentryDSN
             if let environment = Config.sentryEnvironment {
                 options.environment = environment
             }
 
-            // Adds IP for users.
-            // For more information, visit: https://docs.sentry.io/platforms/apple/data-management/data-collected/
-            options.sendDefaultPii = true
+            // Audit CS1 — do NOT auto-collect user IP / PII. Given the tenant-data
+            // sensitivity, don't ship IP addresses to Sentry unless it's an explicit,
+            // disclosed product decision.
+            // https://docs.sentry.io/platforms/apple/data-management/data-collected/
+            options.sendDefaultPii = false
 
             // Set tracesSampleRate to 1.0 to capture 100% of transactions for performance monitoring.
             // We recommend adjusting this value in production.
@@ -97,9 +101,6 @@ struct LuminaVaultClientApp: App {
             // Enable experimental logging features
             options.experimental.enableLogs = true
         }
-        // Remove the next line after confirming that your Sentry integration is working.
-        SentrySDK.capture(message: "This app uses Sentry! :)")
-
         if let clientID = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String,
            !clientID.isEmpty {
             GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
