@@ -47,7 +47,7 @@ struct SettingsRootView: View {
                         // Phase 2 — direct memory browse/edit/delete.
                         LVSectionCard("Your Agent") {
                             LVSettingsRow("Personality", icon: .brainHeadProfile) {
-                                SoulEditorView(client: soulClient)
+                                SoulEditorView(client: soulClient, capabilities: hermesCapabilitiesClient)
                             }
                             LVSettingsDivider()
                             LVSettingsRow("Memories", icon: .brain) {
@@ -227,6 +227,10 @@ struct SettingsRootView: View {
 
     private var soulClient: any SoulClientProtocol {
         SoulHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var hermesCapabilitiesClient: any HermesCapabilitiesClientProtocol {
+        HermesCapabilitiesHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var memoryClient: any MemoryClientProtocol {

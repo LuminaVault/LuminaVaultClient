@@ -73,8 +73,16 @@ final class SoulEditorViewModel {
     static let maxBytes = 64 * 1024
 
     private let client: any SoulClientProtocol
+    /// P3 — when the tenant routes to a BYO Hermes, SOUL.md lives on their
+    /// remote box (no HTTP write surface) so the server 409s writes. We
+    /// probe capabilities on load and render the editor read-only with an
+    /// explainer instead of letting the user hit a doomed Save. Nil ⇒ skip
+    /// the probe (assume writable).
+    private let capabilities: (any HermesCapabilitiesClientProtocol)?
 
     var state: LoadState = .loading
+    /// True when SOUL editing is unsupported on the connected (BYO) Hermes.
+    private(set) var isReadOnly = false
     /// Live editor buffer — the EDITABLE portion only (template v2 splits
     /// the document around the server-managed locked core covenant).
     var markdown: String = ""
@@ -88,8 +96,12 @@ final class SoulEditorViewModel {
     var isSaving = false
     var actionError: String?
 
-    init(client: any SoulClientProtocol) {
+    init(
+        client: any SoulClientProtocol,
+        capabilities: (any HermesCapabilitiesClientProtocol)? = nil
+    ) {
         self.client = client
+        self.capabilities = capabilities
     }
 
     /// The read-only core covenant to render above the editor, if any.
@@ -99,7 +111,7 @@ final class SoulEditorViewModel {
     /// Byte size of the assembled document — what the server actually caps.
     var byteCount: Int { assembled().lengthOfBytes(using: .utf8) }
     var isOverLimit: Bool { byteCount > Self.maxBytes }
-    var canSave: Bool { isDirty && !isOverLimit && !isSaving }
+    var canSave: Bool { isDirty && !isOverLimit && !isSaving && !isReadOnly }
 
     private func assembled() -> String {
         guard let parts else { return markdown }
@@ -109,6 +121,13 @@ final class SoulEditorViewModel {
     func load() async {
         state = .loading
         do {
+            // Probe BYO-Hermes capabilities first (best-effort): SOUL editing
+            // is unsupported when routing to a remote box. A probe failure
+            // leaves the editor writable rather than locking the user out.
+            if let capabilities,
+               let caps = try? await capabilities.get().capabilities {
+                isReadOnly = caps.soul == .unsupported
+            }
             try await refresh()
             state = .ready
         } catch {

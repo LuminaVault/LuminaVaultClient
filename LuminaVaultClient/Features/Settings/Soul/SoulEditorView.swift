@@ -11,8 +11,11 @@ struct SoulEditorView: View {
     @State private var viewModel: SoulEditorViewModel
     @State private var showResetConfirm = false
 
-    init(client: any SoulClientProtocol) {
-        _viewModel = State(initialValue: SoulEditorViewModel(client: client))
+    init(
+        client: any SoulClientProtocol,
+        capabilities: (any HermesCapabilitiesClientProtocol)? = nil
+    ) {
+        _viewModel = State(initialValue: SoulEditorViewModel(client: client, capabilities: capabilities))
     }
 
     var body: some View {
@@ -34,25 +37,45 @@ struct SoulEditorView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await viewModel.load() }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Save") { Task { await viewModel.save() } }
-                    .disabled(!viewModel.canSave)
+            if !viewModel.isReadOnly {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Save") { Task { await viewModel.save() } }
+                        .disabled(!viewModel.canSave)
+                }
             }
         }
     }
 
     private var editor: some View {
         Form {
-            Section {
-                Menu {
-                    ForEach(SoulPreset.allCases) { preset in
-                        Button(preset.rawValue) { viewModel.applyPreset(preset) }
+            if viewModel.isReadOnly {
+                Section {
+                    Label {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Read-only on your own Hermes")
+                                .font(.subheadline.weight(.semibold))
+                            Text("You're connected to your own Hermes server, where SOUL.md lives as a file on your box. Edit it there (or via the Hermes CLI) — LuminaVault can't write it over the API.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "lock.fill")
                     }
-                } label: {
-                    Label("Apply a preset", systemImage: "wand.and.stars")
                 }
-            } footer: {
-                Text("Presets fill the editor with a starting personality. Review and save to apply.")
+            }
+
+            if !viewModel.isReadOnly {
+                Section {
+                    Menu {
+                        ForEach(SoulPreset.allCases) { preset in
+                            Button(preset.rawValue) { viewModel.applyPreset(preset) }
+                        }
+                    } label: {
+                        Label("Apply a preset", systemImage: "wand.and.stars")
+                    }
+                } footer: {
+                    Text("Presets fill the editor with a starting personality. Review and save to apply.")
+                }
             }
 
             if let core = viewModel.lockedCore {
@@ -69,7 +92,7 @@ struct SoulEditorView: View {
                 TextEditor(text: $viewModel.markdown)
                     .font(.system(.body, design: .monospaced))
                     .frame(minHeight: 280)
-                    .disabled(viewModel.isSaving)
+                    .disabled(viewModel.isSaving || viewModel.isReadOnly)
             } header: {
                 Text("SOUL.md")
             } footer: {
@@ -92,11 +115,13 @@ struct SoulEditorView: View {
                 Section { Text(error).foregroundStyle(.red) }
             }
 
-            Section {
-                Button("Revert changes") { viewModel.revert() }
-                    .disabled(!viewModel.isDirty || viewModel.isSaving)
-                Button("Reset to default", role: .destructive) { showResetConfirm = true }
-                    .disabled(viewModel.isSaving)
+            if !viewModel.isReadOnly {
+                Section {
+                    Button("Revert changes") { viewModel.revert() }
+                        .disabled(!viewModel.isDirty || viewModel.isSaving)
+                    Button("Reset to default", role: .destructive) { showResetConfirm = true }
+                        .disabled(viewModel.isSaving)
+                }
             }
         }
         .confirmationDialog(
