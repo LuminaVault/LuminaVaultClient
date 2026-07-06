@@ -89,23 +89,26 @@ struct TrendChartCard: View {
     }
 }
 
+// Explicitly typed sub-expressions: the fully-inferred one-expression form
+// times out the Swift 6.2 type-checker ("unable to type-check in reasonable
+// time") on the newer toolchain.
 #Preview {
     let calendar = Calendar.current
     let now = Date()
-    let points = (0..<14).map { index in
-        TrendPointUIModel(
-            date: calendar.date(byAdding: .day, value: -13 + index, to: now) ?? now,
-            value: Double(2000 + index * 350 + (index % 3) * 600),
-        )
+    let points: [TrendPointUIModel] = (0 ..< 14).map { index in
+        let day: Date = calendar.date(byAdding: .day, value: -13 + index, to: now) ?? now
+        let value = Double(2000 + index * 350 + (index % 3) * 600)
+        return TrendPointUIModel(date: day, value: value)
     }
-    return TrendChartCard(series: TrendSeriesUIModel(
+    let series = TrendSeriesUIModel(
         id: "health.steps",
         title: "Steps",
         systemImage: "figure.walk",
         unit: "steps",
         points: points,
         latest: points.last?.value ?? 0,
-    ))
-    .padding()
-    .tint(.green)
+    )
+    return TrendChartCard(series: series)
+        .padding()
+        .tint(.green)
 }
