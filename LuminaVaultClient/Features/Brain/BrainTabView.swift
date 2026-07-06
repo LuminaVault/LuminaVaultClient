@@ -65,10 +65,19 @@ struct BrainTabView: View {
             emptyState
         case .loaded(let graph):
             ZStack(alignment: .bottom) {
-                BrainGraphCanvas(graph: filtered(graph)) { id in
-                    vm.selectedNodeID = id
+                // HER-235 3D viz — RealityKit orbitable cluster (iOS 18+); the 2D
+                // Canvas remains the fallback for older OSes.
+                if #available(iOS 18.0, *) {
+                    BrainGraphRealityView(graph: filtered(graph)) { id in
+                        vm.selectedNodeID = id
+                    }
+                    .lvBackground()
+                } else {
+                    BrainGraphCanvas(graph: filtered(graph)) { id in
+                        vm.selectedNodeID = id
+                    }
+                    .lvBackground()
                 }
-                .lvBackground()
 
                 GraphLegend(
                     activeEdgeKinds: $activeEdgeKinds,

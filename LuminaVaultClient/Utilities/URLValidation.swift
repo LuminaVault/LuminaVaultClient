@@ -22,12 +22,19 @@ enum URLValidation {
     /// `assumeSecureTunnel` suppresses both warnings for transports that
     /// provide their own encryption + authentication underneath (e.g.
     /// Tailscale/WireGuard), where plain `http://` to a tailnet host or IP is
-    /// expected and safe.
+    /// expected and safe — but only for hosts that actually look like tailnet
+    /// destinations (`*.ts.net`, a Tailscale IP, or a single-label MagicDNS
+    /// short name). Anything else gets a soft caution instead of silence, so
+    /// a public URL pasted into the Tailscale editor isn't waved through.
     static func transportWarning(for raw: String, assumeSecureTunnel: Bool = false) -> String? {
-        if assumeSecureTunnel { return nil }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: trimmed), let host = url.host, !host.isEmpty else {
             return nil
+        }
+        if assumeSecureTunnel {
+            if isTailnetHost(host) { return nil }
+            return "This host doesn't look like a tailnet address (*.ts.net, 100.x Tailscale "
+                + "IP, or MagicDNS short name) — traffic to it may leave the tunnel unencrypted."
         }
         if url.scheme?.lowercased() == "http" {
             return "No TLS — your auth token and traffic are sent in plaintext over http://. "
@@ -38,6 +45,24 @@ enum URLValidation {
                 + "can't be authenticated. A domain + HTTPS is safer."
         }
         return nil
+    }
+
+    /// Heuristic for "this is a Tailscale destination": MagicDNS FQDN
+    /// (`*.ts.net`), Tailscale CGNAT IPv4 (100.64.0.0/10), Tailscale IPv6
+    /// (fd7a:115c:a1e0::/48), or a single-label MagicDNS short name
+    /// (`http://hermes-vps:8642` — only resolvable inside the tailnet/LAN).
+    static func isTailnetHost(_ host: String) -> Bool {
+        let lower = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+        if lower.hasSuffix(".ts.net") { return true }
+        if lower.hasPrefix("fd7a:115c:a1e0:") { return true }
+        let parts = lower.split(separator: ".")
+        if parts.count == 4, parts.allSatisfy({ Int($0).map { (0 ... 255).contains($0) } == true }) {
+            let first = Int(parts[0])!
+            let second = Int(parts[1])!
+            return first == 100 && (64 ... 127).contains(second)
+        }
+        // Single label, not an IPv6 literal → MagicDNS short name.
+        return parts.count == 1 && !lower.contains(":")
     }
 
     /// Detects a bare IPv4/IPv6 literal host (no domain). IPv6 hosts from
