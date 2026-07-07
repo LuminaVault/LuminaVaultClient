@@ -4,12 +4,10 @@
 //
 // Three responsibilities:
 //   1. List existing credentials (`GET /v1/auth/webauthn/credentials`).
-//   2. "Add a passkey" cell — calls `vm.registerPasskey`.
+//   2. "Add a passkey" cell — calls `AuthViewModel.registerPasskey`.
 //   3. Per-row revoke (`DELETE /v1/auth/webauthn/credentials/{id}`).
 //
-// Wiring into `SettingsRootView` is intentionally left as a follow-up
-// so this scaffold stays scoped to HER-216 itself.
-
+import PostHog
 import SwiftUI
 
 @MainActor
@@ -21,6 +19,7 @@ final class PasskeysPaneViewModel {
     var credentials: [WebAuthnCredentialSummaryDTO] = []
     var isLoading = false
     var error: String? = nil
+    private(set) var username: String = ""
 
     init(authClient: any AuthClientProtocol, authViewModel: AuthViewModel) {
         self.authClient = authClient
@@ -30,6 +29,8 @@ final class PasskeysPaneViewModel {
     func load() async {
         isLoading = true; error = nil; defer { isLoading = false }
         do {
+            let me = try await authClient.getMe()
+            username = me.username
             credentials = try await authClient.webAuthnListCredentials().credentials
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
@@ -40,6 +41,7 @@ final class PasskeysPaneViewModel {
         do {
             try await authClient.webAuthnDeleteCredential(credentialID: credential.id)
             credentials.removeAll { $0.id == credential.id }
+            PostHogSDK.shared.capture("auth_passkey_revoked")
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -47,8 +49,16 @@ final class PasskeysPaneViewModel {
 
     /// Enrol a passkey for the currently authenticated user, then refresh
     /// the list so the new credential shows up.
-    func enrol(username: String) async {
+    func enrol() async {
+        guard !username.isEmpty else {
+            error = "Username unavailable. Try again."
+            return
+        }
         await authViewModel.registerPasskey(username: username, displayName: nil)
+        if let error = authViewModel.error {
+            self.error = error
+            return
+        }
         await load()
     }
 }
@@ -56,22 +66,19 @@ final class PasskeysPaneViewModel {
 struct PasskeysPaneView: View {
     @Environment(\.lvPalette) private var palette
     @Bindable var vm: PasskeysPaneViewModel
-    /// Username for the authenticated user — Settings provides this from
-    /// `AppState.me?.username`. Empty string disables the enrol button.
-    let username: String
 
     var body: some View {
         List {
             Section {
                 Button {
-                    Task { await vm.enrol(username: username) }
+                    Task { await vm.enrol() }
                 } label: {
                     HStack {
                         LVIconView(.keyFill)
                         Text("Add a passkey")
                     }
                 }
-                .disabled(username.isEmpty || vm.isLoading)
+                .disabled(vm.username.isEmpty || vm.isLoading)
             }
 
             Section("Enrolled passkeys") {

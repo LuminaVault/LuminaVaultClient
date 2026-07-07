@@ -13,6 +13,13 @@ struct BrainNodeDetailSheet: View {
     @Environment(\.lvPalette) private var palette
 
     let node: MemoryGraphNodeDTO
+    /// Injected so a memory node can load + show its full content inline
+    /// (HER-235 open-on-click). `nil` keeps the summary-only behaviour.
+    var memoryClient: (any MemoryClientProtocol)?
+
+    @State private var content: String?
+    @State private var isLoadingContent = false
+    @State private var loadFailed = false
 
     var body: some View {
         NavigationStack {
@@ -51,9 +58,24 @@ struct BrainNodeDetailSheet: View {
                         }
                     }
 
-                    // Score is a memory-only signal; wiki pages render at a
-                    // constant size so it carries no meaning for them.
+                    // Full memory content (HER-235 open-on-click). Fetched via
+                    // the injected client for memory nodes only.
                     if node.kind == .memory {
+                        Divider().overlay(palette.textSecondary.opacity(0.2))
+                        if isLoadingContent {
+                            ProgressView().tint(palette.primary)
+                        } else if let content, !content.isEmpty {
+                            Text(content)
+                                .font(.callout)
+                                .foregroundStyle(palette.textPrimary)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else if loadFailed {
+                            Text("Couldn't load this memory.")
+                                .font(.footnote)
+                                .foregroundStyle(palette.textSecondary)
+                        }
+
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Score")
                                 .font(.caption.weight(.semibold))
@@ -73,6 +95,20 @@ struct BrainNodeDetailSheet: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .presentationDetents([.medium, .large])
+        .task(id: node.id) { await loadContentIfNeeded() }
+    }
+
+    private func loadContentIfNeeded() async {
+        guard node.kind == .memory, let memoryClient, content == nil else { return }
+        isLoadingContent = true
+        loadFailed = false
+        defer { isLoadingContent = false }
+        do {
+            let memory = try await memoryClient.get(id: node.id)
+            content = memory.content
+        } catch {
+            loadFailed = true
+        }
     }
 
     // MARK: - Kind presentation

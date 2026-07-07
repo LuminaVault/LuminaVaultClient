@@ -45,6 +45,9 @@ final class AuthHTTPClient: AuthClientProtocol {
     func getMe() async throws -> MeResponse {
         try await client.execute(AuthEndpoints.GetMe())
     }
+    func updatePrivacy(_ request: UpdatePrivacyRequest) async throws -> MeResponse {
+        try await client.execute(AuthEndpoints.UpdatePrivacy(request: request))
+    }
     func logout(refreshToken: String) async throws {
         _ = try await client.execute(AuthEndpoints.Logout(refreshToken: refreshToken))
     }

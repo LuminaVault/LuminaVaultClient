@@ -15,6 +15,10 @@ struct BrainTabView: View {
 
     @State private var vm: BrainGraphViewModel
 
+    /// Loads a single memory's full content when a memory node is opened
+    /// (HER-235 open-on-click). Passed through to `BrainNodeDetailSheet`.
+    private let memoryClient: (any MemoryClientProtocol)?
+
     /// Client-side edge-kind filter. The server returns every kind by
     /// default; toggling a chip hides that kind in-place with no refetch.
     /// Memory-centric reframe: `.temporal` starts OFF (its day-chains add
@@ -28,8 +32,9 @@ struct BrainTabView: View {
     /// `filtered(_:)` drops them and any edge touching them with no refetch.
     @State private var showWikiPages = true
 
-    init(client: any MemoryGraphClientProtocol) {
+    init(client: any MemoryGraphClientProtocol, memoryClient: (any MemoryClientProtocol)? = nil) {
         self._vm = State(initialValue: BrainGraphViewModel(client: client))
+        self.memoryClient = memoryClient
     }
 
     var body: some View {
@@ -51,7 +56,7 @@ struct BrainTabView: View {
                 }
                 .task { await vm.load() }
                 .sheet(item: selectedBinding) { node in
-                    BrainNodeDetailSheet(node: node)
+                    BrainNodeDetailSheet(node: node, memoryClient: memoryClient)
                 }
         }
     }

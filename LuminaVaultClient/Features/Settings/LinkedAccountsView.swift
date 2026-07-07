@@ -14,9 +14,11 @@ struct LinkedAccountsView: View {
     @State private var showConnectSheet = false
     @State private var showDisconnectConfirm = false
     private let client: any IntegrationsClientProtocol
+    private let baseHTTPClient: BaseHTTPClient
 
-    init(client: any IntegrationsClientProtocol) {
+    init(client: any IntegrationsClientProtocol, baseHTTPClient: BaseHTTPClient = BaseHTTPClient()) {
         self.client = client
+        self.baseHTTPClient = baseHTTPClient
         _viewModel = State(initialValue: LinkedAccountsViewModel(client: client))
     }
 
@@ -41,7 +43,11 @@ struct LinkedAccountsView: View {
             // HER-340 — Google Calendar (server-owned OAuth data source).
             Section {
                 NavigationLink {
-                    CalendarSettingsView()
+                    CalendarSettingsView(
+                        viewModel: CalendarSettingsViewModel(
+                            client: CalendarHTTPClient(client: baseHTTPClient)
+                        )
+                    )
                 } label: {
                     Label("Google Calendar", systemImage: "calendar")
                 }
@@ -132,9 +138,6 @@ struct LinkedAccountsView: View {
     }
 
     private var grokClient: any GrokClientProtocol {
-        // BaseHTTPClient default config picks up Config.apiBaseURL +
-        // shared keychain tokens via the standard token provider wiring
-        // upstream Linked Accounts ViewModel already runs against.
-        GrokHTTPClient(client: BaseHTTPClient())
+        GrokHTTPClient(client: baseHTTPClient)
     }
 }

@@ -21,6 +21,8 @@ struct BrainGraphRealityView: View {
     let graph: MemoryGraphResponse
     let onSelect: (UUID) -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // Orbit + zoom state (persist across gesture updates).
     @State private var yaw: Float = 0
     @State private var pitch: Float = 0
@@ -28,6 +30,8 @@ struct BrainGraphRealityView: View {
     @State private var basePitch: Float = 0
     @State private var zoom: Float = 1
     @State private var baseZoom: Float = 1
+    /// True while a drag/magnify is active — pauses the idle auto-rotate.
+    @State private var isInteracting = false
 
     /// Camera distance from the cluster centre at zoom == 1.
     private let baseDistance: Float = 220
@@ -56,6 +60,17 @@ struct BrainGraphRealityView: View {
         .simultaneousGesture(zoomGesture)
         .gesture(tapGesture)
         .background(Color.black)
+        .task {
+            // Idle auto-rotate — a slow drift so the cluster reads as a living
+            // cosmos. Pauses while the user manipulates it and honors
+            // reduce-motion. ~30fps is plenty for a gentle spin.
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(33))
+                guard !isInteracting, !reduceMotion else { continue }
+                yaw += 0.0022
+                baseYaw = yaw
+            }
+        }
     }
 
     // MARK: - Gestures
@@ -63,16 +78,20 @@ struct BrainGraphRealityView: View {
     private var orbitGesture: some Gesture {
         DragGesture()
             .onChanged { value in
+                isInteracting = true
                 yaw = baseYaw + Float(value.translation.width) * 0.006
                 pitch = max(-1.4, min(1.4, basePitch + Float(value.translation.height) * 0.006))
             }
-            .onEnded { _ in baseYaw = yaw; basePitch = pitch }
+            .onEnded { _ in baseYaw = yaw; basePitch = pitch; isInteracting = false }
     }
 
     private var zoomGesture: some Gesture {
         MagnifyGesture()
-            .onChanged { value in zoom = max(0.4, min(4, baseZoom * Float(value.magnification))) }
-            .onEnded { _ in baseZoom = zoom }
+            .onChanged { value in
+                isInteracting = true
+                zoom = max(0.4, min(4, baseZoom * Float(value.magnification)))
+            }
+            .onEnded { _ in baseZoom = zoom; isInteracting = false }
     }
 
     private var tapGesture: some Gesture {
@@ -144,12 +163,15 @@ struct BrainGraphRealityView: View {
         core.components.set(InputTargetComponent())
         core.generateCollisionShapes(recursive: false)
 
-        // Faint larger halo sphere for the bloom-like glow. The low-alpha color
-        // gives UnlitMaterial its translucency without touching the version-
-        // fragile `.blending` setter.
-        let halo = UnlitMaterial(color: color.withAlphaComponent(0.16))
-        let haloEntity = ModelEntity(mesh: .generateSphere(radius: radius * 2.1), materials: [halo])
-        core.addChild(haloEntity)
+        // Layered halo spheres for the bloom-like glow — a brighter inner
+        // corona + a soft outer bloom. Low-alpha colors give UnlitMaterial its
+        // translucency without the version-fragile `.blending` setter. Hotter
+        // (higher-activity) nodes glow bigger.
+        let glowBoost = 1.0 + Float(activity) * 0.6
+        let inner = UnlitMaterial(color: color.withAlphaComponent(0.28))
+        core.addChild(ModelEntity(mesh: .generateSphere(radius: radius * 1.5 * glowBoost), materials: [inner]))
+        let outer = UnlitMaterial(color: color.withAlphaComponent(0.12))
+        core.addChild(ModelEntity(mesh: .generateSphere(radius: radius * 2.6 * glowBoost), materials: [outer]))
 
         return core
     }

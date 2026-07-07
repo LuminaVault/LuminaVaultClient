@@ -73,6 +73,56 @@ final class AuthHTTPClientTests: XCTestCase {
         try await auth.logout(refreshToken: "rt-abc")
         await fulfillment(of: [sent], timeout: 1.0)
     }
+
+    func testUpdatePrivacyPutsPatchBodyAndDecodesUpdatedMeResponse() async throws {
+        let userId = UUID(uuidString: "00000000-0000-0000-0000-000000000043")!
+        let sent = expectation(description: "privacy update sent")
+        MockURLProtocol.handler = { request in
+            XCTAssertEqual(request.url?.path, "/v1/auth/me/privacy")
+            XCTAssertEqual(request.httpMethod, "PUT")
+            if let body = request.bodyData() {
+                let decoded = try JSONDecoder().decode([String: Bool].self, from: body)
+                XCTAssertEqual(decoded["autoSaveLinks"], false)
+                XCTAssertEqual(decoded["mnemosyneEnabled"], true)
+                XCTAssertNil(decoded["privacyNoCNOrigin"])
+                XCTAssertNil(decoded["contextRouting"])
+            } else {
+                XCTFail("expected privacy update body")
+            }
+            sent.fulfill()
+            let response = HTTPURLResponse(
+                url: request.url!, statusCode: 200,
+                httpVersion: nil, headerFields: nil
+            )!
+            let body = """
+            {
+              "userId":"\(userId.uuidString)",
+              "email":"a@b.co",
+              "username":"abby",
+              "isVerified":true,
+              "privacyNoCNOrigin":true,
+              "contextRouting":false,
+              "autoSaveLinks":false,
+              "mnemosyneEnabled":true
+            }
+            """.data(using: .utf8)!
+            return (response, body)
+        }
+
+        let me = try await auth.updatePrivacy(
+            UpdatePrivacyRequest(
+                privacyNoCNOrigin: nil,
+                contextRouting: nil,
+                autoSaveLinks: false,
+                mnemosyneEnabled: true
+            )
+        )
+
+        await fulfillment(of: [sent], timeout: 1.0)
+        XCTAssertEqual(me.userId, userId)
+        XCTAssertFalse(me.autoSaveLinks)
+        XCTAssertTrue(me.mnemosyneEnabled)
+    }
 }
 
 private extension URLRequest {

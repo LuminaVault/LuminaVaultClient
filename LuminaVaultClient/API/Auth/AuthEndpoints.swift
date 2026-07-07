@@ -128,6 +128,13 @@ enum AuthEndpoints {
         var path: String { "/v1/auth/me" }
         var method: HTTPMethod { .get }
     }
+    struct UpdatePrivacy: Endpoint {
+        typealias Response = MeResponse
+        let request: UpdatePrivacyRequest
+        var path: String { "/v1/auth/me/privacy" }
+        var method: HTTPMethod { .put }
+        var body: (any Encodable)? { request }
+    }
     struct Logout: Endpoint {
         typealias Response = EmptyResponse
         let refreshToken: String

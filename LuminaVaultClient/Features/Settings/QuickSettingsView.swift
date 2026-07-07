@@ -38,15 +38,6 @@ struct QuickSettingsView: View {
                         }
                     }
 
-                    LVSectionCard("Capture") {
-                        // Client Import UI not built yet (Feed Your Brain P1 is
-                        // server-only; EventKitImportService exists but has no
-                        // presentable screen). Slot reserved as coming-soon.
-                        LVSettingsRow("Import from iPhone", icon: .trayAndArrowDown) {
-                            ComingSoonPane(feature: "Import from iPhone")
-                        }
-                    }
-
                     LVSectionCard("Account") {
                         LVSettingsRow("Account", icon: .lockShield) {
                             accountDestination
@@ -146,29 +137,5 @@ struct QuickSettingsView: View {
             ),
             securityViewModel: SecuritySettingsViewModel(keychain: appState.keychain)
         )
-    }
-}
-
-// MARK: - Coming soon placeholder
-
-private struct ComingSoonPane: View {
-    @Environment(\.lvPalette) private var palette
-    let feature: String
-
-    var body: some View {
-        VStack(spacing: LVSpacing.base) {
-            Image(systemName: "hourglass")
-                .font(.largeTitle)
-                .foregroundStyle(palette.glowPrimary)
-            Text(feature)
-                .font(LVTypography.title.font)
-            Text("Coming soon.")
-                .font(LVTypography.callout.font)
-                .foregroundStyle(palette.textSecondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .lvBackground()
-        .navigationTitle(feature)
-        .navigationBarTitleDisplayMode(.inline)
     }
 }

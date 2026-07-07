@@ -1,29 +1,18 @@
 # HER-216 — Client follow-ups
 
-The HER-216 scaffold lands the iOS plumbing for WebAuthn passkey enrollment and login. It is **not** production-ready. The work below must be completed before the ticket's acceptance criteria (enrol on iPhone, sign in on a fresh iPad via iCloud Keychain) can be demonstrated.
+The HER-216 scaffold lands the iOS plumbing for WebAuthn passkey enrollment and login. The client now wires the Settings pane, `WEBAUTHN_RP_ID` Info.plist value, associated-domain entitlement, and revoke telemetry. Production still depends on real environment values and the cross-device acceptance demo below.
 
 ## Hard blockers (must do before shipping)
 
 ### 1. Add the `webcredentials` associated-domain entitlement
 
-iCloud Keychain only syncs passkeys when the app declares the relying-party domain in its `com.apple.developer.associated-domains` entitlement.
-
-In `LuminaVaultClient.entitlements`:
-
-```xml
-<key>com.apple.developer.associated-domains</key>
-<array>
-    <string>webcredentials:luminavault.app</string>
-</array>
-```
-
-Replace `luminavault.app` with whatever apex matches `Config.webAuthnRelyingPartyID` / the server's `webauthn.relyingPartyId`.
+Client status: wired through `webcredentials:$(WEBAUTHN_RP_ID)` in Debug/Beta and Release entitlements.
 
 The matching `apple-app-site-association` block must be served by that apex domain — see the server follow-up doc.
 
 ### 2. Set `WEBAUTHN_RP_ID` in Info.plist
 
-`Config.webAuthnRelyingPartyID` reads the `WEBAUTHN_RP_ID` Info.plist key. Add it to all schemes (Debug, TestFlight, Release) and confirm the value matches the server's `webauthn.relyingPartyId` config exactly. A mismatch surfaces as `ASAuthorizationError.failed` at runtime with no useful error text.
+Client status: `Info.plist` reads `$(WEBAUTHN_RP_ID)` and all sample xcconfigs declare it. Fill the real gitignored xcconfigs and confirm the value matches the server's `webauthn.relyingPartyId` config exactly. A mismatch surfaces as `ASAuthorizationError.failed` at runtime with no useful error text.
 
 ### 3. Drop the inline DTO mirror after `LuminaVaultShared` tag bump
 
@@ -36,7 +25,7 @@ The matching `apple-app-site-association` block must be served by that apex doma
 
 ### 4. Wire `PasskeysPaneView` into `SettingsRootView`
 
-`PasskeysPaneView` + `PasskeysPaneViewModel` exist but are not reachable from anywhere yet. Add a `NavigationLink` row under the Security section of `SettingsRootView.swift` with the label "Passkeys" and a `key.fill` icon, pushing `PasskeysPaneView(vm:, username:)` with `vm = PasskeysPaneViewModel(authClient:, authViewModel:)` and `username = appState.me?.username ?? ""`.
+Client status: wired under Settings -> Account & Data -> Passkeys. `PasskeysPaneViewModel` loads the authenticated username from `/v1/auth/me`.
 
 ## Should-do (before ticket marked truly complete)
 
@@ -54,7 +43,7 @@ Mock `ASAuthorizationController` via protocol injection if needed — keep `Pass
 
 ### 6. Settings → wire up `register` happy path
 
-`PasskeysPaneViewModel.enrol(username:)` calls `AuthViewModel.registerPasskey`, but that requires the device to surface the system passkey enrollment sheet for the authenticated user. Confirm:
+`PasskeysPaneViewModel.enrol()` calls `AuthViewModel.registerPasskey`, but that requires the device to surface the system passkey enrollment sheet for the authenticated user. Confirm:
 
 * The user is already authenticated (passkeys are enrolled *for* an existing account, not as a sign-up alternative).
 * `username` is the LuminaVault username, not the email.
@@ -78,7 +67,7 @@ Two PostHog events fired in `AuthViewModel`:
 * `auth_signed_in` with `method: "passkey"` — already wired in `signInWithPasskey`.
 * `auth_passkey_enrolled` — already wired in `registerPasskey`.
 
-Confirm both reach the dashboard before considering HER-216 done. Add a corresponding `auth_passkey_revoked` event in `PasskeysPaneViewModel.revoke`.
+Confirm all three reach the dashboard before considering HER-216 done. `auth_passkey_revoked` is emitted in `PasskeysPaneViewModel.revoke`.
 
 ### 10. Acceptance flow
 

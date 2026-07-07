@@ -97,7 +97,7 @@ struct MainTabView: View {
                         // graph. Re-surfaced as a primary tab after the HER-243
                         // OS-shell rebuild dropped it from the bar (the view +
                         // client survived, only the nav wiring was lost).
-                        BrainTabView(client: memoryGraphClient)
+                        BrainTabView(client: memoryGraphClient, memoryClient: memoryUpsertClient)
                             .tag(Self.tabIds.brain)
                             .toolbar(.hidden, for: .tabBar)
 

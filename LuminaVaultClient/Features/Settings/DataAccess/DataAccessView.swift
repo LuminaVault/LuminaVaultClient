@@ -43,11 +43,17 @@ final class DataAccessViewModel {
 
     private func apply(_ request: AppleConsentUpdateRequest) {
         // Optimistic local update, then reconcile with the server snapshot.
+        let previousConsents = consents
         upsertLocal(domain: request.domain, allowed: request.allowed, writes: request.allowWrites ?? consent(request.domain).allowWrites)
         Task { [weak self] in
             guard let self else { return }
-            if let response = try? await self.client.update(request) {
+            do {
+                let response = try await self.client.update(request)
                 self.consents = response.consents
+                self.state = .loaded
+            } catch {
+                self.consents = previousConsents
+                self.state = .failed(Self.message(for: error))
             }
         }
     }
@@ -56,6 +62,17 @@ final class DataAccessViewModel {
         let dto = AppleConsentDTO(domain: domain, allowed: allowed, allowWrites: writes, lastSyncAt: consent(domain).lastSyncAt)
         if let i = consents.firstIndex(where: { $0.domain == domain }) { consents[i] = dto }
         else { consents.append(dto) }
+    }
+
+    private static func message(for error: Error) -> String {
+        switch error {
+        case APIError.unauthorized:
+            return "Session expired — sign in again."
+        case APIError.networkFailure(_):
+            return "Network unavailable."
+        default:
+            return "Couldn't update your data-access settings."
+        }
     }
 }
 

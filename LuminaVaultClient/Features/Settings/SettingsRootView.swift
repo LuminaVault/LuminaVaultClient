@@ -72,6 +72,14 @@ struct SettingsRootView: View {
                                 )
                             }
                             LVSettingsDivider()
+                            LVSettingsRow("Account Privacy", icon: .lockShield) {
+                                accountPrivacyDestination
+                            }
+                            LVSettingsDivider()
+                            LVSettingsRow("Passkeys", icon: .keyFill) {
+                                passkeysDestination
+                            }
+                            LVSettingsDivider()
                             // Apple Ecosystem Integration P0 — per-domain data-access consent.
                             LVSettingsRow("Data Access", icon: .lockShield) {
                                 DataAccessView(
@@ -84,7 +92,10 @@ struct SettingsRootView: View {
 
                         LVSectionCard("Connections") {
                             LVSettingsRow("Linked Accounts", icon: .linkCircle) {
-                                LinkedAccountsView(client: integrationsClient)
+                                LinkedAccountsView(
+                                    client: integrationsClient,
+                                    baseHTTPClient: appState.makeHTTPClient()
+                                )
                             }
                             LVSettingsDivider()
                             // HER-300/5 — renamed from "LLM Providers". The
@@ -243,6 +254,34 @@ struct SettingsRootView: View {
 
     private var accountClient: any AccountClientProtocol {
         AccountHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var accountPrivacyDestination: some View {
+        AccountPrivacyView(
+            viewModel: AccountPrivacyViewModel(
+                authClient: AuthHTTPClient(client: appState.makeHTTPClient())
+            )
+        )
+    }
+
+    private var passkeysDestination: some View {
+        let authClient = AuthHTTPClient(client: appState.makeHTTPClient())
+        return PasskeysPaneView(
+            vm: PasskeysPaneViewModel(
+                authClient: authClient,
+                authViewModel: AuthViewModel(
+                    authClient: authClient,
+                    appState: appState,
+                    passkeyService: passkeyService
+                )
+            )
+        )
+    }
+
+    private var passkeyService: (any PasskeyServiceProtocol)? {
+        Config.webAuthnRelyingPartyID.map {
+            PasskeyService(relyingPartyIdentifier: $0)
+        }
     }
 
     private var settingsClient: any SettingsClientProtocol {

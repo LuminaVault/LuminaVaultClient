@@ -10,9 +10,13 @@ import SwiftUI
 import UIKit
 
 struct CalendarSettingsView: View {
-    @State private var viewModel = CalendarSettingsViewModel()
+    @State private var viewModel: CalendarSettingsViewModel
     @State private var showDisconnectConfirm = false
     @State private var showAddSheet = false
+
+    init(viewModel: CalendarSettingsViewModel = CalendarSettingsViewModel()) {
+        _viewModel = State(initialValue: viewModel)
+    }
 
     var body: some View {
         List {

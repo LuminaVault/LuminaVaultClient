@@ -40,6 +40,19 @@ final class PreviewAuthClient: AuthClientProtocol {
             contextRouting: true
         )
     }
+    func updatePrivacy(_ request: UpdatePrivacyRequest) async throws -> MeResponse {
+        let current = try await getMe()
+        return MeResponse(
+            userId: current.userId,
+            email: current.email,
+            username: current.username,
+            isVerified: current.isVerified,
+            privacyNoCNOrigin: request.privacyNoCNOrigin ?? current.privacyNoCNOrigin,
+            contextRouting: request.contextRouting ?? current.contextRouting,
+            autoSaveLinks: request.autoSaveLinks ?? current.autoSaveLinks,
+            mnemosyneEnabled: request.mnemosyneEnabled ?? current.mnemosyneEnabled
+        )
+    }
     func logout(refreshToken: String) async throws {}
 
     // HER-216 — preview stubs throw so accidental usage in #Preview surfaces.

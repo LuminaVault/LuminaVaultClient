@@ -3,6 +3,7 @@
 
 API_BASE_URL = http:/$()/localhost:8080
 KEYCHAIN_ACCESS_GROUP = $(AppIdentifierPrefix)com.lumina.fernando.shared
+WEBAUTHN_RP_ID = REPLACE_WITH_WEBAUTHN_RP_ID
 
 APPLE_SERVICE_ID = com.lumina.fernando.test
 GID_CLIENT_ID = REPLACE_WITH_DEBUG_IOS_CLIENT_ID.apps.googleusercontent.com

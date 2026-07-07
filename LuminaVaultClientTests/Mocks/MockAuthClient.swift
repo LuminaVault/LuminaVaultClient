@@ -16,6 +16,7 @@ final class MockAuthClient: AuthClientProtocol {
     var emailMagicStartResult: Result<EmailMagicStartResponse, Error> = .success(.stub)
     var emailMagicVerifyResult: Result<AuthResponse, Error> = .success(.stub)
     var getMeResult: Result<MeResponse, Error> = .success(.stub)
+    var updatePrivacyResult: Result<MeResponse, Error> = .success(.stub)
     var webAuthnRegisterBeginResult: Result<WebAuthnBeginRegistrationResponse, Error> = .success(.stub)
     var webAuthnRegisterFinishResult: Result<WebAuthnFinishRegistrationResponse, Error> = .success(.stub)
     var webAuthnAuthenticateBeginResult: Result<WebAuthnBeginAuthenticationResponse, Error> = .success(.stub)
@@ -34,6 +35,7 @@ final class MockAuthClient: AuthClientProtocol {
     private(set) var emailMagicStartCalls: [String] = []
     private(set) var emailMagicVerifyCalls: [(email: String, code: String)] = []
     private(set) var getMeCallCount: Int = 0
+    private(set) var updatePrivacyCalls: [UpdatePrivacyRequest] = []
     private(set) var webAuthnRegisterBeginCalls: [(username: String, displayName: String?)] = []
     private(set) var webAuthnRegisterFinishCalls: [WebAuthnFinishRegistrationRequest] = []
     private(set) var webAuthnAuthenticateBeginCalls: [String] = []
@@ -101,6 +103,11 @@ final class MockAuthClient: AuthClientProtocol {
     func getMe() async throws -> MeResponse {
         getMeCallCount += 1
         return try getMeResult.get()
+    }
+
+    func updatePrivacy(_ request: UpdatePrivacyRequest) async throws -> MeResponse {
+        updatePrivacyCalls.append(request)
+        return try updatePrivacyResult.get()
     }
 
     func webAuthnRegisterBegin(username: String, displayName: String?) async throws -> WebAuthnBeginRegistrationResponse {

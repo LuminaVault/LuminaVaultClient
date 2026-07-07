@@ -15,6 +15,7 @@ protocol AuthClientProtocol {
     func emailMagicStart(email: String) async throws -> EmailMagicStartResponse
     func emailMagicVerify(email: String, code: String) async throws -> AuthResponse
     func getMe() async throws -> MeResponse
+    func updatePrivacy(_ request: UpdatePrivacyRequest) async throws -> MeResponse
     func logout(refreshToken: String) async throws
 
     // HER-216 WebAuthn / passkey
