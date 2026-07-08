@@ -11,7 +11,7 @@ struct ChatPreferencesPaneView: View {
 
     var body: some View {
         Form {
-            Section("Chat") {
+            Section {
                 Toggle(
                     "Auto-expand thinking",
                     isOn: Binding(
@@ -27,12 +27,16 @@ struct ChatPreferencesPaneView: View {
                         set: { value in Task { await viewModel.setSendOnReturn(value) } }
                     )
                 )
+            } header: {
+                Text("Chat")
             } footer: {
                 Text("These preferences sync across LuminaVault clients.")
             }
 
-            Section("This Device") {
+            Section {
                 Toggle("Haptics", isOn: $hapticsEnabled)
+            } header: {
+                Text("This Device")
             } footer: {
                 Text("Haptics stay local to this iPhone.")
             }
