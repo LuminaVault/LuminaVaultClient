@@ -13,6 +13,8 @@ struct ThinkWithLuminaView: View {
     @Environment(\.lvPalette) private var palette
 
     @State var chatVM: ChatViewModel
+    let conversationsClient: any ConversationsClientProtocol
+    let chatExperienceClient: any ChatExperienceClientProtocol
     let memoClient: MemoClientProtocol
     let suggestionsClient: SuggestionsClientProtocol
     /// HER-155 follow-up — passed to `ChatView` so finalized assistant
@@ -26,9 +28,33 @@ struct ThinkWithLuminaView: View {
     var vaultUploadClient: (any VaultUploadClientProtocol)?
 
     @State private var suggestions: [String] = []
+    @State private var showingChat = false
+    @State private var activeConversationID: UUID?
+    @State private var activeConversationNonce = UUID()
 
     var body: some View {
         NavigationStack {
+            Group {
+                if showingChat {
+                    activeChat
+                } else {
+                    ChatInboxView(
+                        client: chatExperienceClient,
+                        conversationsClient: conversationsClient,
+                        onOpen: openConversation,
+                        onNewChat: newConversation
+                    )
+                    .lvBackground()
+                }
+            }
+            .toolbar(.hidden, for: .navigationBar)
+        }
+    }
+
+    private var activeChat: some View {
+        VStack(spacing: 0) {
+            chatTopBar
+
             ChatView(
                 viewModel: chatVM,
                 emptyStateSuggestions: suggestions,
@@ -39,13 +65,58 @@ struct ThinkWithLuminaView: View {
                 vaultUploadClient: vaultUploadClient,
                 bottomPadding: 90
             )
-            .lvBackground()
-            .toolbar(.hidden, for: .navigationBar)
-            .task {
-                await chatVM.restore()
-                await loadSuggestions()
+        }
+        .lvBackground()
+        .task(id: activeConversationNonce) {
+            await loadSuggestions()
+            if let activeConversationID {
+                await chatVM.loadConversation(id: activeConversationID)
+            } else {
+                chatVM.reset()
             }
         }
+    }
+
+    private var chatTopBar: some View {
+        HStack(spacing: LVSpacing.sm) {
+            Button {
+                showingChat = false
+            } label: {
+                HStack(spacing: LVSpacing.xs) {
+                    LVIconView(.chevronLeft, size: 13, tint: palette.textPrimary, weight: .semibold)
+                    Text("Chats")
+                        .font(LVTypography.callout.font.weight(.semibold))
+                }
+            }
+            .buttonStyle(.plain)
+            .lvGlowPress()
+
+            Spacer()
+
+            Button {
+                newConversation()
+            } label: {
+                LVIconView(.plusCircleFill, size: 22, tint: palette.glowPrimary)
+            }
+            .accessibilityLabel("New chat")
+            .buttonStyle(.plain)
+            .lvGlowPress()
+        }
+        .padding(.horizontal, LVSpacing.lg)
+        .padding(.vertical, LVSpacing.sm)
+        .background(.thinMaterial)
+    }
+
+    private func openConversation(_ id: UUID) {
+        activeConversationID = id
+        activeConversationNonce = UUID()
+        showingChat = true
+    }
+
+    private func newConversation() {
+        activeConversationID = nil
+        activeConversationNonce = UUID()
+        showingChat = true
     }
 
     private func loadSuggestions() async {

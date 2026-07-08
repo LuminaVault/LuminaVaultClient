@@ -114,6 +114,8 @@ struct MainTabView: View {
                                 jobsClient: jobsClient,
                                 remindersClient: remindersClient,
                             ),
+                            conversationsClient: conversationsClient,
+                            chatExperienceClient: chatExperienceClient,
                             memoClient: memoClient,
                             suggestionsClient: suggestionsClient,
                             vaultClient: vaultClient,
@@ -243,6 +245,10 @@ struct MainTabView: View {
     // HER-107 — non-streaming chat client (Hermes "fresh" mode).
     private var chatClient: any ChatClientProtocol {
         appState.makeChatClient()
+    }
+
+    private var chatExperienceClient: any ChatExperienceClientProtocol {
+        ChatExperienceHTTPClient(client: appState.makeHTTPClient())
     }
 
     // HER-107 — memory write-side client for long-press save-to-memory

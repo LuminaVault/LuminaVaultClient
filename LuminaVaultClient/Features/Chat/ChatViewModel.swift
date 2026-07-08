@@ -600,6 +600,41 @@ final class ChatViewModel {
         }
     }
 
+    /// Loads a persisted server conversation selected from the Chats inbox.
+    /// This intentionally bypasses the local snapshot restore path so the inbox
+    /// remains the source of truth when the user chooses an older thread.
+    func loadConversation(id: UUID) async {
+        guard !isStreaming, phase != .starting else { return }
+        phase = .starting
+        fallbackNotice = nil
+        pendingAssistant = ""
+        displayedAssistant = ""
+        pendingSources = []
+        jobProposal = nil
+        reminderProposal = nil
+        hasRestored = true
+
+        do {
+            let detail = try await conversationsClient.get(id)
+            conversationID = detail.conversation.id
+            messages = detail.messages.map { message in
+                Message(
+                    id: message.id,
+                    role: message.role,
+                    content: message.content,
+                    sources: []
+                )
+            }
+            transport = .memoryGrounded
+            phase = .idle
+            schedulePersist()
+        } catch is CancellationError {
+            phase = .idle
+        } catch {
+            phase = .failed(message: friendlyError(error))
+        }
+    }
+
     /// Debounce-persist current chat state. Called after every turn
     /// transition. 250ms window collapses bursts (multiple .token events
     /// finalizing into a single .done don't each trigger a write).

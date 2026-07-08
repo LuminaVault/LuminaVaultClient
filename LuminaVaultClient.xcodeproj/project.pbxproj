@@ -1077,7 +1077,7 @@
 			repositoryURL = "https://github.com/LuminaVault/LuminaVaultShared.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
+				minimumVersion = 3.3.0;
 			};
 		};
 		60GRP000C2FAE1200006F894F /* XCRemoteSwiftPackageReference "Grape" */ = {

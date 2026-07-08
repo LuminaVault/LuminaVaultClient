@@ -1,0 +1,183 @@
+// LuminaVaultClient/LuminaVaultClient/Features/Settings/Connections/ConnectionsHubView.swift
+import SwiftUI
+
+struct ConnectionsHubView: View {
+    @State private var viewModel: ConnectionsHubViewModel
+    let destination: (ConnectionSummaryDTO) -> AnyView
+
+    init(
+        client: any ConnectionsClientProtocol,
+        destination: @escaping (ConnectionSummaryDTO) -> AnyView
+    ) {
+        _viewModel = State(initialValue: ConnectionsHubViewModel(client: client))
+        self.destination = destination
+    }
+
+    var body: some View {
+        List {
+            Section {
+                if viewModel.isLoading && viewModel.connections.isEmpty {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                } else {
+                    ForEach(viewModel.connections) { connection in
+                        NavigationLink {
+                            destination(connection)
+                        } label: {
+                            ConnectionSummaryRow(connection: connection)
+                        }
+                    }
+                }
+            } header: {
+                Text("Connections")
+            } footer: {
+                if let checkedAt = viewModel.checkedAt {
+                    Text("Checked \(checkedAt.formatted(.relative(presentation: .named))).")
+                }
+            }
+
+            Section {
+                Button {
+                    Task { await viewModel.testAll() }
+                } label: {
+                    HStack {
+                        Text("Test all connections")
+                        Spacer()
+                        if viewModel.isTesting {
+                            ProgressView()
+                        } else {
+                            LVIconView(.arrowClockwise, size: 14, tint: .secondary)
+                        }
+                    }
+                }
+                .disabled(viewModel.isTesting)
+
+                if let error = viewModel.errorMessage {
+                    Text(error)
+                        .foregroundStyle(.red)
+                }
+            } header: {
+                Text("Diagnostics")
+            }
+
+            if !viewModel.events.isEmpty {
+                Section("Recent Events") {
+                    ForEach(viewModel.events) { event in
+                        ConnectionDiagnosticEventRow(event: event)
+                    }
+                }
+            }
+        }
+        .navigationTitle("Connections")
+        .navigationBarTitleDisplayMode(.inline)
+        .refreshable { await viewModel.load() }
+        .task { await viewModel.load() }
+    }
+}
+
+struct ConnectionSummaryRow: View {
+    let connection: ConnectionSummaryDTO
+
+    var body: some View {
+        HStack(spacing: LVSpacing.base) {
+            ConnectionHealthDot(health: connection.health)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(connection.title)
+                    .font(LVTypography.bodyEmphasis.font)
+                if let subtitle = connection.subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(LVTypography.caption.font)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                if let detail = connection.statusDetail, !detail.isEmpty {
+                    Text(detail)
+                        .font(LVTypography.caption.font)
+                        .foregroundStyle(connection.health.tint)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: LVSpacing.sm)
+
+            Text(connection.health.label)
+                .font(LVTypography.caption.font.weight(.medium))
+                .foregroundStyle(connection.health.tint)
+                .padding(.horizontal, LVSpacing.sm)
+                .padding(.vertical, 3)
+                .background(connection.health.tint.opacity(0.12), in: Capsule())
+        }
+        .padding(.vertical, LVSpacing.xs)
+    }
+}
+
+private struct ConnectionDiagnosticEventRow: View {
+    let event: ConnectionDiagnosticEventDTO
+
+    var body: some View {
+        HStack(alignment: .top, spacing: LVSpacing.base) {
+            Circle()
+                .fill(event.severity.tint)
+                .frame(width: 8, height: 8)
+                .padding(.top, 6)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(event.connectionTitle ?? event.connectionID ?? "Connection")
+                    .font(LVTypography.caption.font.weight(.semibold))
+                Text(event.message)
+                    .font(LVTypography.caption.font)
+                    .foregroundStyle(.secondary)
+                Text(event.occurredAt.formatted(.relative(presentation: .named)))
+                    .font(LVTypography.caption.font)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+}
+
+struct ConnectionHealthDot: View {
+    let health: ConnectionHealth
+
+    var body: some View {
+        Circle()
+            .fill(health.tint)
+            .frame(width: 10, height: 10)
+            .shadow(color: health.tint.opacity(0.5), radius: 4)
+            .accessibilityLabel("Status \(health.label)")
+    }
+}
+
+extension ConnectionHealth {
+    var label: String {
+        switch self {
+        case .connected: "Connected"
+        case .needsSetup: "Needs setup"
+        case .degraded: "Check"
+        case .error: "Error"
+        case .unknown: "Unknown"
+        case .testing: "Testing"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .connected: .green
+        case .needsSetup: .secondary
+        case .degraded: .orange
+        case .error: .red
+        case .unknown: .gray
+        case .testing: .blue
+        }
+    }
+}
+
+private extension ConnectionDiagnosticSeverity {
+    var tint: Color {
+        switch self {
+        case .info: .blue
+        case .warning: .orange
+        case .error: .red
+        }
+    }
+}

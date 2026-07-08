@@ -55,6 +55,12 @@ struct SettingsRootView: View {
                             }
                         }
 
+                        LVSectionCard("Chat") {
+                            LVSettingsRow("Chat Preferences", icon: .bubbleLeftAndTextBubbleRight) {
+                                ChatPreferencesPaneView(client: chatExperienceClient)
+                            }
+                        }
+
                         LVSectionCard("Account & Data") {
                             LVSettingsRow("Sync & Backup", icon: .arrowTriangle2Circlepath) {
                                 SyncBackupView()
@@ -91,6 +97,18 @@ struct SettingsRootView: View {
                         }
 
                         LVSectionCard("Connections") {
+                            LVSettingsRow(
+                                "Connections",
+                                icon: .linkCircle,
+                                trailing: { ConnectionsRootBadge(client: connectionsClient) },
+                                destination: {
+                                    ConnectionsHubView(
+                                        client: connectionsClient,
+                                        destination: connectionDestination
+                                    )
+                                }
+                            )
+                            LVSettingsDivider()
                             LVSettingsRow("Linked Accounts", icon: .linkCircle) {
                                 LinkedAccountsView(
                                     client: integrationsClient,
@@ -114,12 +132,9 @@ struct SettingsRootView: View {
                             // choice sits next to Intelligence. Renamed from
                             // "Hermes Gateway" to disambiguate from the HER-241
                             // "Messaging Gateways" pane below.
-                            LVSettingsRow(
-                                "Hermes Server",
-                                icon: .network,
-                                trailing: { ConnectionBadge(state: .unknown) },
-                                destination: { HermesGatewayPaneView(client: settingsClient) }
-                            )
+                            LVSettingsRow("Hermes Server", icon: .network) {
+                                HermesGatewayPaneView(client: settingsClient)
+                            }
                             LVSettingsDivider()
                             // Nous Subscription Integration — connect a personal
                             // Nous Portal subscription (OAuth device-code) so
@@ -301,6 +316,14 @@ struct SettingsRootView: View {
         LLMPreferencesHTTPClient(client: appState.makeHTTPClient())
     }
 
+    private var chatExperienceClient: any ChatExperienceClientProtocol {
+        ChatExperienceHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var connectionsClient: any ConnectionsClientProtocol {
+        ConnectionsHTTPClient(client: appState.makeHTTPClient())
+    }
+
     // HER-241 — per-user Hermes messaging gateway configurator.
     private var hermesGatewaysClient: any HermesGatewaysClientProtocol {
         HermesGatewaysHTTPClient(client: appState.makeHTTPClient())
@@ -309,5 +332,38 @@ struct SettingsRootView: View {
     // HER-43 — declarative plugin foundation (catalog + installs + sync).
     private var pluginsClient: any PluginsClientProtocol {
         PluginsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private func connectionDestination(_ connection: ConnectionSummaryDTO) -> AnyView {
+        switch connection.actionHint {
+        case .configureProvider?:
+            return AnyView(LLMPreferencesPaneView(
+                client: llmPreferencesClient,
+                providersClient: providersClient
+            ))
+        case .configureHermes?:
+            return AnyView(HermesGatewayPaneView(client: settingsClient))
+        case .configureGateway?:
+            return AnyView(HermesGatewaysPaneView(client: hermesGatewaysClient))
+        case .connectAccount?:
+            if connection.id == "nous:portal" {
+                return AnyView(NousAccountView(client: integrationsClient))
+            }
+            return AnyView(LinkedAccountsView(
+                client: integrationsClient,
+                baseHTTPClient: appState.makeHTTPClient()
+            ))
+        case .openPlugin?:
+            return AnyView(PluginStoreView(client: pluginsClient))
+        case .openServerSettings?:
+            return AnyView(ServerConnectionView(vm: ServerConnectionViewModel(soulClient: soulClient)))
+        case .viewDiagnostics?, .none:
+            return AnyView(HermesDiagnosticsView(
+                llmClient: llmPreferencesClient,
+                providersClient: providersClient,
+                integrationsClient: integrationsClient,
+                settingsClient: settingsClient
+            ))
+        }
     }
 }

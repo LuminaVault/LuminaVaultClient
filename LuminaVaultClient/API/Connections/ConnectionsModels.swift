@@ -1,0 +1,16 @@
+// LuminaVaultClient/LuminaVaultClient/API/Connections/ConnectionsModels.swift
+//
+// Unified Settings connections + diagnostics DTOs sourced from LuminaVaultShared.
+import Foundation
+@_exported import LuminaVaultShared
+
+typealias ConnectionKind = LuminaVaultShared.ConnectionKind
+typealias ConnectionHealth = LuminaVaultShared.ConnectionHealth
+typealias ConnectionActionHint = LuminaVaultShared.ConnectionActionHint
+typealias ConnectionSummaryDTO = LuminaVaultShared.ConnectionSummaryDTO
+typealias ConnectionsSummaryResponse = LuminaVaultShared.ConnectionsSummaryResponse
+typealias ConnectionTestResultDTO = LuminaVaultShared.ConnectionTestResultDTO
+typealias ConnectionsTestAllResponse = LuminaVaultShared.ConnectionsTestAllResponse
+typealias ConnectionDiagnosticSeverity = LuminaVaultShared.ConnectionDiagnosticSeverity
+typealias ConnectionDiagnosticEventDTO = LuminaVaultShared.ConnectionDiagnosticEventDTO
+typealias ConnectionDiagnosticEventsResponse = LuminaVaultShared.ConnectionDiagnosticEventsResponse
