@@ -34,10 +34,26 @@ protocol MemoryClientProtocol: Sendable {
 
     /// Phase 2 — DELETE /v1/memory/{id}.
     func delete(id: UUID) async throws
+
+    /// Append-only creator/updater history.
+    func provenance(id: UUID) async throws -> MemoryProvenanceResponse
+
+    /// Provider/model/source counts used by provenance filters.
+    func facets() async throws -> MemoryFacetsResponse
 }
 
 extension MemoryClientProtocol {
     func upsert(_ request: MemoryUpsertRequest, spaceID _: UUID?) async throws -> MemoryUpsertResponse {
         try await upsert(request)
     }
+
+    func provenance(id _: UUID) async throws -> MemoryProvenanceResponse {
+        throw MemoryClientCapabilityError.unsupported
+    }
+
+    func facets() async throws -> MemoryFacetsResponse {
+        throw MemoryClientCapabilityError.unsupported
+    }
 }
+
+private enum MemoryClientCapabilityError: Error { case unsupported }

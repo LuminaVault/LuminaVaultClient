@@ -9,6 +9,7 @@
 import SwiftUI
 
 struct ThinkWithLuminaView: View {
+    @Environment(AppState.self) private var appState
     @Environment(\.lvPalette) private var palette
 
     @State var chatVM: ChatViewModel
@@ -53,6 +54,12 @@ struct ThinkWithLuminaView: View {
         }
         .task { await loadPreferences() }
         .onChange(of: hapticsEnabled) { _, value in chatVM.hapticsEnabled = value }
+        .onChange(of: appState.pendingChatConversationID) { _, conversationID in
+            openPendingConversation(conversationID)
+        }
+        .onAppear {
+            openPendingConversation(appState.pendingChatConversationID)
+        }
     }
 
     /// Loads the server-backed chat preferences and pushes them (plus the
@@ -127,6 +134,12 @@ struct ThinkWithLuminaView: View {
         activeConversationID = id
         activeConversationNonce = UUID()
         showingChat = true
+    }
+
+    private func openPendingConversation(_ id: UUID?) {
+        guard let id else { return }
+        openConversation(id)
+        appState.pendingChatConversationID = nil
     }
 
     private func newConversation() {

@@ -14,6 +14,7 @@ final class BaseHTTPClient: Sendable {
     typealias TokenProvider = @Sendable () async -> String?
     typealias RefreshHandler = @Sendable () async throws -> String
     typealias AuthFailureHandler = @Sendable () async -> Void
+    typealias VaultProvider = @Sendable () async -> UUID?
     /// HER-211 — fired on every 402 response, regardless of whether the
     /// call site catches `APIError.paymentRequired`. The throw still
     /// happens (so HER-188 `EntitlementGate` reactive handling keeps
@@ -32,12 +33,14 @@ final class BaseHTTPClient: Sendable {
     private let onAuthFailure: AuthFailureHandler?
     private let onPaymentRequired: PaymentRequiredHandler?
     private let refreshCoordinator: TokenRefreshCoordinator?
+    private let vaultProvider: VaultProvider
 
     init(
         // Audit I3 — default to the cert-pinned session so every app-side client pins
         // the managed host. Tests inject `.shared` explicitly (no pinning), unchanged.
         session: URLSession = .lvPinned,
         tokenProvider: @escaping TokenProvider = { nil },
+        vaultProvider: @escaping VaultProvider = { nil },
         refreshHandler: RefreshHandler? = nil,
         onAuthFailure: AuthFailureHandler? = nil,
         onPaymentRequired: PaymentRequiredHandler? = nil,
@@ -45,6 +48,7 @@ final class BaseHTTPClient: Sendable {
     ) {
         self.session = session
         self.tokenProvider = tokenProvider
+        self.vaultProvider = vaultProvider
         self.refreshHandler = refreshHandler
         self.onAuthFailure = onAuthFailure
         self.onPaymentRequired = onPaymentRequired
@@ -76,6 +80,9 @@ final class BaseHTTPClient: Sendable {
 
         if endpoint.requiresAuth, let token = await tokenProvider() {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        if endpoint.requiresAuth, let vaultID = await vaultProvider() {
+            req.setValue(vaultID.uuidString, forHTTPHeaderField: "X-Vault-ID")
         }
         // HER-39: when the endpoint carries an idempotency key, send it
         // so the server replays a cached response on retry instead of
@@ -154,6 +161,9 @@ final class BaseHTTPClient: Sendable {
         req.setValue(contentType, forHTTPHeaderField: "Content-Type")
         if requiresAuth, let token = await tokenProvider() {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        if requiresAuth, let vaultID = await vaultProvider() {
+            req.setValue(vaultID.uuidString, forHTTPHeaderField: "X-Vault-ID")
         }
         if let idempotencyKey {
             req.setValue(idempotencyKey.uuidString, forHTTPHeaderField: "Idempotency-Key")

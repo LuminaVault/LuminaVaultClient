@@ -30,17 +30,20 @@ final class ChatViewModel {
         let role: ConversationMessageRole
         var content: String
         var sources: [QueryHitDTO]
+        var parallelExecutionID: UUID?
 
         init(
             id: UUID = UUID(),
             role: ConversationMessageRole,
             content: String,
             sources: [QueryHitDTO] = [],
+            parallelExecutionID: UUID? = nil,
         ) {
             self.id = id
             self.role = role
             self.content = content
             self.sources = sources
+            self.parallelExecutionID = parallelExecutionID
         }
     }
 
@@ -83,6 +86,11 @@ final class ChatViewModel {
     /// Prompt-free Cerberus route and terminal usage metadata for the live turn.
     var routingEvent: RouterRoutingEventDTO?
     var routeUsage: RouterUsageDTO?
+    /// Explicit per-turn orchestration. Off by default to avoid surprising
+    /// multi-provider spend; Auto uses the server task classifier.
+    var multiModelEnabled = false
+    var multiModelStrategy: ParallelStrategyDTO = .auto
+    var parallelExecution: ParallelChatExecution?
     var composer: String = ""
     /// HER-107 — drives `HermieMascotView`. Transitions: idle → thinking
     /// (on send / streaming) → happy (on .done) → idle (after ~1.5s).
@@ -265,6 +273,7 @@ final class ChatViewModel {
         fallbackNotice = nil
         routingEvent = nil
         routeUsage = nil
+        parallelExecution = nil
         setMascot(.thinking)
 
         let userMessage = Message(role: .user, content: displayContent)
@@ -489,7 +498,12 @@ final class ChatViewModel {
 
             let stream = conversationsClient.streamReply(
                 conversationID: id,
-                request: MessageStreamRequest(content: content),
+                request: MessageStreamRequest(
+                    content: content,
+                    multiModel: multiModelEnabled
+                        ? ChatMultiModelOptionsDTO(enabled: true, strategy: multiModelStrategy)
+                        : nil
+                ),
             )
             for try await event in stream {
                 if Task.isCancelled { break }
@@ -514,6 +528,8 @@ final class ChatViewModel {
                     routingEvent = event
                 case .usage(let usage):
                     routeUsage = usage
+                case .parallel(let event):
+                    reduceParallelEvent(event)
                 case .followUps:
                     // HER-37b will surface these as tappable chips.
                     // For now they're observable but not stored.
@@ -804,6 +820,7 @@ final class ChatViewModel {
             role: .assistant,
             content: pendingAssistant,
             sources: pendingSources,
+            parallelExecutionID: parallelExecution?.id,
         )
         messages.append(assistant)
         let spokenBody = pendingAssistant
@@ -854,12 +871,46 @@ final class ChatViewModel {
         fallbackNotice = nil
         routingEvent = nil
         routeUsage = nil
+        parallelExecution = nil
         stagedReferences = []
         phase = .idle
         mascotState = .idle
         if let store = historyStore, let oldID {
             Task { try? await store.clear(conversationID: oldID) }
         }
+    }
+
+    private func reduceParallelEvent(_ event: ParallelStreamEventDTO) {
+        if event.kind == .executionStarted || parallelExecution?.id != event.executionID {
+            parallelExecution = ParallelChatExecution(
+                id: event.executionID,
+                strategy: event.strategy ?? multiModelStrategy,
+                status: event.status ?? .running
+            )
+        }
+        guard var execution = parallelExecution else { return }
+        execution.status = event.status ?? execution.status
+        if let outputID = event.outputID {
+            if let index = execution.outputs.firstIndex(where: { $0.id == outputID }) {
+                if let delta = event.delta { execution.outputs[index].content.append(delta) }
+                execution.outputs[index].status = event.status ?? execution.outputs[index].status
+            } else {
+                execution.outputs.append(ParallelChatOutput(
+                    id: outputID,
+                    participantID: event.participantID,
+                    role: event.role ?? "Model",
+                    route: event.route,
+                    stage: event.stage ?? .answer,
+                    round: event.round ?? 1,
+                    content: event.delta ?? "",
+                    status: event.status ?? .running
+                ))
+            }
+        } else if event.kind == .outputFailed, let participantID = event.participantID,
+                  let index = execution.outputs.firstIndex(where: { $0.participantID == participantID }) {
+            execution.outputs[index].status = .failed
+        }
+        parallelExecution = execution
     }
 }
 

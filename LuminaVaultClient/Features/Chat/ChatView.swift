@@ -50,6 +50,8 @@ struct ChatView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var showLinkPrompt = false
     @State private var linkText = ""
+    @State private var comparisonPresentation: ParallelComparisonPresentation?
+    @State private var showWorkflowPicker = false
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -94,6 +96,9 @@ struct ChatView: View {
         }
         .sensoryFeedback(.impact(weight: .light), trigger: viewModel.sendHapticTrigger)
         .sensoryFeedback(.success, trigger: viewModel.completionHapticTrigger)
+        .sheet(item: $comparisonPresentation) { _ in
+            ParallelComparisonView(viewModel: viewModel)
+        }
     }
 
     // MARK: - Empty state ("Input Hub")
@@ -234,6 +239,20 @@ struct ChatView: View {
             if let notice = viewModel.fallbackNotice {
                 FallbackBanner(notice: notice)
             }
+            MultiModelModeControl(
+                isEnabled: $viewModel.multiModelEnabled,
+                strategy: $viewModel.multiModelStrategy,
+                isStreaming: viewModel.isStreaming
+            )
+            .padding(.horizontal, LVSpacing.base)
+            .padding(.bottom, LVSpacing.xs)
+            if let execution = viewModel.parallelExecution {
+                ParallelProgressButton(execution: execution) {
+                    comparisonPresentation = .init(id: execution.id)
+                }
+                .padding(.horizontal, LVSpacing.base)
+                .padding(.bottom, LVSpacing.xs)
+            }
             if let routing = viewModel.routingEvent {
                 CerberusUsageIndicator(routing: routing, usage: viewModel.routeUsage)
                     .padding(.horizontal, LVSpacing.base)
@@ -266,6 +285,7 @@ struct ChatView: View {
                 onPickNote: { showNotePicker = true },
                 onPickPhoto: { showPhotoPicker = true },
                 onAddLink: { linkText = ""; showLinkPrompt = true },
+                onRunWorkflow: { showWorkflowPicker = true },
             )
             .focused($composerFocused)
             .sheet(isPresented: $showNotePicker) {
@@ -288,6 +308,14 @@ struct ChatView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("The link is added as context for your next message.")
+            }
+            .sheet(isPresented: $showWorkflowPicker) {
+                NavigationStack {
+                    ChatWorkflowPicker(
+                        client: WorkflowsHTTPClient(client: appState.makeHTTPClient()),
+                        conversationID: viewModel.conversationID
+                    )
+                }
             }
         }
         .padding(.bottom, bottomPadding)

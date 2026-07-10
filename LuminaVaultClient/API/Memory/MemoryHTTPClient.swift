@@ -37,4 +37,12 @@ final class MemoryHTTPClient: MemoryClientProtocol {
     func delete(id: UUID) async throws {
         _ = try await client.execute(MemoryEndpoints.Delete(id: id))
     }
+
+    func provenance(id: UUID) async throws -> MemoryProvenanceResponse {
+        try await client.execute(MemoryEndpoints.Provenance(id: id))
+    }
+
+    func facets() async throws -> MemoryFacetsResponse {
+        try await client.execute(MemoryEndpoints.Facets())
+    }
 }

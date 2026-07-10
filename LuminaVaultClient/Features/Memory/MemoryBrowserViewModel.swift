@@ -17,6 +17,8 @@ final class MemoryBrowserViewModel {
     }
 
     private let client: any MemoryClientProtocol
+    private let routerClient: (any RouterClientProtocol)?
+    private let conversationsClient: (any ConversationsClientProtocol)?
     private let pageSize = 50
 
     var state: LoadState = .loading
@@ -29,9 +31,18 @@ final class MemoryBrowserViewModel {
     var query: String = ""
     private(set) var isSearching = false
     var actionError: String?
+    private(set) var provenanceByMemoryID: [UUID: MemoryProvenanceResponse] = [:]
+    private(set) var routesByMemoryID: [UUID: [RouterModelRouteDTO]] = [:]
+    private(set) var isLoadingDetails = false
 
-    init(client: any MemoryClientProtocol) {
+    init(
+        client: any MemoryClientProtocol,
+        routerClient: (any RouterClientProtocol)? = nil,
+        conversationsClient: (any ConversationsClientProtocol)? = nil
+    ) {
         self.client = client
+        self.routerClient = routerClient
+        self.conversationsClient = conversationsClient
     }
 
     func load() async {
@@ -113,6 +124,51 @@ final class MemoryBrowserViewModel {
         } catch {
             actionError = "Couldn't save changes."
             return false
+        }
+    }
+
+    func loadDetails(for memory: MemoryDTO) async {
+        guard provenanceByMemoryID[memory.id] == nil || routesByMemoryID[memory.id] == nil else { return }
+        isLoadingDetails = true
+        defer { isLoadingDetails = false }
+        async let provenance = try? client.provenance(id: memory.id)
+        let loadedCatalog: RouterModelCatalogResponse?
+        if let routerClient {
+            loadedCatalog = try? await routerClient.catalog()
+        } else {
+            loadedCatalog = nil
+        }
+        let loadedProvenance = await provenance
+        if let loadedProvenance { provenanceByMemoryID[memory.id] = loadedProvenance }
+        guard let loadedCatalog else { return }
+        let origin = memory.provenance?.createdBy?.model
+        routesByMemoryID[memory.id] = loadedCatalog.models.compactMap { entry in
+            guard entry.provider.rawValue != origin?.provider || entry.model != origin?.model else { return nil }
+            return RouterModelRouteDTO(
+                provider: entry.provider,
+                model: entry.model,
+                inputPerMillionUsdMicros: entry.inputPerMillionUsdMicros,
+                outputPerMillionUsdMicros: entry.outputPerMillionUsdMicros
+            )
+        }
+    }
+
+    func askAnotherModel(about memory: MemoryDTO, route: RouterModelRouteDTO) async -> UUID? {
+        guard let conversationsClient else {
+            actionError = "Chat is not available."
+            return nil
+        }
+        do {
+            let title = "About: \(String(memory.content.prefix(48)))"
+            let conversation = try await conversationsClient.create(ConversationCreateRequest(
+                title: title,
+                pinnedMemoryIDs: [memory.id],
+                routeOverride: route
+            ))
+            return conversation.id
+        } catch {
+            actionError = "Couldn't start a chat with that model."
+            return nil
         }
     }
 }

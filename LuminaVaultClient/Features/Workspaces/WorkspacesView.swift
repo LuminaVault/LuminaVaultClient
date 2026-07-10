@@ -10,20 +10,41 @@ import LuminaVaultShared
 import SwiftUI
 
 struct WorkspacesView: View {
+    @State private var teamViewModel: TeamSpacesViewModel
     let vm: SpacesViewModel
     let vaultClient: any VaultClientProtocol
     let memoryClient: any MemoryQueryClientProtocol
     let memoryDetailClient: any MemoryClientProtocol
     let uploadClient: any VaultUploadClientProtocol
 
+    init(vm: SpacesViewModel, vaultClient: any VaultClientProtocol,
+         memoryClient: any MemoryQueryClientProtocol, memoryDetailClient: any MemoryClientProtocol,
+         uploadClient: any VaultUploadClientProtocol, teamClient: TeamHTTPClient,
+         activeVaultStore: ActiveVaultStore)
+    {
+        self.vm = vm
+        self.vaultClient = vaultClient
+        self.memoryClient = memoryClient
+        self.memoryDetailClient = memoryDetailClient
+        self.uploadClient = uploadClient
+        _teamViewModel = State(initialValue: TeamSpacesViewModel(client: teamClient, store: activeVaultStore))
+    }
+
     var body: some View {
-        SpacesListView(
-            vm: vm,
-            vaultClient: vaultClient,
-            memoryClient: memoryClient,
-            memoryDetailClient: memoryDetailClient,
-            uploadClient: uploadClient,
-        )
-            .navigationTitle("Workspaces")
+        VStack(spacing: 0) {
+            TeamVaultSwitcher(viewModel: teamViewModel) {
+                await vm.load()
+            }
+            Divider()
+            SpacesListView(
+                vm: vm,
+                vaultClient: vaultClient,
+                memoryClient: memoryClient,
+                memoryDetailClient: memoryDetailClient,
+                uploadClient: uploadClient
+            )
+        }
+        .task { await teamViewModel.load() }
+        .navigationTitle("Team Spaces")
     }
 }

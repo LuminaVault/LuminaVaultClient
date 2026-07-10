@@ -19,6 +19,9 @@ final class AppState {
     /// Settings → Intelligence. ChatView watches this and starts a fresh
     /// conversation so a thread never mixes turns from two different models.
     var llmConfigVersion = 0
+    /// Cross-surface handoff from a memory detail into a newly-created routed
+    /// conversation on the Think tab.
+    var pendingChatConversationID: UUID?
     /// HER-238: timestamp of the most recent successful `/v1/auth/me` fetch.
     /// `nil` means we've never refreshed since sign-in. Used by
     /// `refreshCurrentUserIfNeeded(authClient:now:)` to debounce.
@@ -89,6 +92,7 @@ final class AppState {
     /// whether to gate the main shell behind the SOUL.md quiz.
     var onboardingState: OnboardingStateDTO?
     private let sharedSessionKeychain = SharedSessionKeychain(accessGroup: Config.keychainAccessGroup)
+    let activeVaultStore = ActiveVaultStore()
 
     init(
         keychain: KeychainService = .shared,
@@ -283,6 +287,7 @@ final class AppState {
 
         return BaseHTTPClient(
             tokenProvider: { keychain.accessToken },
+            vaultProvider: { [activeVaultStore] in await activeVaultStore.selectedVaultID() },
             refreshHandler: {
                 guard let token = keychain.refreshToken else {
                     throw APIError.unauthorized
@@ -316,6 +321,14 @@ final class AppState {
     /// tab.
     func makeConversationsClient() -> any ConversationsClientProtocol {
         ConversationsHTTPClient(client: makeHTTPClient())
+    }
+
+    func makeRouterClient() -> any RouterClientProtocol {
+        RouterHTTPClient(client: makeHTTPClient())
+    }
+
+    func openChat(conversationID: UUID) {
+        pendingChatConversationID = conversationID
     }
 
     /// HER-107 — non-streaming chat client (BYO-Hermes-aware

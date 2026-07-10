@@ -78,6 +78,8 @@ struct MainTabView: View {
                             memoryClient: memoryClient,
                             memoryDetailClient: memoryUpsertClient,
                             uploadClient: vaultUploadClient,
+                            teamClient: TeamHTTPClient(client: appState.makeHTTPClient()),
+                            activeVaultStore: appState.activeVaultStore,
                         )
                         .tag(Self.tabIds.workspaces)
                         .toolbar(.hidden, for: .tabBar)
@@ -151,6 +153,10 @@ struct MainTabView: View {
             // wiring lands when ThinkWithLuminaViewModel exposes its phase
             // via the AppState observation tree.
             hermieState = (newValue == Self.tabIds.think) ? .thinking : .idle
+        }
+        .onChange(of: appState.pendingChatConversationID) { _, conversationID in
+            guard conversationID != nil else { return }
+            selection = Self.tabIds.think
         }
         .sheet(isPresented: $showQuickSettings) {
             QuickSettingsView()
@@ -409,7 +415,7 @@ struct MainTabView: View {
                 RemindersListView(vm: RemindersListViewModel(client: remindersClient))
             ) },
             jobsDestination: { [self] in AnyView(
-                JobsListView(vm: JobsListViewModel(client: skillsClient), client: skillsClient)
+                WorkflowListView(client: WorkflowsHTTPClient(client: appState.makeHTTPClient()))
             ) },
             // C6 — Kanban entry: loader resolves the default board then pushes KanbanBoardView.
             kanbanDestination: { [self] in AnyView(

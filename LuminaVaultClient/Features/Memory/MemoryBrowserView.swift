@@ -9,8 +9,16 @@ import SwiftUI
 struct MemoryBrowserView: View {
     @State private var viewModel: MemoryBrowserViewModel
 
-    init(client: any MemoryClientProtocol) {
-        _viewModel = State(initialValue: MemoryBrowserViewModel(client: client))
+    init(
+        client: any MemoryClientProtocol,
+        routerClient: (any RouterClientProtocol)? = nil,
+        conversationsClient: (any ConversationsClientProtocol)? = nil
+    ) {
+        _viewModel = State(initialValue: MemoryBrowserViewModel(
+            client: client,
+            routerClient: routerClient,
+            conversationsClient: conversationsClient
+        ))
     }
 
     var body: some View {
@@ -82,6 +90,10 @@ struct MemoryBrowserView: View {
                 .lineLimit(2)
                 .font(.body)
             HStack(spacing: 8) {
+                if let contribution = memory.provenance?.createdBy {
+                    Label(contribution.model?.model ?? contribution.actor.rawValue.capitalized, systemImage: "person.crop.circle.badge.checkmark")
+                        .lineLimit(1)
+                }
                 if let created = memory.createdAt {
                     Text(created.formatted(.relative(presentation: .named)))
                 }
@@ -102,9 +114,11 @@ private struct MemoryEditView: View {
     let memory: MemoryDTO
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppState.self) private var appState
     @State private var content: String
     @State private var tagsText: String
     @State private var isSaving = false
+    @State private var isShowingModelPicker = false
 
     init(viewModel: MemoryBrowserViewModel, memory: MemoryDTO) {
         self.viewModel = viewModel
@@ -129,6 +143,17 @@ private struct MemoryEditView: View {
                     LabeledContent("Created", value: created.formatted(date: .abbreviated, time: .shortened))
                 }
             }
+            MemoryProvenanceSection(response: viewModel.provenanceByMemoryID[memory.id])
+            Section {
+                Button("Ask another model", systemImage: "arrow.triangle.branch") {
+                    isShowingModelPicker = true
+                }
+                .disabled((viewModel.routesByMemoryID[memory.id] ?? []).isEmpty)
+            } footer: {
+                if !viewModel.isLoadingDetails, (viewModel.routesByMemoryID[memory.id] ?? []).isEmpty {
+                    Text("Connect another eligible model to ask it about this memory.")
+                }
+            }
         }
         .navigationTitle("Edit memory")
         .navigationBarTitleDisplayMode(.inline)
@@ -143,6 +168,18 @@ private struct MemoryEditView: View {
                     }
                 }
                 .disabled(isSaving || content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .task(id: memory.id) { await viewModel.loadDetails(for: memory) }
+        .sheet(isPresented: $isShowingModelPicker) {
+            AskModelSheet(routes: viewModel.routesByMemoryID[memory.id] ?? []) { route in
+                isShowingModelPicker = false
+                Task {
+                    if let conversationID = await viewModel.askAnotherModel(about: memory, route: route) {
+                        dismiss()
+                        appState.openChat(conversationID: conversationID)
+                    }
+                }
             }
         }
     }

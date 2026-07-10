@@ -34,6 +34,9 @@ struct ComposerBar: View {
     let onPickPhoto: () -> Void
     /// Opens the add-link prompt on the host.
     let onAddLink: () -> Void
+    /// Opens the workflow picker. Nil hides the action in hosts that do not
+    /// have an authenticated workflow client (previews and dev surfaces).
+    var onRunWorkflow: (() -> Void)?
 
     @State private var showImporter = false
 
@@ -109,6 +112,11 @@ struct ComposerBar: View {
                 onAddLink()
             } label: {
                 Label("Add a link", systemImage: "link")
+            }
+            if let onRunWorkflow {
+                Button(action: onRunWorkflow) {
+                    Label("Run a workflow", systemImage: "point.3.connected.trianglepath.dotted")
+                }
             }
         } label: {
             LVIconView(.plusCircleFill, size: 26, tint: palette.glowPrimary)

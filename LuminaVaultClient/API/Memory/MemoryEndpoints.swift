@@ -77,4 +77,17 @@ enum MemoryEndpoints {
         var path: String { "/v1/memory/\(id.uuidString.lowercased())" }
         var method: HTTPMethod { .delete }
     }
+
+    struct Provenance: Endpoint {
+        typealias Response = MemoryProvenanceResponse
+        let id: UUID
+        var path: String { "/v1/memory/\(id.uuidString.lowercased())/provenance" }
+        var method: HTTPMethod { .get }
+    }
+
+    struct Facets: Endpoint {
+        typealias Response = MemoryFacetsResponse
+        var path: String { "/v1/memory/facets" }
+        var method: HTTPMethod { .get }
+    }
 }

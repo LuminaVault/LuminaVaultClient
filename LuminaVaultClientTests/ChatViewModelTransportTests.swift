@@ -87,6 +87,55 @@ final class ChatViewModelTransportTests: XCTestCase {
         XCTAssertEqual(vm.sendHapticTrigger, 0)
         XCTAssertEqual(vm.completionHapticTrigger, 0)
     }
+
+    func testMultiModelRequestAndParallelEventsAreReduced() async throws {
+        let executionID = UUID()
+        let outputID = UUID()
+        let conversations = SpyConversationsClient(events: [
+            .parallel(.init(
+                executionID: executionID,
+                kind: .executionStarted,
+                strategy: .debate,
+                status: .running
+            )),
+            .parallel(.init(
+                executionID: executionID,
+                kind: .outputDelta,
+                outputID: outputID,
+                role: "Skeptic",
+                route: .init(provider: .anthropic, model: "claude-sonnet-4-6"),
+                stage: .answer,
+                round: 1,
+                delta: "A second perspective",
+                status: .running
+            )),
+            .parallel(.init(
+                executionID: executionID,
+                kind: .executionCompleted,
+                strategy: .debate,
+                status: .completed
+            )),
+            .token("Synthesized"),
+            .done,
+        ])
+        let vm = ChatViewModel(
+            conversationsClient: conversations,
+            chatClient: SpyChatClient(),
+            memoryClient: NoOpMemoryClient(),
+            historyStore: nil,
+        )
+        vm.multiModelEnabled = true
+        vm.multiModelStrategy = .debate
+        vm.composer = "Compare this"
+        vm.send()
+        try await Task.sleep(for: .milliseconds(150))
+
+        XCTAssertEqual(conversations.lastRequest?.multiModel?.enabled, true)
+        XCTAssertEqual(conversations.lastRequest?.multiModel?.strategy, .debate)
+        XCTAssertEqual(vm.parallelExecution?.id, executionID)
+        XCTAssertEqual(vm.parallelExecution?.perspectives.first?.content, "A second perspective")
+        XCTAssertEqual(vm.messages.last?.parallelExecutionID, executionID)
+    }
 }
 
 // MARK: - Spies
@@ -94,6 +143,12 @@ final class ChatViewModelTransportTests: XCTestCase {
 private final class SpyConversationsClient: ConversationsClientProtocol, @unchecked Sendable {
     private(set) var createCallCount = 0
     private(set) var streamReplyCallCount = 0
+    private(set) var lastRequest: MessageStreamRequest?
+    private let events: [QueryStreamEvent]
+
+    init(events: [QueryStreamEvent] = [.token("hi"), .done]) {
+        self.events = events
+    }
 
     func create(_ request: ConversationCreateRequest) async throws -> ConversationDTO {
         createCallCount += 1
@@ -124,9 +179,9 @@ private final class SpyConversationsClient: ConversationsClientProtocol, @unchec
         request: MessageStreamRequest,
     ) -> AsyncThrowingStream<QueryStreamEvent, any Error> {
         streamReplyCallCount += 1
+        lastRequest = request
         return AsyncThrowingStream { continuation in
-            continuation.yield(.token("hi"))
-            continuation.yield(.done)
+            for event in events { continuation.yield(event) }
             continuation.finish()
         }
     }

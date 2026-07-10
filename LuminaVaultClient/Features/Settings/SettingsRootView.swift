@@ -106,7 +106,11 @@ struct SettingsRootView: View {
                             }
                             LVSettingsDivider()
                             LVSettingsRow("Memories", icon: .brain) {
-                                MemoryBrowserView(client: memoryClient)
+                                MemoryBrowserView(
+                                    client: memoryClient,
+                                    routerClient: appState.makeRouterClient(),
+                                    conversationsClient: appState.makeConversationsClient()
+                                )
                             }
                         }
 

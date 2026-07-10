@@ -192,7 +192,7 @@ struct HomeView: View {
         let home = vm.home.value
         return LazyVGrid(columns: columns, spacing: 16) {
             brainTile(icon: .brainHeadProfile, title: "Skills", subtitle: count(home?.skillsCount), destination: skillsDestination)
-            brainTile(icon: .briefcase, title: "Jobs", subtitle: count(home?.jobsCount), destination: jobsDestination)
+            brainTile(icon: .briefcase, title: "Workflows", subtitle: count(home?.jobsCount), destination: jobsDestination)
             brainTile(icon: .heartWinged, title: "Reminders", subtitle: count(home?.remindersCount), destination: remindersDestination)
             brainTile(icon: .scrollWinged, title: "Tasks", subtitle: count(home?.todosCount), destination: tasksDestination)
             brainTile(icon: .sparklesRectangleStack, title: "Projects", subtitle: count(home?.projectsCount), destination: projectsDestination)
