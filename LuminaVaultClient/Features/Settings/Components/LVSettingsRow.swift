@@ -2,7 +2,7 @@
 //
 // HER-303 — reusable nav row for `LVSectionCard`. Two variants:
 //   * Plain title row → chevron + push into `destination`.
-//   * Trailing-slot row → custom trailing view (e.g. ConnectionBadge)
+//   * Trailing-slot row → custom trailing view (e.g. ConnectionsRootBadge)
 //     between the title and the chevron.
 //
 // Replaces the inline `settingsRow` / Hermes Gateway bespoke row
