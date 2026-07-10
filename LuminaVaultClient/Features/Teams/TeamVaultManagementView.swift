@@ -8,6 +8,7 @@ struct TeamVaultManagementView: View {
     @State private var inviteRole = "viewer"
     @State private var inviteAI = false
     @State private var isInviting = false
+    @State private var confirmingArchive = false
 
     var body: some View {
         NavigationStack {
@@ -45,6 +46,17 @@ struct TeamVaultManagementView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
+                        .swipeActions {
+                            Button("Remove", systemImage: "person.crop.circle.badge.minus", role: .destructive) {
+                                Task { await viewModel.removeMember(member) }
+                            }
+                        }
+                    }
+                }
+
+                Section("Team lifecycle") {
+                    Button("Archive team", systemImage: "archivebox", role: .destructive) {
+                        confirmingArchive = true
                     }
                 }
 
@@ -60,6 +72,19 @@ struct TeamVaultManagementView: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
             .task { await viewModel.loadMembers() }
+            .confirmationDialog(
+                "Archive this team?",
+                isPresented: $confirmingArchive,
+                titleVisibility: .visible
+            ) {
+                Button("Archive for 30 days", role: .destructive) {
+                    Task {
+                        if await viewModel.archiveSelectedTeam() { dismiss() }
+                    }
+                }
+            } message: {
+                Text("Writes and AI access stop immediately. The owner can restore the team for 30 days before permanent deletion.")
+            }
         }
     }
 }
