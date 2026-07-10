@@ -98,4 +98,33 @@ enum TeamEndpoints {
 
         let method = HTTPMethod.get
     }
+
+    struct ArchiveTeam: Endpoint {
+        typealias Response = TeamSpaceSummary
+        let teamID: UUID
+        var path: String { "/v1/teams/\(teamID)/archive" }
+        let method = HTTPMethod.post
+    }
+
+    struct RestoreTeam: Endpoint {
+        typealias Response = TeamSpaceSummary
+        let teamID: UUID
+        var path: String { "/v1/teams/\(teamID)/restore" }
+        let method = HTTPMethod.post
+    }
+
+    struct LeaveTeam: Endpoint {
+        typealias Response = EmptyResponse
+        let teamID: UUID
+        var path: String { "/v1/teams/\(teamID)/leave" }
+        let method = HTTPMethod.post
+    }
+
+    struct RemoveMember: Endpoint {
+        typealias Response = EmptyResponse
+        let vaultID: UUID
+        let userID: UUID
+        var path: String { "/v1/vaults/\(vaultID)/members/\(userID)" }
+        let method = HTTPMethod.delete
+    }
 }

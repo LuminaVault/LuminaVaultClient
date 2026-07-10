@@ -85,4 +85,25 @@ final class TeamSpacesViewModel {
             return false
         }
     }
+
+    func removeMember(_ member: VaultMemberSummary) async {
+        guard let vault = selectedVault else { return }
+        do {
+            try await client.removeMember(vaultID: vault.id, userID: member.userID)
+            members.removeAll { $0.id == member.id }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    func archiveSelectedTeam() async -> Bool {
+        guard let teamID = selectedVault?.teamID else { return false }
+        do {
+            try await client.archive(teamID: teamID)
+            await select(nil)
+            await load()
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
 }

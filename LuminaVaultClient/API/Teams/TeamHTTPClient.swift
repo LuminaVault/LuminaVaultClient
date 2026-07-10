@@ -36,4 +36,20 @@ struct TeamHTTPClient: Sendable {
     func activity(vaultID: UUID) async throws -> [VaultActivitySummary] {
         try await client.execute(TeamEndpoints.Activity(vaultID: vaultID))
     }
+
+    func archive(teamID: UUID) async throws {
+        _ = try await client.execute(TeamEndpoints.ArchiveTeam(teamID: teamID))
+    }
+
+    func restore(teamID: UUID) async throws {
+        _ = try await client.execute(TeamEndpoints.RestoreTeam(teamID: teamID))
+    }
+
+    func leave(teamID: UUID) async throws {
+        _ = try await client.execute(TeamEndpoints.LeaveTeam(teamID: teamID))
+    }
+
+    func removeMember(vaultID: UUID, userID: UUID) async throws {
+        _ = try await client.execute(TeamEndpoints.RemoveMember(vaultID: vaultID, userID: userID))
+    }
 }
