@@ -2,7 +2,7 @@
 import SwiftUI
 
 struct ConnectionsRootBadge: View {
-    @State private var state: ConnectionState = .unknown
+    @State private var health: ConnectionHealth = .unknown
     private let client: any ConnectionsClientProtocol
 
     init(client: any ConnectionsClientProtocol) {
@@ -10,18 +10,26 @@ struct ConnectionsRootBadge: View {
     }
 
     var body: some View {
-        ConnectionBadge(state: state)
+        ConnectionHealthBadge(health: health)
             .task { await load() }
     }
 
     private func load() async {
         do {
             let response = try await client.summary()
-            state = response.connections.contains { $0.health == .error || $0.health == .degraded }
-                ? .disconnected
-                : .connected
+            health = aggregateHealth(response.connections.map(\.health))
         } catch {
-            state = .unknown
+            health = .unknown
         }
+    }
+
+    private func aggregateHealth(_ values: [ConnectionHealth]) -> ConnectionHealth {
+        if values.contains(.error) { return .error }
+        if values.contains(.degraded) { return .degraded }
+        if values.contains(.testing) { return .testing }
+        if values.contains(.connected) { return .connected }
+        if values.contains(.needsSetup) { return .needsSetup }
+        if values.contains(.unknown) || values.isEmpty { return .unknown }
+        return .connected
     }
 }

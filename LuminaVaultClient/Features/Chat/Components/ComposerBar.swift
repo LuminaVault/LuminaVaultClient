@@ -14,6 +14,9 @@ struct ComposerBar: View {
     @Binding var text: String
     let canSend: Bool
     let isStreaming: Bool
+    /// When true, the Return key sends; when false it inserts a newline and the
+    /// user sends with the button (chat preference `sendOnReturn`).
+    var sendOnReturn: Bool = false
     /// Names of the currently staged references. Drives the chips shown
     /// above the field.
     let referenceNames: [String]
@@ -125,8 +128,9 @@ struct ComposerBar: View {
                 .lvFont(.body)
                 .foregroundStyle(palette.textPrimary)
                 .tint(palette.glowPrimary)
-                .submitLabel(.send)
-                .onSubmit(onSend)
+                .submitLabel(sendOnReturn ? .send : .return)
+                .onSubmit { if sendOnReturn { onSend() } }
+                .onKeyPress(.return, phases: .down, action: handleReturnKey)
                 .disabled(voice.isRecording)
                 .opacity(voice.isRecording ? 0 : 1)
 
@@ -146,6 +150,25 @@ struct ComposerBar: View {
             }
         }
         .animation(.easeInOut(duration: 0.18), value: voice.isRecording)
+    }
+
+    /// Hardware-keyboard behavior mirrors desktop chat apps. Return follows
+    /// the preference; Shift+Return deliberately performs the inverse.
+    private func handleReturnKey(_ press: KeyPress) -> KeyPress.Result {
+        let isShiftReturn = press.modifiers.contains(.shift)
+
+        if isShiftReturn {
+            if sendOnReturn {
+                text.append("\n")
+            } else {
+                onSend()
+            }
+            return .handled
+        }
+
+        guard sendOnReturn else { return .ignored }
+        onSend()
+        return .handled
     }
 
     private var stopButton: some View {

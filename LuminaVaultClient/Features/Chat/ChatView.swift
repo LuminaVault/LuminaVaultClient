@@ -92,6 +92,8 @@ struct ChatView: View {
             guard !viewModel.isStreaming, !viewModel.messages.isEmpty else { return }
             viewModel.reset()
         }
+        .sensoryFeedback(.impact(weight: .light), trigger: viewModel.sendHapticTrigger)
+        .sensoryFeedback(.success, trigger: viewModel.completionHapticTrigger)
     }
 
     // MARK: - Empty state ("Input Hub")
@@ -181,6 +183,7 @@ struct ChatView: View {
                     text: viewModel.displayedAssistant,
                     sources: viewModel.pendingSources,
                     isStreaming: viewModel.isStreaming,
+                    autoExpandThinking: viewModel.autoExpandThinking,
                     mascotState: viewModel.mascotState,
                 )
                 .id(Self.pendingAnchor)
@@ -231,6 +234,11 @@ struct ChatView: View {
             if let notice = viewModel.fallbackNotice {
                 FallbackBanner(notice: notice)
             }
+            if let routing = viewModel.routingEvent {
+                CerberusUsageIndicator(routing: routing, usage: viewModel.routeUsage)
+                    .padding(.horizontal, LVSpacing.base)
+                    .padding(.bottom, LVSpacing.xs)
+            }
             if let voiceError = viewModel.voice.errorMessage {
                 VoiceErrorToast(text: voiceError)
             }
@@ -242,6 +250,7 @@ struct ChatView: View {
                 text: $viewModel.composer,
                 canSend: viewModel.canSend,
                 isStreaming: viewModel.isStreaming,
+                sendOnReturn: viewModel.sendOnReturn,
                 referenceNames: viewModel.stagedReferences.map(\.name),
                 voice: viewModel.voice,
                 onSend: {
@@ -307,7 +316,8 @@ struct ChatView: View {
     private func handleNotePick(_ file: VaultFileDTO) {
         guard let vaultClient else { return }
         let title = file.metadata?.title
-        let name = (title?.isEmpty == false) ? title! : (file.path as NSString).lastPathComponent
+        let name = title.flatMap { $0.isEmpty ? nil : $0 }
+            ?? (file.path as NSString).lastPathComponent
         Task {
             do {
                 let (data, _) = try await vaultClient.readFile(relativePath: file.path)
@@ -393,6 +403,66 @@ struct ChatView: View {
     }
 
     private static let pendingAnchor = "lv.chat.pending"
+}
+
+private struct CerberusUsageIndicator: View {
+    @Environment(\.lvPalette) private var palette
+    let routing: RouterRoutingEventDTO
+    let usage: RouterUsageDTO?
+
+    private var routeLabel: String {
+        if routing.strategy == .ensemble {
+            return "\(routing.activeRoutes.count) models"
+        }
+        guard let route = routing.activeRoutes.first else { return "Selecting model" }
+        return "\(route.provider.rawValue) · \(route.model)"
+    }
+
+    var body: some View {
+        HStack(spacing: LVSpacing.sm) {
+            Image(systemName: routing.strategy == .ensemble ? "point.3.connected.trianglepath.dotted" : "arrow.triangle.branch")
+                .foregroundStyle(palette.accent)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("CERBERUS · \(routing.profileName) · \(routing.taskType.rawValue.capitalized)")
+                    .lvFont(.microTag)
+                    .foregroundStyle(palette.textSecondary)
+                Text(routeLabel)
+                    .lvFont(.footnote)
+                    .foregroundStyle(palette.textPrimary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            if let usage {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(usage.tokensIn + usage.tokensOut) tokens")
+                    Text((Double(usage.estimatedCostUsdMicros) / 1_000_000).formatted(.currency(code: "USD")))
+                }
+                .lvFont(.microTag)
+                .foregroundStyle(palette.textSecondary)
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityLabel("Cerberus is routing")
+            }
+        }
+        .padding(LVSpacing.sm)
+        .background(palette.surface.opacity(0.92), in: RoundedRectangle(cornerRadius: LVRadius.md))
+        .overlay {
+            RoundedRectangle(cornerRadius: LVRadius.md)
+                .stroke(palette.accent.opacity(0.35), lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilitySummary)
+    }
+
+    private var accessibilitySummary: String {
+        var value = "Cerberus profile \(routing.profileName), task \(routing.taskType.rawValue), route \(routeLabel)."
+        if let usage {
+            value += " \(usage.tokensIn + usage.tokensOut) tokens, \(usage.latencyMs) milliseconds."
+        }
+        return value
+    }
 }
 
 // MARK: - Bubbles
@@ -522,6 +592,7 @@ private struct PendingAssistantRow: View {
     let text: String
     let sources: [QueryHitDTO]
     let isStreaming: Bool
+    let autoExpandThinking: Bool
     let mascotState: HermieMascotState
 
     var body: some View {
@@ -530,7 +601,15 @@ private struct PendingAssistantRow: View {
                 .padding(.top, LVSpacing.xs)
             VStack(alignment: .leading, spacing: LVSpacing.xs) {
                 if text.isEmpty && isStreaming {
-                    TypingIndicator()
+                    HStack(spacing: LVSpacing.sm) {
+                        TypingIndicator()
+                        if autoExpandThinking {
+                            Text("Preparing a response…")
+                                .lvFont(.callout)
+                                .foregroundStyle(palette.textSecondary)
+                                .transition(.opacity)
+                        }
+                    }
                 } else {
                     HStack(alignment: .firstTextBaseline, spacing: LVSpacing.xs) {
                         Text(text)

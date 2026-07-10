@@ -80,6 +80,9 @@ final class ChatViewModel {
     /// One-shot banner emitted by a `.fallback` SSE event (e.g. xAI
     /// credit exhaustion → fallback model). Cleared on next `send()`.
     var fallbackNotice: ProviderFallbackNoticeDTO?
+    /// Prompt-free Cerberus route and terminal usage metadata for the live turn.
+    var routingEvent: RouterRoutingEventDTO?
+    var routeUsage: RouterUsageDTO?
     var composer: String = ""
     /// HER-107 — drives `HermieMascotView`. Transitions: idle → thinking
     /// (on send / streaming) → happy (on .done) → idle (after ~1.5s).
@@ -87,6 +90,24 @@ final class ChatViewModel {
     /// HER-107 — active transport. Defaults to memory-grounded (the
     /// HER-269 SSE path); user toggles via the toolbar.
     var transport: Transport = .memoryGrounded
+
+    // Chat preferences (server-backed `autoExpandThinking`/`sendOnReturn` +
+    // device-local `hapticsEnabled`), pushed in by `ThinkWithLuminaView` after
+    // fetching `/v1/me/chat-preferences`.
+    /// Expands the live pre-token thinking state. The stream currently has no
+    /// separate model-reasoning payload, so only truthful activity copy is
+    /// shown rather than synthesizing hidden reasoning.
+    var autoExpandThinking = true
+    /// When true the composer's Return key sends; when false Return inserts a
+    /// newline (send via the button).
+    var sendOnReturn = false
+    /// Device-local haptic feedback on send.
+    var hapticsEnabled = true
+    /// SwiftUI observes these counters through `.sensoryFeedback`, keeping
+    /// UIKit feedback generators out of the view model and making the gating
+    /// behavior testable.
+    private(set) var sendHapticTrigger = 0
+    private(set) var completionHapticTrigger = 0
     /// HER-107 — transient banner after `saveAsMemory(...)`. Auto-clears
     /// after ~2s so the chat surface doesn't grow stale toasts.
     var savedMemoryToast: String?
@@ -229,7 +250,8 @@ final class ChatViewModel {
     func send() {
         let trimmed = composer.trimmingCharacters(in: .whitespacesAndNewlines)
         let references = stagedReferences
-        guard (!trimmed.isEmpty || !references.isEmpty), !isStreaming, phase != .starting else { return }
+        guard !trimmed.isEmpty || !references.isEmpty, !isStreaming, phase != .starting else { return }
+        if hapticsEnabled { sendHapticTrigger += 1 }
         composer = ""
         stagedReferences = []
 
@@ -241,6 +263,8 @@ final class ChatViewModel {
 
         lastSentContent = wireContent
         fallbackNotice = nil
+        routingEvent = nil
+        routeUsage = nil
         setMascot(.thinking)
 
         let userMessage = Message(role: .user, content: displayContent)
@@ -409,6 +433,8 @@ final class ChatViewModel {
     func retryLast() {
         guard let content = lastSentContent, !isStreaming, phase != .starting else { return }
         fallbackNotice = nil
+        routingEvent = nil
+        routeUsage = nil
         setMascot(.thinking)
         streamTask?.cancel()
         streamTask = Task { [weak self] in
@@ -484,6 +510,10 @@ final class ChatViewModel {
                     }
                 case .fallback(let notice):
                     fallbackNotice = notice
+                case .routing(let event):
+                    routingEvent = event
+                case .usage(let usage):
+                    routeUsage = usage
                 case .followUps:
                     // HER-37b will surface these as tappable chips.
                     // For now they're observable but not stored.
@@ -521,7 +551,7 @@ final class ChatViewModel {
             // partials (no point animating after teardown).
             drainTypewriterNow()
             if !pendingAssistant.isEmpty {
-                finalizeAssistantTurn()
+                finalizeAssistantTurn(playsCompletionHaptic: false)
             }
             phase = .idle
             setMascot(.idle)
@@ -607,6 +637,8 @@ final class ChatViewModel {
         guard !isStreaming, phase != .starting else { return }
         phase = .starting
         fallbackNotice = nil
+        routingEvent = nil
+        routeUsage = nil
         pendingAssistant = ""
         displayedAssistant = ""
         pendingSources = []
@@ -767,7 +799,7 @@ final class ChatViewModel {
         displayedAssistant = pendingAssistant
     }
 
-    private func finalizeAssistantTurn() {
+    private func finalizeAssistantTurn(playsCompletionHaptic: Bool = true) {
         let assistant = Message(
             role: .assistant,
             content: pendingAssistant,
@@ -785,6 +817,9 @@ final class ChatViewModel {
             voice.speak(spokenBody)
         }
         lastInputWasVoice = false
+        if hapticsEnabled, playsCompletionHaptic {
+            completionHapticTrigger += 1
+        }
     }
 
     /// Cancel the in-flight stream. Partial text already streamed is
@@ -817,6 +852,8 @@ final class ChatViewModel {
         displayedAssistant = ""
         pendingSources = []
         fallbackNotice = nil
+        routingEvent = nil
+        routeUsage = nil
         stagedReferences = []
         phase = .idle
         mascotState = .idle

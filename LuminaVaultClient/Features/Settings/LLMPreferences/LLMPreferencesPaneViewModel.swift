@@ -63,14 +63,28 @@ final class LLMPreferencesPaneViewModel {
     var liveModels: [ProviderID: [LLMModelInfo]] = [:]
     /// True while a live model fetch for the current provider is in flight.
     var modelsLoading: Bool = false
+    var routerProfiles: [RouterProfileDTO] = []
+    var selectedRouterProfileID: UUID?
+    var routerDashboard: RouterDashboardResponse?
+    var qualityWeight = 50.0
+    var costWeight = 25.0
+    var softBudgetUSD = 0.0
+    var hardBudgetUSD = 0.0
+    var routerDirty = false
 
     private let client: LLMPreferencesClientProtocol
     private let providersClient: ProvidersClientProtocol
+    private let routerClient: RouterClientProtocol?
     private var lastServerSnapshot: LLMPreferencesGetResponse?
 
-    init(client: LLMPreferencesClientProtocol, providersClient: ProvidersClientProtocol) {
+    init(
+        client: LLMPreferencesClientProtocol,
+        providersClient: ProvidersClientProtocol,
+        routerClient: RouterClientProtocol? = nil
+    ) {
         self.client = client
         self.providersClient = providersClient
+        self.routerClient = routerClient
     }
 
     /// Model list for the selected provider: the live fetch when available,
@@ -146,6 +160,7 @@ final class LLMPreferencesPaneViewModel {
             let response = try await client.get()
             apply(response)
             state = .loaded
+            await loadRouter()
             await refreshModels(for: primaryProvider)
         } catch {
             state = .failed(Self.message(for: error))
@@ -193,6 +208,33 @@ final class LLMPreferencesPaneViewModel {
                 )
             }
             let response = try await client.put(body)
+            if routerDirty, let routerClient, let profile = selectedRouterProfile {
+                let latency = max(0, 100 - Int(qualityWeight.rounded()) - Int(costWeight.rounded()))
+                let request = RouterProfileWriteRequest(
+                    name: profile.name,
+                    mode: mode,
+                    objective: RouterObjectiveWeightsDTO(
+                        quality: Int(qualityWeight.rounded()),
+                        cost: Int(costWeight.rounded()),
+                        latency: latency
+                    ),
+                    budget: RouterBudgetPolicyDTO(
+                        softLimitUsdMicros: softBudgetUSD > 0 ? Int64(softBudgetUSD * 1_000_000) : nil,
+                        hardLimitUsdMicros: hardBudgetUSD > 0 ? Int64(hardBudgetUSD * 1_000_000) : nil
+                    ),
+                    allowedProviders: Array(allowedProviders),
+                    blockedProviders: Array(blockedProviders),
+                    defaultAction: profile.defaultAction,
+                    rules: profile.rules,
+                    expectedRevision: profile.revision
+                )
+                let updated = try await routerClient.updateProfile(id: profile.id, request: request)
+                if let index = routerProfiles.firstIndex(where: { $0.id == updated.id }) {
+                    routerProfiles[index] = updated
+                }
+                _ = try await routerClient.bind(scope: .user, scopeID: "me", profileID: profile.id)
+                routerDirty = false
+            }
             apiKeyInput = ""
             apply(response)
         } catch {
@@ -274,7 +316,7 @@ final class LLMPreferencesPaneViewModel {
     /// we pin to the canonical default); BYOK additionally requires a
     /// non-empty primary model slug.
     var canSave: Bool {
-        guard hasUnsavedChanges else { return false }
+        guard hasUnsavedChanges || routerDirty else { return false }
         switch mode {
         case .managed:
             return true
@@ -298,6 +340,56 @@ final class LLMPreferencesPaneViewModel {
         }
         lastServerSnapshot = response
         hasUnsavedChanges = false
+    }
+
+    var selectedRouterProfile: RouterProfileDTO? {
+        guard let selectedRouterProfileID else { return nil }
+        return routerProfiles.first { $0.id == selectedRouterProfileID }
+    }
+
+    var latencyWeight: Int {
+        max(0, 100 - Int(qualityWeight.rounded()) - Int(costWeight.rounded()))
+    }
+
+    func selectRouterProfile(_ id: UUID) {
+        selectedRouterProfileID = id
+        applyRouterProfile()
+        routerDirty = true
+    }
+
+    func updateQualityWeight(_ value: Double) {
+        qualityWeight = min(100, max(0, value))
+        costWeight = min(costWeight, 100 - qualityWeight)
+        routerDirty = true
+    }
+
+    func updateCostWeight(_ value: Double) {
+        costWeight = min(100 - qualityWeight, max(0, value))
+        routerDirty = true
+    }
+
+    private func loadRouter() async {
+        guard let routerClient else { return }
+        do {
+            async let profiles = routerClient.profiles()
+            async let dashboard = routerClient.dashboard()
+            let (profileResponse, dashboardResponse) = try await (profiles, dashboard)
+            routerProfiles = profileResponse.profiles
+            selectedRouterProfileID = profileResponse.defaultProfileID
+            routerDashboard = dashboardResponse
+            applyRouterProfile()
+        } catch {
+            // Legacy Intelligence settings remain usable against older servers.
+        }
+    }
+
+    private func applyRouterProfile() {
+        guard let profile = selectedRouterProfile else { return }
+        qualityWeight = Double(profile.objective.quality)
+        costWeight = Double(profile.objective.cost)
+        softBudgetUSD = Double(profile.budget.softLimitUsdMicros ?? 0) / 1_000_000
+        hardBudgetUSD = Double(profile.budget.hardLimitUsdMicros ?? 0) / 1_000_000
+        routerDirty = false
     }
 
     private static func message(for error: Error) -> String {

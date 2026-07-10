@@ -38,10 +38,65 @@ struct SettingsRootView: View {
                         // HER-211 — trial countdown banner.
                         TrialCountdownBanner()
 
+                        // ─────────────────────────────────────────────────────
+                        // Daily controls (task-based). The unified Connections
+                        // hub, Appearance, Chat, and Diagnostics lead; the
+                        // feature-catalog of advanced setup sits underneath.
+                        // ─────────────────────────────────────────────────────
+
+                        LVSectionCard("Connections") {
+                            LVSettingsRow(
+                                "Connections",
+                                icon: .linkCircle,
+                                trailing: { ConnectionsRootBadge(client: connectionsClient) },
+                                destination: {
+                                    ConnectionsHubView(
+                                        client: connectionsClient,
+                                        destination: connectionDestination
+                                    )
+                                }
+                            )
+                        }
+
                         // HER-255 — Theme + light/dark switch
                         LVSectionCard("Appearance") {
                             LVAppearanceSection()
                         }
+
+                        LVSectionCard("Chat") {
+                            LVSettingsRow("Chat Preferences", icon: .bubbleLeftAndTextBubbleRight) {
+                                ChatPreferencesPaneView(client: chatExperienceClient)
+                            }
+                        }
+
+                        LVSectionCard("Diagnostics") {
+                            LVSettingsRow("View Logs", icon: .shieldBrain) {
+                                HermesDiagnosticsView(
+                                    llmClient: llmPreferencesClient,
+                                    providersClient: providersClient,
+                                    integrationsClient: integrationsClient,
+                                    settingsClient: settingsClient
+                                )
+                            }
+                            LVSettingsDivider()
+                            LVSettingsRow("Test Connections", icon: .network) {
+                                ConnectionsHubView(
+                                    client: connectionsClient,
+                                    automaticallyTest: true,
+                                    destination: connectionDestination
+                                )
+                            }
+                        }
+
+                        // ─────────────────────────────────────────────────────
+                        // Advanced setup (the deeper layer).
+                        // ─────────────────────────────────────────────────────
+
+                        Text("Advanced")
+                            .lvFont(.subtitle)
+                            .foregroundStyle(palette.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, LVSpacing.sm)
 
                         // Phase 1 — post-onboarding SOUL.md personality editor.
                         // Phase 2 — direct memory browse/edit/delete.
@@ -52,12 +107,6 @@ struct SettingsRootView: View {
                             LVSettingsDivider()
                             LVSettingsRow("Memories", icon: .brain) {
                                 MemoryBrowserView(client: memoryClient)
-                            }
-                        }
-
-                        LVSectionCard("Chat") {
-                            LVSettingsRow("Chat Preferences", icon: .bubbleLeftAndTextBubbleRight) {
-                                ChatPreferencesPaneView(client: chatExperienceClient)
                             }
                         }
 
@@ -96,19 +145,10 @@ struct SettingsRootView: View {
                             }
                         }
 
-                        LVSectionCard("Connections") {
-                            LVSettingsRow(
-                                "Connections",
-                                icon: .linkCircle,
-                                trailing: { ConnectionsRootBadge(client: connectionsClient) },
-                                destination: {
-                                    ConnectionsHubView(
-                                        client: connectionsClient,
-                                        destination: connectionDestination
-                                    )
-                                }
-                            )
-                            LVSettingsDivider()
+                        // The individual connection setup screens. The unified
+                        // "Connections" hub above routes here too (via actionHint);
+                        // these direct rows stay for power users.
+                        LVSectionCard("Manage Connections") {
                             LVSettingsRow("Linked Accounts", icon: .linkCircle) {
                                 LinkedAccountsView(
                                     client: integrationsClient,
@@ -123,7 +163,8 @@ struct SettingsRootView: View {
                             LVSettingsRow("Intelligence", icon: .brain) {
                                 LLMPreferencesPaneView(
                                     client: llmPreferencesClient,
-                                    providersClient: providersClient
+                                    providersClient: providersClient,
+                                    routerClient: routerClient
                                 )
                             }
                             LVSettingsDivider()
@@ -159,6 +200,12 @@ struct SettingsRootView: View {
                             LVSettingsRow("Hermes Cron", icon: .arrowClockwiseCircle) {
                                 HermesCronListView(client: HermesCronHTTPClient(client: appState.makeHTTPClient()))
                             }
+                            LVSettingsDivider()
+                            // HER-241 — messaging gateways (Discord/Slack/…). A
+                            // connection, so it lives here rather than System.
+                            LVSettingsRow("Messaging Gateways", icon: .bubbleLeftAndBubbleRight) {
+                                HermesGatewaysPaneView(client: hermesGatewaysClient)
+                            }
                         }
 
                         LVSectionCard("Automation & Alerts") {
@@ -193,22 +240,6 @@ struct SettingsRootView: View {
                         LVSectionCard("System & Advanced") {
                             LVSettingsRow("Server Connection", icon: .serverRack) {
                                 ServerConnectionView(vm: ServerConnectionViewModel(soulClient: soulClient))
-                            }
-                            LVSettingsDivider()
-                            // Phase 1 — read-only "is my agent alive + how is
-                            // it wired" snapshot over existing endpoints.
-                            LVSettingsRow("Diagnostics", icon: .shieldBrain) {
-                                HermesDiagnosticsView(
-                                    llmClient: llmPreferencesClient,
-                                    providersClient: providersClient,
-                                    integrationsClient: integrationsClient,
-                                    settingsClient: settingsClient
-                                )
-                            }
-                            LVSettingsDivider()
-                            // HER-218 "Hermes Server" moved up to Connections.
-                            LVSettingsRow("Messaging Gateways", icon: .bubbleLeftAndBubbleRight) {
-                                HermesGatewaysPaneView(client: hermesGatewaysClient)
                             }
                             LVSettingsDivider()
                             // HER-330 — owner-only Hermes self-update.
@@ -316,6 +347,10 @@ struct SettingsRootView: View {
         LLMPreferencesHTTPClient(client: appState.makeHTTPClient())
     }
 
+    private var routerClient: any RouterClientProtocol {
+        RouterHTTPClient(client: appState.makeHTTPClient())
+    }
+
     private var chatExperienceClient: any ChatExperienceClientProtocol {
         ChatExperienceHTTPClient(client: appState.makeHTTPClient())
     }
@@ -339,7 +374,8 @@ struct SettingsRootView: View {
         case .configureProvider?:
             return AnyView(LLMPreferencesPaneView(
                 client: llmPreferencesClient,
-                providersClient: providersClient
+                providersClient: providersClient,
+                routerClient: routerClient
             ))
         case .configureHermes?:
             return AnyView(HermesGatewayPaneView(client: settingsClient))

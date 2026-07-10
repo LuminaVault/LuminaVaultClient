@@ -94,7 +94,7 @@ struct HermesGatewaysPaneView: View {
                 Text(entry.description).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer()
-            ConnectionBadge(state: entry.status.connectionState)
+            ConnectionHealthBadge(health: entry.status.connectionHealth)
         }
         .padding(.vertical, 2)
     }
