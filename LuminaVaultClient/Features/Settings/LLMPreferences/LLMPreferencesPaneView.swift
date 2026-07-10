@@ -28,15 +28,25 @@ struct LLMPreferencesPaneView: View {
 
     init(
         client: LLMPreferencesClientProtocol,
-        providersClient: ProvidersClientProtocol
+        providersClient: ProvidersClientProtocol,
+        routerClient: RouterClientProtocol? = nil
     ) {
-        _viewModel = State(initialValue: LLMPreferencesPaneViewModel(client: client, providersClient: providersClient))
+        _viewModel = State(initialValue: LLMPreferencesPaneViewModel(
+            client: client,
+            providersClient: providersClient,
+            routerClient: routerClient
+        ))
         self.providersClient = providersClient
     }
 
     var body: some View {
         Form {
             currentlyPoweringSection
+
+            routerProfileSection
+            routerAnalyticsSection
+            routerObjectiveSection
+            routerBudgetSection
 
             modePickerSection
 
@@ -59,7 +69,7 @@ struct LLMPreferencesPaneView: View {
                 }
             }
         }
-        .navigationTitle("Intelligence")
+        .navigationTitle("Model Router")
         .navigationBarTitleDisplayMode(.inline)
         // Clear the app-wide floating LVTabBar so the Save section isn't
         // hidden under it (matches SettingsRootView's bottom clearance).
@@ -69,6 +79,100 @@ struct LLMPreferencesPaneView: View {
     }
 
     // MARK: - Sections
+
+    @ViewBuilder
+    private var routerProfileSection: some View {
+        if !viewModel.routerProfiles.isEmpty {
+            Section {
+                Picker("Active profile", selection: Binding(
+                    get: { viewModel.selectedRouterProfileID },
+                    set: { id in
+                        guard let id else { return }
+                        viewModel.selectRouterProfile(id)
+                    }
+                )) {
+                    ForEach(viewModel.routerProfiles) { profile in
+                        Text(profile.name).tag(Optional(profile.id))
+                    }
+                }
+            } header: {
+                Text("Routing profile")
+            } footer: {
+                Text("Jobs override Spaces, and Spaces override this default profile.")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var routerAnalyticsSection: some View {
+        if let dashboard = viewModel.routerDashboard {
+            Section("This month") {
+                LabeledContent("Requests", value: dashboard.requests.formatted())
+                LabeledContent("Tokens", value: (dashboard.tokensIn + dashboard.tokensOut).formatted())
+                LabeledContent(
+                    "Estimated cost",
+                    value: (Double(dashboard.estimatedCostUsdMicros) / 1_000_000)
+                        .formatted(.currency(code: "USD"))
+                )
+                LabeledContent("Average latency", value: "\(dashboard.averageLatencyMs) ms")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var routerObjectiveSection: some View {
+        if viewModel.selectedRouterProfile != nil {
+            Section {
+                VStack(alignment: .leading) {
+                    LabeledContent("Quality", value: "\(Int(viewModel.qualityWeight))%")
+                    Slider(
+                        value: Binding(
+                            get: { viewModel.qualityWeight },
+                            set: { viewModel.updateQualityWeight($0) }
+                        ),
+                        in: 0 ... 100,
+                        step: 5
+                    )
+                    .accessibilityLabel("Quality routing weight")
+                }
+                VStack(alignment: .leading) {
+                    LabeledContent("Cost", value: "\(Int(viewModel.costWeight))%")
+                    Slider(
+                        value: Binding(
+                            get: { viewModel.costWeight },
+                            set: { viewModel.updateCostWeight($0) }
+                        ),
+                        in: 0 ... Double(max(0, 100 - Int(viewModel.qualityWeight))),
+                        step: 5
+                    )
+                    .accessibilityLabel("Cost routing weight")
+                }
+                LabeledContent("Latency", value: "\(viewModel.latencyWeight)%")
+            } header: {
+                Text("Routing objective")
+            } footer: {
+                Text("Cerberus combines task quality, predicted cost, and observed latency. The weights always total 100%.")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var routerBudgetSection: some View {
+        if viewModel.selectedRouterProfile != nil {
+            Section {
+                TextField("Soft limit", value: $viewModel.softBudgetUSD, format: .currency(code: "USD"))
+                    .keyboardType(.decimalPad)
+                TextField("Hard limit", value: $viewModel.hardBudgetUSD, format: .currency(code: "USD"))
+                    .keyboardType(.decimalPad)
+            } header: {
+                Text("Monthly budget")
+            } footer: {
+                Text("At the soft limit Cerberus favors cheaper routes. The hard limit blocks additional priced calls. Use 0 for no limit.")
+            }
+            .onChange(of: viewModel.softBudgetUSD) { _, _ in viewModel.routerDirty = true }
+            .onChange(of: viewModel.hardBudgetUSD) { _, _ in viewModel.routerDirty = true }
+        }
+    }
 
     /// HER-300 — "Currently powering you" card. Surfaces the live brain
     /// so the user knows what's actually serving their requests; the

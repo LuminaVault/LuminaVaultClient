@@ -9,7 +9,6 @@
 import SwiftUI
 
 struct ThinkWithLuminaView: View {
-
     @Environment(\.lvPalette) private var palette
 
     @State var chatVM: ChatViewModel
@@ -31,6 +30,9 @@ struct ThinkWithLuminaView: View {
     @State private var showingChat = false
     @State private var activeConversationID: UUID?
     @State private var activeConversationNonce = UUID()
+    /// Device-local haptics toggle (mirrors `ChatPreferencesPaneView`). Haptics
+    /// are intentionally not server-synced.
+    @AppStorage("lv.chat.hapticsEnabled") private var hapticsEnabled = true
 
     var body: some View {
         NavigationStack {
@@ -48,6 +50,20 @@ struct ThinkWithLuminaView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
+        }
+        .task { await loadPreferences() }
+        .onChange(of: hapticsEnabled) { _, value in chatVM.hapticsEnabled = value }
+    }
+
+    /// Loads the server-backed chat preferences and pushes them (plus the
+    /// device-local haptics flag) onto the chat view-model so the composer +
+    /// send behavior reflect the user's settings. Failures are non-fatal —
+    /// the VM keeps its defaults.
+    private func loadPreferences() async {
+        chatVM.hapticsEnabled = hapticsEnabled
+        if let response = try? await chatExperienceClient.getPreferences() {
+            chatVM.autoExpandThinking = response.preferences.autoExpandThinking
+            chatVM.sendOnReturn = response.preferences.sendOnReturn
         }
     }
 

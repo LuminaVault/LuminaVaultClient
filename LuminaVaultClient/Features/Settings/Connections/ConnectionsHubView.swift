@@ -3,13 +3,16 @@ import SwiftUI
 
 struct ConnectionsHubView: View {
     @State private var viewModel: ConnectionsHubViewModel
+    let automaticallyTest: Bool
     let destination: (ConnectionSummaryDTO) -> AnyView
 
     init(
         client: any ConnectionsClientProtocol,
+        automaticallyTest: Bool = false,
         destination: @escaping (ConnectionSummaryDTO) -> AnyView
     ) {
         _viewModel = State(initialValue: ConnectionsHubViewModel(client: client))
+        self.automaticallyTest = automaticallyTest
         self.destination = destination
     }
 
@@ -71,7 +74,13 @@ struct ConnectionsHubView: View {
         .navigationTitle("Connections")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await viewModel.load() }
-        .task { await viewModel.load() }
+        .task {
+            if automaticallyTest {
+                await viewModel.testAll()
+            } else {
+                await viewModel.load()
+            }
+        }
     }
 }
 
@@ -80,8 +89,6 @@ struct ConnectionSummaryRow: View {
 
     var body: some View {
         HStack(spacing: LVSpacing.base) {
-            ConnectionHealthDot(health: connection.health)
-
             VStack(alignment: .leading, spacing: 4) {
                 Text(connection.title)
                     .font(LVTypography.bodyEmphasis.font)
@@ -101,12 +108,7 @@ struct ConnectionSummaryRow: View {
 
             Spacer(minLength: LVSpacing.sm)
 
-            Text(connection.health.label)
-                .font(LVTypography.caption.font.weight(.medium))
-                .foregroundStyle(connection.health.tint)
-                .padding(.horizontal, LVSpacing.sm)
-                .padding(.vertical, 3)
-                .background(connection.health.tint.opacity(0.12), in: Capsule())
+            ConnectionHealthBadge(health: connection.health)
         }
         .padding(.vertical, LVSpacing.xs)
     }
@@ -132,42 +134,6 @@ private struct ConnectionDiagnosticEventRow: View {
                     .font(LVTypography.caption.font)
                     .foregroundStyle(.tertiary)
             }
-        }
-    }
-}
-
-struct ConnectionHealthDot: View {
-    let health: ConnectionHealth
-
-    var body: some View {
-        Circle()
-            .fill(health.tint)
-            .frame(width: 10, height: 10)
-            .shadow(color: health.tint.opacity(0.5), radius: 4)
-            .accessibilityLabel("Status \(health.label)")
-    }
-}
-
-extension ConnectionHealth {
-    var label: String {
-        switch self {
-        case .connected: "Connected"
-        case .needsSetup: "Needs setup"
-        case .degraded: "Check"
-        case .error: "Error"
-        case .unknown: "Unknown"
-        case .testing: "Testing"
-        }
-    }
-
-    var tint: Color {
-        switch self {
-        case .connected: .green
-        case .needsSetup: .secondary
-        case .degraded: .orange
-        case .error: .red
-        case .unknown: .gray
-        case .testing: .blue
         }
     }
 }

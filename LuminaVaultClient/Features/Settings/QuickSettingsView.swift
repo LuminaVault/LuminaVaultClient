@@ -107,7 +107,8 @@ struct QuickSettingsView: View {
     private var intelligenceDestination: some View {
         LLMPreferencesPaneView(
             client: LLMPreferencesHTTPClient(client: appState.makeHTTPClient()),
-            providersClient: ProvidersHTTPClient(client: appState.makeHTTPClient())
+            providersClient: ProvidersHTTPClient(client: appState.makeHTTPClient()),
+            routerClient: RouterHTTPClient(client: appState.makeHTTPClient())
         )
     }
 

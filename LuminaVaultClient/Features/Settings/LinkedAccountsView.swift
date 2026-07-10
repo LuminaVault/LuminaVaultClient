@@ -80,8 +80,9 @@ struct LinkedAccountsView: View {
     @ViewBuilder
     private func xaiSection(status: XaiStatusResponse) -> some View {
         Section("xAI Grok") {
-            LabeledContent("Status", value: status.connected ? "Connected" : "Not connected")
-                .foregroundStyle(status.connected ? .green : .secondary)
+            LabeledContent("Status") {
+                ConnectionHealthBadge(health: status.connected ? .connected : .needsSetup)
+            }
             LabeledContent("Tier", value: status.tier.capitalized)
             if let connectedAt = status.xaiConnectedAt {
                 LabeledContent("Since") {

@@ -10,7 +10,6 @@ import XCTest
 
 @MainActor
 final class ChatViewModelTransportTests: XCTestCase {
-
     func testMemoryGroundedRoutesToConversationsStream() async throws {
         let conversations = SpyConversationsClient()
         let chat = SpyChatClient()
@@ -31,6 +30,8 @@ final class ChatViewModelTransportTests: XCTestCase {
         XCTAssertEqual(chat.completeCallCount, 0, "fresh client must not be called in memory mode")
         XCTAssertEqual(vm.messages.last?.role, .assistant)
         XCTAssertEqual(vm.messages.last?.content, "hi")
+        XCTAssertEqual(vm.sendHapticTrigger, 1)
+        XCTAssertEqual(vm.completionHapticTrigger, 1)
     }
 
     func testFreshRoutesToChatCompletionsNotConversations() async throws {
@@ -68,6 +69,23 @@ final class ChatViewModelTransportTests: XCTestCase {
         XCTAssertEqual(vm.transport, .fresh)
         vm.toggleTransport()
         XCTAssertEqual(vm.transport, .memoryGrounded)
+    }
+
+    func testDisabledHapticsDoNotAdvanceFeedbackTriggers() async throws {
+        let vm = ChatViewModel(
+            conversationsClient: SpyConversationsClient(),
+            chatClient: SpyChatClient(),
+            memoryClient: NoOpMemoryClient(),
+            historyStore: nil,
+        )
+        vm.hapticsEnabled = false
+
+        vm.composer = "quiet send"
+        vm.send()
+        try await Task.sleep(for: .milliseconds(150))
+
+        XCTAssertEqual(vm.sendHapticTrigger, 0)
+        XCTAssertEqual(vm.completionHapticTrigger, 0)
     }
 }
 

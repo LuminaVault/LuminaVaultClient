@@ -52,11 +52,12 @@ final class HermesGatewaysPaneViewModel {
 }
 
 extension HermesGatewayStatus {
-    var connectionState: ConnectionState {
+    var connectionHealth: ConnectionHealth {
         switch self {
-        case .verified, .configured: .connected
-        case .error: .disconnected
-        case .notConfigured: .unknown
+        case .verified: .connected
+        case .configured: .degraded
+        case .error: .error
+        case .notConfigured: .needsSetup
         }
     }
 

@@ -104,11 +104,14 @@ struct HermesGatewayPaneView: View {
             LabeledContent("Authentication", value: hasAuthHeader ? "Set" : "None")
             switch status {
             case .unverified:
-                LabeledContent("Status", value: "Not verified")
-                    .foregroundStyle(.secondary)
+                LabeledContent("Status") {
+                    ConnectionHealthBadge(health: .degraded)
+                }
             case .verified(let at):
+                LabeledContent("Status") {
+                    ConnectionHealthBadge(health: .connected)
+                }
                 LabeledContent("Verified", value: at.formatted(.relative(presentation: .named)))
-                    .foregroundStyle(.green)
             }
         }
         Section {

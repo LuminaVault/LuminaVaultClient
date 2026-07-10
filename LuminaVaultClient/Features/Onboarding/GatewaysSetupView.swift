@@ -93,7 +93,7 @@ struct GatewaysSetupView: View {
                     .font(.title2)
                     .foregroundStyle(.tint)
                 Spacer()
-                ConnectionBadge(state: entry.status.connectionState)
+                ConnectionHealthBadge(health: entry.status.connectionHealth)
             }
             Text(entry.displayName).font(.headline)
             Text(entry.description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
