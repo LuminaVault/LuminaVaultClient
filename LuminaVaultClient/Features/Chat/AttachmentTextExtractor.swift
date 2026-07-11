@@ -9,7 +9,7 @@
 import Foundation
 import PDFKit
 
-enum AttachmentTextExtractor {
+nonisolated enum AttachmentTextExtractor {
     /// Max characters of extracted text injected into a prompt. Protects
     /// the context window from a large PDF dumping thousands of tokens
     /// into a single turn.
@@ -74,5 +74,24 @@ enum AttachmentTextExtractor {
             ? String(trimmed.prefix(maxCharacters)) + "\n…[truncated]"
             : trimmed
         return Extracted(name: name, text: clipped)
+    }
+
+    /// Background extraction path used by the chat composer so security-
+    /// scoped file access and blocking `Data(contentsOf:)` / PDFKit work
+    /// never run on the main actor.
+    static func extractAsync(from url: URL) async throws -> Extracted {
+        try await Task.detached(priority: .userInitiated) {
+            try extract(from: url)
+        }.value
+    }
+
+    /// Background raw-byte read for the best-effort vault upload that
+    /// follows attachment staging.
+    static func readDataAsync(from url: URL) async throws -> Data {
+        try await Task.detached(priority: .utility) {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            return try Data(contentsOf: url)
+        }.value
     }
 }

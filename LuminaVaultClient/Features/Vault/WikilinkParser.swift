@@ -4,7 +4,7 @@
 
 import Foundation
 
-struct Wikilink: Equatable, Identifiable {
+nonisolated struct Wikilink: Equatable, Identifiable {
     enum Kind: Equatable {
         case note(String)
         case memory(UUID)
@@ -16,7 +16,7 @@ struct Wikilink: Equatable, Identifiable {
     let kind: Kind
 }
 
-enum WikilinkParser {
+nonisolated enum WikilinkParser {
     static let urlScheme = "luminavault-wikilink"
 
     static func links(in markdown: String) -> [Wikilink] {

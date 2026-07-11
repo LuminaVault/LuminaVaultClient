@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0B4FB7CF9004FCB964362A5C /* SharedAppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28D751509558FA472F19A1E9 /* SharedAppGroup.swift */; };
-		36898169B542419BA32DA510 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = F8D79674B58849A9A00C4538 /* Sentry */; };
+		36898169B542419BA32DA510 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = F8D79674B58849A9A00C4538 /* Sentry-Dynamic */; };
 		4DF5595360F1E690E952EEC5 /* SharedShareQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC806D8A50D60DFFD23095C1 /* SharedShareQueue.swift */; };
 		597D439B97706F0F59CC1976 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = D7B92A4C1DB72A55FF1DE968 /* RevenueCatUI */; };
 		605690302FBF20FF0059C355 /* LuminaVaultShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 605690262FBF20FE0059C355 /* LuminaVaultShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -158,7 +158,7 @@
 				6098173A2FB8BE2500414C79 /* LuminaVaultShared in Frameworks */,
 				60PNK00012FAE1200006F894F /* PhoneNumberKit in Frameworks */,
 				60PHG00012FAE1200006F894F /* PostHog in Frameworks */,
-				36898169B542419BA32DA510 /* Sentry in Frameworks */,
+				36898169B542419BA32DA510 /* Sentry-Dynamic in Frameworks */,
 				AF9870ACC004473D2F65EB8D /* RevenueCat in Frameworks */,
 				597D439B97706F0F59CC1976 /* RevenueCatUI in Frameworks */,
 			);
@@ -262,7 +262,7 @@
 				60PNK00022FAE1200006F894F /* PhoneNumberKit */,
 				609817392FB8BE2500414C79 /* LuminaVaultShared */,
 				60PHG00022FAE1200006F894F /* PostHog */,
-				F8D79674B58849A9A00C4538 /* Sentry */,
+				F8D79674B58849A9A00C4538 /* Sentry-Dynamic */,
 				41CABE5B9E8F10B98C99DA63 /* RevenueCat */,
 				D7B92A4C1DB72A55FF1DE968 /* RevenueCatUI */,
 			);
@@ -1205,10 +1205,10 @@
 			package = CA876A02B2394950741A9E30 /* XCRemoteSwiftPackageReference "purchases-ios" */;
 			productName = RevenueCatUI;
 		};
-		F8D79674B58849A9A00C4538 /* Sentry */ = {
+		F8D79674B58849A9A00C4538 /* Sentry-Dynamic */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 63C9812D8F0349FC8A4481E2 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
-			productName = Sentry;
+			productName = "Sentry-Dynamic";
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

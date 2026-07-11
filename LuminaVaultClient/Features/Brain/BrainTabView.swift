@@ -13,7 +13,11 @@ struct BrainTabView: View {
 
     @Environment(\.lvPalette) private var palette
 
+    private static let initialGraphLimit = 200
+    private static let edgeKindOrder: [MemoryEdgeKindDTO] = [.wikilink, .tag, .space, .semantic, .temporal]
+
     @State private var vm: BrainGraphViewModel
+    @State private var reloadTask: Task<Void, Never>?
 
     /// Loads a single memory's full content when a memory node is opened
     /// (HER-235 open-on-click). Passed through to `BrainNodeDetailSheet`.
@@ -47,14 +51,18 @@ struct BrainTabView: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
-                            Task { await vm.load() }
+                            reloadTask?.cancel()
+                            Task { await loadGraph() }
                         } label: {
                             LVIconView(.arrowClockwise)
                         }
                         .disabled(isLoading)
                     }
                 }
-                .task { await vm.load() }
+                .task { await loadGraph() }
+                .onChange(of: showWikiPages) { _, _ in scheduleGraphReload() }
+                .onChange(of: activeEdgeKinds) { _, _ in scheduleGraphReload() }
+                .onDisappear { reloadTask?.cancel() }
                 .sheet(item: selectedBinding) { node in
                     BrainNodeDetailSheet(node: node, memoryClient: memoryClient)
                 }
@@ -102,6 +110,27 @@ struct BrainTabView: View {
     private var isLoading: Bool {
         if case .loading = vm.state { return true }
         return false
+    }
+
+    private var requestKinds: [MemoryEdgeKindDTO] {
+        Self.edgeKindOrder.filter { activeEdgeKinds.contains($0) }
+    }
+
+    private func loadGraph() async {
+        await vm.load(
+            limit: Self.initialGraphLimit,
+            includeWikiPages: showWikiPages,
+            kinds: requestKinds,
+        )
+    }
+
+    private func scheduleGraphReload() {
+        reloadTask?.cancel()
+        reloadTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            await loadGraph()
+        }
     }
 
     private var loadingState: some View {

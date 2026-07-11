@@ -73,9 +73,36 @@ final class BrainGraphViewModelTests: XCTestCase {
     }
 
     func testLoadForwardsTuningParams() async {
-        await sut.load(limit: 200, similarityThreshold: 0.5, maxEdgesPerNode: 4)
+        await sut.load(
+            limit: 200,
+            similarityThreshold: 0.5,
+            maxEdgesPerNode: 4,
+            includeWikiPages: false,
+            kinds: [.tag, .semantic]
+        )
         XCTAssertEqual(client.lastLimit, 200)
         XCTAssertEqual(client.lastSimilarity, 0.5)
         XCTAssertEqual(client.lastMaxEdges, 4)
+        XCTAssertEqual(client.lastIncludeWikiPages, false)
+        XCTAssertEqual(client.lastKinds, [.tag, .semantic])
+    }
+
+    func testGraphEndpointIncludesServerSideFilterParams() {
+        let endpoint = MemoryGraphEndpoints.Graph(
+            limit: 200,
+            similarityThreshold: 0.5,
+            maxEdgesPerNode: 4,
+            includeWikiPages: false,
+            kinds: [.tag, .semantic]
+        )
+        let components = URLComponents(string: "https://example.test\(endpoint.path)")
+        let items = Dictionary(uniqueKeysWithValues: (components?.queryItems ?? []).map { ($0.name, $0.value) })
+
+        XCTAssertEqual(components?.path, "/v1/memory/graph")
+        XCTAssertEqual(items["limit"] ?? nil, "200")
+        XCTAssertEqual(items["similarityThreshold"] ?? nil, "0.5")
+        XCTAssertEqual(items["maxEdgesPerNode"] ?? nil, "4")
+        XCTAssertEqual(items["includeWikiPages"] ?? nil, "false")
+        XCTAssertEqual(items["kinds"] ?? nil, "tag,semantic")
     }
 }

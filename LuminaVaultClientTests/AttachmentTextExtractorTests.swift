@@ -54,6 +54,13 @@ struct AttachmentTextExtractorTests {
         #expect(result.text == "# Heading\n\nBody")
     }
 
+    @Test func extractsPlainTextAsynchronously() async throws {
+        let url = try tempFile("Background read", ext: "txt")
+        let result = try await AttachmentTextExtractor.extractAsync(from: url)
+        #expect(result.text == "Background read")
+        #expect(result.name == url.lastPathComponent)
+    }
+
     // MARK: - PDF
 
     @Test func extractsPDFText() throws {
