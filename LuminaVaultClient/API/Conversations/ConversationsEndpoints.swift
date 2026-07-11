@@ -49,6 +49,24 @@ enum ConversationsEndpoints {
         var method: HTTPMethod { .delete }
     }
 
+    struct Prepare: Endpoint {
+        typealias Response = ConversationPrepareResponse
+        let conversationID: UUID
+        let request: ConversationPrepareRequest
+        var path: String { "/v1/conversations/\(conversationID.uuidString.lowercased())/messages/prepare" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { request }
+    }
+
+    struct Commit: Endpoint {
+        typealias Response = ConversationCommitResponse
+        let conversationID: UUID
+        let request: ConversationCommitRequest
+        var path: String { "/v1/conversations/\(conversationID.uuidString.lowercased())/messages/commit" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { request }
+    }
+
     /// SSE stream of `QueryStreamEvent`. Consume via
     /// `BaseHTTPClient.executeStreamWithRefresh`.
     struct StreamReply: StreamingEndpoint {

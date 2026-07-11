@@ -99,7 +99,11 @@ struct MainTabView: View {
                         // graph. Re-surfaced as a primary tab after the HER-243
                         // OS-shell rebuild dropped it from the bar (the view +
                         // client survived, only the nav wiring was lost).
-                        BrainTabView(client: memoryGraphClient, memoryClient: memoryUpsertClient)
+                        BrainTabView(
+                            client: memoryGraphClient,
+                            knowledgeClient: knowledgeGraphClient,
+                            memoryClient: memoryUpsertClient
+                        )
                             .tag(Self.tabIds.brain)
                             .toolbar(.hidden, for: .tabBar)
 
@@ -108,14 +112,7 @@ struct MainTabView: View {
                         // /v1/chat/completions. Both routes are BYO-Hermes-aware
                         // server-side.
                         ThinkWithLuminaView(
-                            chatVM: ChatViewModel(
-                                conversationsClient: conversationsClient,
-                                chatClient: chatClient,
-                                memoryClient: memoryUpsertClient,
-                                historyStore: chatHistoryStore,
-                                jobsClient: jobsClient,
-                                remindersClient: remindersClient,
-                            ),
+                            chatVM: makeChatViewModel(),
                             conversationsClient: conversationsClient,
                             chatExperienceClient: chatExperienceClient,
                             memoClient: memoClient,
@@ -170,7 +167,7 @@ struct MainTabView: View {
         switch selection {
         case Self.tabIds.workspaces: return "Spaces"
         case Self.tabIds.home:       return "LuminaVault"
-        case Self.tabIds.reflect:    return "Reflect"
+        case Self.tabIds.reflect:    return "Insights"
         case Self.tabIds.think:      return "AI"
         case Self.tabIds.brain:      return "Brain"
         case Self.tabIds.settings:   return "Settings"
@@ -219,7 +216,7 @@ struct MainTabView: View {
             // infra brain" surface.
             LVTabItem(id: Self.tabIds.brain, label: "Brain", icon: .brain),
             // HER-194 — Reflect: the synthesis-intelligence cluster.
-            LVTabItem(id: Self.tabIds.reflect, label: "Reflect", icon: .sparklesRectangleStack),
+            LVTabItem(id: Self.tabIds.reflect, label: "Insights", icon: .sparklesRectangleStack),
         ]
     }
 
@@ -271,8 +268,29 @@ struct MainTabView: View {
         ChatHistoryStore()
     }
 
+    private func makeChatViewModel() -> ChatViewModel {
+        let settings = HybridExecutionSettingsStore()
+        let executor = settings.configuration.map { LocalEndpointChatExecutor(configuration: $0) }
+        let viewModel = ChatViewModel(
+            conversationsClient: conversationsClient,
+            chatClient: chatClient,
+            memoryClient: memoryUpsertClient,
+            historyStore: chatHistoryStore,
+            jobsClient: jobsClient,
+            remindersClient: remindersClient,
+            localExecutor: executor
+        )
+        viewModel.hybridProfile = settings.profile
+        viewModel.transport = .hybrid
+        return viewModel
+    }
+
     private var memoryGraphClient: MemoryGraphClientProtocol {
         MemoryGraphHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var knowledgeGraphClient: KnowledgeGraphClientProtocol {
+        KnowledgeGraphHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var projectsClient: ProjectsClientProtocol {
@@ -440,14 +458,20 @@ struct MainTabView: View {
     }
 
     private var reflect: some View {
-        ReflectTabView(
-            vm: ReflectViewModel(vaultClient: vaultClient),
+        InsightsTabView(
+            reflectViewModel: ReflectViewModel(vaultClient: vaultClient),
             runner: ReflectionRunner(
                 skillsClient: skillsClient,
                 vaultUploadClient: vaultUploadClient,
             ),
+            httpClient: appState.makeHTTPClient(),
             vaultClient: vaultClient,
             memoryClient: memoryUpsertClient,
+            onOpenRecommendation: { deepLink in
+                selection = deepLink.contains("analytics#models")
+                    ? Self.tabIds.settings
+                    : Self.tabIds.workspaces
+            },
         )
     }
 

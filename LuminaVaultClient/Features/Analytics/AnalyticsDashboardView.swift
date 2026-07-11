@@ -13,18 +13,22 @@ struct AnalyticsDashboardView: View {
     /// HER-248 — used to build the insight detail screen pushed from the
     /// Patterns section.
     let httpClient: BaseHTTPClient
+    let onOpenRecommendation: (String) -> Void
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 rangePicker
+                memoryHealth
                 summaryHeader
+                recommendationsSection
                 content
+                modelsSection
                 patternsSection
             }
             .padding(20)
         }
-        .navigationTitle("Analytics")
+        .navigationTitle("Insights")
         .navigationBarTitleDisplayMode(.large)
         .task { await vm.load() }
     }
@@ -43,12 +47,46 @@ struct AnalyticsDashboardView: View {
 
     @ViewBuilder
     private var summaryHeader: some View {
-        if let summary = vm.summary {
+        if let summary = vm.overview?.summary {
             HStack(spacing: 12) {
-                summaryStat("Sessions", "\(summary.sessionsCount)")
-                summaryStat("Tokens in", summary.llmTokensIn.formatted(.number))
-                summaryStat("Cost", costString(summary.estimatedCostCents))
+                summaryStat("AI requests", "\(summary.aiRequests)")
+                summaryStat("Tokens", (summary.tokensIn + summary.tokensOut).formatted(.number))
+                summaryStat("Cost", costString(summary.estimatedCostUsdMicros))
             }
+        }
+    }
+
+    @ViewBuilder
+    private var memoryHealth: some View {
+        if let health = vm.overview?.memoryHealth {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Memory health")
+                        .font(.headline)
+                    Spacer()
+                    Text("\(health.score)")
+                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                        .monospacedDigit()
+                    Text("/ 100")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(health.components, id: \.key) { component in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(component.title).font(.caption)
+                            Spacer()
+                            Text("\(component.score)%").font(.caption.monospacedDigit())
+                        }
+                        ProgressView(value: Double(component.score), total: 100)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .padding(16)
+            .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Memory health \(health.score) out of 100")
         }
     }
 
@@ -66,8 +104,46 @@ struct AnalyticsDashboardView: View {
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
     }
 
-    private func costString(_ cents: Int) -> String {
-        (Double(cents) / 100.0).formatted(.currency(code: "USD"))
+    private func costString(_ micros: Int64) -> String {
+        (Double(micros) / 1_000_000.0).formatted(.currency(code: "USD"))
+    }
+
+    @ViewBuilder
+    private var recommendationsSection: some View {
+        if let recommendations = vm.overview?.recommendations, !recommendations.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                sectionTitle("RECOMMENDED")
+                ForEach(recommendations) { recommendation in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(recommendation.title).font(.subheadline.weight(.semibold))
+                        Text(recommendation.detail).font(.footnote).foregroundStyle(.secondary)
+                        HStack {
+                            Button(recommendation.actionTitle) {
+                                Task { await vm.opened(recommendation) }
+                                onOpenRecommendation(recommendation.deepLink)
+                            }
+                            .font(.caption.weight(.semibold))
+                            Spacer()
+                            Menu("More", systemImage: "ellipsis") {
+                                Button("Snooze 7 days") {
+                                    Task { await vm.setRecommendation(recommendation, disposition: .snooze7) }
+                                }
+                                Button("Snooze 30 days") {
+                                    Task { await vm.setRecommendation(recommendation, disposition: .snooze30) }
+                                }
+                                Button("Dismiss", role: .destructive) {
+                                    Task { await vm.setRecommendation(recommendation, disposition: .dismiss) }
+                                }
+                            }
+                            .font(.caption)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(14)
+                    .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 12))
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -100,10 +176,7 @@ struct AnalyticsDashboardView: View {
     @ViewBuilder
     private var patternsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("PATTERNS")
-                .font(.caption2.weight(.heavy))
-                .tracking(0.8)
-                .foregroundStyle(.secondary)
+            sectionTitle("PATTERNS")
 
             if vm.patternInsights.isEmpty {
                 Text("Lumina will surface correlations and contradictions across these signals here.")
@@ -123,6 +196,40 @@ struct AnalyticsDashboardView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var modelsSection: some View {
+        if !vm.modelEffectiveness.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                sectionTitle("MODEL EFFECTIVENESS")
+                ForEach(vm.modelEffectiveness.prefix(4)) { model in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(model.model).font(.subheadline.weight(.semibold)).lineLimit(1)
+                            Text(model.provider).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(model.successRate, format: .percent.precision(.fractionLength(0)))
+                                .font(.subheadline.monospacedDigit())
+                            Text("\(model.averageLatencyMs) ms")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(12)
+                    .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 10))
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
+    }
+
+    private func sectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.caption2.weight(.heavy))
+            .tracking(0.8)
+            .foregroundStyle(.secondary)
     }
 
     private func insightCard(_ insight: InsightDTO) -> some View {

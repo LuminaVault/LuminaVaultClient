@@ -1,5 +1,9 @@
 # LuminaVaultClient Configuration
 
+## Hybrid local execution
+
+The execution profile and local endpoint URL/model are stored in app preferences. Optional endpoint API keys are stored in Keychain under `localEndpointAPIKey`. Do not add local endpoint credentials to xcconfig or Info.plist. Private mode must remain usable without `API_BASE_URL` reachability and must never silently fall back to cloud.
+
 This directory contains the client-side build configuration contract for OAuth, RevenueCat, analytics, Sentry, legal URLs, and hosted backend selection.
 
 ## Files

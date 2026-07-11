@@ -12,7 +12,6 @@
 import SwiftUI
 
 struct CaptureFAB: View {
-
     /// Visual treatment. `.header` matches the 38pt mascot avatar in
     /// `LuminaHeader`; `.floating` is the legacy large overlay disc.
     enum Style {
@@ -31,8 +30,13 @@ struct CaptureFAB: View {
         self.style = style
     }
 
-    private var diameter: CGFloat { style == .header ? 38 : 56 }
-    private var glyphSize: CGFloat { style == .header ? 16 : 22 }
+    private var diameter: CGFloat {
+        style == .header ? 38 : 56
+    }
+
+    private var glyphSize: CGFloat {
+        style == .header ? 16 : 22
+    }
 
     var body: some View {
         Button {
@@ -42,25 +46,26 @@ struct CaptureFAB: View {
         }
         .accessibilityLabel("New capture")
         .sheet(isPresented: $showingSheet) {
-            if let queue = coordinator?.queue {
+            if let queue = coordinator?.queue, let ingestionClient = coordinator?.ingestionClient {
                 CaptureSheet(
                     photoViewModel: CapturePhotosViewModel(
                         queue: queue,
                         locationService: LocationService(),
                         drainer: coordinator?.drainerHandle ?? .noop,
-                        spacesClient: coordinator?.spacesClient,
+                        spacesClient: coordinator?.spacesClient
                     ),
                     textViewModel: TextCaptureViewModel(
                         queue: queue,
                         locationService: LocationService(),
                         drainer: coordinator?.drainerHandle ?? .noop,
-                        spacesClient: coordinator?.spacesClient,
+                        spacesClient: coordinator?.spacesClient
                     ),
                     urlViewModel: URLCaptureViewModel(
                         queue: queue,
                         drainer: coordinator?.drainerHandle ?? .noop,
-                        spacesClient: coordinator?.spacesClient,
+                        spacesClient: coordinator?.spacesClient
                     ),
+                    multimodalViewModel: MultimodalCaptureViewModel(client: ingestionClient)
                 )
             } else {
                 Text("Capture is initializing…")
@@ -76,8 +81,8 @@ struct CaptureFAB: View {
                 LinearGradient(
                     colors: [palette.primary, palette.secondary, palette.accent],
                     startPoint: .topLeading,
-                    endPoint: .bottomTrailing,
-                ),
+                    endPoint: .bottomTrailing
+                )
             )
             .clipShape(Circle())
             .overlay {

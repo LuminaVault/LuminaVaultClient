@@ -20,6 +20,7 @@ struct LLMPreferencesPaneView: View {
     @Environment(\.lvPalette) private var palette
     @Environment(AppState.self) private var appState
     @State private var viewModel: LLMPreferencesPaneViewModel
+    @State private var hybridSettings = HybridExecutionSettingsStore()
 
     /// HER-300 — used to push the live BYOK key manager from the BYOK
     /// branch. Injected so this pane doesn't reach into `AppState` for
@@ -49,6 +50,7 @@ struct LLMPreferencesPaneView: View {
             routerBudgetSection
 
             modePickerSection
+            hybridExecutionSection
 
             primaryEditorSection
             fallbackEditorSection
@@ -79,6 +81,36 @@ struct LLMPreferencesPaneView: View {
     }
 
     // MARK: - Sections
+
+    private var hybridExecutionSection: some View {
+        Section {
+            Picker("Execution profile", selection: $hybridSettings.profile) {
+                Text("Private").tag(HybridExecutionProfile.private)
+                Text("Balanced").tag(HybridExecutionProfile.balanced)
+                Text("Quality").tag(HybridExecutionProfile.quality)
+            }
+            Picker("Local server", selection: $hybridSettings.endpointKind) {
+                Text("Ollama").tag(LocalEndpointKind.ollama)
+                Text("LM Studio").tag(LocalEndpointKind.lmStudio)
+                Text("MLX server").tag(LocalEndpointKind.mlxServer)
+                Text("OpenAI-compatible").tag(LocalEndpointKind.openAICompatible)
+            }
+            TextField("Endpoint URL", text: $hybridSettings.endpointURL)
+                .keyboardType(.URL)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            TextField("Local model", text: $hybridSettings.model)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            SecureField("Local endpoint API key (optional)", text: $hybridSettings.apiKey)
+            Button("Save local execution settings") { hybridSettings.save() }
+                .disabled(hybridSettings.configuration == nil)
+        } header: {
+            Text("Hybrid execution")
+        } footer: {
+            Text("Private never sends prompts to LuminaVault. Balanced prefers this local model and may use cloud fallback. Quality uses cloud first.")
+        }
+    }
 
     @ViewBuilder
     private var routerProfileSection: some View {

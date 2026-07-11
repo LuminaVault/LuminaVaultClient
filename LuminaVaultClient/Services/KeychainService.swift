@@ -40,6 +40,11 @@ final class KeychainService: Sendable {
         set { write(key: "hermesAdminToken", value: newValue) }
     }
 
+    var localEndpointAPIKey: String? {
+        get { read(key: "localEndpointAPIKey") }
+        set { write(key: "localEndpointAPIKey", value: newValue) }
+    }
+
     // HER-209: persist Apple's `user` identifier so we can poll
     // `ASAuthorizationAppleIDProvider.getCredentialState(forUserID:)` on
     // launch/foreground and sign out on `.revoked`.
@@ -78,6 +83,7 @@ final class KeychainService: Sendable {
             "biometricsEnabled",
             "appleUserId",
             "appleFullName",
+            "localEndpointAPIKey",
         ].forEach { write(key: $0, value: nil) }
     }
 

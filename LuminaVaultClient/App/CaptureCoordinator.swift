@@ -19,6 +19,7 @@ final class CaptureCoordinator {
     /// HER-CaptureTab — exposed so `CaptureFAB` can hand the Spaces
     /// client to the picker VM without giving it AppState access.
     private(set) var spacesClient: (any SpacesClientProtocol)?
+    private(set) var ingestionClient: (any IngestionClientProtocol)?
     private var container: ModelContainer?
 
     private let tokenProvider: @Sendable () async -> String?
@@ -39,12 +40,13 @@ final class CaptureCoordinator {
             let uploader = VaultUploadHTTPClient(client: httpBase)
             let memory = MemoryHTTPClient(client: httpBase)
             let safari = CaptureSafariHTTPClient(client: httpBase)
-            self.spacesClient = SpacesHTTPClient(client: httpBase)
+            spacesClient = SpacesHTTPClient(client: httpBase)
+            ingestionClient = IngestionHTTPClient(client: httpBase)
             let drainer = CaptureDrainer(
                 queue: queue,
                 vaultUploader: uploader,
                 memoryClient: memory,
-                safariClient: safari,
+                safariClient: safari
             )
             self.drainer = drainer
             await drainer.start()
@@ -92,7 +94,7 @@ final class CaptureCoordinator {
                 url: url,
                 note: share.note,
                 spaceID: share.spaceID,
-                createdAt: share.capturedAt,
+                createdAt: share.capturedAt
             )
         case .text:
             guard let text = share.text?.nilIfEmpty else { throw ShareDrainError.missingPayload }
@@ -101,12 +103,13 @@ final class CaptureCoordinator {
                 body: text,
                 note: share.note,
                 spaceID: share.spaceID,
-                createdAt: share.capturedAt,
+                createdAt: share.capturedAt
             )
         case .image:
             guard let data = try SharedShareQueue.assetData(for: share),
                   let contentType = share.contentType?.nilIfEmpty,
-                  let fileExtension = share.fileExtension?.nilIfEmpty else {
+                  let fileExtension = share.fileExtension?.nilIfEmpty
+            else {
                 throw ShareDrainError.missingPayload
             }
             return CaptureSnapshot(
@@ -117,7 +120,7 @@ final class CaptureCoordinator {
                 contentType: contentType,
                 fileExtension: fileExtension,
                 spaceID: share.spaceID,
-                kind: .photo,
+                kind: .photo
             )
         }
     }
@@ -127,6 +130,7 @@ final class CaptureCoordinator {
         drainer = nil
         queue = nil
         spacesClient = nil
+        ingestionClient = nil
         container = nil
         log.info("capture coordinator stopped")
     }
@@ -146,5 +150,7 @@ private enum ShareDrainError: Error {
 }
 
 private extension String {
-    var nilIfEmpty: String? { isEmpty ? nil : self }
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
+    }
 }

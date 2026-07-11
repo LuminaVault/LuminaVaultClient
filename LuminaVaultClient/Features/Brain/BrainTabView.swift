@@ -17,7 +17,9 @@ struct BrainTabView: View {
     private static let edgeKindOrder: [MemoryEdgeKindDTO] = [.wikilink, .tag, .space, .semantic, .temporal]
 
     @State private var vm: BrainGraphViewModel
+    @State private var reasoningViewModel: KnowledgeReasoningViewModel
     @State private var reloadTask: Task<Void, Never>?
+    @State private var showReasoning = false
 
     /// Loads a single memory's full content when a memory node is opened
     /// (HER-235 open-on-click). Passed through to `BrainNodeDetailSheet`.
@@ -36,8 +38,13 @@ struct BrainTabView: View {
     /// `filtered(_:)` drops them and any edge touching them with no refetch.
     @State private var showWikiPages = true
 
-    init(client: any MemoryGraphClientProtocol, memoryClient: (any MemoryClientProtocol)? = nil) {
+    init(
+        client: any MemoryGraphClientProtocol,
+        knowledgeClient: any KnowledgeGraphClientProtocol,
+        memoryClient: (any MemoryClientProtocol)? = nil
+    ) {
         self._vm = State(initialValue: BrainGraphViewModel(client: client))
+        self._reasoningViewModel = State(initialValue: KnowledgeReasoningViewModel(client: knowledgeClient))
         self.memoryClient = memoryClient
     }
 
@@ -49,6 +56,11 @@ struct BrainTabView: View {
                 // action below.
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Reason", systemImage: "point.3.connected.trianglepath.dotted") {
+                            showReasoning = true
+                        }
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             reloadTask?.cancel()
@@ -65,6 +77,9 @@ struct BrainTabView: View {
                 .onDisappear { reloadTask?.cancel() }
                 .sheet(item: selectedBinding) { node in
                     BrainNodeDetailSheet(node: node, memoryClient: memoryClient)
+                }
+                .sheet(isPresented: $showReasoning) {
+                    KnowledgeReasoningSheet(viewModel: reasoningViewModel)
                 }
         }
     }

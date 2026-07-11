@@ -64,6 +64,7 @@ final class ChatViewModel {
     nonisolated enum Transport: String, Sendable, Equatable, CaseIterable, Codable {
         case memoryGrounded = "memory_grounded"
         case fresh
+        case hybrid
     }
 
     // MARK: - Observable state
@@ -98,6 +99,8 @@ final class ChatViewModel {
     /// HER-107 — active transport. Defaults to memory-grounded (the
     /// HER-269 SSE path); user toggles via the toolbar.
     var transport: Transport = .memoryGrounded
+    var hybridProfile: HybridExecutionProfile = .balanced
+    private(set) var executionLabel: String?
 
     // Chat preferences (server-backed `autoExpandThinking`/`sendOnReturn` +
     // device-local `hapticsEnabled`), pushed in by `ThinkWithLuminaView` after
@@ -155,6 +158,7 @@ final class ChatViewModel {
     private let chatClient: any ChatClientProtocol
     private let memoryClient: any MemoryClientProtocol
     private let historyStore: ChatHistoryStore?
+    private let localExecutor: (any LocalChatExecuting)?
     /// Lumina Jobs P3 — optional; when wired, each user turn is classified for
     /// recurring-job intent and a proposal card may surface.
     private let jobsClient: (any JobsClientProtocol)?
@@ -190,6 +194,7 @@ final class ChatViewModel {
         voice: VoiceModeController = VoiceModeController(),
         jobsClient: (any JobsClientProtocol)? = nil,
         remindersClient: (any RemindersClientProtocol)? = nil,
+        localExecutor: (any LocalChatExecuting)? = nil,
     ) {
         self.conversationsClient = conversationsClient
         self.chatClient = chatClient
@@ -197,6 +202,7 @@ final class ChatViewModel {
         self.historyStore = historyStore
         self.jobsClient = jobsClient
         self.remindersClient = remindersClient
+        self.localExecutor = localExecutor
         self.voice = voice
         self.voice.onFinalTranscript = { [weak self] transcript in
             self?.sendVoiceTranscript(transcript)
@@ -283,7 +289,8 @@ final class ChatViewModel {
         // Jobs P3 — classify the turn for recurring-job intent in the
         // background; never blocks the chat stream.
         jobProposal = nil
-        if jobsClient != nil, !trimmed.isEmpty {
+        let allowsCloudSideEffects = !(transport == .hybrid && hybridProfile == .private)
+        if allowsCloudSideEffects, jobsClient != nil, !trimmed.isEmpty {
             let probe = trimmed
             Task { [weak self] in await self?.detectJob(probe) }
         }
@@ -291,7 +298,7 @@ final class ChatViewModel {
         // HER-55 — classify the turn for reminder intent in the background;
         // never blocks the chat stream.
         reminderProposal = nil
-        if remindersClient != nil, !trimmed.isEmpty {
+        if allowsCloudSideEffects, remindersClient != nil, !trimmed.isEmpty {
             let probe = trimmed
             Task { [weak self] in await self?.detectReminder(probe) }
         }
@@ -485,6 +492,84 @@ final class ChatViewModel {
         switch transport {
         case .memoryGrounded: await runMemoryGroundedSend(content: content)
         case .fresh: await runFreshSend(content: content)
+        case .hybrid: await runHybridSend(content: content)
+        }
+    }
+
+    private func runHybridSend(content: String) async {
+        let localAvailable = await localExecutor?.isAvailable() == true
+        let decision = HybridExecutionCoordinator().decide(
+            profile: hybridProfile,
+            capabilities: HybridExecutionCapabilities(
+                localAvailable: localAvailable,
+                cloudAvailable: true,
+                requiresCloudTool: multiModelEnabled,
+                contextFitsLocally: content.count < 32_000
+            )
+        )
+        switch decision {
+        case .cloud:
+            executionLabel = "Cloud"
+            await runMemoryGroundedSend(content: content)
+        case .unavailable(let message):
+            phase = .failed(message: message)
+            setMascot(.idle)
+        case .local:
+            guard let localExecutor else {
+                phase = .failed(message: "No local model is configured.")
+                return
+            }
+            do {
+                phase = .streaming
+                pendingAssistant = ""
+                displayedAssistant = ""
+                pendingSources = []
+                let prompt: [ChatMessage]
+                var prepared: ConversationPrepareResponse?
+                if hybridProfile == .private {
+                    prompt = messages.map { ChatMessage(role: $0.role.rawValue, content: $0.content) }
+                } else {
+                    let id = try await ensureConversation()
+                    let response = try await conversationsClient.prepare(
+                        conversationID: id,
+                        request: ConversationPrepareRequest(content: content)
+                    )
+                    prepared = response
+                    prompt = response.messages
+                    pendingSources = response.sources
+                }
+                executionLabel = hybridProfile == .private
+                    ? "Private · \(localExecutor.displayName) · \(localExecutor.modelID)"
+                    : "Local · \(localExecutor.displayName) · \(localExecutor.modelID)"
+                for try await delta in localExecutor.stream(messages: prompt) {
+                    pendingAssistant.append(delta)
+                    startTypewriter()
+                }
+                await drainTypewriter()
+                if let prepared, let id = conversationID {
+                    _ = try await conversationsClient.commit(
+                        conversationID: id,
+                        request: ConversationCommitRequest(
+                            executionID: prepared.executionID,
+                            content: pendingAssistant,
+                            location: .localEndpoint,
+                            provider: localExecutor.displayName,
+                            model: localExecutor.modelID
+                        )
+                    )
+                }
+                finalizeAssistantTurn()
+                phase = .idle
+                flashHappyThenIdle()
+            } catch is CancellationError {
+                drainTypewriterNow()
+                phase = .idle
+                setMascot(.idle)
+            } catch {
+                drainTypewriterNow()
+                phase = .failed(message: friendlyError(error))
+                setMascot(.idle)
+            }
         }
     }
 
@@ -624,7 +709,11 @@ final class ChatViewModel {
 
     /// Cycle the transport. Used by the toolbar toggle.
     func toggleTransport() {
-        transport = transport == .memoryGrounded ? .fresh : .memoryGrounded
+        switch transport {
+        case .memoryGrounded: transport = .fresh
+        case .fresh: transport = .hybrid
+        case .hybrid: transport = .memoryGrounded
+        }
         schedulePersist()
     }
 

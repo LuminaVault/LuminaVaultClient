@@ -162,13 +162,15 @@ struct ThinkWithLuminaView: View {
         switch chatVM.transport {
         case .memoryGrounded: "brain.head.profile"
         case .fresh: "cloud"
+        case .hybrid: "point.3.connected.trianglepath.dotted"
         }
     }
 
     private var transportAccessibilityLabel: String {
         switch chatVM.transport {
         case .memoryGrounded: "Memory-grounded mode. Tap to switch to fresh Hermes."
-        case .fresh: "Fresh Hermes mode. Tap to switch to memory-grounded."
+        case .fresh: "Fresh Hermes mode. Tap to switch to hybrid execution."
+        case .hybrid: "Hybrid local and cloud mode. Tap to switch to memory-grounded."
         }
     }
 }

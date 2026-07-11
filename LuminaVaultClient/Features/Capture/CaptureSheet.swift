@@ -13,12 +13,17 @@ struct CaptureSheet: View {
         case photo
         case text
         case url
-        var id: String { rawValue }
+        case files
+        var id: String {
+            rawValue
+        }
+
         var label: String {
             switch self {
             case .photo: return "Photos"
             case .text: return "Text"
             case .url: return "Link"
+            case .files: return "Files"
             }
         }
     }
@@ -41,15 +46,18 @@ struct CaptureSheet: View {
     private let photoViewModel: CapturePhotosViewModel
     private let textViewModel: TextCaptureViewModel
     private let urlViewModel: URLCaptureViewModel
+    private let multimodalViewModel: MultimodalCaptureViewModel
 
     init(
         photoViewModel: CapturePhotosViewModel,
         textViewModel: TextCaptureViewModel,
-        urlViewModel: URLCaptureViewModel
+        urlViewModel: URLCaptureViewModel,
+        multimodalViewModel: MultimodalCaptureViewModel
     ) {
         self.photoViewModel = photoViewModel
         self.textViewModel = textViewModel
         self.urlViewModel = urlViewModel
+        self.multimodalViewModel = multimodalViewModel
     }
 
     var body: some View {
@@ -78,6 +86,9 @@ struct CaptureSheet: View {
                             .transition(modeTransition)
                     case .url:
                         URLCaptureView(viewModel: urlViewModel)
+                            .transition(modeTransition)
+                    case .files:
+                        MultimodalCaptureView(viewModel: multimodalViewModel)
                             .transition(modeTransition)
                     }
                 }
@@ -127,7 +138,9 @@ struct CaptureSheet: View {
                 onSave: {
                     Task {
                         await textViewModel.save()
-                        if textViewModel.toast != nil { dismiss() }
+                        if textViewModel.toast != nil {
+                            dismiss()
+                        }
                     }
                 }
             )
@@ -139,7 +152,24 @@ struct CaptureSheet: View {
                 onSave: {
                     Task {
                         await urlViewModel.save()
-                        if urlViewModel.toast != nil { dismiss() }
+                        if urlViewModel.toast != nil {
+                            dismiss()
+                        }
+                    }
+                }
+            )
+        case .files:
+            LVCaptureToolbar(
+                canSave: multimodalViewModel.canSave,
+                saving: multimodalViewModel.saving,
+                saveLabel: "Save to vault",
+                onCancel: { dismiss() },
+                onSave: {
+                    Task {
+                        await multimodalViewModel.save()
+                        if multimodalViewModel.errorMessage == nil {
+                            dismiss()
+                        }
                     }
                 }
             )

@@ -11,19 +11,19 @@ struct AnalyticsDashboardScreen: View {
     // HER-248 — passed to the Patterns section so insight cards can push
     // the shared detail screen.
     private let httpClient: BaseHTTPClient
+    private let onOpenRecommendation: (String) -> Void
 
-    init(httpClient: BaseHTTPClient) {
+    init(httpClient: BaseHTTPClient, onOpenRecommendation: @escaping (String) -> Void = { _ in }) {
         self.httpClient = httpClient
+        self.onOpenRecommendation = onOpenRecommendation
         _viewModel = State(initialValue: AnalyticsDashboardViewModel(
-            health: LiveHealthDashboardEndpointsExecutor(httpClient: httpClient),
             analytics: AnalyticsHTTPClient(client: httpClient),
-            achievements: AchievementsHTTPClient(client: httpClient),
-            billing: BillingHTTPClient(client: httpClient),
             insights: InsightsHTTPClient(client: httpClient),
         ))
     }
 
     var body: some View {
-        AnalyticsDashboardView(vm: viewModel, httpClient: httpClient)
+        AnalyticsDashboardView(vm: viewModel, httpClient: httpClient,
+                               onOpenRecommendation: onOpenRecommendation)
     }
 }

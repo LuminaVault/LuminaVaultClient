@@ -18,6 +18,10 @@ typealias ConversationCreateRequest = LuminaVaultShared.ConversationCreateReques
 typealias ConversationListResponse = LuminaVaultShared.ConversationListResponse
 typealias ConversationDetailResponse = LuminaVaultShared.ConversationDetailResponse
 typealias MessageStreamRequest = LuminaVaultShared.MessageStreamRequest
+typealias ConversationPrepareRequest = LuminaVaultShared.ConversationPrepareRequest
+typealias ConversationPrepareResponse = LuminaVaultShared.ConversationPrepareResponse
+typealias ConversationCommitRequest = LuminaVaultShared.ConversationCommitRequest
+typealias ConversationCommitResponse = LuminaVaultShared.ConversationCommitResponse
 typealias QueryStreamEvent = LuminaVaultShared.QueryStreamEvent
 // QueryHitDTO is aliased in API/Memory/MemoryQueryModels.swift — used
 // transitively here via QueryStreamEvent.source(QueryHitDTO).

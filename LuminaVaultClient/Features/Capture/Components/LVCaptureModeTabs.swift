@@ -84,6 +84,7 @@ extension CaptureSheet.Mode {
         case .photo: return .photoOnRectangleAngled
         case .text:  return .docText
         case .url:   return .linkCircle
+        case .files: return .docText
         }
     }
 }

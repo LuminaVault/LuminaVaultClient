@@ -6,24 +6,10 @@
 // client/server boundary rule).
 
 import Foundation
+import LuminaVaultShared
 
-/// Time window applied uniformly to every trend series on the dashboard.
-enum AnalyticsRange: String, CaseIterable, Identifiable, Sendable {
-    case week
-    case month
-    case quarter
-
-    var id: String { rawValue }
-
-    /// Number of trailing days requested from each time-series endpoint.
-    var days: Int {
-        switch self {
-        case .week: 7
-        case .month: 30
-        case .quarter: 90
-        }
-    }
-
+extension AnalyticsRange: @retroactive Identifiable {
+    public var id: String { rawValue }
     /// Short label for the segmented range picker.
     var title: String {
         switch self {
