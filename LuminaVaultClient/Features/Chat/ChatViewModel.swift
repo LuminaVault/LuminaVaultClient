@@ -540,7 +540,7 @@ final class ChatViewModel {
                 pendingAssistant = ""
                 displayedAssistant = ""
                 pendingSources = []
-                let prompt: [ChatMessage]
+                var prompt: [ChatMessage]
                 if hybridProfile == .private {
                     prompt = messages.map { ChatMessage(role: $0.role.rawValue, content: $0.content) }
                 } else {
