@@ -9,7 +9,9 @@ import LuminaVaultShared
 final class PluginsHTTPClient: PluginsClientProtocol {
     private let client: BaseHTTPClient
 
-    init(client: BaseHTTPClient) { self.client = client }
+    init(client: BaseHTTPClient) {
+        self.client = client
+    }
 
     func catalog(category: PluginCategory?) async throws -> PluginCatalogListResponse {
         try await client.execute(PluginsEndpoints.Catalog(category: category))
@@ -53,5 +55,25 @@ final class PluginsHTTPClient: PluginsClientProtocol {
 
     func sync(_ id: UUID) async throws -> PluginSyncResponse {
         try await client.execute(PluginsEndpoints.Sync(id: id))
+    }
+
+    func marketplace(query: String?, category: PluginCategory?) async throws -> MarketplaceListResponse {
+        try await client.execute(PluginsEndpoints.Marketplace(query: query, category: category))
+    }
+
+    func marketplaceDetail(slug: String) async throws -> MarketplacePluginDTO {
+        try await client.execute(PluginsEndpoints.MarketplaceDetail(slug: slug))
+    }
+
+    func marketplaceReviews(slug: String) async throws -> MarketplaceReviewsResponse {
+        try await client.execute(PluginsEndpoints.MarketplaceReviews(slug: slug))
+    }
+
+    func installMarketplace(slug: String, request: MarketplaceInstallRequest) async throws -> PluginInstallDTO {
+        try await client.execute(PluginsEndpoints.MarketplaceInstall(slug: slug, request: request))
+    }
+
+    func rateMarketplace(slug: String, request: MarketplaceRatingRequest) async throws -> MarketplaceReviewDTO {
+        try await client.execute(PluginsEndpoints.MarketplaceRating(slug: slug, request: request))
     }
 }

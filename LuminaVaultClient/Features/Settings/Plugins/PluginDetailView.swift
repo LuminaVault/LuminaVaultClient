@@ -15,10 +15,10 @@ struct PluginDetailView: View {
         entry: PluginCatalogEntryDTO,
         install: PluginInstallDTO?,
         client: any PluginsClientProtocol,
-        onChange: @escaping () async -> Void,
+        onChange: @escaping () async -> Void
     ) {
         _viewModel = State(initialValue: PluginDetailViewModel(
-            entry: entry, install: install, client: client, onChange: onChange,
+            entry: entry, install: install, client: client, onChange: onChange
         ))
     }
 
@@ -67,7 +67,7 @@ struct PluginDetailView: View {
     private func fieldEditor(_ field: PluginConfigField) -> some View {
         let binding = Binding(
             get: { viewModel.values[field.key] ?? "" },
-            set: { viewModel.values[field.key] = $0 },
+            set: { viewModel.values[field.key] = $0 }
         )
         VStack(alignment: .leading, spacing: 4) {
             Text(field.label).font(.caption).foregroundStyle(.secondary)
@@ -90,7 +90,6 @@ struct PluginDetailView: View {
         .padding(.vertical, 2)
     }
 
-    @ViewBuilder
     private var actionSection: some View {
         Section {
             Button(viewModel.isInstalled ? "Save config" : "Install") {
@@ -101,12 +100,11 @@ struct PluginDetailView: View {
         }
     }
 
-    @ViewBuilder
     private var manageSection: some View {
         Section("Manage") {
             Toggle("Enabled", isOn: Binding(
                 get: { viewModel.isEnabled },
-                set: { newValue in Task { await viewModel.setEnabled(newValue) } },
+                set: { newValue in Task { await viewModel.setEnabled(newValue) } }
             ))
 
             if viewModel.entry.capabilityKind == .connector {
@@ -126,7 +124,7 @@ struct PluginDetailView: View {
         .confirmationDialog(
             "Uninstall \(viewModel.entry.name)?",
             isPresented: $showUninstallConfirm,
-            titleVisibility: .visible,
+            titleVisibility: .visible
         ) {
             Button("Uninstall", role: .destructive) {
                 Task { await viewModel.uninstall() }

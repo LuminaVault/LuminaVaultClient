@@ -79,7 +79,9 @@ struct TeamVaultManagementView: View {
             ) {
                 Button("Archive for 30 days", role: .destructive) {
                     Task {
-                        if await viewModel.archiveSelectedTeam() { dismiss() }
+                        if await viewModel.archiveSelectedTeam() {
+                            dismiss()
+                        }
                     }
                 }
             } message: {

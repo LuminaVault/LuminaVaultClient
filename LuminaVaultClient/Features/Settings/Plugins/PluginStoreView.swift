@@ -22,6 +22,24 @@ struct PluginStoreView: View {
                 Section { ProgressView().frame(maxWidth: .infinity) }
             case let .loaded(catalog, installsBySlug, hermesSkills):
                 let visible = filtered(catalog)
+                let marketplace = filteredMarketplace(viewModel.marketplace)
+
+                if !marketplace.isEmpty {
+                    Section("Marketplace") {
+                        ForEach(marketplace) { plugin in
+                            NavigationLink {
+                                MarketplacePluginDetailView(
+                                    plugin: plugin,
+                                    install: installsBySlug[plugin.slug],
+                                    client: client,
+                                    onChange: { await viewModel.refresh() }
+                                )
+                            } label: {
+                                marketplaceRow(plugin, install: installsBySlug[plugin.slug])
+                            }
+                        }
+                    }
+                }
 
                 if !viewModel.featured.isEmpty, viewModel.searchText.isEmpty {
                     Section("Featured") {
@@ -31,7 +49,7 @@ struct PluginStoreView: View {
                     }
                 }
 
-                if visible.isEmpty {
+                if visible.isEmpty, marketplace.isEmpty {
                     Section {
                         Text(viewModel.searchText.isEmpty
                             ? "No plugins available yet."
@@ -76,7 +94,7 @@ struct PluginStoreView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(
             text: Binding(get: { viewModel.searchText }, set: { viewModel.searchText = $0 }),
-            prompt: "Search plugins",
+            prompt: "Search plugins"
         )
         .task { await viewModel.load() }
         .refreshable { await viewModel.refresh() }
@@ -104,21 +122,59 @@ struct PluginStoreView: View {
         return entries.filter { $0.name.lowercased().contains(q) || $0.summary.lowercased().contains(q) }
     }
 
-    @ViewBuilder
+    private func filteredMarketplace(_ entries: [MarketplacePluginDTO]) -> [MarketplacePluginDTO] {
+        let query = viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return entries }
+        return entries.filter { $0.name.localizedStandardContains(query) || $0.summary.localizedStandardContains(query) }
+    }
+
+    private func marketplaceRow(_ plugin: MarketplacePluginDTO, install: PluginInstallDTO?) -> some View {
+        HStack(spacing: 12) {
+            AsyncImage(url: plugin.iconURL.flatMap(URL.init(string:))) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                Image(systemName: "shippingbox.fill").foregroundStyle(.tint)
+            }
+            .frame(width: 36, height: 36)
+            .clipShape(.rect(cornerRadius: 9))
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 5) {
+                    Text(plugin.name)
+                    if plugin.publisher.verified {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundStyle(.blue)
+                            .accessibilityLabel("Verified publisher")
+                    }
+                }
+                Text(plugin.summary).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                Label(
+                    plugin.ratingCount == 0 ? "No ratings" : "\(plugin.ratingAverage.formatted(.number.precision(.fractionLength(1)))) from \(plugin.ratingCount)",
+                    systemImage: "star.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if install != nil {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).accessibilityLabel("Installed")
+            }
+        }
+        .padding(.vertical, 3)
+    }
+
     private func catalogLink(_ entry: PluginCatalogEntryDTO, _ installsBySlug: [String: PluginInstallDTO]) -> some View {
         NavigationLink {
             PluginDetailView(
                 entry: entry,
                 install: installsBySlug[entry.slug],
                 client: client,
-                onChange: { await viewModel.refresh() },
+                onChange: { await viewModel.refresh() }
             )
         } label: {
             row(for: entry, install: installsBySlug[entry.slug])
         }
     }
 
-    @ViewBuilder
     private func row(for entry: PluginCatalogEntryDTO, install: PluginInstallDTO?) -> some View {
         HStack {
             Image(systemName: "puzzlepiece.extension.fill")
@@ -155,7 +211,6 @@ struct PluginStoreView: View {
     }
 
     /// Read-only row for a skill installed in the tenant's Hermes agent.
-    @ViewBuilder
     private func hermesRow(for entry: PluginCatalogEntryDTO) -> some View {
         HStack {
             Image(systemName: "bolt.horizontal.circle.fill")
@@ -177,7 +232,7 @@ struct PluginStoreView: View {
     private var hubInstallField: some View {
         let text = Binding(
             get: { viewModel.hubInstallText },
-            set: { viewModel.hubInstallText = $0 },
+            set: { viewModel.hubInstallText = $0 }
         )
         VStack(alignment: .leading, spacing: 8) {
             HStack {

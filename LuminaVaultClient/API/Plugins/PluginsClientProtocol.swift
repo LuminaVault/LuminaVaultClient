@@ -27,4 +27,9 @@ protocol PluginsClientProtocol: Sendable {
     func update(_ id: UUID, _ body: UpdatePluginInstallRequest) async throws -> PluginInstallDTO
     func uninstall(_ id: UUID) async throws
     func sync(_ id: UUID) async throws -> PluginSyncResponse
+    func marketplace(query: String?, category: PluginCategory?) async throws -> MarketplaceListResponse
+    func marketplaceDetail(slug: String) async throws -> MarketplacePluginDTO
+    func marketplaceReviews(slug: String) async throws -> MarketplaceReviewsResponse
+    func installMarketplace(slug: String, request: MarketplaceInstallRequest) async throws -> PluginInstallDTO
+    func rateMarketplace(slug: String, request: MarketplaceRatingRequest) async throws -> MarketplaceReviewDTO
 }

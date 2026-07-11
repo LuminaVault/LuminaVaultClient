@@ -50,7 +50,8 @@ final class KanbanBoardViewModel {
                 let current = self.board
                 guard let current else { continue }
                 if let v = try? await self.client.version(self.boardID),
-                   v.version != current.version {
+                   v.version != current.version
+                {
                     await self.load()
                 }
             }
@@ -67,6 +68,7 @@ final class KanbanBoardViewModel {
             board = try await client.createColumn(boardID: boardID, title: title)
         } catch {
             lastError = errorText(error)
+            await load()
         }
     }
 
@@ -75,6 +77,7 @@ final class KanbanBoardViewModel {
             board = try await client.patchColumn(boardID: boardID, columnID: id, title: title)
         } catch {
             lastError = errorText(error)
+            await load()
         }
     }
 
@@ -83,6 +86,7 @@ final class KanbanBoardViewModel {
             board = try await client.deleteColumn(boardID: boardID, columnID: id)
         } catch {
             lastError = errorText(error)
+            await load()
         }
     }
 

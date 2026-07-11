@@ -26,6 +26,7 @@ final class PluginStoreViewModel {
     var featured: [PluginCatalogEntryDTO] = []
     var premiumSlugs: Set<String> = []
     var searchText: String = ""
+    var marketplace: [MarketplacePluginDTO] = []
 
     // HER-43 Slice 5 — Hermes Hub install field + in-flight/error feedback.
     var hubInstallText: String = ""
@@ -49,23 +50,27 @@ final class PluginStoreViewModel {
             // Curation (best-effort): empty/unbadged if these fail.
             async let featuredTask = try? client.featuredPlugins()
             async let premiumTask = try? client.premiumPlugins()
-            let (catalog, installs, hermes, featured, premium) = try await (
-                catalogTask, installsTask, hermesTask, featuredTask, premiumTask,
+            async let marketplaceTask = try? client.marketplace(query: nil, category: nil)
+            let (catalog, installs, hermes, featured, premium, marketplace) = try await (
+                catalogTask, installsTask, hermesTask, featuredTask, premiumTask, marketplaceTask
             )
             let bySlug = Dictionary(installs.items.map { ($0.pluginSlug, $0) }, uniquingKeysWith: { first, _ in first })
             self.featured = featured?.items ?? []
             premiumSlugs = Set((premium?.items ?? []).map(\.slug))
+            self.marketplace = marketplace?.items ?? []
             state = .loaded(
                 catalog: catalog.items,
                 installsBySlug: bySlug,
-                hermesSkills: hermes?.items ?? [],
+                hermesSkills: hermes?.items ?? []
             )
         } catch {
             state = .error(message: Self.errorMessage(error))
         }
     }
 
-    func refresh() async { await load() }
+    func refresh() async {
+        await load()
+    }
 
     // MARK: - Hermes Hub install/uninstall (Slice 5)
 

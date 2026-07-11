@@ -32,7 +32,7 @@ final class PluginDetailViewModel {
         entry: PluginCatalogEntryDTO,
         install: PluginInstallDTO?,
         client: any PluginsClientProtocol,
-        onChange: @escaping () async -> Void,
+        onChange: @escaping () async -> Void
     ) {
         self.entry = entry
         self.install = install
@@ -41,8 +41,13 @@ final class PluginDetailViewModel {
         values = Dictionary(uniqueKeysWithValues: entry.configFields.map { ($0.key, "") })
     }
 
-    var isInstalled: Bool { install != nil }
-    var isEnabled: Bool { install?.status == .enabled }
+    var isInstalled: Bool {
+        install != nil
+    }
+
+    var isEnabled: Bool {
+        install?.status == .enabled
+    }
 
     // MARK: - Actions
 
@@ -87,7 +92,7 @@ final class PluginDetailViewModel {
         do {
             let dto = try await client.update(
                 install.id,
-                UpdatePluginInstallRequest(config: nil, status: enabled ? .enabled : .disabled),
+                UpdatePluginInstallRequest(config: nil, status: enabled ? .enabled : .disabled)
             )
             self.install = dto
             await onChange()
