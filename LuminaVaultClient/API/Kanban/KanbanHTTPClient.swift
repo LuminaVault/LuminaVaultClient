@@ -69,7 +69,7 @@ final class KanbanHTTPClient: KanbanClientProtocol {
 
     func patchCard(cardID: UUID, _ req: CardPatchRequest) async throws -> CardDTO {
         let boardID = await versions.boardID(cardID: cardID)
-        let expected = if let boardID {
+        let expected: Int64? = if let boardID {
             await versions.version(boardID: boardID)
         } else {
             nil
@@ -86,7 +86,7 @@ final class KanbanHTTPClient: KanbanClientProtocol {
 
     func deleteCard(cardID: UUID) async throws {
         let boardID = await versions.boardID(cardID: cardID)
-        let expected = if let boardID {
+        let expected: Int64? = if let boardID {
             await versions.version(boardID: boardID)
         } else {
             nil
@@ -102,7 +102,7 @@ final class KanbanHTTPClient: KanbanClientProtocol {
 
     func moveCard(cardID: UUID, _ req: CardMoveRequest) async throws -> CardDTO {
         let boardID = await versions.boardID(cardID: cardID)
-        let expected = if let boardID {
+        let expected: Int64? = if let boardID {
             await versions.version(boardID: boardID)
         } else {
             nil
@@ -119,7 +119,7 @@ final class KanbanHTTPClient: KanbanClientProtocol {
 
     func promoteCard(cardID: UUID, _ req: CardPromoteRequest) async throws -> SkillDTO {
         let boardID = await versions.boardID(cardID: cardID)
-        let expected = if let boardID {
+        let expected: Int64? = if let boardID {
             await versions.version(boardID: boardID)
         } else {
             nil
