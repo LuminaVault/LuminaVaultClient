@@ -38,9 +38,35 @@ final class KnowledgeReasoningViewModel {
         isReasoning = true
         errorMessage = nil
         explanation = nil
+        result = nil
         defer { isReasoning = false }
         do {
-            result = try await client.reason(query: value, maxDepth: 4, limit: 200)
+            var streamedAnswer = ""
+            for try await event in client.reasonStream(query: value, maxDepth: 4, limit: 200) {
+                switch event.type {
+                case "context", "suggestions", "result":
+                    if let response = event.response {
+                        result = response
+                        streamedAnswer = response.answer
+                    }
+                case "token":
+                    guard let token = event.message else { continue }
+                    streamedAnswer += token
+                    let context = result
+                    result = ReasoningQueryResponse(
+                        answer: streamedAnswer,
+                        paths: context?.paths ?? [],
+                        evidence: context?.evidence ?? [],
+                        confidence: context?.confidence ?? 0,
+                        caveats: context?.caveats ?? [],
+                        suggestions: context?.suggestions ?? []
+                    )
+                case "error":
+                    throw KnowledgeReasoningStreamError.server(event.message ?? "Reasoning failed")
+                default:
+                    continue
+                }
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -71,6 +97,16 @@ final class KnowledgeReasoningViewModel {
             )
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+}
+
+private enum KnowledgeReasoningStreamError: LocalizedError {
+    case server(String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .server(message): message
         }
     }
 }

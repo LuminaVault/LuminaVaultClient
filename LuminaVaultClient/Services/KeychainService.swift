@@ -16,17 +16,19 @@ final class KeychainService: Sendable {
     ) {
         self.service = service
         self.accessGroup = accessGroup?.isEmpty == false ? accessGroup : nil
-        self.inMemoryStore = inMemory ? InMemoryKeychainStore() : nil
+        inMemoryStore = inMemory ? InMemoryKeychainStore() : nil
     }
 
     var accessToken: String? {
         get { read(key: "accessToken") }
         set { write(key: "accessToken", value: newValue) }
     }
+
     var refreshToken: String? {
         get { read(key: "refreshToken") }
         set { write(key: "refreshToken", value: newValue) }
     }
+
     var biometricsEnabled: Bool {
         get { read(key: "biometricsEnabled") == "1" }
         set { write(key: "biometricsEnabled", value: newValue ? "1" : nil) }
@@ -45,6 +47,17 @@ final class KeychainService: Sendable {
         set { write(key: "localEndpointAPIKey", value: newValue) }
     }
 
+    var localMemoryCacheKey: Data {
+        if let encoded = read(key: "localMemoryCacheKey"), let data = Data(base64Encoded: encoded) {
+            return data
+        }
+        var bytes = [UInt8](repeating: 0, count: 32)
+        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        let data = Data(bytes)
+        write(key: "localMemoryCacheKey", value: data.base64EncodedString())
+        return data
+    }
+
     // HER-209: persist Apple's `user` identifier so we can poll
     // `ASAuthorizationAppleIDProvider.getCredentialState(forUserID:)` on
     // launch/foreground and sign out on `.revoked`.
@@ -53,14 +66,15 @@ final class KeychainService: Sendable {
         set { write(key: "appleUserId", value: newValue) }
     }
 
-    // Apple returns `fullName` only on the FIRST sign-up. Stash the JSON-
-    // encoded `PersonNameComponents` so subsequent sign-ins don't drop the
-    // user's display name.
+    /// Apple returns `fullName` only on the FIRST sign-up. Stash the JSON-
+    /// encoded `PersonNameComponents` so subsequent sign-ins don't drop the
+    /// user's display name.
     var appleFullName: PersonNameComponents? {
         get {
             guard let raw = read(key: "appleFullName"),
                   let data = raw.data(using: .utf8),
-                  let decoded = try? JSONDecoder().decode(PersonNameComponents.self, from: data) else {
+                  let decoded = try? JSONDecoder().decode(PersonNameComponents.self, from: data)
+            else {
                 return nil
             }
             return decoded
@@ -68,7 +82,8 @@ final class KeychainService: Sendable {
         set {
             guard let newValue,
                   let data = try? JSONEncoder().encode(newValue),
-                  let string = String(data: data, encoding: .utf8) else {
+                  let string = String(data: data, encoding: .utf8)
+            else {
                 write(key: "appleFullName", value: nil)
                 return
             }
@@ -84,6 +99,7 @@ final class KeychainService: Sendable {
             "appleUserId",
             "appleFullName",
             "localEndpointAPIKey",
+            "localMemoryCacheKey",
         ].forEach { write(key: $0, value: nil) }
     }
 
@@ -97,7 +113,7 @@ final class KeychainService: Sendable {
         var query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
-            kSecAttrAccount: account
+            kSecAttrAccount: account,
         ]
         if let accessGroup {
             query[kSecAttrAccessGroup] = accessGroup
@@ -120,7 +136,7 @@ final class KeychainService: Sendable {
             kSecAttrService: service,
             kSecAttrAccount: account,
             kSecReturnData: true,
-            kSecMatchLimit: kSecMatchLimitOne
+            kSecMatchLimit: kSecMatchLimitOne,
         ]
         if let accessGroup {
             query[kSecAttrAccessGroup] = accessGroup
@@ -132,8 +148,8 @@ final class KeychainService: Sendable {
     }
 }
 
-// Test-only backing store for simulator environments where unsigned unit-test
-// bundles cannot write to Security.framework keychain items.
+/// Test-only backing store for simulator environments where unsigned unit-test
+/// bundles cannot write to Security.framework keychain items.
 private final class InMemoryKeychainStore: @unchecked Sendable {
     private let lock = NSLock()
     private var values: [String: String] = [:]

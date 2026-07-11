@@ -168,7 +168,8 @@ struct SettingsRootView: View {
                                 LLMPreferencesPaneView(
                                     client: llmPreferencesClient,
                                     providersClient: providersClient,
-                                    routerClient: routerClient
+                                    routerClient: routerClient,
+                                    hybridClient: chatExperienceClient
                                 )
                             }
                             LVSettingsDivider()
@@ -277,7 +278,7 @@ struct SettingsRootView: View {
         APNSPrefsHTTPClient(client: appState.makeHTTPClient())
     }
 
-    // HER-330 — owner-only Hermes self-update client.
+    /// HER-330 — owner-only Hermes self-update client.
     private var systemHermesClient: SystemHermesHTTPClient {
         SystemHermesHTTPClient(client: appState.makeHTTPClient())
     }
@@ -342,7 +343,7 @@ struct SettingsRootView: View {
         IntegrationsHTTPClient(client: appState.makeHTTPClient())
     }
 
-    // HER-252 — per-user LLM provider credentials + routing preferences.
+    /// HER-252 — per-user LLM provider credentials + routing preferences.
     private var providersClient: any ProvidersClientProtocol {
         ProvidersHTTPClient(client: appState.makeHTTPClient())
     }
@@ -363,12 +364,12 @@ struct SettingsRootView: View {
         ConnectionsHTTPClient(client: appState.makeHTTPClient())
     }
 
-    // HER-241 — per-user Hermes messaging gateway configurator.
+    /// HER-241 — per-user Hermes messaging gateway configurator.
     private var hermesGatewaysClient: any HermesGatewaysClientProtocol {
         HermesGatewaysHTTPClient(client: appState.makeHTTPClient())
     }
 
-    // HER-43 — declarative plugin foundation (catalog + installs + sync).
+    /// HER-43 — declarative plugin foundation (catalog + installs + sync).
     private var pluginsClient: any PluginsClientProtocol {
         PluginsHTTPClient(client: appState.makeHTTPClient())
     }
@@ -379,7 +380,8 @@ struct SettingsRootView: View {
             return AnyView(LLMPreferencesPaneView(
                 client: llmPreferencesClient,
                 providersClient: providersClient,
-                routerClient: routerClient
+                routerClient: routerClient,
+                hybridClient: chatExperienceClient
             ))
         case .configureHermes?:
             return AnyView(HermesGatewayPaneView(client: settingsClient))

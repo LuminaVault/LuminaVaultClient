@@ -10,6 +10,7 @@ final class HybridExecutionSettingsStore {
     var endpointURL: String
     var model: String
     var apiKey: String
+    var useAppleOnDeviceModel: Bool
 
     init(defaults: UserDefaults = .standard, keychain: KeychainService = .shared) {
         profile = HybridExecutionProfile(rawValue: defaults.string(forKey: "hybrid.profile") ?? "") ?? .quality
@@ -17,6 +18,7 @@ final class HybridExecutionSettingsStore {
         endpointURL = defaults.string(forKey: "hybrid.endpointURL") ?? "http://127.0.0.1:11434"
         model = defaults.string(forKey: "hybrid.model") ?? "qwen3:0.6b"
         apiKey = keychain.localEndpointAPIKey ?? ""
+        useAppleOnDeviceModel = defaults.bool(forKey: "hybrid.useAppleOnDeviceModel")
     }
 
     var configuration: LocalEndpointConfiguration? {
@@ -31,5 +33,21 @@ final class HybridExecutionSettingsStore {
         defaults.set(endpointURL, forKey: "hybrid.endpointURL")
         defaults.set(model, forKey: "hybrid.model")
         keychain.localEndpointAPIKey = apiKey.isEmpty ? nil : apiKey
+        defaults.set(useAppleOnDeviceModel, forKey: "hybrid.useAppleOnDeviceModel")
+    }
+
+    func loadCrossDevicePreferences(using client: any ChatExperienceClientProtocol) async {
+        guard let preferences = try? await client.getHybridPreferences() else { return }
+        profile = preferences.profile
+    }
+
+    func saveCrossDevicePreferences(using client: any ChatExperienceClientProtocol) async {
+        let preferences = HybridRoutingPreferencesDTO(
+            profile: profile,
+            localFallbackEnabled: true,
+            cloudFallbackEnabled: profile != .private,
+            syncLocalConversations: profile != .private
+        )
+        _ = try? await client.putHybridPreferences(preferences)
     }
 }

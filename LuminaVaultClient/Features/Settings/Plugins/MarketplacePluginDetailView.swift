@@ -89,6 +89,12 @@ struct MarketplacePluginDetailView: View {
                     Task { await viewModel.installPlugin() }
                 }
                 .disabled(!viewModel.hasAllPermissions || viewModel.state == .working)
+                if viewModel.install != nil {
+                    Button("Uninstall", role: .destructive) {
+                        Task { await viewModel.uninstallPlugin() }
+                    }
+                    .disabled(viewModel.state == .working)
+                }
             }
 
             switch viewModel.state {
@@ -103,6 +109,18 @@ struct MarketplacePluginDetailView: View {
             }
 
             Section("Reviews") {
+                if viewModel.install != nil {
+                    Stepper("Your rating: \(viewModel.rating) of 5", value: $viewModel.rating, in: 1 ... 5)
+                    TextField("Share your experience", text: $viewModel.reviewBody, axis: .vertical)
+                        .lineLimit(3 ... 6)
+                    Button("Save review") {
+                        Task { await viewModel.submitRating() }
+                    }
+                    .disabled(viewModel.state == .working)
+                }
+                if let reviewsError = viewModel.reviewsError {
+                    Text(reviewsError).foregroundStyle(.secondary)
+                }
                 if viewModel.reviews.isEmpty {
                     ContentUnavailableView("No reviews yet", systemImage: "star")
                 } else {

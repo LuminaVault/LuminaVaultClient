@@ -59,6 +59,20 @@ struct MultimodalCaptureView: View {
                                 if let error = item.error {
                                     Text(error).font(.caption).foregroundStyle(.red)
                                 }
+                                HStack {
+                                    if item.state == .failed || item.state == .blockedCapability {
+                                        Button("Retry", systemImage: "arrow.clockwise") {
+                                            Task { await viewModel.retry(itemID: item.id) }
+                                        }
+                                        .buttonStyle(.bordered)
+                                    }
+                                    if item.state != .completed && item.state != .cancelled {
+                                        Button("Cancel", role: .destructive) {
+                                            Task { await viewModel.cancel(itemID: item.id) }
+                                        }
+                                        .buttonStyle(.bordered)
+                                    }
+                                }
                             }
                             .padding()
                             .background(.thinMaterial, in: .rect(cornerRadius: LVRadius.card))
@@ -76,6 +90,9 @@ struct MultimodalCaptureView: View {
             if case let .success(urls) = result {
                 viewModel.add(urls)
             }
+        }
+        .task(id: viewModel.latestBatch?.id) {
+            await viewModel.monitorStatus()
         }
     }
 }

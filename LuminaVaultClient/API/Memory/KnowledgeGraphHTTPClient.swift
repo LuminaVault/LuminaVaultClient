@@ -18,6 +18,16 @@ final class KnowledgeGraphHTTPClient: KnowledgeGraphClientProtocol {
         ))
     }
 
+    func reasonStream(
+        query: String,
+        maxDepth: Int,
+        limit: Int
+    ) -> AsyncThrowingStream<ReasoningStreamEventDTO, any Error> {
+        client.executeStreamWithRefresh(KnowledgeGraphEndpoints.ReasonStream(
+            request: ReasoningQueryRequest(query: query, maxDepth: maxDepth, limit: limit)
+        ))
+    }
+
     func explain(from: UUID, to: UUID, maxDepth: Int) async throws -> ConnectionExplanationResponse {
         try await client.execute(KnowledgeGraphEndpoints.Explain(
             request: ConnectionExplanationRequest(fromNodeID: from, toNodeID: to, maxDepth: maxDepth)

@@ -89,6 +89,38 @@ enum TeamEndpoints {
         }
     }
 
+    struct Invitations: Endpoint {
+        typealias Response = [TeamInvitationSummary]
+        let teamID: UUID
+        var path: String {
+            "/v1/teams/\(teamID)/invitations"
+        }
+
+        let method = HTTPMethod.get
+    }
+
+    struct ResendInvitation: Endpoint {
+        typealias Response = TeamInvitationSummary
+        let teamID: UUID
+        let invitationID: UUID
+        var path: String {
+            "/v1/teams/\(teamID)/invitations/\(invitationID)/resend"
+        }
+
+        let method = HTTPMethod.post
+    }
+
+    struct RevokeInvitation: Endpoint {
+        typealias Response = EmptyResponse
+        let teamID: UUID
+        let invitationID: UUID
+        var path: String {
+            "/v1/teams/\(teamID)/invitations/\(invitationID)"
+        }
+
+        let method = HTTPMethod.delete
+    }
+
     struct Activity: Endpoint {
         typealias Response = [VaultActivitySummary]
         let vaultID: UUID

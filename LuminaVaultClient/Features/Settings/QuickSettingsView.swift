@@ -108,7 +108,8 @@ struct QuickSettingsView: View {
         LLMPreferencesPaneView(
             client: LLMPreferencesHTTPClient(client: appState.makeHTTPClient()),
             providersClient: ProvidersHTTPClient(client: appState.makeHTTPClient()),
-            routerClient: RouterHTTPClient(client: appState.makeHTTPClient())
+            routerClient: RouterHTTPClient(client: appState.makeHTTPClient()),
+            hybridClient: ChatExperienceHTTPClient(client: appState.makeHTTPClient())
         )
     }
 

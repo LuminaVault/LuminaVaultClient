@@ -132,7 +132,7 @@ final class MemoryBrowserViewModel {
         isLoadingDetails = true
         defer { isLoadingDetails = false }
         async let provenance = try? client.provenance(id: memory.id)
-        let loadedCatalog: RouterModelCatalogResponse?
+        let loadedCatalog: RouterCatalogResponse?
         if let routerClient {
             loadedCatalog = try? await routerClient.catalog()
         } else {

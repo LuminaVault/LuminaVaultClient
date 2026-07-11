@@ -16,6 +16,9 @@ final class MarketplacePluginDetailViewModel {
     var selectedPermissions: Set<PluginPermission> = []
     var values: [String: String]
     var reviews: [MarketplaceReviewDTO] = []
+    var rating = 5
+    var reviewBody = ""
+    var reviewsError: String?
     var state: State = .idle
 
     private let client: any PluginsClientProtocol
@@ -43,7 +46,12 @@ final class MarketplacePluginDetailViewModel {
     }
 
     func loadReviews() async {
-        reviews = (try? await client.marketplaceReviews(slug: plugin.slug).items) ?? []
+        do {
+            reviews = try await client.marketplaceReviews(slug: plugin.slug).items
+            reviewsError = nil
+        } catch {
+            reviewsError = "Reviews could not be loaded."
+        }
     }
 
     func installPlugin() async {
@@ -68,6 +76,40 @@ final class MarketplacePluginDetailViewModel {
                 )
             )
             state = .installed
+            await onChange()
+        } catch {
+            state = .error((error as? APIError)?.errorDescription ?? error.localizedDescription)
+        }
+    }
+
+    func submitRating() async {
+        guard install != nil else {
+            state = .error("Install this extension before rating it.")
+            return
+        }
+        state = .working
+        do {
+            let review = try await client.rateMarketplace(
+                slug: plugin.slug,
+                request: MarketplaceRatingRequest(rating: rating, body: reviewBody.isEmpty ? nil : reviewBody)
+            )
+            reviews.removeAll { $0.id == review.id }
+            reviews.insert(review, at: 0)
+            reviewBody = ""
+            state = .idle
+        } catch {
+            state = .error((error as? APIError)?.errorDescription ?? error.localizedDescription)
+        }
+    }
+
+    func uninstallPlugin() async {
+        guard let install else { return }
+        state = .working
+        do {
+            try await client.uninstall(install.id)
+            self.install = nil
+            selectedPermissions = []
+            state = .idle
             await onChange()
         } catch {
             state = .error((error as? APIError)?.errorDescription ?? error.localizedDescription)

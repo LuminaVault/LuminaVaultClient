@@ -31,6 +31,22 @@ enum KnowledgeGraphEndpoints {
         }
     }
 
+    struct ReasonStream: StreamingEndpoint {
+        typealias Event = ReasoningStreamEventDTO
+        let request: ReasoningQueryRequest
+        var path: String {
+            "/v1/knowledge/reason/stream"
+        }
+
+        var method: HTTPMethod {
+            .post
+        }
+
+        var body: (any Encodable & Sendable)? {
+            request
+        }
+    }
+
     struct Explain: Endpoint {
         typealias Response = ConnectionExplanationResponse
         let request: ConnectionExplanationRequest

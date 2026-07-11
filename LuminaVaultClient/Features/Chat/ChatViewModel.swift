@@ -37,7 +37,7 @@ final class ChatViewModel {
             role: ConversationMessageRole,
             content: String,
             sources: [QueryHitDTO] = [],
-            parallelExecutionID: UUID? = nil,
+            parallelExecutionID: UUID? = nil
         ) {
             self.id = id
             self.role = role
@@ -102,9 +102,9 @@ final class ChatViewModel {
     var hybridProfile: HybridExecutionProfile = .balanced
     private(set) var executionLabel: String?
 
-    // Chat preferences (server-backed `autoExpandThinking`/`sendOnReturn` +
-    // device-local `hapticsEnabled`), pushed in by `ThinkWithLuminaView` after
-    // fetching `/v1/me/chat-preferences`.
+    /// Chat preferences (server-backed `autoExpandThinking`/`sendOnReturn` +
+    /// device-local `hapticsEnabled`), pushed in by `ThinkWithLuminaView` after
+    /// fetching `/v1/me/chat-preferences`.
     /// Expands the live pre-token thinking state. The stream currently has no
     /// separate model-reasoning payload, so only truthful activity copy is
     /// shown rather than synthesizing hidden reasoning.
@@ -159,6 +159,7 @@ final class ChatViewModel {
     private let memoryClient: any MemoryClientProtocol
     private let historyStore: ChatHistoryStore?
     private let localExecutor: (any LocalChatExecuting)?
+    private let localMemorySync: LocalMemorySyncService?
     /// Lumina Jobs P3 — optional; when wired, each user turn is classified for
     /// recurring-job intent and a proposal card may surface.
     private let jobsClient: (any JobsClientProtocol)?
@@ -195,6 +196,7 @@ final class ChatViewModel {
         jobsClient: (any JobsClientProtocol)? = nil,
         remindersClient: (any RemindersClientProtocol)? = nil,
         localExecutor: (any LocalChatExecuting)? = nil,
+        localMemorySync: LocalMemorySyncService? = nil
     ) {
         self.conversationsClient = conversationsClient
         self.chatClient = chatClient
@@ -203,6 +205,7 @@ final class ChatViewModel {
         self.jobsClient = jobsClient
         self.remindersClient = remindersClient
         self.localExecutor = localExecutor
+        self.localMemorySync = localMemorySync
         self.voice = voice
         self.voice.onFinalTranscript = { [weak self] transcript in
             self?.sendVoiceTranscript(transcript)
@@ -218,12 +221,14 @@ final class ChatViewModel {
             conversationsClient: client,
             chatClient: NoChatClient(),
             memoryClient: NoMemoryClient(),
-            historyStore: nil,
+            historyStore: nil
         )
     }
 
     var isStreaming: Bool {
-        if case .streaming = phase { return true }
+        if case .streaming = phase {
+            return true
+        }
         return false
     }
 
@@ -254,7 +259,9 @@ final class ChatViewModel {
     /// send. `.fresh` transport never calls this — it doesn't persist a
     /// server-side conversation.
     private func ensureConversation() async throws -> UUID {
-        if let id = conversationID { return id }
+        if let id = conversationID {
+            return id
+        }
         phase = .starting
         let dto = try await conversationsClient.create(ConversationCreateRequest())
         conversationID = dto.id
@@ -265,7 +272,9 @@ final class ChatViewModel {
         let trimmed = composer.trimmingCharacters(in: .whitespacesAndNewlines)
         let references = stagedReferences
         guard !trimmed.isEmpty || !references.isEmpty, !isStreaming, phase != .starting else { return }
-        if hapticsEnabled { sendHapticTrigger += 1 }
+        if hapticsEnabled {
+            sendHapticTrigger += 1
+        }
         composer = ""
         stagedReferences = []
 
@@ -327,7 +336,7 @@ final class ChatViewModel {
             cron: cron,
             domain: proposal.domain,
             spec: spec,
-            spaceId: nil,
+            spaceId: nil
         )
         jobProposal = nil
         Task { [weak self] in
@@ -339,7 +348,9 @@ final class ChatViewModel {
         }
     }
 
-    func dismissJob() { jobProposal = nil }
+    func dismissJob() {
+        jobProposal = nil
+    }
 
     private func scheduleJobToastDecay() {
         toastDecayTask?.cancel()
@@ -370,7 +381,7 @@ final class ChatViewModel {
             title: proposal.title ?? "Reminder",
             body: proposal.body ?? "",
             fireAt: fireAt,
-            recurrenceCron: proposal.recurrenceCron,
+            recurrenceCron: proposal.recurrenceCron
         )
         reminderProposal = nil
         Task { [weak self] in
@@ -382,7 +393,9 @@ final class ChatViewModel {
         }
     }
 
-    func dismissReminder() { reminderProposal = nil }
+    func dismissReminder() {
+        reminderProposal = nil
+    }
 
     private func scheduleReminderToastDecay() {
         reminderToastDecayTask?.cancel()
@@ -504,14 +517,14 @@ final class ChatViewModel {
                 localAvailable: localAvailable,
                 cloudAvailable: true,
                 requiresCloudTool: multiModelEnabled,
-                contextFitsLocally: content.count < 32_000
+                contextFitsLocally: content.count < 32000
             )
         )
         switch decision {
         case .cloud:
             executionLabel = "Cloud"
             await runMemoryGroundedSend(content: content)
-        case .unavailable(let message):
+        case let .unavailable(message):
             phase = .failed(message: message)
             setMascot(.idle)
         case .local:
@@ -519,26 +532,39 @@ final class ChatViewModel {
                 phase = .failed(message: "No local model is configured.")
                 return
             }
+            var prepared: ConversationPrepareResponse?
+            var degradedContext = false
             do {
+                await localMemorySync?.synchronize()
                 phase = .streaming
                 pendingAssistant = ""
                 displayedAssistant = ""
                 pendingSources = []
                 let prompt: [ChatMessage]
-                var prepared: ConversationPrepareResponse?
                 if hybridProfile == .private {
                     prompt = messages.map { ChatMessage(role: $0.role.rawValue, content: $0.content) }
                 } else {
-                    let id = try await ensureConversation()
-                    let response = try await conversationsClient.prepare(
-                        conversationID: id,
-                        request: ConversationPrepareRequest(content: content)
-                    )
-                    prepared = response
-                    prompt = response.messages
-                    pendingSources = response.sources
+                    do {
+                        let id = try await ensureConversation()
+                        let response = try await conversationsClient.prepare(
+                            conversationID: id,
+                            request: ConversationPrepareRequest(content: content)
+                        )
+                        prepared = response
+                        prompt = response.messages
+                        pendingSources = response.sources
+                    } catch {
+                        degradedContext = true
+                        prompt = messages.map { ChatMessage(role: $0.role.rawValue, content: $0.content) }
+                        if let cached = await localMemorySync?.context(for: content), !cached.isEmpty {
+                            let context = cached.map(\.content).joined(separator: "\n\n")
+                            prompt.insert(ChatMessage(role: "system", content: "Relevant local memories:\n\(context)"), at: 0)
+                        }
+                    }
                 }
-                executionLabel = hybridProfile == .private
+                executionLabel = degradedContext
+                    ? "Offline local · \(localExecutor.modelID)"
+                    : hybridProfile == .private
                     ? "Private · \(localExecutor.displayName) · \(localExecutor.modelID)"
                     : "Local · \(localExecutor.displayName) · \(localExecutor.modelID)"
                 for try await delta in localExecutor.stream(messages: prompt) {
@@ -562,15 +588,25 @@ final class ChatViewModel {
                 phase = .idle
                 flashHappyThenIdle()
             } catch is CancellationError {
+                await cancelPreparedExecutionIfNeeded(prepared)
                 drainTypewriterNow()
                 phase = .idle
                 setMascot(.idle)
             } catch {
+                await cancelPreparedExecutionIfNeeded(prepared)
                 drainTypewriterNow()
                 phase = .failed(message: friendlyError(error))
                 setMascot(.idle)
             }
         }
+    }
+
+    private func cancelPreparedExecutionIfNeeded(_ prepared: ConversationPrepareResponse?) async {
+        guard let prepared, let conversationID else { return }
+        try? await conversationsClient.cancelPreparedExecution(
+            conversationID: conversationID,
+            executionID: prepared.executionID
+        )
     }
 
     private func runMemoryGroundedSend(content: String) async {
@@ -588,17 +624,19 @@ final class ChatViewModel {
                     multiModel: multiModelEnabled
                         ? ChatMultiModelOptionsDTO(enabled: true, strategy: multiModelStrategy)
                         : nil
-                ),
+                )
             )
             for try await event in stream {
-                if Task.isCancelled { break }
+                if Task.isCancelled {
+                    break
+                }
                 switch event {
-                case .source(let hit):
+                case let .source(hit):
                     pendingSources.append(hit)
-                case .token(let delta):
+                case let .token(delta):
                     pendingAssistant.append(delta)
                     startTypewriter()
-                case .summary(let final):
+                case let .summary(final):
                     // Server-provided final summary overrides the
                     // concatenated tokens. Some backends only emit a
                     // summary (no per-token deltas) — the typewriter reveals
@@ -607,13 +645,13 @@ final class ChatViewModel {
                         pendingAssistant = final
                         startTypewriter()
                     }
-                case .fallback(let notice):
+                case let .fallback(notice):
                     fallbackNotice = notice
-                case .routing(let event):
+                case let .routing(event):
                     routingEvent = event
-                case .usage(let usage):
+                case let .usage(usage):
                     routeUsage = usage
-                case .parallel(let event):
+                case let .parallel(event):
                     reduceParallelEvent(event)
                 case .followUps:
                     // HER-37b will surface these as tappable chips.
@@ -632,7 +670,7 @@ final class ChatViewModel {
                     phase = .idle
                     flashHappyThenIdle()
                     return
-                case .error(let message):
+                case let .error(message):
                     drainTypewriterNow()
                     phase = .failed(message: message)
                     setMascot(.idle)
@@ -667,11 +705,13 @@ final class ChatViewModel {
     /// `.fresh` transport — single POST to /v1/chat/completions. No
     /// streaming UI: the assistant turn lands fully formed when the
     /// server replies. Routes through BYO Hermes when configured.
-    private func runFreshSend(content: String) async {
+    private func runFreshSend(content _: String) async {
         // Fresh mode doesn't allocate a server-side conversation row.
         // Mint a client-side UUID so the local cache still has a key
         // to snapshot under (one snapshot per "fresh session").
-        if conversationID == nil { conversationID = UUID() }
+        if conversationID == nil {
+            conversationID = UUID()
+        }
         phase = .streaming
         pendingAssistant = ""
         displayedAssistant = ""
@@ -683,7 +723,7 @@ final class ChatViewModel {
             messages: history,
             model: nil,
             temperature: nil,
-            stream: false,
+            stream: false
         )
         do {
             let response = try await chatClient.complete(request)
@@ -793,7 +833,7 @@ final class ChatViewModel {
             id: id,
             transport: transport,
             messages: messages,
-            updatedAt: Date(),
+            updatedAt: Date()
         )
     }
 
@@ -819,7 +859,7 @@ final class ChatViewModel {
             guard let self else { return }
             do {
                 _ = try await self.memoryClient.upsert(
-                    MemoryUpsertRequest(content: message.content),
+                    MemoryUpsertRequest(content: message.content)
                 )
                 await MainActor.run { self.showSavedToast("Saved to memory") }
             } catch {
@@ -873,14 +913,16 @@ final class ChatViewModel {
     private func pumpTypewriter() async {
         while !Task.isCancelled {
             let gap = pendingAssistant.count - displayedAssistant.count
-            if gap <= 0 { break }
+            if gap <= 0 {
+                break
+            }
             let stride = max(1, gap / 8)
             // `displayedAssistant` is always a prefix of `pendingAssistant`,
             // so extend it by slicing the next `stride` chars from the
             // authoritative buffer at the current offset.
             let lower = pendingAssistant.index(pendingAssistant.startIndex, offsetBy: displayedAssistant.count)
             let upper = pendingAssistant.index(lower, offsetBy: stride)
-            displayedAssistant.append(contentsOf: pendingAssistant[lower..<upper])
+            displayedAssistant.append(contentsOf: pendingAssistant[lower ..< upper])
             try? await Task.sleep(for: .milliseconds(16))
         }
         typewriterTask = nil
@@ -909,7 +951,7 @@ final class ChatViewModel {
             role: .assistant,
             content: pendingAssistant,
             sources: pendingSources,
-            parallelExecutionID: parallelExecution?.id,
+            parallelExecutionID: parallelExecution?.id
         )
         messages.append(assistant)
         let spokenBody = pendingAssistant
@@ -938,7 +980,9 @@ final class ChatViewModel {
         // tear the reveal driver down here so it can't outlive the stream.
         typewriterTask?.cancel()
         typewriterTask = nil
-        if voice.isSpeaking { voice.stopSpeaking() }
+        if voice.isSpeaking {
+            voice.stopSpeaking()
+        }
     }
 
     /// Wipe the conversation client-side and forget the server id. Also
@@ -981,7 +1025,9 @@ final class ChatViewModel {
         execution.status = event.status ?? execution.status
         if let outputID = event.outputID {
             if let index = execution.outputs.firstIndex(where: { $0.id == outputID }) {
-                if let delta = event.delta { execution.outputs[index].content.append(delta) }
+                if let delta = event.delta {
+                    execution.outputs[index].content.append(delta)
+                }
                 execution.outputs[index].status = event.status ?? execution.outputs[index].status
             } else {
                 execution.outputs.append(ParallelChatOutput(
@@ -996,7 +1042,8 @@ final class ChatViewModel {
                 ))
             }
         } else if event.kind == .outputFailed, let participantID = event.participantID,
-                  let index = execution.outputs.firstIndex(where: { $0.participantID == participantID }) {
+                  let index = execution.outputs.firstIndex(where: { $0.participantID == participantID })
+        {
             execution.outputs[index].status = .failed
         }
         parallelExecution = execution
@@ -1009,33 +1056,33 @@ final class ChatViewModel {
 /// flip the toggle without supplying a real chat client will see a
 /// clean error instead of a silent no-op.
 private struct NoChatClient: ChatClientProtocol {
-    func complete(_ request: ChatRequest) async throws -> ChatResponse {
+    func complete(_: ChatRequest) async throws -> ChatResponse {
         throw APIError.unauthorized
     }
 }
 
 private struct NoMemoryClient: MemoryClientProtocol {
-    func upsert(_ request: MemoryUpsertRequest) async throws -> MemoryUpsertResponse {
+    func upsert(_: MemoryUpsertRequest) async throws -> MemoryUpsertResponse {
         throw APIError.unauthorized
     }
 
-    func get(id: UUID) async throws -> MemoryDTO {
+    func get(id _: UUID) async throws -> MemoryDTO {
         throw APIError.unauthorized
     }
 
-    func patch(id: UUID, _ request: MemoryPatchRequest) async throws -> MemoryDTO {
+    func patch(id _: UUID, _: MemoryPatchRequest) async throws -> MemoryDTO {
         throw APIError.unauthorized
     }
 
-    func list(limit: Int, offset: Int) async throws -> MemoryListResponse {
+    func list(limit _: Int, offset _: Int) async throws -> MemoryListResponse {
         throw APIError.unauthorized
     }
 
-    func search(_ request: MemorySearchRequest) async throws -> MemorySearchResponse {
+    func search(_: MemorySearchRequest) async throws -> MemorySearchResponse {
         throw APIError.unauthorized
     }
 
-    func delete(id: UUID) async throws {
+    func delete(id _: UUID) async throws {
         throw APIError.unauthorized
     }
 }

@@ -8,7 +8,9 @@ import LuminaVaultShared
 final class MemoryHTTPClient: MemoryClientProtocol {
     private let client: BaseHTTPClient
 
-    init(client: BaseHTTPClient) { self.client = client }
+    init(client: BaseHTTPClient) {
+        self.client = client
+    }
 
     func get(id: UUID) async throws -> MemoryDTO {
         try await client.execute(MemoryEndpoints.Get(id: id))
@@ -44,5 +46,9 @@ final class MemoryHTTPClient: MemoryClientProtocol {
 
     func facets() async throws -> MemoryFacetsResponse {
         try await client.execute(MemoryEndpoints.Facets())
+    }
+
+    func localSync(cursor: String?, limit: Int = 500) async throws -> LocalMemorySyncResponse {
+        try await client.execute(MemoryEndpoints.LocalSync(cursor: cursor, limit: limit))
     }
 }

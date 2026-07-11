@@ -39,6 +39,24 @@ struct KnowledgeReasoningSheet: View {
                             }
                         }
                     }
+                    if !result.paths.isEmpty {
+                        Section("Reasoning paths") {
+                            ForEach(result.paths) { path in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(path.nodes.map(\.label).joined(separator: "  →  "))
+                                        .font(.callout)
+                                    LabeledContent(
+                                        "Path confidence",
+                                        value: path.confidence,
+                                        format: .percent.precision(.fractionLength(0))
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(palette.textSecondary)
+                                }
+                                .accessibilityElement(children: .combine)
+                            }
+                        }
+                    }
                     if !result.suggestions.isEmpty {
                         Section("Connections to review") {
                             ForEach(result.suggestions) { edge in

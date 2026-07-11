@@ -23,48 +23,103 @@ enum ConversationsEndpoints {
     struct Create: Endpoint {
         typealias Response = ConversationDTO
         let request: ConversationCreateRequest
-        var path: String { "/v1/conversations" }
-        var method: HTTPMethod { .post }
-        var body: (any Encodable)? { request }
-        var encoder: JSONEncoder { ConversationsEndpoints.snakeCaseEncoder }
+        var path: String {
+            "/v1/conversations"
+        }
+
+        var method: HTTPMethod {
+            .post
+        }
+
+        var body: (any Encodable)? {
+            request
+        }
+
+        var encoder: JSONEncoder {
+            ConversationsEndpoints.snakeCaseEncoder
+        }
     }
 
     struct List: Endpoint {
         typealias Response = ConversationListResponse
-        var path: String { "/v1/conversations" }
-        var method: HTTPMethod { .get }
+        var path: String {
+            "/v1/conversations"
+        }
+
+        var method: HTTPMethod {
+            .get
+        }
     }
 
     struct Get: Endpoint {
         typealias Response = ConversationDetailResponse
         let id: UUID
-        var path: String { "/v1/conversations/\(id.uuidString.lowercased())" }
-        var method: HTTPMethod { .get }
+        var path: String {
+            "/v1/conversations/\(id.uuidString.lowercased())"
+        }
+
+        var method: HTTPMethod {
+            .get
+        }
     }
 
     struct Delete: Endpoint {
         typealias Response = EmptyResponse
         let id: UUID
-        var path: String { "/v1/conversations/\(id.uuidString.lowercased())" }
-        var method: HTTPMethod { .delete }
+        var path: String {
+            "/v1/conversations/\(id.uuidString.lowercased())"
+        }
+
+        var method: HTTPMethod {
+            .delete
+        }
     }
 
     struct Prepare: Endpoint {
         typealias Response = ConversationPrepareResponse
         let conversationID: UUID
         let request: ConversationPrepareRequest
-        var path: String { "/v1/conversations/\(conversationID.uuidString.lowercased())/messages/prepare" }
-        var method: HTTPMethod { .post }
-        var body: (any Encodable)? { request }
+        var path: String {
+            "/v1/conversations/\(conversationID.uuidString.lowercased())/messages/prepare"
+        }
+
+        var method: HTTPMethod {
+            .post
+        }
+
+        var body: (any Encodable)? {
+            request
+        }
     }
 
     struct Commit: Endpoint {
         typealias Response = ConversationCommitResponse
         let conversationID: UUID
         let request: ConversationCommitRequest
-        var path: String { "/v1/conversations/\(conversationID.uuidString.lowercased())/messages/commit" }
-        var method: HTTPMethod { .post }
-        var body: (any Encodable)? { request }
+        var path: String {
+            "/v1/conversations/\(conversationID.uuidString.lowercased())/messages/commit"
+        }
+
+        var method: HTTPMethod {
+            .post
+        }
+
+        var body: (any Encodable)? {
+            request
+        }
+    }
+
+    struct CancelPreparedExecution: Endpoint {
+        typealias Response = EmptyResponse
+        let conversationID: UUID
+        let executionID: UUID
+        var path: String {
+            "/v1/conversations/\(conversationID.uuidString.lowercased())/local-executions/\(executionID.uuidString.lowercased())"
+        }
+
+        var method: HTTPMethod {
+            .delete
+        }
     }
 
     /// SSE stream of `QueryStreamEvent`. Consume via
@@ -73,9 +128,20 @@ enum ConversationsEndpoints {
         typealias Event = QueryStreamEvent
         let conversationID: UUID
         let request: MessageStreamRequest
-        var path: String { "/v1/conversations/\(conversationID.uuidString.lowercased())/messages/stream" }
-        var method: HTTPMethod { .post }
-        var body: (any Encodable & Sendable)? { request }
-        var encoder: JSONEncoder { ConversationsEndpoints.snakeCaseEncoder }
+        var path: String {
+            "/v1/conversations/\(conversationID.uuidString.lowercased())/messages/stream"
+        }
+
+        var method: HTTPMethod {
+            .post
+        }
+
+        var body: (any Encodable & Sendable)? {
+            request
+        }
+
+        var encoder: JSONEncoder {
+            ConversationsEndpoints.snakeCaseEncoder
+        }
     }
 }

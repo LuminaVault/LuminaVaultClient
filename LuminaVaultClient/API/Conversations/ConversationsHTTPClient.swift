@@ -13,9 +13,10 @@ protocol ConversationsClientProtocol: Sendable {
     func delete(_ id: UUID) async throws
     func prepare(conversationID: UUID, request: ConversationPrepareRequest) async throws -> ConversationPrepareResponse
     func commit(conversationID: UUID, request: ConversationCommitRequest) async throws -> ConversationCommitResponse
+    func cancelPreparedExecution(conversationID: UUID, executionID: UUID) async throws
     func streamReply(
         conversationID: UUID,
-        request: MessageStreamRequest,
+        request: MessageStreamRequest
     ) -> AsyncThrowingStream<QueryStreamEvent, any Error>
 }
 
@@ -27,6 +28,8 @@ extension ConversationsClientProtocol {
     func commit(conversationID _: UUID, request _: ConversationCommitRequest) async throws -> ConversationCommitResponse {
         throw APIError.decodingFailed(LocalConversationClientError.unsupported)
     }
+
+    func cancelPreparedExecution(conversationID _: UUID, executionID _: UUID) async throws {}
 }
 
 private enum LocalConversationClientError: Error { case unsupported }
@@ -34,7 +37,9 @@ private enum LocalConversationClientError: Error { case unsupported }
 final class ConversationsHTTPClient: ConversationsClientProtocol {
     private let client: BaseHTTPClient
 
-    init(client: BaseHTTPClient) { self.client = client }
+    init(client: BaseHTTPClient) {
+        self.client = client
+    }
 
     func create(_ request: ConversationCreateRequest) async throws -> ConversationDTO {
         try await client.execute(ConversationsEndpoints.Create(request: request))
@@ -60,15 +65,24 @@ final class ConversationsHTTPClient: ConversationsClientProtocol {
         try await client.execute(ConversationsEndpoints.Commit(conversationID: conversationID, request: request))
     }
 
+    func cancelPreparedExecution(conversationID: UUID, executionID: UUID) async throws {
+        _ = try await client.execute(
+            ConversationsEndpoints.CancelPreparedExecution(
+                conversationID: conversationID,
+                executionID: executionID
+            )
+        )
+    }
+
     func streamReply(
         conversationID: UUID,
-        request: MessageStreamRequest,
+        request: MessageStreamRequest
     ) -> AsyncThrowingStream<QueryStreamEvent, any Error> {
         client.executeStreamWithRefresh(
             ConversationsEndpoints.StreamReply(
                 conversationID: conversationID,
-                request: request,
-            ),
+                request: request
+            )
         )
     }
 }

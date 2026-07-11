@@ -40,6 +40,7 @@ protocol MemoryClientProtocol: Sendable {
 
     /// Provider/model/source counts used by provenance filters.
     func facets() async throws -> MemoryFacetsResponse
+    func localSync(cursor: String?, limit: Int) async throws -> LocalMemorySyncResponse
 }
 
 extension MemoryClientProtocol {
@@ -52,6 +53,10 @@ extension MemoryClientProtocol {
     }
 
     func facets() async throws -> MemoryFacetsResponse {
+        throw MemoryClientCapabilityError.unsupported
+    }
+
+    func localSync(cursor _: String?, limit _: Int) async throws -> LocalMemorySyncResponse {
         throw MemoryClientCapabilityError.unsupported
     }
 }

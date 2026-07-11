@@ -79,7 +79,7 @@ struct MainTabView: View {
                             memoryDetailClient: memoryUpsertClient,
                             uploadClient: vaultUploadClient,
                             teamClient: TeamHTTPClient(client: appState.makeHTTPClient()),
-                            activeVaultStore: appState.activeVaultStore,
+                            activeVaultStore: appState.activeVaultStore
                         )
                         .tag(Self.tabIds.workspaces)
                         .toolbar(.hidden, for: .tabBar)
@@ -104,8 +104,8 @@ struct MainTabView: View {
                             knowledgeClient: knowledgeGraphClient,
                             memoryClient: memoryUpsertClient
                         )
-                            .tag(Self.tabIds.brain)
-                            .toolbar(.hidden, for: .tabBar)
+                        .tag(Self.tabIds.brain)
+                        .toolbar(.hidden, for: .tabBar)
 
                         // HER-107: Think tab — multi-turn chat. Memory-grounded
                         // mode streams over SSE; fresh mode hits
@@ -119,7 +119,7 @@ struct MainTabView: View {
                             suggestionsClient: suggestionsClient,
                             vaultClient: vaultClient,
                             memoryClient: memoryUpsertClient,
-                            vaultUploadClient: vaultUploadClient,
+                            vaultUploadClient: vaultUploadClient
                         )
                         .tag(Self.tabIds.think)
                         .toolbar(.hidden, for: .tabBar)
@@ -138,7 +138,7 @@ struct MainTabView: View {
                 overflowItems: overflowTabItems,
                 overflowLeading: false,
                 selection: $selection,
-                underlineNamespace: tabUnderline,
+                underlineNamespace: tabUnderline
             )
             // HER-255 — capture "+" moved into LuminaHeader (compact style);
             // the floating FAB over the tab bar is retired.
@@ -162,22 +162,22 @@ struct MainTabView: View {
         }
     }
 
-    // HER-255 — global header title per active tab.
+    /// HER-255 — global header title per active tab.
     private var currentTitle: String {
         switch selection {
         case Self.tabIds.workspaces: return "Spaces"
-        case Self.tabIds.home:       return "LuminaVault"
-        case Self.tabIds.reflect:    return "Insights"
-        case Self.tabIds.think:      return "AI"
-        case Self.tabIds.brain:      return "Brain"
-        case Self.tabIds.settings:   return "Settings"
-        case "visual_search":        return "Visual Search"
-        default:                     return "LuminaVault"
+        case Self.tabIds.home: return "LuminaVault"
+        case Self.tabIds.reflect: return "Insights"
+        case Self.tabIds.think: return "AI"
+        case Self.tabIds.brain: return "Brain"
+        case Self.tabIds.settings: return "Settings"
+        case "visual_search": return "Visual Search"
+        default: return "LuminaVault"
         }
     }
 
-    // HER-fix — overflow tab ids rendered outside the 5-tab TabView to
-    // avoid the system "More" overflow list.
+    /// HER-fix — overflow tab ids rendered outside the 5-tab TabView to
+    /// avoid the system "More" overflow list.
     static let visualSearchTabId = "visual_search"
 
     private static func isOverflow(_ id: String) -> Bool {
@@ -194,7 +194,7 @@ struct MainTabView: View {
             VisualSearchView(viewModel: VisualSearchViewModel(
                 ocr: ImageOCRService(),
                 client: memoryClient,
-                telemetry: LoggerTelemetry(),
+                telemetry: LoggerTelemetry()
             ))
         default:
             EmptyView()
@@ -239,13 +239,13 @@ struct MainTabView: View {
         MemoryQueryHTTPClient(client: appState.makeHTTPClient())
     }
 
-    // HER-107 — Conversations client wraps the shared BaseHTTPClient so
-    // streaming chat shares the bearer + 401 refresh coordinator.
+    /// HER-107 — Conversations client wraps the shared BaseHTTPClient so
+    /// streaming chat shares the bearer + 401 refresh coordinator.
     private var conversationsClient: any ConversationsClientProtocol {
         appState.makeConversationsClient()
     }
 
-    // HER-107 — non-streaming chat client (Hermes "fresh" mode).
+    /// HER-107 — non-streaming chat client (Hermes "fresh" mode).
     private var chatClient: any ChatClientProtocol {
         appState.makeChatClient()
     }
@@ -254,23 +254,34 @@ struct MainTabView: View {
         ChatExperienceHTTPClient(client: appState.makeHTTPClient())
     }
 
-    // HER-107 — memory write-side client for long-press save-to-memory
-    // (distinct from read-side `memoryClient`, which only queries).
+    /// HER-107 — memory write-side client for long-press save-to-memory
+    /// (distinct from read-side `memoryClient`, which only queries).
     private var memoryUpsertClient: any MemoryClientProtocol {
         MemoryHTTPClient(client: appState.makeHTTPClient())
     }
 
-    // HER-107 — persisted chat history (last 50 turns) keyed by
-    // conversation id. Shared actor lives in App Group container so the
-    // share extension can later seed conversations from outside the
-    // host app.
+    /// HER-107 — persisted chat history (last 50 turns) keyed by
+    /// conversation id. Shared actor lives in App Group container so the
+    /// share extension can later seed conversations from outside the
+    /// host app.
     private var chatHistoryStore: ChatHistoryStore {
         ChatHistoryStore()
     }
 
     private func makeChatViewModel() -> ChatViewModel {
         let settings = HybridExecutionSettingsStore()
-        let executor = settings.configuration.map { LocalEndpointChatExecutor(configuration: $0) }
+        let executor: (any LocalChatExecuting)? = if settings.useAppleOnDeviceModel {
+            makeAppleOnDeviceChatExecutor()
+        } else {
+            settings.configuration.map { LocalEndpointChatExecutor(configuration: $0) }
+        }
+        let cache = EncryptedLocalMemoryCache(
+            fileURL: URL.applicationSupportDirectory
+                .appending(path: "HybridExecution")
+                .appending(path: "memories.cache"),
+            keyData: KeychainService.shared.localMemoryCacheKey
+        )
+        let localMemorySync = LocalMemorySyncService(client: memoryUpsertClient, cache: cache)
         let viewModel = ChatViewModel(
             conversationsClient: conversationsClient,
             chatClient: chatClient,
@@ -278,7 +289,8 @@ struct MainTabView: View {
             historyStore: chatHistoryStore,
             jobsClient: jobsClient,
             remindersClient: remindersClient,
-            localExecutor: executor
+            localExecutor: executor,
+            localMemorySync: localMemorySync
         )
         viewModel.hybridProfile = settings.profile
         viewModel.transport = .hybrid
@@ -341,8 +353,8 @@ struct MainTabView: View {
         InsightsHTTPClient(client: appState.makeHTTPClient())
     }
 
-    // C6 — Kanban HTTP client. Follows the same makeHTTPClient() pattern as
-    // every other feature client in this file.
+    /// C6 — Kanban HTTP client. Follows the same makeHTTPClient() pattern as
+    /// every other feature client in this file.
     private var kanbanClient: any KanbanClientProtocol {
         KanbanHTTPClient(client: appState.makeHTTPClient())
     }
@@ -367,7 +379,7 @@ struct MainTabView: View {
                     repository: appState.vaultRepository,
                     pendingClient: appState.makeKBCompileClient(),
                     webSocket: appState.makeKBCompileWebSocketClient(),
-                    memoryClient: appState.makeMemoryClient(),
+                    memoryClient: appState.makeMemoryClient()
                 ),
                 displayName: Self.deriveDisplayName(from: appState.currentEmail),
                 homeClient: HomeSummaryHTTPClient(client: appState.makeHTTPClient()),
@@ -391,7 +403,7 @@ struct MainTabView: View {
             insightsDestination: { [self] in AnyView(
                 InsightsListView(
                     vm: InsightsListViewModel(client: insightsClient),
-                    httpClient: appState.makeHTTPClient(),
+                    httpClient: appState.makeHTTPClient()
                 )
             ) },
             serverConnectionDestination: { [self] in AnyView(
@@ -400,27 +412,27 @@ struct MainTabView: View {
             skillsDestination: { [self] in AnyView(
                 SkillsHubView(
                     vm: SkillsHubViewModel(client: skillsClient),
-                    detailClient: skillsClient,
+                    detailClient: skillsClient
                 )
             ) },
             todayDestination: { [self] in AnyView(
                 TodayView(
                     vm: TodayViewModel(client: todayClient),
                     vaultClient: vaultClient,
-                    memoryClient: memoryUpsertClient,
+                    memoryClient: memoryUpsertClient
                 )
             ) },
             visualSearchDestination: { [self] in AnyView(
                 VisualSearchView(viewModel: VisualSearchViewModel(
                     ocr: ImageOCRService(),
                     client: memoryClient,
-                    telemetry: LoggerTelemetry(),
+                    telemetry: LoggerTelemetry()
                 ))
             ) },
             healthDestination: { [self] in AnyView(
                 HealthDashboardScreen(
                     httpClient: appState.makeHTTPClient(),
-                    coordinator: appState.healthKit,
+                    coordinator: appState.healthKit
                 )
             ) },
             achievementsDestination: { [self] in AnyView(
@@ -442,7 +454,7 @@ struct MainTabView: View {
             // HER-56 — Deep Analytics & Patterns dashboard.
             analyticsDestination: { [self] in AnyView(
                 AnalyticsDashboardScreen(httpClient: appState.makeHTTPClient())
-            ) },
+            ) }
         )
     }
 
@@ -450,9 +462,9 @@ struct MainTabView: View {
         SkillsHTTPClient(client: appState.makeHTTPClient())
     }
 
-    // HER-194 — vault upload client wired so Save-to-Vault in Reflect
-    // can POST the cached rendered markdown without firing a second
-    // LLM call.
+    /// HER-194 — vault upload client wired so Save-to-Vault in Reflect
+    /// can POST the cached rendered markdown without firing a second
+    /// LLM call.
     private var vaultUploadClient: VaultUploadClientProtocol {
         VaultUploadHTTPClient(client: appState.makeHTTPClient())
     }
@@ -462,7 +474,7 @@ struct MainTabView: View {
             reflectViewModel: ReflectViewModel(vaultClient: vaultClient),
             runner: ReflectionRunner(
                 skillsClient: skillsClient,
-                vaultUploadClient: vaultUploadClient,
+                vaultUploadClient: vaultUploadClient
             ),
             httpClient: appState.makeHTTPClient(),
             vaultClient: vaultClient,
@@ -471,7 +483,7 @@ struct MainTabView: View {
                 selection = deepLink.contains("analytics#models")
                     ? Self.tabIds.settings
                     : Self.tabIds.workspaces
-            },
+            }
         )
     }
 

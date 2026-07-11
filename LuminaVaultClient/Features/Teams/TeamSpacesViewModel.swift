@@ -6,6 +6,7 @@ final class TeamSpacesViewModel {
     private(set) var teams: [TeamSpaceSummary] = []
     private(set) var vaults: [SharedVaultSummary] = []
     private(set) var members: [VaultMemberSummary] = []
+    private(set) var invitations: [TeamInvitationSummary] = []
     private(set) var selectedVaultID: UUID?
     private(set) var isLoading = false
     var errorMessage: String?
@@ -58,9 +59,17 @@ final class TeamSpacesViewModel {
     }
 
     func loadMembers() async {
-        guard let vault = selectedVault, !vault.isPersonal else { members = []; return }
-        do { members = try await client.members(vaultID: vault.id) }
-        catch { errorMessage = error.localizedDescription }
+        guard let vault = selectedVault, !vault.isPersonal, let teamID = vault.teamID else {
+            members = []
+            invitations = []
+            return
+        }
+        do {
+            async let loadedMembers = client.members(vaultID: vault.id)
+            async let loadedInvitations = client.invitations(teamID: teamID)
+            members = try await loadedMembers
+            invitations = try await loadedInvitations
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func updateMember(_ member: VaultMemberSummary, role: String, canUseAI: Bool) async {
@@ -79,11 +88,28 @@ final class TeamSpacesViewModel {
         do {
             _ = try await client.invite(teamID: teamID, email: email, vaultID: vault.id,
                                         role: role, canUseAI: canUseAI)
+            invitations = try await client.invitations(teamID: teamID)
             return true
         } catch {
             errorMessage = error.localizedDescription
             return false
         }
+    }
+
+    func resendInvitation(_ invitation: TeamInvitationSummary) async {
+        do {
+            let updated = try await client.resendInvitation(teamID: invitation.teamID, invitationID: invitation.id)
+            if let index = invitations.firstIndex(where: { $0.id == updated.id }) {
+                invitations[index] = updated
+            }
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    func revokeInvitation(_ invitation: TeamInvitationSummary) async {
+        do {
+            try await client.revokeInvitation(teamID: invitation.teamID, invitationID: invitation.id)
+            invitations.removeAll { $0.id == invitation.id }
+        } catch { errorMessage = error.localizedDescription }
     }
 
     func removeMember(_ member: VaultMemberSummary) async {

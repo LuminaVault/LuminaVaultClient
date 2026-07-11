@@ -54,6 +54,30 @@ struct TeamVaultManagementView: View {
                     }
                 }
 
+                if !viewModel.invitations.isEmpty {
+                    Section("Pending invitations") {
+                        ForEach(viewModel.invitations) { invitation in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(invitation.email)
+                                Text("Expires \(invitation.expiresAt, format: .relative(presentation: .named))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .swipeActions(edge: .leading) {
+                                Button("Resend", systemImage: "paperplane") {
+                                    Task { await viewModel.resendInvitation(invitation) }
+                                }
+                                .tint(.blue)
+                            }
+                            .swipeActions {
+                                Button("Revoke", systemImage: "xmark.circle", role: .destructive) {
+                                    Task { await viewModel.revokeInvitation(invitation) }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Section("Team lifecycle") {
                     Button("Archive team", systemImage: "archivebox", role: .destructive) {
                         confirmingArchive = true

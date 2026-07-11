@@ -7,14 +7,21 @@ import UniformTypeIdentifiers
 @Observable
 final class MultimodalCaptureViewModel {
     private let client: any IngestionClientProtocol
+    private let defaults: UserDefaults
+    private static let latestBatchKey = "lv.ingestion.latestBatch"
     var selectedFiles: [URL] = []
     var urlText = ""
     var saving = false
     var errorMessage: String?
-    var latestBatch: IngestionBatchDTO?
+    var latestBatch: IngestionBatchDTO? {
+        didSet { persistLatestBatch() }
+    }
 
-    init(client: any IngestionClientProtocol) {
+    init(client: any IngestionClientProtocol, defaults: UserDefaults = .standard) {
         self.client = client
+        self.defaults = defaults
+        latestBatch = defaults.data(forKey: Self.latestBatchKey)
+            .flatMap { try? JSONDecoder().decode(IngestionBatchDTO.self, from: $0) }
     }
 
     var canSave: Bool {
@@ -73,9 +80,40 @@ final class MultimodalCaptureViewModel {
     func refreshStatus() async {
         guard let batchID = latestBatch?.id else { return }
         do {
-            latestBatch = try await client.list().batches.first { $0.id == batchID } ?? latestBatch
+            latestBatch = try await client.detail(batchID: batchID)
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func monitorStatus() async {
+        while !Task.isCancelled, latestBatch?.state == "active" {
+            await refreshStatus()
+            do { try await Task.sleep(for: .seconds(3)) }
+            catch { return }
+        }
+    }
+
+    func retry(itemID: UUID) async {
+        guard let batchID = latestBatch?.id else { return }
+        await update { try await client.retry(batchID: batchID, itemID: itemID) }
+    }
+
+    func cancel(itemID: UUID) async {
+        guard let batchID = latestBatch?.id else { return }
+        await update { try await client.cancel(batchID: batchID, itemID: itemID) }
+    }
+
+    private func update(_ operation: () async throws -> IngestionBatchDTO) async {
+        do { latestBatch = try await operation() }
+        catch { errorMessage = error.localizedDescription }
+    }
+
+    private func persistLatestBatch() {
+        guard let latestBatch, let data = try? JSONEncoder().encode(latestBatch) else {
+            defaults.removeObject(forKey: Self.latestBatchKey)
+            return
+        }
+        defaults.set(data, forKey: Self.latestBatchKey)
     }
 }

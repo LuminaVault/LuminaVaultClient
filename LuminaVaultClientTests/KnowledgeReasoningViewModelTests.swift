@@ -60,6 +60,24 @@ private actor KnowledgeGraphClientMock: KnowledgeGraphClientProtocol {
         )
     }
 
+    nonisolated func reasonStream(
+        query _: String,
+        maxDepth _: Int,
+        limit _: Int
+    ) -> AsyncThrowingStream<ReasoningStreamEventDTO, any Error> {
+        let fixture = fixture
+        return AsyncThrowingStream { continuation in
+            continuation.yield(ReasoningStreamEventDTO(
+                type: "suggestions",
+                response: ReasoningQueryResponse(
+                    answer: "Atlas has two positions.", paths: [], evidence: [fixture.evidence],
+                    confidence: 0.6, suggestions: [fixture.edge]
+                )
+            ))
+            continuation.finish()
+        }
+    }
+
     func explain(from _: UUID, to _: UUID, maxDepth _: Int) async throws -> ConnectionExplanationResponse {
         ConnectionExplanationResponse(explanation: "The claims use opposing polarity.", paths: [], confidence: 0.6)
     }

@@ -5,7 +5,9 @@ protocol IngestionClientProtocol: Sendable {
     func create(_ request: IngestionCreateRequest) async throws -> IngestionBatchDTO
     func upload(fileURL: URL, itemID: UUID, batch: IngestionBatchDTO) async throws -> IngestionBatchDTO
     func list() async throws -> IngestionBatchListDTO
+    func detail(batchID: UUID) async throws -> IngestionBatchDTO
     func retry(batchID: UUID, itemID: UUID) async throws -> IngestionBatchDTO
+    func cancel(batchID: UUID, itemID: UUID) async throws -> IngestionBatchDTO
 }
 
 final class IngestionHTTPClient: IngestionClientProtocol, Sendable {
@@ -22,7 +24,10 @@ final class IngestionHTTPClient: IngestionClientProtocol, Sendable {
     func upload(fileURL: URL, itemID: UUID, batch: IngestionBatchDTO) async throws -> IngestionBatchDTO {
         let handle = try FileHandle(forReadingFrom: fileURL)
         do {
-            var index = 0
+            let uploadedBytes = batch.items.first(where: { $0.id == itemID })?.uploadedBytes ?? 0
+            let alignedBytes = uploadedBytes - (uploadedBytes % Int64(batch.chunkSizeBytes))
+            try handle.seek(toOffset: UInt64(alignedBytes))
+            var index = Int(alignedBytes / Int64(batch.chunkSizeBytes))
             while let data = try handle.read(upToCount: batch.chunkSizeBytes), !data.isEmpty {
                 _ = try await client.uploadBytes(
                     path: "/v1/ingestions/\(batch.id.uuidString)/items/\(itemID.uuidString)/chunks/\(index)",
@@ -44,8 +49,16 @@ final class IngestionHTTPClient: IngestionClientProtocol, Sendable {
         try await client.execute(IngestionEndpoints.List())
     }
 
+    func detail(batchID: UUID) async throws -> IngestionBatchDTO {
+        try await client.execute(IngestionEndpoints.Detail(batchID: batchID))
+    }
+
     func retry(batchID: UUID, itemID: UUID) async throws -> IngestionBatchDTO {
         try await client.execute(IngestionEndpoints.Retry(batchID: batchID, itemID: itemID))
+    }
+
+    func cancel(batchID: UUID, itemID: UUID) async throws -> IngestionBatchDTO {
+        try await client.execute(IngestionEndpoints.Cancel(batchID: batchID, itemID: itemID))
     }
 }
 
@@ -90,6 +103,18 @@ enum IngestionEndpoints {
         }
     }
 
+    struct Detail: Endpoint {
+        typealias Response = IngestionBatchDTO
+        let batchID: UUID
+        var path: String {
+            "/v1/ingestions/\(batchID.uuidString)"
+        }
+
+        var method: HTTPMethod {
+            .get
+        }
+    }
+
     struct Retry: Endpoint {
         typealias Response = IngestionBatchDTO
         let batchID: UUID
@@ -100,6 +125,19 @@ enum IngestionEndpoints {
 
         var method: HTTPMethod {
             .post
+        }
+    }
+
+    struct Cancel: Endpoint {
+        typealias Response = IngestionBatchDTO
+        let batchID: UUID
+        let itemID: UUID
+        var path: String {
+            "/v1/ingestions/\(batchID.uuidString)/items/\(itemID.uuidString)"
+        }
+
+        var method: HTTPMethod {
+            .delete
         }
     }
 }

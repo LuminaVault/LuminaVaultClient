@@ -33,6 +33,18 @@ struct TeamHTTPClient: Sendable {
                                                       vaultGrants: [vaultID.uuidString: .init(role: role, canUseAI: canUseAI)]))
     }
 
+    func invitations(teamID: UUID) async throws -> [TeamInvitationSummary] {
+        try await client.execute(TeamEndpoints.Invitations(teamID: teamID))
+    }
+
+    func resendInvitation(teamID: UUID, invitationID: UUID) async throws -> TeamInvitationSummary {
+        try await client.execute(TeamEndpoints.ResendInvitation(teamID: teamID, invitationID: invitationID))
+    }
+
+    func revokeInvitation(teamID: UUID, invitationID: UUID) async throws {
+        _ = try await client.execute(TeamEndpoints.RevokeInvitation(teamID: teamID, invitationID: invitationID))
+    }
+
     func activity(vaultID: UUID) async throws -> [VaultActivitySummary] {
         try await client.execute(TeamEndpoints.Activity(vaultID: vaultID))
     }

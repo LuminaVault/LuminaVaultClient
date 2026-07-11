@@ -11,8 +11,13 @@ enum MemoryEndpoints {
         typealias Response = MemoryDTO
         let id: UUID
 
-        var path: String { "/v1/memory/\(id.uuidString.lowercased())" }
-        var method: HTTPMethod { .get }
+        var path: String {
+            "/v1/memory/\(id.uuidString.lowercased())"
+        }
+
+        var method: HTTPMethod {
+            .get
+        }
     }
 
     struct Upsert: Endpoint {
@@ -28,8 +33,15 @@ enum MemoryEndpoints {
             guard let spaceID else { return "/v1/memory/upsert" }
             return "/v1/memory/upsert?space_id=\(spaceID.uuidString)"
         }
-        var method: HTTPMethod { .post }
-        var body: (any Encodable)? { request }
+
+        var method: HTTPMethod {
+            .post
+        }
+
+        var body: (any Encodable)? {
+            request
+        }
+
         var encoder: JSONEncoder {
             let e = JSONEncoder()
             e.keyEncodingStrategy = .convertToSnakeCase
@@ -44,9 +56,17 @@ enum MemoryEndpoints {
         let id: UUID
         let request: MemoryPatchRequest
 
-        var path: String { "/v1/memory/\(id.uuidString.lowercased())" }
-        var method: HTTPMethod { .patch }
-        var body: (any Encodable)? { request }
+        var path: String {
+            "/v1/memory/\(id.uuidString.lowercased())"
+        }
+
+        var method: HTTPMethod {
+            .patch
+        }
+
+        var body: (any Encodable)? {
+            request
+        }
     }
 
     /// GET `/v1/memory?limit=&offset=` — paged memory list for the browser.
@@ -55,8 +75,13 @@ enum MemoryEndpoints {
         let limit: Int
         let offset: Int
 
-        var path: String { "/v1/memory?limit=\(limit)&offset=\(offset)" }
-        var method: HTTPMethod { .get }
+        var path: String {
+            "/v1/memory?limit=\(limit)&offset=\(offset)"
+        }
+
+        var method: HTTPMethod {
+            .get
+        }
     }
 
     /// POST `/v1/memory/search` — semantic search over the tenant's memories.
@@ -64,9 +89,17 @@ enum MemoryEndpoints {
         typealias Response = MemorySearchResponse
         let request: MemorySearchRequest
 
-        var path: String { "/v1/memory/search" }
-        var method: HTTPMethod { .post }
-        var body: (any Encodable)? { request }
+        var path: String {
+            "/v1/memory/search"
+        }
+
+        var method: HTTPMethod {
+            .post
+        }
+
+        var body: (any Encodable)? {
+            request
+        }
     }
 
     /// DELETE `/v1/memory/{id}` — removes a memory (server returns 204).
@@ -74,20 +107,54 @@ enum MemoryEndpoints {
         typealias Response = EmptyResponse
         let id: UUID
 
-        var path: String { "/v1/memory/\(id.uuidString.lowercased())" }
-        var method: HTTPMethod { .delete }
+        var path: String {
+            "/v1/memory/\(id.uuidString.lowercased())"
+        }
+
+        var method: HTTPMethod {
+            .delete
+        }
     }
 
     struct Provenance: Endpoint {
         typealias Response = MemoryProvenanceResponse
         let id: UUID
-        var path: String { "/v1/memory/\(id.uuidString.lowercased())/provenance" }
-        var method: HTTPMethod { .get }
+        var path: String {
+            "/v1/memory/\(id.uuidString.lowercased())/provenance"
+        }
+
+        var method: HTTPMethod {
+            .get
+        }
     }
 
     struct Facets: Endpoint {
         typealias Response = MemoryFacetsResponse
-        var path: String { "/v1/memory/facets" }
-        var method: HTTPMethod { .get }
+        var path: String {
+            "/v1/memory/facets"
+        }
+
+        var method: HTTPMethod {
+            .get
+        }
+    }
+
+    struct LocalSync: Endpoint {
+        typealias Response = LocalMemorySyncResponse
+        let cursor: String?
+        let limit: Int
+        var path: String {
+            var components = URLComponents()
+            components.path = "/v1/memory/local-sync"
+            components.queryItems = [
+                URLQueryItem(name: "limit", value: String(limit)),
+                cursor.map { URLQueryItem(name: "cursor", value: $0) },
+            ].compactMap { $0 }
+            return components.string ?? "/v1/memory/local-sync?limit=\(limit)"
+        }
+
+        var method: HTTPMethod {
+            .get
+        }
     }
 }

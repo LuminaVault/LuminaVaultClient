@@ -26,11 +26,13 @@ struct LLMPreferencesPaneView: View {
     /// branch. Injected so this pane doesn't reach into `AppState` for
     /// its own factory.
     private let providersClient: ProvidersClientProtocol
+    private let hybridClient: (any ChatExperienceClientProtocol)?
 
     init(
         client: LLMPreferencesClientProtocol,
         providersClient: ProvidersClientProtocol,
-        routerClient: RouterClientProtocol? = nil
+        routerClient: RouterClientProtocol? = nil,
+        hybridClient: (any ChatExperienceClientProtocol)? = nil
     ) {
         _viewModel = State(initialValue: LLMPreferencesPaneViewModel(
             client: client,
@@ -38,6 +40,7 @@ struct LLMPreferencesPaneView: View {
             routerClient: routerClient
         ))
         self.providersClient = providersClient
+        self.hybridClient = hybridClient
     }
 
     var body: some View {
@@ -76,7 +79,12 @@ struct LLMPreferencesPaneView: View {
         // Clear the app-wide floating LVTabBar so the Save section isn't
         // hidden under it (matches SettingsRootView's bottom clearance).
         .contentMargins(.bottom, LVSpacing.hero + LVSpacing.xxl, for: .scrollContent)
-        .task { await viewModel.load() }
+        .task {
+            await viewModel.load()
+            if let hybridClient {
+                await hybridSettings.loadCrossDevicePreferences(using: hybridClient)
+            }
+        }
         .refreshable { await viewModel.load() }
     }
 
@@ -84,6 +92,12 @@ struct LLMPreferencesPaneView: View {
 
     private var hybridExecutionSection: some View {
         Section {
+            Toggle("Use Apple on-device model", isOn: $hybridSettings.useAppleOnDeviceModel)
+            if hybridSettings.useAppleOnDeviceModel {
+                Text("Uses Apple Intelligence entirely on device when available on iOS 26.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
             Picker("Execution profile", selection: $hybridSettings.profile) {
                 Text("Private").tag(HybridExecutionProfile.private)
                 Text("Balanced").tag(HybridExecutionProfile.balanced)
@@ -95,16 +109,25 @@ struct LLMPreferencesPaneView: View {
                 Text("MLX server").tag(LocalEndpointKind.mlxServer)
                 Text("OpenAI-compatible").tag(LocalEndpointKind.openAICompatible)
             }
+            .disabled(hybridSettings.useAppleOnDeviceModel)
             TextField("Endpoint URL", text: $hybridSettings.endpointURL)
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .disabled(hybridSettings.useAppleOnDeviceModel)
             TextField("Local model", text: $hybridSettings.model)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .disabled(hybridSettings.useAppleOnDeviceModel)
             SecureField("Local endpoint API key (optional)", text: $hybridSettings.apiKey)
-            Button("Save local execution settings") { hybridSettings.save() }
-                .disabled(hybridSettings.configuration == nil)
+                .disabled(hybridSettings.useAppleOnDeviceModel)
+            Button("Save local execution settings") {
+                hybridSettings.save()
+                if let hybridClient {
+                    Task { await hybridSettings.saveCrossDevicePreferences(using: hybridClient) }
+                }
+            }
+            .disabled(!hybridSettings.useAppleOnDeviceModel && hybridSettings.configuration == nil)
         } header: {
             Text("Hybrid execution")
         } footer: {
@@ -265,7 +288,7 @@ struct LLMPreferencesPaneView: View {
                 set: { newValue in
                     viewModel.mode = newValue
                     viewModel.markDirty()
-                },
+                }
             )) {
                 Text("Managed").tag(LLMBrainMode.managed)
                 Text("My API Keys").tag(LLMBrainMode.byok)
@@ -288,7 +311,9 @@ struct LLMPreferencesPaneView: View {
         }
     }
 
-    private var isEditorDisabled: Bool { viewModel.mode == .managed }
+    private var isEditorDisabled: Bool {
+        viewModel.mode == .managed
+    }
 
     private var keyFieldPlaceholder: String {
         let name = ProvidersPaneViewModel.displayName(for: viewModel.primaryProvider)
@@ -305,7 +330,7 @@ struct LLMPreferencesPaneView: View {
         Section {
             Picker("Provider", selection: Binding(
                 get: { viewModel.primaryProvider },
-                set: { viewModel.selectProvider($0) },
+                set: { viewModel.selectProvider($0) }
             )) {
                 ForEach(ProviderID.allCases, id: \.self) { provider in
                     Text(ProvidersPaneViewModel.displayName(for: provider)).tag(provider)
@@ -319,7 +344,7 @@ struct LLMPreferencesPaneView: View {
                     set: { newValue in
                         viewModel.primaryModel = newValue
                         viewModel.markDirty()
-                    },
+                    }
                 )) {
                     ForEach(viewModel.modelPickerOptions) { model in
                         Text(model.displayName).tag(model.id)
@@ -331,7 +356,7 @@ struct LLMPreferencesPaneView: View {
                     set: { newValue in
                         viewModel.primaryModel = newValue
                         viewModel.markDirty()
-                    },
+                    }
                 ))
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
@@ -345,8 +370,8 @@ struct LLMPreferencesPaneView: View {
                         set: { newValue in
                             viewModel.apiKeyInput = newValue
                             viewModel.markDirty()
-                        },
-                    ),
+                        }
+                    )
                 )
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
@@ -479,7 +504,7 @@ struct FallbackChainEditor: View {
             HStack {
                 Picker("", selection: Binding(
                     get: { step.provider },
-                    set: { viewModel.updateFallback(at: index, provider: $0) },
+                    set: { viewModel.updateFallback(at: index, provider: $0) }
                 )) {
                     ForEach(ProviderID.allCases, id: \.self) { provider in
                         Text(ProvidersPaneViewModel.displayName(for: provider)).tag(provider)
@@ -490,7 +515,7 @@ struct FallbackChainEditor: View {
 
                 TextField("Model", text: Binding(
                     get: { step.model },
-                    set: { viewModel.updateFallback(at: index, model: $0) },
+                    set: { viewModel.updateFallback(at: index, model: $0) }
                 ))
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
