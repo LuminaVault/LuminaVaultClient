@@ -56,7 +56,7 @@ final class AuthLandingViewTests: XCTestCase {
         // staying in this order for snapshot tests when they land.
         XCTAssertEqual(
             AuthProviderOption.allCases,
-            [.apple, .google, .x, .phone, .email]
+            [.apple, .google, .x, .passkey, .phone, .email]
         )
     }
 }

@@ -34,7 +34,9 @@ final class AuthHTTPClientTests: XCTestCase {
               "username":"abby",
               "isVerified":true,
               "privacyNoCNOrigin":false,
-              "contextRouting":true
+              "contextRouting":true,
+              "autoSaveLinks":true,
+              "mnemosyneEnabled":true
             }
             """.data(using: .utf8)!
             return (response, body)
@@ -47,6 +49,8 @@ final class AuthHTTPClientTests: XCTestCase {
         XCTAssertTrue(me.isVerified)
         XCTAssertFalse(me.privacyNoCNOrigin)
         XCTAssertTrue(me.contextRouting)
+        XCTAssertTrue(me.autoSaveLinks)
+        XCTAssertTrue(me.mnemosyneEnabled)
     }
 
     func testLogoutPostsRefreshTokenAndIgnoresEmptyBody() async throws {
