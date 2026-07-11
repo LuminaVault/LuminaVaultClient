@@ -33,6 +33,12 @@ struct MultimodalCaptureView: View {
                 if let error = viewModel.errorMessage {
                     Text(error).foregroundStyle(.red).font(.footnote).accessibilityLabel("Capture failed: \(error)")
                 }
+                if viewModel.captureBlocked {
+                    Text("Your connected Hermes does not advertise multimodal ingestion with remote source access. Upgrade or enable its ingestion API before uploading files.")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .accessibilityLabel("Multimodal capture unavailable for connected Hermes")
+                }
                 if let batch = viewModel.latestBatch {
                     VStack(alignment: .leading, spacing: LVSpacing.sm) {
                         HStack {
@@ -92,6 +98,7 @@ struct MultimodalCaptureView: View {
             }
         }
         .task(id: viewModel.latestBatch?.id) {
+            await viewModel.loadCapabilities()
             await viewModel.monitorStatus()
         }
     }

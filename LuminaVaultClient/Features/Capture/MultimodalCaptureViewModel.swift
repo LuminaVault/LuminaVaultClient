@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 final class MultimodalCaptureViewModel {
     private let client: any IngestionClientProtocol
     private let defaults: UserDefaults
+    private let capabilitiesClient: (any HermesCapabilitiesClientProtocol)?
     private static let latestBatchKey = "lv.ingestion.latestBatch"
     var selectedFiles: [URL] = []
     var urlText = ""
@@ -17,15 +18,26 @@ final class MultimodalCaptureViewModel {
         didSet { persistLatestBatch() }
     }
 
-    init(client: any IngestionClientProtocol, defaults: UserDefaults = .standard) {
+    var hermesCapabilities: HermesCapabilities?
+
+    init(
+        client: any IngestionClientProtocol,
+        capabilitiesClient: (any HermesCapabilitiesClientProtocol)? = nil,
+        defaults: UserDefaults = .standard
+    ) {
         self.client = client
+        self.capabilitiesClient = capabilitiesClient
         self.defaults = defaults
         latestBatch = defaults.data(forKey: Self.latestBatchKey)
             .flatMap { try? JSONDecoder().decode(IngestionBatchDTO.self, from: $0) }
     }
 
     var canSave: Bool {
-        !saving && (!selectedFiles.isEmpty || !urls.isEmpty)
+        !saving && !captureBlocked && (!selectedFiles.isEmpty || !urls.isEmpty)
+    }
+
+    var captureBlocked: Bool {
+        hermesCapabilities?.isUserOverride == true && hermesCapabilities?.multimodalIngestion == .unsupported
     }
 
     var urls: [String] {
@@ -34,6 +46,10 @@ final class MultimodalCaptureViewModel {
 
     func add(_ urls: [URL]) {
         for url in urls where !selectedFiles.contains(url) {
+            guard supports(url) else {
+                errorMessage = "\(url.lastPathComponent) is not supported by the connected Hermes."
+                continue
+            }
             selectedFiles.append(url)
         }
     }
@@ -43,6 +59,7 @@ final class MultimodalCaptureViewModel {
     }
 
     func save() async {
+        await loadCapabilities()
         guard canSave else { return }
         saving = true
         errorMessage = nil
@@ -75,6 +92,12 @@ final class MultimodalCaptureViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func loadCapabilities() async {
+        guard let capabilitiesClient else { return }
+        do { hermesCapabilities = try await capabilitiesClient.get().capabilities }
+        catch { /* Server-side validation remains authoritative. */ }
     }
 
     func refreshStatus() async {
@@ -115,5 +138,22 @@ final class MultimodalCaptureViewModel {
             return
         }
         defaults.set(data, forKey: Self.latestBatchKey)
+    }
+
+    private func supports(_ url: URL) -> Bool {
+        let values = try? url.resourceValues(forKeys: [.contentTypeKey, .fileSizeKey])
+        if let maximum = hermesCapabilities?.ingestionMaxSourceBytes,
+           let size = values?.fileSize, Int64(size) > maximum
+        {
+            return false
+        }
+        guard let patterns = hermesCapabilities?.ingestionSupportedMimeTypes,
+              let type = values?.contentType?.preferredMIMEType else { return true }
+        return patterns.contains { pattern in
+            let normalized = pattern.lowercased()
+            return normalized.hasSuffix("/*")
+                ? type.lowercased().hasPrefix(String(normalized.dropLast()))
+                : type.caseInsensitiveCompare(normalized) == .orderedSame
+        }
     }
 }

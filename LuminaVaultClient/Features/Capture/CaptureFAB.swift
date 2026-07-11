@@ -65,7 +65,10 @@ struct CaptureFAB: View {
                         drainer: coordinator?.drainerHandle ?? .noop,
                         spacesClient: coordinator?.spacesClient
                     ),
-                    multimodalViewModel: MultimodalCaptureViewModel(client: ingestionClient)
+                    multimodalViewModel: MultimodalCaptureViewModel(
+                        client: ingestionClient,
+                        capabilitiesClient: coordinator?.hermesCapabilitiesClient
+                    )
                 )
             } else {
                 Text("Capture is initializing…")

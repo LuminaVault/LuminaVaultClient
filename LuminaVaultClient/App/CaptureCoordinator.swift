@@ -20,6 +20,7 @@ final class CaptureCoordinator {
     /// client to the picker VM without giving it AppState access.
     private(set) var spacesClient: (any SpacesClientProtocol)?
     private(set) var ingestionClient: (any IngestionClientProtocol)?
+    private(set) var hermesCapabilitiesClient: (any HermesCapabilitiesClientProtocol)?
     private var container: ModelContainer?
 
     private let tokenProvider: @Sendable () async -> String?
@@ -42,6 +43,7 @@ final class CaptureCoordinator {
             let safari = CaptureSafariHTTPClient(client: httpBase)
             spacesClient = SpacesHTTPClient(client: httpBase)
             ingestionClient = IngestionHTTPClient(client: httpBase)
+            hermesCapabilitiesClient = HermesCapabilitiesHTTPClient(client: httpBase)
             let drainer = CaptureDrainer(
                 queue: queue,
                 vaultUploader: uploader,
