@@ -290,7 +290,8 @@ struct MainTabView: View {
             jobsClient: jobsClient,
             remindersClient: remindersClient,
             localExecutor: executor,
-            localMemorySync: localMemorySync
+            localMemorySync: localMemorySync,
+            cloudAvailable: { appState.networkMonitor.isConnected }
         )
         viewModel.hybridProfile = settings.profile
         viewModel.transport = .hybrid

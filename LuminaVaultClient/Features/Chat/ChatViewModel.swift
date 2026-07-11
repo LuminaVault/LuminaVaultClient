@@ -160,6 +160,7 @@ final class ChatViewModel {
     private let historyStore: ChatHistoryStore?
     private let localExecutor: (any LocalChatExecuting)?
     private let localMemorySync: LocalMemorySyncService?
+    private let cloudAvailable: @MainActor @Sendable () -> Bool
     /// Lumina Jobs P3 — optional; when wired, each user turn is classified for
     /// recurring-job intent and a proposal card may surface.
     private let jobsClient: (any JobsClientProtocol)?
@@ -196,7 +197,8 @@ final class ChatViewModel {
         jobsClient: (any JobsClientProtocol)? = nil,
         remindersClient: (any RemindersClientProtocol)? = nil,
         localExecutor: (any LocalChatExecuting)? = nil,
-        localMemorySync: LocalMemorySyncService? = nil
+        localMemorySync: LocalMemorySyncService? = nil,
+        cloudAvailable: @escaping @MainActor @Sendable () -> Bool = { true }
     ) {
         self.conversationsClient = conversationsClient
         self.chatClient = chatClient
@@ -206,6 +208,7 @@ final class ChatViewModel {
         self.remindersClient = remindersClient
         self.localExecutor = localExecutor
         self.localMemorySync = localMemorySync
+        self.cloudAvailable = cloudAvailable
         self.voice = voice
         self.voice.onFinalTranscript = { [weak self] transcript in
             self?.sendVoiceTranscript(transcript)
@@ -515,7 +518,7 @@ final class ChatViewModel {
             profile: hybridProfile,
             capabilities: HybridExecutionCapabilities(
                 localAvailable: localAvailable,
-                cloudAvailable: true,
+                cloudAvailable: cloudAvailable(),
                 requiresCloudTool: multiModelEnabled,
                 contextFitsLocally: content.count < 32000
             )

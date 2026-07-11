@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/LuminaVault/LuminaVaultShared.git",
       "state" : {
-        "revision" : "95d5d30c5e946a627c12b3db0f1be4387de3f6b5",
-        "version" : "3.8.0"
+        "revision" : "f090d70eb56806da941c6de3232c757a49e15ec6",
+        "version" : "3.9.0"
       }
     },
     {
@@ -105,8 +105,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/PostHog/posthog-ios",
       "state" : {
-        "revision" : "52cd4c985c3f951fd7ac4b8e71cb3b49c9af010a",
-        "version" : "3.64.5"
+        "revision" : "76a3e1db35f3153f3388bdf077a717c7350e5f9e",
+        "version" : "3.64.6"
       }
     },
     {
