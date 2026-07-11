@@ -64,7 +64,10 @@ private struct LVDustField: View {
         ZStack {
             ForEach(0..<count, id: \.self) { i in
                 let p = Particle.make(index: i, count: count)
-                let angle = p.baseAngle + phase * 2 * .pi * p.angularSpeed
+                // Force the whole expression to Double: baseAngle/angularSpeed
+                // are Double but phase is CGFloat, and the mixed expression makes
+                // `.pi` ambiguous under Swift 6.2.
+                let angle = p.baseAngle + Double(phase) * 2 * .pi * p.angularSpeed
                 let r = orbitRadius * p.radiusRatio
                 Circle()
                     .fill(palette.glowPrimary.opacity(p.opacity))

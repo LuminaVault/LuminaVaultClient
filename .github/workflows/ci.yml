@@ -35,12 +35,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Pin Xcode — `latest-stable` drifted to 26.x with no iOS sim runtime
-      # preinstalled, and IPHONEOS_DEPLOYMENT_TARGET must stay ≤ runtime OS.
+      # LuminaVaultShared ≥ 1.3.0 requires swift-tools 6.2 — Xcode 16.4 ships
+      # Swift 6.1 and cannot resolve it, so we need the newest stable Xcode.
+      # The "ensure iOS runtime" step below covers images that ship 26.x
+      # without a preinstalled simulator runtime.
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "16.4"
+          xcode-version: latest-stable
+
+      - name: Ensure an iOS simulator runtime is installed
+        run: |
+          set -euo pipefail
+          if ! xcrun simctl list runtimes | grep -q "^iOS"; then
+            echo "no iOS simulator runtime — downloading (one-time per image)"
+            sudo xcodebuild -downloadPlatform iOS
+          fi
+          xcrun simctl list runtimes
 
       - name: Cache SPM packages
         uses: actions/cache@v4
@@ -50,13 +61,29 @@ jobs:
           key: spm-${{ runner.os }}-${{ hashFiles('LuminaVaultClient.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
           restore-keys: spm-${{ runner.os }}-
 
+      # The real Config.*.xcconfig files are gitignored (they hold secrets).
+      # CI has no secrets and tests use mocks, so materialize them from the
+      # committed .sample placeholders purely to satisfy the pbxproj
+      # baseConfigurationReference. Never overwrite a real file if present.
+      - name: Materialize xcconfig from samples
+        run: |
+          set -euo pipefail
+          for cfg in Debug Release Beta GoogleAuth; do
+            src="LuminaVaultClient/Config/Config.$cfg.xcconfig"
+            [ "$cfg" = "GoogleAuth" ] && src="LuminaVaultClient/Config/GoogleAuth.xcconfig"
+            if [ ! -f "$src" ] && [ -f "$src.sample" ]; then
+              cp "$src.sample" "$src"
+              echo "materialized $src"
+            fi
+          done
+
       - name: Resolve Swift packages
         run: xcodebuild -project LuminaVaultClient.xcodeproj -resolvePackageDependencies
 
-      # Pinned destination: with Xcode fixed at 16.4, "OS=latest" resolves to the
-      # runtime that ships with that Xcode (iOS 18.x) — deterministic per pin,
-      # and it fails LOUDLY if the device/runtime is missing instead of the old
-      # dynamic-discovery guard that exit-1'd on runner image drift.
+      # Pinned destination: "OS=latest" resolves to the newest installed
+      # runtime for the selected Xcode — and it fails LOUDLY if the device or
+      # runtime is missing instead of the old dynamic-discovery guard that
+      # exit-1'd on runner image drift.
       - name: List simulator runtimes (diagnostics only)
         run: xcrun simctl list runtimes
 
