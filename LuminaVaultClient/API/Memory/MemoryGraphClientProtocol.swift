@@ -13,5 +13,7 @@ protocol MemoryGraphClientProtocol: Sendable {
         limit: Int?,
         similarityThreshold: Double?,
         maxEdgesPerNode: Int?,
+        includeWikiPages: Bool?,
+        kinds: [MemoryEdgeKindDTO]?,
     ) async throws -> MemoryGraphResponse
 }

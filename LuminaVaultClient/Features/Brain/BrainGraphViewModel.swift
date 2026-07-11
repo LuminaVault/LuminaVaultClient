@@ -38,6 +38,8 @@ final class BrainGraphViewModel {
         limit: Int? = nil,
         similarityThreshold: Double? = nil,
         maxEdgesPerNode: Int? = nil,
+        includeWikiPages: Bool? = nil,
+        kinds: [MemoryEdgeKindDTO]? = nil,
     ) async {
         state = .loading
         selectedNodeID = nil
@@ -46,6 +48,8 @@ final class BrainGraphViewModel {
                 limit: limit,
                 similarityThreshold: similarityThreshold,
                 maxEdgesPerNode: maxEdgesPerNode,
+                includeWikiPages: includeWikiPages,
+                kinds: kinds,
             )
             state = .loaded(response)
         } catch {

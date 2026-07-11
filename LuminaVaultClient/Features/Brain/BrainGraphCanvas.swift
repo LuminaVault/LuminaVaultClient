@@ -17,6 +17,7 @@ import SwiftUI
 struct BrainGraphCanvas: View {
 
     @Environment(\.lvPalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let graph: MemoryGraphResponse
     let onSelect: (UUID) -> Void
@@ -40,8 +41,8 @@ struct BrainGraphCanvas: View {
     var body: some View {
         // PERF — cap to 60fps (ProMotion would otherwise drive this at 120Hz,
         // doubling physics + blur cost) and pause entirely when off-screen or
-        // at rest.
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !isVisible || isResting)) { timeline in
+        // at rest. Reduce Motion keeps gestures live but drops the cadence.
+        TimelineView(.animation(minimumInterval: reduceMotion ? 1.0 / 15.0 : 1.0 / 60.0, paused: !isVisible || isResting)) { timeline in
             Canvas { ctx, size in
                 engine.advance(to: timeline.date)
                 engine.draw(into: &ctx, size: size, style: style)

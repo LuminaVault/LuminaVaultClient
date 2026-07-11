@@ -15,11 +15,15 @@ final class MemoryGraphHTTPClient: MemoryGraphClientProtocol {
         limit: Int?,
         similarityThreshold: Double?,
         maxEdgesPerNode: Int?,
+        includeWikiPages: Bool?,
+        kinds: [MemoryEdgeKindDTO]?,
     ) async throws -> MemoryGraphResponse {
         try await client.execute(MemoryGraphEndpoints.Graph(
             limit: limit,
             similarityThreshold: similarityThreshold,
             maxEdgesPerNode: maxEdgesPerNode,
+            includeWikiPages: includeWikiPages,
+            kinds: kinds,
         ))
     }
 }

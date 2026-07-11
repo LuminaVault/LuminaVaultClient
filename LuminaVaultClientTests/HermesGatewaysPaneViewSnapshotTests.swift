@@ -41,6 +41,27 @@ final class HermesGatewaysPaneViewSnapshotTests: XCTestCase {
         func test(_: HermesGatewayID) async throws -> HermesGatewayTestResponse {
             HermesGatewayTestResponse(ok: true, verifiedAt: Date())
         }
+        func startApply() async throws -> StartHermesGatewayApplyResponse {
+            StartHermesGatewayApplyResponse(jobID: UUID(), state: .succeeded)
+        }
+        func applyStatus(_ jobID: UUID) async throws -> HermesGatewayApplyJobStatus {
+            HermesGatewayApplyJobStatus(
+                jobID: jobID, state: .succeeded, steps: [],
+                startedAt: Date(), updatedAt: Date(),
+            )
+        }
+        func applyStream(_: UUID) -> AsyncThrowingStream<HermesGatewayApplyEvent, any Error> {
+            AsyncThrowingStream { $0.finish() }
+        }
+        func startWhatsAppPair() async throws -> StartWhatsAppPairResponse {
+            StartWhatsAppPairResponse(sessionID: UUID())
+        }
+        func whatsAppPairStream(_: UUID) -> AsyncThrowingStream<HermesWhatsAppPairEvent, any Error> {
+            AsyncThrowingStream { $0.finish() }
+        }
+        func unlinkWhatsApp() async throws -> HermesGatewayCatalogEntry {
+            try listResult.get().items.first!
+        }
 
         func startPhotonSetup() async throws -> StartPhotonSetupResponse { StartPhotonSetupResponse(sessionID: UUID()) }
         func photonSetupPhone(sessionID: UUID, phone: String) async throws {}

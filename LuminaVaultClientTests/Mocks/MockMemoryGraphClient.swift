@@ -11,16 +11,22 @@ final class MockMemoryGraphClient: MemoryGraphClientProtocol, @unchecked Sendabl
     private(set) var lastLimit: Int?
     private(set) var lastSimilarity: Double?
     private(set) var lastMaxEdges: Int?
+    private(set) var lastIncludeWikiPages: Bool?
+    private(set) var lastKinds: [MemoryEdgeKindDTO]?
 
     func fetchGraph(
         limit: Int?,
         similarityThreshold: Double?,
         maxEdgesPerNode: Int?,
+        includeWikiPages: Bool?,
+        kinds: [MemoryEdgeKindDTO]?,
     ) async throws -> MemoryGraphResponse {
         fetchCallCount += 1
         lastLimit = limit
         lastSimilarity = similarityThreshold
         lastMaxEdges = maxEdgesPerNode
+        lastIncludeWikiPages = includeWikiPages
+        lastKinds = kinds
         return try fetchResult.get()
     }
 }

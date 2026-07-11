@@ -30,17 +30,89 @@ final class ChatViewModel {
         let role: ConversationMessageRole
         var content: String
         var sources: [QueryHitDTO]
+        /// Finalized assistant-turn image URLs extracted once when the
+        /// message lands. Row bodies read this cache instead of re-running
+        /// regexes during SwiftUI updates.
+        var imageURLs: [URL]
+        /// Markdown with Obsidian wikilinks rewritten into tappable
+        /// `luminavault-wikilink://` URLs. Cached for finalized assistant
+        /// turns so MarkdownUI does not redo parser work in every row body.
+        var renderedMarkdown: String
 
         init(
             id: UUID = UUID(),
             role: ConversationMessageRole,
             content: String,
             sources: [QueryHitDTO] = [],
+            imageURLs: [URL]? = nil,
+            renderedMarkdown: String? = nil,
         ) {
             self.id = id
             self.role = role
             self.content = content
             self.sources = sources
+            self.imageURLs = imageURLs ?? Self.imageURLs(role: role, content: content)
+            self.renderedMarkdown = renderedMarkdown ?? Self.renderedMarkdown(role: role, content: content)
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case role
+            case content
+            case sources
+            case imageURLs
+            case renderedMarkdown
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decode(UUID.self, forKey: .id)
+            role = try container.decode(ConversationMessageRole.self, forKey: .role)
+            content = try container.decode(String.self, forKey: .content)
+            sources = try container.decodeIfPresent([QueryHitDTO].self, forKey: .sources) ?? []
+            imageURLs = try container.decodeIfPresent([URL].self, forKey: .imageURLs)
+                ?? Self.imageURLs(role: role, content: content)
+            renderedMarkdown = try container.decodeIfPresent(String.self, forKey: .renderedMarkdown)
+                ?? Self.renderedMarkdown(role: role, content: content)
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(id, forKey: .id)
+            try container.encode(role, forKey: .role)
+            try container.encode(content, forKey: .content)
+            try container.encode(sources, forKey: .sources)
+            try container.encode(imageURLs, forKey: .imageURLs)
+            try container.encode(renderedMarkdown, forKey: .renderedMarkdown)
+        }
+
+        private static func renderedMarkdown(role: ConversationMessageRole, content: String) -> String {
+            guard role == .assistant else { return content }
+            return WikilinkParser.markdownByRenderingLinks(in: content)
+        }
+
+        private static func imageURLs(role: ConversationMessageRole, content: String) -> [URL] {
+            guard role == .assistant else { return [] }
+            let ns = content as NSString
+            var urls: [URL] = []
+            func scan(_ pattern: String, group: Int) {
+                guard let re = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+                    return
+                }
+                for match in re.matches(in: content, range: NSRange(location: 0, length: ns.length))
+                    where match.numberOfRanges > group
+                {
+                    if let url = URL(string: ns.substring(with: match.range(at: group))) {
+                        urls.append(url)
+                    }
+                }
+            }
+
+            scan(#"!\[[^\]]*\]\((https?://[^\s)]+)\)"#, group: 1)
+            scan(#"(?<!\()(https?://[^\s)]+\.(?:png|jpe?g|gif|webp))"#, group: 1)
+
+            var seen = Set<String>()
+            return urls.filter { seen.insert($0.absoluteString).inserted }
         }
     }
 
@@ -76,6 +148,14 @@ final class ChatViewModel {
     /// provider (e.g. managed-brain Gemini) delivers the whole reply in one
     /// `.summary` event. Rendered by `PendingAssistantRow`.
     var displayedAssistant: String = ""
+    /// Stable row-visibility flag for the live assistant bubble. The parent
+    /// chat view reads this instead of token buffers so token arrival only
+    /// invalidates the leaf pending row.
+    var pendingAssistantVisible = false
+    /// Throttled scroll tick. Incremented at roughly 100ms while streaming
+    /// text reveals; the parent scroll view observes this instead of
+    /// `displayedAssistant` token-by-token.
+    var scrollRevision = 0
     var pendingSources: [QueryHitDTO] = []
     /// One-shot banner emitted by a `.fallback` SSE event (e.g. xAI
     /// credit exhaustion → fallback model). Cleared on next `send()`.
@@ -148,6 +228,7 @@ final class ChatViewModel {
     /// Drives the `displayedAssistant` typewriter reveal. Self-clears when it
     /// catches up so it never idle-spins.
     private var typewriterTask: Task<Void, Never>?
+    private var scrollRevisionTask: Task<Void, Never>?
     private var mascotDecayTask: Task<Void, Never>?
     private var toastDecayTask: Task<Void, Never>?
     private var persistTask: Task<Void, Never>?
@@ -459,6 +540,7 @@ final class ChatViewModel {
             phase = .streaming
             pendingAssistant = ""
             displayedAssistant = ""
+            pendingAssistantVisible = true
             pendingSources = []
 
             let stream = conversationsClient.streamReply(
@@ -503,6 +585,7 @@ final class ChatViewModel {
                     return
                 case .error(let message):
                     drainTypewriterNow()
+                    pendingAssistantVisible = false
                     phase = .failed(message: message)
                     setMascot(.idle)
                     return
@@ -527,6 +610,7 @@ final class ChatViewModel {
             setMascot(.idle)
         } catch {
             drainTypewriterNow()
+            pendingAssistantVisible = false
             let message = friendlyError(error)
             phase = .failed(message: message)
             setMascot(.idle)
@@ -544,6 +628,7 @@ final class ChatViewModel {
         phase = .streaming
         pendingAssistant = ""
         displayedAssistant = ""
+        pendingAssistantVisible = true
         pendingSources = []
         let history = messages.map { msg in
             ChatMessage(role: msg.role.rawValue, content: msg.content)
@@ -570,6 +655,7 @@ final class ChatViewModel {
             setMascot(.idle)
         } catch {
             drainTypewriterNow()
+            pendingAssistantVisible = false
             let message = friendlyError(error)
             phase = .failed(message: message)
             setMascot(.idle)
@@ -635,6 +721,7 @@ final class ChatViewModel {
         messages.removeSubrange(idx...)
         pendingAssistant = ""
         displayedAssistant = ""
+        pendingAssistantVisible = false
         schedulePersist()
     }
 
@@ -709,6 +796,7 @@ final class ChatViewModel {
             let lower = pendingAssistant.index(pendingAssistant.startIndex, offsetBy: displayedAssistant.count)
             let upper = pendingAssistant.index(lower, offsetBy: stride)
             displayedAssistant.append(contentsOf: pendingAssistant[lower..<upper])
+            requestScrollRevision()
             try? await Task.sleep(for: .milliseconds(16))
         }
         typewriterTask = nil
@@ -721,6 +809,7 @@ final class ChatViewModel {
         // Guard against an interleaved write landing after the loop exited.
         if displayedAssistant.count < pendingAssistant.count {
             displayedAssistant = pendingAssistant
+            requestScrollRevision()
         }
     }
 
@@ -730,6 +819,25 @@ final class ChatViewModel {
         typewriterTask?.cancel()
         typewriterTask = nil
         displayedAssistant = pendingAssistant
+        bumpScrollRevision()
+    }
+
+    private func requestScrollRevision() {
+        guard scrollRevisionTask == nil else { return }
+        scrollRevisionTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(100))
+            await MainActor.run {
+                guard let self else { return }
+                self.scrollRevision &+= 1
+                self.scrollRevisionTask = nil
+            }
+        }
+    }
+
+    private func bumpScrollRevision() {
+        scrollRevisionTask?.cancel()
+        scrollRevisionTask = nil
+        scrollRevision &+= 1
     }
 
     private func finalizeAssistantTurn() {
@@ -742,6 +850,7 @@ final class ChatViewModel {
         let spokenBody = pendingAssistant
         pendingAssistant = ""
         displayedAssistant = ""
+        pendingAssistantVisible = false
         pendingSources = []
         schedulePersist()
         // HER-153 — speak reply iff the user's prompt was voice. Typed
@@ -774,12 +883,15 @@ final class ChatViewModel {
         mascotDecayTask?.cancel()
         persistTask?.cancel()
         typewriterTask?.cancel()
+        scrollRevisionTask?.cancel()
         typewriterTask = nil
+        scrollRevisionTask = nil
         let oldID = conversationID
         conversationID = nil
         messages = []
         pendingAssistant = ""
         displayedAssistant = ""
+        pendingAssistantVisible = false
         pendingSources = []
         fallbackNotice = nil
         stagedReferences = []

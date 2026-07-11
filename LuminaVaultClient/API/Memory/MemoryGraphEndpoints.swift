@@ -18,6 +18,10 @@ enum MemoryGraphEndpoints {
         let similarityThreshold: Double?
         /// Per-node degree cap after merge. Server default 8, max 50.
         let maxEdgesPerNode: Int?
+        /// Whether wiki/source page nodes should be included. Server default true.
+        let includeWikiPages: Bool?
+        /// CSV-encoded edge kinds to compute. Server default all kinds.
+        let kinds: [MemoryEdgeKindDTO]?
 
         var path: String {
             var components = URLComponents()
@@ -29,6 +33,12 @@ enum MemoryGraphEndpoints {
             }
             if let maxEdgesPerNode {
                 items.append(.init(name: "maxEdgesPerNode", value: String(maxEdgesPerNode)))
+            }
+            if let includeWikiPages {
+                items.append(.init(name: "includeWikiPages", value: String(includeWikiPages)))
+            }
+            if let kinds, !kinds.isEmpty {
+                items.append(.init(name: "kinds", value: kinds.map(\.rawValue).joined(separator: ",")))
             }
             if !items.isEmpty { components.queryItems = items }
             // BaseHTTPClient appends `path` to its base URL — emit the path

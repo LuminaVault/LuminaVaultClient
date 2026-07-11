@@ -30,6 +30,8 @@ final class InsightsListViewSnapshotTests: XCTestCase {
         func list(section: InsightSection?, limit: Int?) async throws -> InsightListResponse {
             try result.get()
         }
+
+        func dismiss(id: UUID) async throws {}
     }
 
     private static func stubInsight(

@@ -42,15 +42,24 @@ final class MockTasksClient: TasksClientProtocol, @unchecked Sendable {
 
 final class MockInsightsClient: InsightsClientProtocol, @unchecked Sendable {
     var result: Result<InsightListResponse, Error> = .success(InsightListResponse(insights: []))
+    var dismissResult: Result<Void, Error> = .success(())
     private(set) var callCount = 0
+    private(set) var dismissCallCount = 0
     private(set) var lastSection: InsightSection?
     private(set) var lastLimit: Int?
+    private(set) var lastDismissedID: UUID?
 
     func list(section: InsightSection?, limit: Int?) async throws -> InsightListResponse {
         callCount += 1
         lastSection = section
         lastLimit = limit
         return try result.get()
+    }
+
+    func dismiss(id: UUID) async throws {
+        dismissCallCount += 1
+        lastDismissedID = id
+        try dismissResult.get()
     }
 }
 

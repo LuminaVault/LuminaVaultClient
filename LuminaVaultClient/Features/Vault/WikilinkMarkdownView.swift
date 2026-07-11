@@ -8,6 +8,7 @@ struct WikilinkMarkdownView: View {
     @Environment(\.lvPalette) private var palette
 
     let markdown: String
+    let renderedMarkdownOverride: String?
     let vaultClient: VaultClientProtocol
     let memoryClient: MemoryClientProtocol
 
@@ -18,7 +19,19 @@ struct WikilinkMarkdownView: View {
     @State private var isResolvingLink = false
 
     private var renderedMarkdown: String {
-        WikilinkParser.markdownByRenderingLinks(in: markdown)
+        renderedMarkdownOverride ?? WikilinkParser.markdownByRenderingLinks(in: markdown)
+    }
+
+    init(
+        markdown: String,
+        renderedMarkdown: String? = nil,
+        vaultClient: VaultClientProtocol,
+        memoryClient: MemoryClientProtocol
+    ) {
+        self.markdown = markdown
+        self.renderedMarkdownOverride = renderedMarkdown
+        self.vaultClient = vaultClient
+        self.memoryClient = memoryClient
     }
 
     var body: some View {

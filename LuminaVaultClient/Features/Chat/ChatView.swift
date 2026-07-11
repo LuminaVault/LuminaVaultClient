@@ -68,7 +68,7 @@ struct ChatView: View {
                     // Clearance so content never hides under the composer.
                     .padding(.bottom, LVSpacing.hero)
                 }
-                .onChange(of: viewModel.displayedAssistant) { _, _ in
+                .onChange(of: viewModel.scrollRevision) { _, _ in
                     withAnimation(.easeOut(duration: 0.15)) {
                         proxy.scrollTo(Self.pendingAnchor, anchor: .bottom)
                     }
@@ -176,12 +176,9 @@ struct ChatView: View {
                 }
             }
 
-            if viewModel.isStreaming || !viewModel.pendingAssistant.isEmpty {
+            if viewModel.pendingAssistantVisible {
                 PendingAssistantRow(
-                    text: viewModel.displayedAssistant,
-                    sources: viewModel.pendingSources,
-                    isStreaming: viewModel.isStreaming,
-                    mascotState: viewModel.mascotState,
+                    viewModel: viewModel,
                 )
                 .id(Self.pendingAnchor)
             }
@@ -290,16 +287,18 @@ struct ChatView: View {
     /// grounding). The upload is best-effort — the staged text works even
     /// if the vault rejects the type.
     private func handleAttach(_ url: URL) {
-        do {
-            let extracted = try AttachmentTextExtractor.extract(from: url)
-            viewModel.attach(name: extracted.name, text: extracted.text)
-        } catch {
-            let message = (error as? LocalizedError)?.errorDescription
-                ?? error.localizedDescription
-            showAttachmentError(message)
-            return
+        Task {
+            do {
+                let extracted = try await AttachmentTextExtractor.extractAsync(from: url)
+                viewModel.attach(name: extracted.name, text: extracted.text)
+            } catch {
+                let message = (error as? LocalizedError)?.errorDescription
+                    ?? error.localizedDescription
+                showAttachmentError(message)
+                return
+            }
+            uploadToVault(url)
         }
-        uploadToVault(url)
     }
 
     /// `@`-reference an existing vault note: read its text and stage it as a
@@ -357,16 +356,12 @@ struct ChatView: View {
 
     private func uploadToVault(_ url: URL) {
         guard let vaultUploadClient else { return }
-        let scoped = url.startAccessingSecurityScopedResource()
-        let data = try? Data(contentsOf: url)
-        if scoped { url.stopAccessingSecurityScopedResource() }
-        guard let data else { return }
-
-        let name = url.lastPathComponent
-        let contentType = Self.uploadContentType(for: url.pathExtension.lowercased())
         Task {
             // Best-effort: a vault allowlist rejection (e.g. .txt) leaves
             // the staged text intact, so the turn still carries the file.
+            guard let data = try? await AttachmentTextExtractor.readDataAsync(from: url) else { return }
+            let name = url.lastPathComponent
+            let contentType = Self.uploadContentType(for: url.pathExtension.lowercased())
             _ = try? await vaultUploadClient.uploadAsset(
                 data: data,
                 contentType: contentType,
@@ -428,7 +423,7 @@ private struct MessageRow: View {
             // Render any images the assistant returned (e.g. Hermes Tool
             // Gateway image generation) — AttributedString markdown drops
             // image syntax, so surface them explicitly.
-            ForEach(imageURLs, id: \.self) { url in
+            ForEach(message.imageURLs, id: \.self) { url in
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case let .success(image):
@@ -469,30 +464,6 @@ private struct MessageRow: View {
         }
     }
 
-    /// Image URLs an assistant turn carries (markdown `![](url)` or bare
-    /// image links). Empty for user turns.
-    private var imageURLs: [URL] {
-        guard message.role == .assistant else { return [] }
-        return Self.extractImageURLs(from: message.content)
-    }
-
-    static func extractImageURLs(from text: String) -> [URL] {
-        let ns = text as NSString
-        var urls: [URL] = []
-        func scan(_ pattern: String, group: Int) {
-            guard let re = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return }
-            for m in re.matches(in: text, range: NSRange(location: 0, length: ns.length)) where m.numberOfRanges > group {
-                if let url = URL(string: ns.substring(with: m.range(at: group))) { urls.append(url) }
-            }
-        }
-        // Markdown image: ![alt](url)
-        scan(#"!\[[^\]]*\]\((https?://[^\s)]+)\)"#, group: 1)
-        // Bare image URL (not already part of a markdown link)
-        scan(#"(?<!\()(https?://[^\s)]+\.(?:png|jpe?g|gif|webp))"#, group: 1)
-        var seen = Set<String>()
-        return urls.filter { seen.insert($0.absoluteString).inserted }
-    }
-
     @ViewBuilder
     private var bubbleBody: some View {
         // HER-155 follow-up — only assistant messages can carry
@@ -504,6 +475,7 @@ private struct MessageRow: View {
         {
             WikilinkMarkdownView(
                 markdown: message.content,
+                renderedMarkdown: message.renderedMarkdown,
                 vaultClient: vaultClient,
                 memoryClient: memoryClient,
             )
@@ -519,37 +491,34 @@ private struct MessageRow: View {
 
 private struct PendingAssistantRow: View {
     @Environment(\.lvPalette) private var palette
-    let text: String
-    let sources: [QueryHitDTO]
-    let isStreaming: Bool
-    let mascotState: HermieMascotState
+    let viewModel: ChatViewModel
 
     var body: some View {
         HStack(alignment: .top, spacing: LVSpacing.sm) {
-            AssistantAvatar(state: mascotState)
+            AssistantAvatar(state: viewModel.mascotState)
                 .padding(.top, LVSpacing.xs)
             VStack(alignment: .leading, spacing: LVSpacing.xs) {
-                if text.isEmpty && isStreaming {
+                if viewModel.displayedAssistant.isEmpty && viewModel.isStreaming {
                     TypingIndicator()
                 } else {
                     HStack(alignment: .firstTextBaseline, spacing: LVSpacing.xs) {
-                        Text(text)
+                        Text(viewModel.displayedAssistant)
                             .lvFont(.body)
                             .foregroundStyle(palette.textPrimary)
                             .multilineTextAlignment(.leading)
-                        if isStreaming { StreamingCaret() }
+                        if viewModel.isStreaming { StreamingCaret() }
                     }
                 }
-                if !sources.isEmpty {
-                    SourceChipRow(sources: sources)
+                if !viewModel.pendingSources.isEmpty {
+                    SourceChipRow(sources: viewModel.pendingSources)
                 }
             }
             .padding(.horizontal, LVSpacing.base)
             .padding(.vertical, LVSpacing.md)
             .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.card)
             .lvInnerGlow(cornerRadius: LVRadius.card,
-                         intensity: isStreaming ? LVGlow.focused : LVGlow.subtle)
-            .lvPulse(active: isStreaming)
+                         intensity: viewModel.isStreaming ? LVGlow.focused : LVGlow.subtle)
+            .lvPulse(active: viewModel.isStreaming)
             Spacer(minLength: LVSpacing.hero)
         }
     }

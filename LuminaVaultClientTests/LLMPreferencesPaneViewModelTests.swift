@@ -35,17 +35,49 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
         }
     }
 
+    private final class MockProvidersClient: ProvidersClientProtocol {
+        func list() async throws -> ProviderCredentialsListResponse {
+            ProviderCredentialsListResponse(providers: [])
+        }
+
+        func upsert(_ provider: ProviderID, _ body: ProviderCredentialPutRequest) async throws -> ProviderCredentialDTO {
+            ProviderCredentialDTO(provider: provider, kind: body.kind, hasCredential: true, baseUrl: body.baseUrl, label: body.label)
+        }
+
+        func delete(_ provider: ProviderID) async throws {}
+
+        func test(_ provider: ProviderID) async throws -> ProviderTestResponse {
+            ProviderTestResponse(verifiedAt: Date(), model: nil)
+        }
+
+        func models(_ provider: ProviderID) async throws -> ProviderModelsResponse {
+            ProviderModelsResponse(provider: provider, models: [], fetchedLive: false)
+        }
+
+        func listPool(_ provider: ProviderID) async throws -> ProviderPoolListResponse {
+            ProviderPoolListResponse(provider: provider, keys: [])
+        }
+
+        func addPool(_ provider: ProviderID, _ body: ProviderPoolAddRequest) async throws -> ProviderPoolKeyDTO {
+            ProviderPoolKeyDTO(id: UUID(), label: body.label, createdAt: Date())
+        }
+
+        func deletePool(_ provider: ProviderID, keyID: UUID) async throws {}
+    }
+
     // MARK: Fixtures
 
     private var client: MockLLMPreferencesClient!
+    private var providersClient: MockProvidersClient!
 
     override func setUp() async throws {
         try await super.setUp()
         client = MockLLMPreferencesClient()
+        providersClient = MockProvidersClient()
     }
 
     private func makeSUT() -> LLMPreferencesPaneViewModel {
-        LLMPreferencesPaneViewModel(client: client)
+        LLMPreferencesPaneViewModel(client: client, providersClient: providersClient)
     }
 
     // MARK: Loading
