@@ -69,4 +69,13 @@ final class MultimodalCaptureViewModel {
             errorMessage = error.localizedDescription
         }
     }
+
+    func refreshStatus() async {
+        guard let batchID = latestBatch?.id else { return }
+        do {
+            latestBatch = try await client.list().batches.first { $0.id == batchID } ?? latestBatch
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 }

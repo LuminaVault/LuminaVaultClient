@@ -167,9 +167,6 @@ struct CaptureSheet: View {
                 onSave: {
                     Task {
                         await multimodalViewModel.save()
-                        if multimodalViewModel.errorMessage == nil {
-                            dismiss()
-                        }
                     }
                 }
             )

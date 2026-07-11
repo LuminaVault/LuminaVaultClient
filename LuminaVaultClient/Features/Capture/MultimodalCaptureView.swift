@@ -34,8 +34,36 @@ struct MultimodalCaptureView: View {
                     Text(error).foregroundStyle(.red).font(.footnote).accessibilityLabel("Capture failed: \(error)")
                 }
                 if let batch = viewModel.latestBatch {
-                    Label("Saved to vault · \(batch.completed) of \(batch.total) processed", systemImage: "checkmark.circle")
-                        .font(.footnote).foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: LVSpacing.sm) {
+                        HStack {
+                            Label("Saved to vault · \(batch.completed) of \(batch.total) processed", systemImage: "checkmark.circle")
+                            Spacer()
+                            Button("Refresh", systemImage: "arrow.clockwise") {
+                                Task { await viewModel.refreshStatus() }
+                            }
+                            .labelStyle(.iconOnly)
+                        }
+                        ForEach(batch.items) { item in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(item.fileName ?? item.url ?? "Capture").lineLimit(1)
+                                Text(item.state.rawValue.replacingOccurrences(of: "_", with: " "))
+                                    .font(.caption).foregroundStyle(.secondary)
+                                if let summary = item.summary {
+                                    Text(summary).font(.footnote)
+                                }
+                                if let credibility = item.credibility {
+                                    Text("Source credibility: \(credibility.score.map(String.init) ?? "N/A")")
+                                        .font(.caption.bold())
+                                    Text(credibility.rationale).font(.caption).foregroundStyle(.secondary)
+                                }
+                                if let error = item.error {
+                                    Text(error).font(.caption).foregroundStyle(.red)
+                                }
+                            }
+                            .padding()
+                            .background(.thinMaterial, in: .rect(cornerRadius: LVRadius.card))
+                        }
+                    }
                 }
             }
             .padding(.horizontal, LVSpacing.base)
