@@ -26,90 +26,49 @@ private struct BlockView: View {
     @Environment(\.lvPalette) private var palette
     let block: LuminaBlock
 
+    // Single dispatch — each helper is a small, independently type-checked expression.
     var body: some View {
         switch block.type {
-        case "heading":
-            Text(block.text ?? "")
-                .font(.system(size: headingSize, weight: .bold))
-                .foregroundStyle(palette.textPrimary)
-
-        case "paragraph", "markdown":
-            markdownText(block.text ?? "")
-
-        case "quote":
-            Text(block.text ?? "")
-                .font(.system(size: 15, weight: .medium))
-                .italic()
-                .foregroundStyle(palette.textSecondary)
-                .padding(.leading, 12)
-                .overlay(alignment: .leading) {
-                    Rectangle().fill(palette.glowPrimary.opacity(0.6)).frame(width: 3)
-                }
-
-        case "badge":
-            Text((block.text ?? "").uppercased())
-                .font(.system(size: 11, weight: .heavy, design: .rounded))
-                .tracking(1)
-                .foregroundStyle(palette.glowPrimary)
-                .padding(.horizontal, 10).padding(.vertical, 5)
-                .background(Capsule().fill(palette.glowPrimary.opacity(0.12)))
-                .overlay(Capsule().stroke(palette.glowPrimary.opacity(0.4), lineWidth: 1))
-
-        case "statCard":
-            StatCardBlock(block: block)
-
-        case "lineChart", "barChart":
-            ChartBlock(block: block)
-
-        case "list":
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(Array((block.items ?? []).enumerated()), id: \.offset) { _, item in
-                    HStack(alignment: .top, spacing: 8) {
-                        Circle().fill(palette.glowPrimary).frame(width: 5, height: 5).padding(.top, 7)
-                        Text(item).font(.system(size: 15)).foregroundStyle(palette.textPrimary)
-                    }
-                }
-            }
-
-        case "keyValue":
-            VStack(spacing: 6) {
-                ForEach(Array((block.pairs ?? []).enumerated()), id: \.offset) { _, pair in
-                    HStack {
-                        Text(pair.key).font(.system(size: 13)).foregroundStyle(palette.textSecondary)
-                        Spacer()
-                        Text(pair.value).font(.system(size: 13, weight: .semibold)).foregroundStyle(palette.textPrimary)
-                    }
-                }
-            }
-
-        case "table":
-            TableBlock(block: block)
-
-        case "image":
-            if let urlString = block.url, let url = URL(string: urlString) {
-                AsyncImage(url: url) { image in
-                    image.resizable().aspectRatio(contentMode: .fit)
-                } placeholder: {
-                    RoundedRectangle(cornerRadius: 12).fill(palette.surface.opacity(0.4)).frame(height: 160)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-
-        case "divider":
-            Divider().overlay(palette.textSecondary.opacity(0.3))
-
-        default:
-            // Unknown block type — render its text if any, else skip.
-            if let text = block.text { markdownText(text) }
+        case "heading":          headingView
+        case "paragraph",
+             "markdown":         markdownView
+        case "quote":            quoteView
+        case "badge":            badgeView
+        case "statCard":         StatCardBlock(block: block)
+        case "lineChart",
+             "barChart":         ChartBlock(block: block)
+        case "list":             listView
+        case "keyValue":         keyValueView
+        case "table":            TableBlock(block: block)
+        case "image":            imageView
+        case "divider":          dividerView
+        default:                 fallbackView
         }
+    }
+
+    // MARK: – Heading
+
+    @ViewBuilder
+    private var headingView: some View {
+        let size = headingSize
+        Text(block.text ?? "")
+            .font(.system(size: size, weight: .bold))
+            .foregroundStyle(palette.textPrimary)
     }
 
     private var headingSize: CGFloat {
         switch block.level ?? 2 {
-        case 1: return 22
-        case 2: return 18
+        case 1:  return 22
+        case 2:  return 18
         default: return 15
         }
+    }
+
+    // MARK: – Paragraph / Markdown
+
+    @ViewBuilder
+    private var markdownView: some View {
+        markdownText(block.text ?? "")
     }
 
     @ViewBuilder
@@ -118,10 +77,122 @@ private struct BlockView: View {
             markdown: body,
             options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         ) {
-            Text(attr).font(.system(size: 15)).foregroundStyle(palette.textPrimary)
+            Text(attr)
+                .font(.system(size: 15))
+                .foregroundStyle(palette.textPrimary)
         } else {
-            Text(body).font(.system(size: 15)).foregroundStyle(palette.textPrimary)
+            Text(body)
+                .font(.system(size: 15))
+                .foregroundStyle(palette.textPrimary)
         }
+    }
+
+    // MARK: – Quote
+
+    @ViewBuilder
+    private var quoteView: some View {
+        let bar = Rectangle()
+            .fill(palette.glowPrimary.opacity(0.6))
+            .frame(width: 3)
+        Text(block.text ?? "")
+            .font(.system(size: 15, weight: .medium))
+            .italic()
+            .foregroundStyle(palette.textSecondary)
+            .padding(.leading, 12)
+            .overlay(alignment: .leading) { bar }
+    }
+
+    // MARK: – Badge
+
+    @ViewBuilder
+    private var badgeView: some View {
+        let label = (block.text ?? "").uppercased()
+        Text(label)
+            .font(.system(size: 11, weight: .heavy, design: .rounded))
+            .tracking(1)
+            .foregroundStyle(palette.glowPrimary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(palette.glowPrimary.opacity(0.12)))
+            .overlay(Capsule().stroke(palette.glowPrimary.opacity(0.4), lineWidth: 1))
+    }
+
+    // MARK: – List
+
+    @ViewBuilder
+    private var listView: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(Array((block.items ?? []).enumerated()), id: \.offset) { _, item in
+                listItemRow(item)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func listItemRow(_ item: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Circle()
+                .fill(palette.glowPrimary)
+                .frame(width: 5, height: 5)
+                .padding(.top, 7)
+            Text(item)
+                .font(.system(size: 15))
+                .foregroundStyle(palette.textPrimary)
+        }
+    }
+
+    // MARK: – Key-Value
+
+    @ViewBuilder
+    private var keyValueView: some View {
+        VStack(spacing: 6) {
+            ForEach(Array((block.pairs ?? []).enumerated()), id: \.offset) { _, pair in
+                keyValueRow(pair)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func keyValueRow(_ pair: LuminaBlock.Pair) -> some View {
+        HStack {
+            Text(pair.key)
+                .font(.system(size: 13))
+                .foregroundStyle(palette.textSecondary)
+            Spacer()
+            Text(pair.value)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(palette.textPrimary)
+        }
+    }
+
+    // MARK: – Image
+
+    @ViewBuilder
+    private var imageView: some View {
+        if let urlString = block.url, let url = URL(string: urlString) {
+            AsyncImage(url: url) { image in
+                image.resizable().aspectRatio(contentMode: .fit)
+            } placeholder: {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(palette.surface.opacity(0.4))
+                    .frame(height: 160)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    // MARK: – Divider
+
+    @ViewBuilder
+    private var dividerView: some View {
+        Divider().overlay(palette.textSecondary.opacity(0.3))
+    }
+
+    // MARK: – Fallback (unknown block type)
+
+    @ViewBuilder
+    private var fallbackView: some View {
+        if let text = block.text { markdownText(text) }
     }
 }
 
