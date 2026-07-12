@@ -67,7 +67,8 @@ struct CaptureFAB: View {
                     ),
                     multimodalViewModel: MultimodalCaptureViewModel(
                         client: ingestionClient,
-                        capabilitiesClient: coordinator?.hermesCapabilitiesClient
+                        capabilitiesClient: coordinator?.hermesCapabilitiesClient,
+                        spacesClient: coordinator?.spacesClient
                     )
                 )
             } else {

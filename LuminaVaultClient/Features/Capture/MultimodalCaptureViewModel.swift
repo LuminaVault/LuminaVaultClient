@@ -9,7 +9,9 @@ final class MultimodalCaptureViewModel {
     private let client: any IngestionClientProtocol
     private let defaults: UserDefaults
     private let capabilitiesClient: (any HermesCapabilitiesClientProtocol)?
+    private let spacesClient: (any SpacesClientProtocol)?
     private static let latestBatchKey = "lv.ingestion.latestBatch"
+    private static let selectedSpaceKey = "lv.ingestion.selectedSpace"
     var selectedFiles: [URL] = []
     var urlText = ""
     var saving = false
@@ -19,15 +21,22 @@ final class MultimodalCaptureViewModel {
     }
 
     var hermesCapabilities: HermesCapabilities?
+    var spaces: [SpaceDTO] = []
+    var selectedSpaceID: UUID? {
+        didSet { defaults.set(selectedSpaceID?.uuidString, forKey: Self.selectedSpaceKey) }
+    }
 
     init(
         client: any IngestionClientProtocol,
         capabilitiesClient: (any HermesCapabilitiesClientProtocol)? = nil,
+        spacesClient: (any SpacesClientProtocol)? = nil,
         defaults: UserDefaults = .standard
     ) {
         self.client = client
         self.capabilitiesClient = capabilitiesClient
+        self.spacesClient = spacesClient
         self.defaults = defaults
+        selectedSpaceID = defaults.string(forKey: Self.selectedSpaceKey).flatMap(UUID.init(uuidString:))
         latestBatch = defaults.data(forKey: Self.latestBatchKey)
             .flatMap { try? JSONDecoder().decode(IngestionBatchDTO.self, from: $0) }
     }
@@ -79,7 +88,7 @@ final class MultimodalCaptureViewModel {
                 )
             }
             let urlInputs = urls.map { IngestionCreateItemRequest(kind: .url, url: $0) }
-            var batch = try await client.create(IngestionCreateRequest(items: fileInputs + urlInputs))
+            var batch = try await client.create(IngestionCreateRequest(spaceID: selectedSpaceID, items: fileInputs + urlInputs))
             for file in selectedFiles {
                 guard let size = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize,
                       let item = batch.items.first(where: { $0.fileName == file.lastPathComponent && $0.sizeBytes == Int64(size) })
@@ -98,6 +107,16 @@ final class MultimodalCaptureViewModel {
         guard let capabilitiesClient else { return }
         do { hermesCapabilities = try await capabilitiesClient.get().capabilities }
         catch { /* Server-side validation remains authoritative. */ }
+    }
+
+    func loadSpaces() async {
+        guard let spacesClient else { return }
+        do {
+            spaces = try await spacesClient.list()
+            if let selectedSpaceID, !spaces.contains(where: { $0.id == selectedSpaceID }) {
+                self.selectedSpaceID = nil
+            }
+        } catch { /* Inbox remains available when Spaces cannot be loaded. */ }
     }
 
     func refreshStatus() async {

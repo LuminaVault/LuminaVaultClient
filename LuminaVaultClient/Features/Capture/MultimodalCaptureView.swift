@@ -12,6 +12,13 @@ struct MultimodalCaptureView: View {
                     .buttonStyle(.borderedProminent)
                     .accessibilityHint("Choose PDFs, images, audio, or video for Hermes to process")
 
+                Picker("Save to Space", selection: $viewModel.selectedSpaceID) {
+                    Text("Inbox").tag(UUID?.none)
+                    ForEach(viewModel.spaces) { space in
+                        Text(space.name).tag(Optional(space.id))
+                    }
+                }
+
                 ForEach(viewModel.selectedFiles, id: \.self) { url in
                     HStack {
                         Image(systemName: "doc")
@@ -98,6 +105,7 @@ struct MultimodalCaptureView: View {
             }
         }
         .task(id: viewModel.latestBatch?.id) {
+            await viewModel.loadSpaces()
             await viewModel.loadCapabilities()
             await viewModel.monitorStatus()
         }
