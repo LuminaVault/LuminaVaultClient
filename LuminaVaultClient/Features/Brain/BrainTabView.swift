@@ -10,7 +10,6 @@ import LuminaVaultShared
 import SwiftUI
 
 struct BrainTabView: View {
-
     @Environment(\.lvPalette) private var palette
 
     private static let initialGraphLimit = 200
@@ -43,8 +42,8 @@ struct BrainTabView: View {
         knowledgeClient: any KnowledgeGraphClientProtocol,
         memoryClient: (any MemoryClientProtocol)? = nil
     ) {
-        self._vm = State(initialValue: BrainGraphViewModel(client: client))
-        self._reasoningViewModel = State(initialValue: KnowledgeReasoningViewModel(client: knowledgeClient))
+        _vm = State(initialValue: BrainGraphViewModel(client: client))
+        _reasoningViewModel = State(initialValue: KnowledgeReasoningViewModel(client: knowledgeClient))
         self.memoryClient = memoryClient
     }
 
@@ -79,7 +78,7 @@ struct BrainTabView: View {
                     BrainNodeDetailSheet(node: node, memoryClient: memoryClient)
                 }
                 .sheet(isPresented: $showReasoning) {
-                    KnowledgeReasoningSheet(viewModel: reasoningViewModel)
+                    KnowledgeReasoningSheet(viewModel: reasoningViewModel, memoryClient: memoryClient)
                 }
         }
     }
@@ -89,9 +88,9 @@ struct BrainTabView: View {
         switch vm.state {
         case .idle, .loading:
             loadingState
-        case .loaded(let graph) where graph.nodes.isEmpty:
+        case let .loaded(graph) where graph.nodes.isEmpty:
             emptyState
-        case .loaded(let graph):
+        case let .loaded(graph):
             ZStack(alignment: .bottom) {
                 // HER-235 3D viz — RealityKit orbitable cluster (iOS 18+); the 2D
                 // Canvas remains the fallback for older OSes.
@@ -110,12 +109,12 @@ struct BrainTabView: View {
                 GraphLegend(
                     activeEdgeKinds: $activeEdgeKinds,
                     showWikiPages: $showWikiPages,
-                    hasWikiPages: graph.nodes.contains { $0.kind == .wikiPage },
+                    hasWikiPages: graph.nodes.contains { $0.kind == .wikiPage }
                 )
                 .padding(.horizontal, 16)
                 .padding(.bottom, 90) // clear the floating tab bar
             }
-        case .failed(let message):
+        case let .failed(message):
             errorState(message)
         }
     }
@@ -123,7 +122,9 @@ struct BrainTabView: View {
     // MARK: - States
 
     private var isLoading: Bool {
-        if case .loading = vm.state { return true }
+        if case .loading = vm.state {
+            return true
+        }
         return false
     }
 
@@ -135,7 +136,7 @@ struct BrainTabView: View {
         await vm.load(
             limit: Self.initialGraphLimit,
             includeWikiPages: showWikiPages,
-            kinds: requestKinds,
+            kinds: requestKinds
         )
     }
 
@@ -198,10 +199,14 @@ struct BrainTabView: View {
     /// survive — so no edge dangles to a filtered-out node.
     private func filtered(_ graph: MemoryGraphResponse) -> MemoryGraphResponse {
         var nodes = graph.nodes
-        if !showWikiPages { nodes = nodes.filter { $0.kind != .wikiPage } }
+        if !showWikiPages {
+            nodes = nodes.filter { $0.kind != .wikiPage }
+        }
         // Space hubs only read as hubs with their star edges; drop them when
         // the Space edge kind is off so no orphan hubs float.
-        if !activeEdgeKinds.contains(.space) { nodes = nodes.filter { $0.kind != .space } }
+        if !activeEdgeKinds.contains(.space) {
+            nodes = nodes.filter { $0.kind != .space }
+        }
         let liveIDs = Set(nodes.map(\.id))
         let edges = graph.edges.filter {
             activeEdgeKinds.contains($0.kind) && liveIDs.contains($0.from) && liveIDs.contains($0.to)
@@ -216,7 +221,7 @@ struct BrainTabView: View {
     private var selectedBinding: Binding<MemoryGraphNodeDTO?> {
         Binding(
             get: { vm.selectedNodeID.flatMap(vm.node(for:)) },
-            set: { node in vm.selectedNodeID = node?.id },
+            set: { node in vm.selectedNodeID = node?.id }
         )
     }
 }
@@ -226,7 +231,6 @@ struct BrainTabView: View {
 /// Compact, glassy filter legend pinned to the bottom of the graph. Each
 /// chip both documents the colour channel and toggles that edge kind.
 private struct GraphLegend: View {
-
     @Environment(\.lvPalette) private var palette
 
     @Binding var activeEdgeKinds: Set<MemoryEdgeKindDTO>
@@ -244,14 +248,14 @@ private struct GraphLegend: View {
                     chip(
                         label: "Sources",
                         color: palette.accent,
-                        isOn: showWikiPages,
+                        isOn: showWikiPages
                     ) { showWikiPages.toggle() }
                 }
                 ForEach(Self.order, id: \.self) { kind in
                     chip(
                         label: Self.label(for: kind),
                         color: color(for: kind),
-                        isOn: activeEdgeKinds.contains(kind),
+                        isOn: activeEdgeKinds.contains(kind)
                     ) { toggle(kind) }
                 }
             }
@@ -260,8 +264,11 @@ private struct GraphLegend: View {
     }
 
     private func toggle(_ kind: MemoryEdgeKindDTO) {
-        if activeEdgeKinds.contains(kind) { activeEdgeKinds.remove(kind) }
-        else { activeEdgeKinds.insert(kind) }
+        if activeEdgeKinds.contains(kind) {
+            activeEdgeKinds.remove(kind)
+        } else {
+            activeEdgeKinds.insert(kind)
+        }
     }
 
     private func chip(label: String, color: Color, isOn: Bool, action: @escaping () -> Void) -> some View {
