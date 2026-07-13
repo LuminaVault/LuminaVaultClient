@@ -85,6 +85,12 @@ struct KnowledgeReasoningSheet: View {
                                     Text(edge.rationale ?? "Machine-inferred connection")
                                         .font(.caption)
                                         .foregroundStyle(palette.textSecondary)
+                                    if let counterEvidence = edge.counterEvidence, !counterEvidence.isEmpty {
+                                        Label(counterEvidence, systemImage: "exclamationmark.triangle")
+                                            .font(.caption)
+                                            .foregroundStyle(palette.accent)
+                                            .accessibilityLabel("Uncertainty: \(counterEvidence)")
+                                    }
                                     HStack {
                                         Button("Confirm", systemImage: "checkmark.circle") {
                                             Task { await viewModel.review(edge, action: .confirm) }
