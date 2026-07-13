@@ -153,7 +153,7 @@ private struct BlockView: View {
     }
 
     @ViewBuilder
-    private func keyValueRow(_ pair: LuminaBlock.Pair) -> some View {
+    private func keyValueRow(_ pair: LuminaKeyValue) -> some View {
         HStack {
             Text(pair.key)
                 .font(.system(size: 13))

@@ -129,10 +129,20 @@ final class MultimodalCaptureViewModel {
     }
 
     func monitorStatus() async {
+        guard let batchID = latestBatch?.id, latestBatch?.state == "active" else { return }
+        do {
+            for try await event in client.events(batchID: batchID) {
+                guard !Task.isCancelled else { return }
+                if event.type == .stateChanged || event.type == .terminal || event.type == .progress {
+                    await refreshStatus()
+                }
+            }
+        } catch {
+            // Polling remains the fallback when a proxy or network path interrupts SSE.
+        }
         while !Task.isCancelled, latestBatch?.state == "active" {
             await refreshStatus()
-            do { try await Task.sleep(for: .seconds(3)) }
-            catch { return }
+            do { try await Task.sleep(for: .seconds(3)) } catch { return }
         }
     }
 

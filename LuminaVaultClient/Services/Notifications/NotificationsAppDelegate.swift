@@ -5,9 +5,9 @@
 // to the shared NotificationRouter.
 
 import Foundation
+import os
 import UIKit
 import UserNotifications
-import os
 
 private let log = Logger(subsystem: "com.luminavault", category: "apns")
 
@@ -58,6 +58,18 @@ final class NotificationsAppDelegate: NSObject, UIApplicationDelegate, UNUserNot
             self.onTokenAvailable?.tokenDidBecomeAvailable(hex)
             log.info("apns.token.received len=\(deviceToken.count, privacy: .public)")
         }
+    }
+
+    func application(
+        _: UIApplication,
+        handleEventsForBackgroundURLSession identifier: String,
+        completionHandler: @escaping () -> Void
+    ) {
+        guard identifier == BackgroundIngestionUploader.sessionIdentifier else {
+            completionHandler()
+            return
+        }
+        Task { @MainActor in BackgroundIngestionUploader.shared.handleEventsCompletion(completionHandler) }
     }
 
     func application(

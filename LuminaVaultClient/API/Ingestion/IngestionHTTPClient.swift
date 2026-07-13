@@ -8,13 +8,16 @@ protocol IngestionClientProtocol: Sendable {
     func detail(batchID: UUID) async throws -> IngestionBatchDTO
     func retry(batchID: UUID, itemID: UUID) async throws -> IngestionBatchDTO
     func cancel(batchID: UUID, itemID: UUID) async throws -> IngestionBatchDTO
+    func events(batchID: UUID) -> AsyncThrowingStream<IngestionEventDTO, any Error>
 }
 
 final class IngestionHTTPClient: IngestionClientProtocol, Sendable {
     private let client: BaseHTTPClient
+    private let backgroundUploader: BackgroundIngestionUploader?
 
-    init(client: BaseHTTPClient) {
+    init(client: BaseHTTPClient, backgroundUploader: BackgroundIngestionUploader? = nil) {
         self.client = client
+        self.backgroundUploader = backgroundUploader
     }
 
     func create(_ request: IngestionCreateRequest) async throws -> IngestionBatchDTO {
@@ -22,6 +25,10 @@ final class IngestionHTTPClient: IngestionClientProtocol, Sendable {
     }
 
     func upload(fileURL: URL, itemID: UUID, batch: IngestionBatchDTO) async throws -> IngestionBatchDTO {
+        if let backgroundUploader {
+            try await backgroundUploader.enqueue(fileURL: fileURL, itemID: itemID, batch: batch)
+            return batch
+        }
         let handle = try FileHandle(forReadingFrom: fileURL)
         do {
             let uploadedBytes = batch.items.first(where: { $0.id == itemID })?.uploadedBytes ?? 0
@@ -60,9 +67,26 @@ final class IngestionHTTPClient: IngestionClientProtocol, Sendable {
     func cancel(batchID: UUID, itemID: UUID) async throws -> IngestionBatchDTO {
         try await client.execute(IngestionEndpoints.Cancel(batchID: batchID, itemID: itemID))
     }
+
+    func events(batchID: UUID) -> AsyncThrowingStream<IngestionEventDTO, any Error> {
+        client.executeStream(IngestionEndpoints.Events(batchID: batchID))
+    }
 }
 
 enum IngestionEndpoints {
+    struct Events: StreamingEndpoint {
+        typealias Event = IngestionEventDTO
+        let batchID: UUID
+
+        var path: String {
+            "/v1/ingestions/\(batchID.uuidString)/events"
+        }
+
+        var method: HTTPMethod {
+            .get
+        }
+    }
+
     struct Create: Endpoint {
         typealias Response = IngestionBatchDTO
         let request: IngestionCreateRequest

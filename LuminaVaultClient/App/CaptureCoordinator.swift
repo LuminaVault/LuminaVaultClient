@@ -42,7 +42,8 @@ final class CaptureCoordinator {
             let memory = MemoryHTTPClient(client: httpBase)
             let safari = CaptureSafariHTTPClient(client: httpBase)
             spacesClient = SpacesHTTPClient(client: httpBase)
-            ingestionClient = IngestionHTTPClient(client: httpBase)
+            BackgroundIngestionUploader.shared.configure(tokenProvider: tokenProvider)
+            ingestionClient = IngestionHTTPClient(client: httpBase, backgroundUploader: .shared)
             hermesCapabilitiesClient = HermesCapabilitiesHTTPClient(client: httpBase)
             let drainer = CaptureDrainer(
                 queue: queue,
