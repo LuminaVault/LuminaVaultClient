@@ -69,10 +69,9 @@ final class KanbanHTTPClient: KanbanClientProtocol {
 
     func patchCard(cardID: UUID, _ req: CardPatchRequest) async throws -> CardDTO {
         let boardID = await versions.boardID(cardID: cardID)
-        let expected: Int64? = if let boardID {
-            await versions.version(boardID: boardID)
-        } else {
-            nil
+        var expected: Int64?
+        if let boardID {
+            expected = await versions.version(boardID: boardID)
         }
         let card = try await client.execute(KanbanEndpoints.PatchCard(
             cardID: cardID, request: req,
@@ -86,10 +85,9 @@ final class KanbanHTTPClient: KanbanClientProtocol {
 
     func deleteCard(cardID: UUID) async throws {
         let boardID = await versions.boardID(cardID: cardID)
-        let expected: Int64? = if let boardID {
-            await versions.version(boardID: boardID)
-        } else {
-            nil
+        var expected: Int64?
+        if let boardID {
+            expected = await versions.version(boardID: boardID)
         }
         _ = try await client.execute(KanbanEndpoints.DeleteCard(
             cardID: cardID,
@@ -102,10 +100,9 @@ final class KanbanHTTPClient: KanbanClientProtocol {
 
     func moveCard(cardID: UUID, _ req: CardMoveRequest) async throws -> CardDTO {
         let boardID = await versions.boardID(cardID: cardID)
-        let expected: Int64? = if let boardID {
-            await versions.version(boardID: boardID)
-        } else {
-            nil
+        var expected: Int64?
+        if let boardID {
+            expected = await versions.version(boardID: boardID)
         }
         let card = try await client.execute(KanbanEndpoints.MoveCard(
             cardID: cardID, request: req,
@@ -119,10 +116,9 @@ final class KanbanHTTPClient: KanbanClientProtocol {
 
     func promoteCard(cardID: UUID, _ req: CardPromoteRequest) async throws -> SkillDTO {
         let boardID = await versions.boardID(cardID: cardID)
-        let expected: Int64? = if let boardID {
-            await versions.version(boardID: boardID)
-        } else {
-            nil
+        var expected: Int64?
+        if let boardID {
+            expected = await versions.version(boardID: boardID)
         }
         let result = try await client.execute(KanbanEndpoints.PromoteCard(
             cardID: cardID, request: req,
