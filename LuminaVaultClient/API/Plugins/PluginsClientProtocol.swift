@@ -31,5 +31,6 @@ protocol PluginsClientProtocol: Sendable {
     func marketplaceDetail(slug: String) async throws -> MarketplacePluginDTO
     func marketplaceReviews(slug: String) async throws -> MarketplaceReviewsResponse
     func installMarketplace(slug: String, request: MarketplaceInstallRequest) async throws -> PluginInstallDTO
+    func upgradeMarketplace(slug: String, request: MarketplaceUpgradeRequest) async throws -> PluginInstallDTO
     func rateMarketplace(slug: String, request: MarketplaceRatingRequest) async throws -> MarketplaceReviewDTO
 }

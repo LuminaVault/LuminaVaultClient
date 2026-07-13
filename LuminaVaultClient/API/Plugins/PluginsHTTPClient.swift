@@ -73,6 +73,10 @@ final class PluginsHTTPClient: PluginsClientProtocol {
         try await client.execute(PluginsEndpoints.MarketplaceInstall(slug: slug, request: request))
     }
 
+    func upgradeMarketplace(slug: String, request: MarketplaceUpgradeRequest) async throws -> PluginInstallDTO {
+        try await client.execute(PluginsEndpoints.MarketplaceUpgrade(slug: slug, request: request))
+    }
+
     func rateMarketplace(slug: String, request: MarketplaceRatingRequest) async throws -> MarketplaceReviewDTO {
         try await client.execute(PluginsEndpoints.MarketplaceRating(slug: slug, request: request))
     }

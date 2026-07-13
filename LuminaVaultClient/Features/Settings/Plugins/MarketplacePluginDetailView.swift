@@ -53,6 +53,14 @@ struct MarketplacePluginDetailView: View {
 
             if !viewModel.plugin.latestVersion.permissions.isEmpty {
                 Section {
+                    if viewModel.isUpgrade, !viewModel.addedPermissions.isEmpty {
+                        Label(
+                            "This upgrade adds \(viewModel.addedPermissions.count) permission\(viewModel.addedPermissions.count == 1 ? "" : "s").",
+                            systemImage: "exclamationmark.shield.fill"
+                        )
+                        .foregroundStyle(.orange)
+                        .accessibilityHint("Review and approve each new permission before upgrading.")
+                    }
                     ForEach(viewModel.plugin.latestVersion.permissions, id: \.self) { permission in
                         Button {
                             viewModel.toggle(permission)
@@ -85,7 +93,7 @@ struct MarketplacePluginDetailView: View {
             }
 
             Section {
-                Button(viewModel.install == nil ? "Install" : "Update") {
+                Button(viewModel.install == nil ? "Install" : viewModel.isUpgrade ? "Upgrade" : "Save Settings") {
                     Task { await viewModel.installPlugin() }
                 }
                 .disabled(!viewModel.hasAllPermissions || viewModel.state == .working)

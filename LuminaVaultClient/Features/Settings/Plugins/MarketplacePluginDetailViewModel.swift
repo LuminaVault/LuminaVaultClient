@@ -30,11 +30,22 @@ final class MarketplacePluginDetailViewModel {
         self.client = client
         self.onChange = onChange
         values = Dictionary(uniqueKeysWithValues: plugin.configFields.map { ($0.key, "") })
-        selectedPermissions = Set(install?.grantedPermissions ?? [])
+        let requested = Set(plugin.latestVersion.permissions)
+        selectedPermissions = Set(install?.grantedPermissions.filter(requested.contains) ?? [])
     }
 
     var hasAllPermissions: Bool {
         Set(plugin.latestVersion.permissions) == selectedPermissions
+    }
+
+    var isUpgrade: Bool {
+        guard let installedVersionID = install?.marketplaceVersionId else { return false }
+        return installedVersionID != plugin.latestVersion.id
+    }
+
+    var addedPermissions: [PluginPermission] {
+        let granted = Set(install?.grantedPermissions ?? [])
+        return plugin.latestVersion.permissions.filter { !granted.contains($0) }
     }
 
     func toggle(_ permission: PluginPermission) {
@@ -59,7 +70,7 @@ final class MarketplacePluginDetailViewModel {
             state = .error("Review and approve every requested permission.")
             return
         }
-        for field in plugin.configFields where field.isRequired {
+        for field in plugin.configFields where field.isRequired && install == nil {
             guard let value = values[field.key]?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
                 state = .error("Missing \(field.label).")
                 return
@@ -67,14 +78,27 @@ final class MarketplacePluginDetailViewModel {
         }
         state = .working
         do {
-            install = try await client.installMarketplace(
-                slug: plugin.slug,
-                request: MarketplaceInstallRequest(
-                    versionId: plugin.latestVersion.id,
-                    grantedPermissions: plugin.latestVersion.permissions.filter(selectedPermissions.contains),
-                    config: values
+            let grants = plugin.latestVersion.permissions.filter(selectedPermissions.contains)
+            if let currentVersionID = install?.marketplaceVersionId, isUpgrade {
+                install = try await client.upgradeMarketplace(
+                    slug: plugin.slug,
+                    request: MarketplaceUpgradeRequest(
+                        fromVersionId: currentVersionID,
+                        toVersionId: plugin.latestVersion.id,
+                        grantedPermissions: grants,
+                        config: values.filter { !$0.value.isEmpty }
+                    )
                 )
-            )
+            } else {
+                install = try await client.installMarketplace(
+                    slug: plugin.slug,
+                    request: MarketplaceInstallRequest(
+                        versionId: plugin.latestVersion.id,
+                        grantedPermissions: grants,
+                        config: values.filter { !$0.value.isEmpty }
+                    )
+                )
+            }
             state = .installed
             await onChange()
         } catch {

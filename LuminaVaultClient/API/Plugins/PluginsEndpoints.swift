@@ -201,6 +201,23 @@ enum PluginsEndpoints {
         }
     }
 
+    struct MarketplaceUpgrade: Endpoint {
+        typealias Response = PluginInstallDTO
+        let slug: String
+        let request: MarketplaceUpgradeRequest
+        var path: String {
+            "/v1/marketplace/plugins/\(slug.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? slug)/upgrade"
+        }
+
+        var method: HTTPMethod {
+            .post
+        }
+
+        var body: (any Encodable)? {
+            request
+        }
+    }
+
     struct MarketplaceRating: Endpoint {
         typealias Response = MarketplaceReviewDTO
         let slug: String

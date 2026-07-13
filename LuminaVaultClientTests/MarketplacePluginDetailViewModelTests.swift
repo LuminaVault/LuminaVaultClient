@@ -37,6 +37,35 @@ struct MarketplacePluginDetailViewModelTests {
         #expect(await client.lastRating?.rating == 4)
     }
 
+    @Test
+    func `upgrade sends the installed version lock and renewed consent`() async {
+        let client = MarketplacePluginsClientStub()
+        let oldVersionID = UUID()
+        let model = MarketplacePluginDetailViewModel(
+            plugin: Self.plugin(), install: Self.install(versionID: oldVersionID),
+            client: client, onChange: {}
+        )
+
+        await model.installPlugin()
+
+        let request = await client.lastUpgrade
+        #expect(request?.fromVersionId == oldVersionID)
+        #expect(request?.toVersionId == model.plugin.latestVersion.id)
+        #expect(request?.grantedPermissions == [.memoryRead])
+    }
+
+    @Test
+    func `permissions removed by an upgrade do not remain selected`() {
+        let model = MarketplacePluginDetailViewModel(
+            plugin: Self.plugin(),
+            install: Self.install(versionID: UUID(), permissions: [.memoryRead, .vaultWrite]),
+            client: MarketplacePluginsClientStub(), onChange: {}
+        )
+
+        #expect(model.selectedPermissions == [.memoryRead])
+        #expect(model.hasAllPermissions)
+    }
+
     private static func plugin() -> MarketplacePluginDTO {
         MarketplacePluginDTO(
             slug: "safe-tool", name: "Safe Tool", summary: "A test tool", description: "Test",
@@ -51,10 +80,14 @@ struct MarketplacePluginDetailViewModelTests {
         )
     }
 
-    private static func install() -> PluginInstallDTO {
+    private static func install(
+        versionID: UUID? = nil,
+        permissions: [PluginPermission] = [.memoryRead]
+    ) -> PluginInstallDTO {
         PluginInstallDTO(
             id: UUID(), pluginSlug: "safe-tool", status: .enabled, hasConfig: false,
-            grantedPermissions: [.memoryRead]
+            marketplaceVersionId: versionID,
+            grantedPermissions: permissions
         )
     }
 }
@@ -62,6 +95,7 @@ struct MarketplacePluginDetailViewModelTests {
 private actor MarketplacePluginsClientStub: PluginsClientProtocol {
     var uninstalledIDs: [UUID] = []
     var lastRating: MarketplaceRatingRequest?
+    var lastUpgrade: MarketplaceUpgradeRequest?
 
     func catalog(category _: PluginCategory?) async throws -> PluginCatalogListResponse {
         .init(items: [])
@@ -121,6 +155,15 @@ private actor MarketplacePluginsClientStub: PluginsClientProtocol {
 
     func installMarketplace(slug _: String, request _: MarketplaceInstallRequest) async throws -> PluginInstallDTO {
         throw TestError.unexpected
+    }
+
+    func upgradeMarketplace(slug: String, request: MarketplaceUpgradeRequest) async throws -> PluginInstallDTO {
+        lastUpgrade = request
+        return PluginInstallDTO(
+            id: UUID(), pluginSlug: slug, status: .enabled, hasConfig: false,
+            marketplaceVersionId: request.toVersionId,
+            grantedPermissions: request.grantedPermissions
+        )
     }
 
     func rateMarketplace(slug _: String, request: MarketplaceRatingRequest) async throws -> MarketplaceReviewDTO {
