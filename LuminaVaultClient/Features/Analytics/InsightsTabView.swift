@@ -16,7 +16,6 @@ struct InsightsTabView: View {
     let httpClient: BaseHTTPClient
     let vaultClient: VaultClientProtocol
     let memoryClient: MemoryClientProtocol
-    let onOpenRecommendation: (String) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,8 +31,7 @@ struct InsightsTabView: View {
             switch section {
             case .overview:
                 NavigationStack {
-                    AnalyticsDashboardScreen(httpClient: httpClient,
-                                             onOpenRecommendation: onOpenRecommendation)
+                    AnalyticsDashboardScreen(httpClient: httpClient)
                 }
             case .reflect:
                 ReflectTabView(vm: reflectViewModel, runner: runner,

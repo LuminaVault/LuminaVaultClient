@@ -24,6 +24,52 @@ struct KnowledgeReasoningViewModelTests {
         await viewModel.review(edge, action: .confirm)
         #expect(viewModel.result?.suggestions.isEmpty == true)
     }
+
+    @Test("Selecting two graph nodes explains the connection")
+    func nodeSelectionExplainsConnection() async {
+        let fixture = KnowledgeFixture()
+        let viewModel = KnowledgeReasoningViewModel(client: KnowledgeGraphClientMock(fixture: fixture))
+        await viewModel.load()
+
+        let firstExplained = await viewModel.selectNode(fixture.from.id)
+        let secondExplained = await viewModel.selectNode(fixture.to.id)
+
+        #expect(firstExplained == false)
+        #expect(secondExplained)
+        #expect(viewModel.selectedNodeIDs == [fixture.from.id, fixture.to.id])
+        #expect(viewModel.explanation?.confidence == 0.6)
+
+        viewModel.selectedPathID = UUID()
+        viewModel.clearSelection()
+        #expect(viewModel.selectedNodeIDs.isEmpty)
+        #expect(viewModel.selectedPathID == nil)
+    }
+
+    @Test("Knowledge projection preserves IDs, confidence, and active predicates")
+    func graphProjection() {
+        let fixture = KnowledgeFixture()
+        let dismissed = KnowledgeEdgeDTO(
+            id: UUID(), from: fixture.to.id, to: fixture.from.id,
+            predicate: .relatedTo, state: .dismissed, confidence: 1
+        )
+        let graph = KnowledgeGraphResponse(
+            nodes: [fixture.from, fixture.to],
+            edges: [fixture.edge, dismissed],
+            generatedAt: Date(timeIntervalSince1970: 1)
+        )
+
+        let projected = KnowledgeGraphProjection.make(
+            graph: graph,
+            selectedNodeIDs: [fixture.from.id]
+        )
+
+        #expect(projected.nodes.map(\.id) == [fixture.from.id, fixture.to.id])
+        #expect(projected.nodes.first?.score == 100)
+        #expect(projected.nodes.first?.activity == 1)
+        #expect(projected.edges.count == 1)
+        #expect(projected.edges.first?.kind == .tag)
+        #expect(projected.edges.first?.tag == "contradicts")
+    }
 }
 
 private struct KnowledgeFixture: Sendable {

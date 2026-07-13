@@ -10,6 +10,15 @@ import LuminaVaultShared
 import SwiftUI
 
 struct BrainTabView: View {
+    private enum GraphLayer: String, CaseIterable, Identifiable {
+        case knowledge = "Knowledge"
+        case memories = "Memories"
+
+        var id: Self {
+            self
+        }
+    }
+
     @Environment(\.lvPalette) private var palette
 
     private static let initialGraphLimit = 200
@@ -19,6 +28,7 @@ struct BrainTabView: View {
     @State private var reasoningViewModel: KnowledgeReasoningViewModel
     @State private var reloadTask: Task<Void, Never>?
     @State private var showReasoning = false
+    @State private var graphLayer: GraphLayer = .knowledge
 
     /// Loads a single memory's full content when a memory node is opened
     /// (HER-235 open-on-click). Passed through to `BrainNodeDetailSheet`.
@@ -92,25 +102,38 @@ struct BrainTabView: View {
             emptyState
         case let .loaded(graph):
             ZStack(alignment: .bottom) {
-                // HER-235 3D viz — RealityKit orbitable cluster (iOS 18+); the 2D
-                // Canvas remains the fallback for older OSes.
-                if #available(iOS 18.0, *) {
-                    BrainGraphRealityView(graph: filtered(graph)) { id in
-                        vm.selectedNodeID = id
-                    }
-                    .lvBackground()
+                if graphLayer == .knowledge {
+                    knowledgeGraphContent
                 } else {
-                    BrainGraphCanvas(graph: filtered(graph)) { id in
-                        vm.selectedNodeID = id
+                    // HER-235 3D viz — RealityKit orbitable cluster (iOS 18+); the 2D
+                    // Canvas remains the fallback for older OSes.
+                    if #available(iOS 18.0, *) {
+                        BrainGraphRealityView(graph: filtered(graph)) { id in
+                            vm.selectedNodeID = id
+                        }
+                        .lvBackground()
+                    } else {
+                        BrainGraphCanvas(graph: filtered(graph)) { id in
+                            vm.selectedNodeID = id
+                        }
+                        .lvBackground()
                     }
-                    .lvBackground()
                 }
 
-                GraphLegend(
-                    activeEdgeKinds: $activeEdgeKinds,
-                    showWikiPages: $showWikiPages,
-                    hasWikiPages: graph.nodes.contains { $0.kind == .wikiPage }
-                )
+                VStack(spacing: 10) {
+                    graphLayerPicker
+                    if graphLayer == .knowledge {
+                        KnowledgeSelectionBar(viewModel: reasoningViewModel) {
+                            showReasoning = true
+                        }
+                    } else {
+                        GraphLegend(
+                            activeEdgeKinds: $activeEdgeKinds,
+                            showWikiPages: $showWikiPages,
+                            hasWikiPages: graph.nodes.contains { $0.kind == .wikiPage }
+                        )
+                    }
+                }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 90) // clear the floating tab bar
             }
@@ -138,6 +161,77 @@ struct BrainTabView: View {
             includeWikiPages: showWikiPages,
             kinds: requestKinds
         )
+        await reasoningViewModel.load()
+    }
+
+    @ViewBuilder
+    private var knowledgeGraphContent: some View {
+        switch reasoningViewModel.graphState {
+        case .idle, .loading:
+            loadingState
+        case let .unavailable(message):
+            VStack(spacing: 12) {
+                LVIconView(.exclamationmarkTriangleFill, size: 38, tint: palette.accent)
+                Text("Reasoning graph unavailable")
+                    .font(.headline)
+                    .foregroundStyle(palette.textPrimary)
+                Text(message)
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(palette.textSecondary)
+                Button("Show memory graph") { graphLayer = .memories }
+                    .buttonStyle(.borderedProminent)
+            }
+            .padding(32)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .lvBackground()
+        case let .ready(graph) where graph.nodes.isEmpty:
+            LVEmptyState(
+                mascot: .thinking,
+                headline: "No reasoning graph yet.",
+                supporting: "New memories are converted into claims, entities, events, and evidence-backed connections.",
+                backgroundImage: "Lumina/Backgrounds/neural-network"
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .lvBackground()
+        case let .ready(graph):
+            let projected = KnowledgeGraphProjection.make(
+                graph: graph,
+                focusedPath: reasoningViewModel.selectedPath,
+                selectedNodeIDs: Set(reasoningViewModel.selectedNodeIDs)
+            )
+            let identity = "\(reasoningViewModel.selectedPathID?.uuidString ?? "all")-\(reasoningViewModel.selectedNodeIDs.map(\.uuidString).joined())"
+            if #available(iOS 18.0, *) {
+                BrainGraphRealityView(graph: projected, onSelect: selectKnowledgeNode)
+                    .id(identity)
+                    .lvBackground()
+            } else {
+                BrainGraphCanvas(graph: projected, onSelect: selectKnowledgeNode)
+                    .id(identity)
+                    .lvBackground()
+            }
+        }
+    }
+
+    private var graphLayerPicker: some View {
+        Picker("Graph layer", selection: $graphLayer) {
+            ForEach(GraphLayer.allCases) { layer in
+                Text(layer.rawValue).tag(layer)
+            }
+        }
+        .pickerStyle(.segmented)
+        .padding(4)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityHint("Switch between the reasoning graph and captured memories")
+    }
+
+    private func selectKnowledgeNode(_ id: UUID) {
+        Task {
+            let explained = await reasoningViewModel.selectNode(id)
+            if explained {
+                showReasoning = true
+            }
+        }
     }
 
     private func scheduleGraphReload() {
@@ -223,6 +317,83 @@ struct BrainTabView: View {
             get: { vm.selectedNodeID.flatMap(vm.node(for:)) },
             set: { node in vm.selectedNodeID = node?.id }
         )
+    }
+}
+
+// MARK: - Knowledge selection
+
+private struct KnowledgeSelectionBar: View {
+    @Environment(\.lvPalette) private var palette
+
+    let viewModel: KnowledgeReasoningViewModel
+    let showExplanation: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                legendDot("Claims", color: palette.accent)
+                legendDot("Events", color: palette.secondary)
+                legendDot("Entities", color: palette.primary)
+                Spacer(minLength: 0)
+            }
+            HStack(spacing: 10) {
+                legendDot("Supports", color: palette.primary)
+                legendDot("Contradicts", color: Color(red: 0.98, green: 0.32, blue: 0.42))
+                legendDot("Causal", color: palette.textSecondary)
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: "point.3.connected.trianglepath.dotted")
+                    .foregroundStyle(palette.primary)
+                Text(selectionText)
+                    .font(.caption)
+                    .foregroundStyle(palette.textPrimary)
+                    .lineLimit(2)
+                Spacer(minLength: 8)
+                if viewModel.selectedPathID != nil {
+                    Button("All") { viewModel.selectPath(nil) }
+                        .font(.caption.weight(.semibold))
+                        .accessibilityLabel("Show all knowledge graph paths")
+                }
+                if viewModel.explanation != nil {
+                    Button("Explain connection", action: showExplanation)
+                        .font(.caption.weight(.semibold))
+                        .accessibilityLabel("Explain this connection")
+                }
+                if !viewModel.selectedNodeIDs.isEmpty {
+                    Button {
+                        viewModel.clearSelection()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .accessibilityLabel("Clear selected knowledge nodes")
+                }
+            }
+        }
+        .padding(10)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(palette.primary.opacity(0.22), lineWidth: 1)
+        }
+    }
+
+    private var selectionText: String {
+        switch viewModel.selectedNodes.count {
+        case 0: "Select two nodes to explain their connection"
+        case 1: "\(viewModel.selectedNodes[0].label) selected — choose another"
+        default: viewModel.selectedNodes.map(\.label).joined(separator: " ↔ ")
+        }
+    }
+
+    private func legendDot(_ label: String, color: Color) -> some View {
+        Label {
+            Text(label).font(.caption2)
+        } icon: {
+            Circle().fill(color).frame(width: 7, height: 7)
+        }
+        .foregroundStyle(palette.textSecondary)
     }
 }
 

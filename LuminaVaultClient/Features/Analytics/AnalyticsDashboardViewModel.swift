@@ -12,6 +12,7 @@ final class AnalyticsDashboardViewModel {
     var overview: AnalyticsOverviewResponse?
     var modelEffectiveness: [ModelEffectivenessDTO] = []
     var patternInsights: [InsightDTO] = []
+    var ratedModelIDs: Set<String> = []
 
     private let analytics: any UsageIntelligenceClientProtocol
     private let insights: any InsightsClientProtocol
@@ -75,6 +76,22 @@ final class AnalyticsDashboardViewModel {
     func opened(_ recommendation: AnalyticsRecommendationDTO) async {
         try? await analytics.record(.init(name: .recommendationOpened, source: .ios,
                                           recommendationId: recommendation.id))
+    }
+
+    func rate(_ model: ModelEffectivenessDTO, rating: ModelFeedbackRating) async {
+        guard !ratedModelIDs.contains(model.id) else { return }
+        do {
+            try await analytics.recordModelFeedback(.init(
+                provider: model.provider,
+                model: model.model,
+                rating: rating,
+                idempotencyKey: UUID().uuidString
+            ))
+            ratedModelIDs.insert(model.id)
+            modelEffectiveness = try await analytics.models(range: range).models
+        } catch {
+            state = .failed(error.localizedDescription)
+        }
     }
 
     private nonisolated func loadInsights() async -> [InsightDTO] {

@@ -10,6 +10,7 @@ import SwiftUI
 
 struct AnalyticsDashboardView: View {
     let vm: AnalyticsDashboardViewModel
+    @State private var selectedRange: AnalyticsRange = .month
     /// HER-248 — used to build the insight detail screen pushed from the
     /// Patterns section.
     let httpClient: BaseHTTPClient
@@ -34,15 +35,15 @@ struct AnalyticsDashboardView: View {
     }
 
     private var rangePicker: some View {
-        Picker("Range", selection: Binding(
-            get: { vm.range },
-            set: { newValue in Task { await vm.setRange(newValue) } },
-        )) {
+        Picker("Range", selection: $selectedRange) {
             ForEach(AnalyticsRange.allCases) { range in
                 Text(range.title).tag(range)
             }
         }
         .pickerStyle(.segmented)
+        .onChange(of: selectedRange) { _, newValue in
+            Task { await vm.setRange(newValue) }
+        }
     }
 
     @ViewBuilder
@@ -82,6 +83,13 @@ struct AnalyticsDashboardView: View {
                     }
                     .accessibilityElement(children: .combine)
                 }
+                DisclosureGroup("How this score works") {
+                    Text("Freshness contributes 35% and decays with a 30-day half-life. Engagement contributes 25% from useful access and retrieval. Organization contributes 20% from tags and filing. Review readiness contributes 20% from recently reviewed, approved knowledge.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
+                }
+                .font(.footnote)
             }
             .padding(16)
             .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))

@@ -15,6 +15,7 @@ protocol UsageIntelligenceClientProtocol: Sendable {
     func overview(range: AnalyticsRange) async throws -> AnalyticsOverviewResponse
     func models(range: AnalyticsRange) async throws -> ModelEffectivenessResponse
     func record(_ event: AnalyticsEventRequest) async throws
+    func recordModelFeedback(_ feedback: ModelFeedbackRequest) async throws
     func updateRecommendation(_ request: AnalyticsRecommendationStateRequest) async throws
 }
 
@@ -54,6 +55,14 @@ enum AnalyticsEndpoints {
         var method: HTTPMethod { .patch }
         var body: (any Encodable)? { request }
     }
+
+    struct ModelFeedback: Endpoint {
+        typealias Response = AnalyticsMutationResponse
+        let request: ModelFeedbackRequest
+        var path: String { "/v1/analytics/model-feedback?scope=personal" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { request }
+    }
 }
 
 final class AnalyticsHTTPClient: AnalyticsClientProtocol, UsageIntelligenceClientProtocol {
@@ -74,6 +83,10 @@ final class AnalyticsHTTPClient: AnalyticsClientProtocol, UsageIntelligenceClien
 
     func record(_ event: AnalyticsEventRequest) async throws {
         _ = try await client.execute(AnalyticsEndpoints.RecordEvent(request: event))
+    }
+
+    func recordModelFeedback(_ feedback: ModelFeedbackRequest) async throws {
+        _ = try await client.execute(AnalyticsEndpoints.ModelFeedback(request: feedback))
     }
 
     func updateRecommendation(_ request: AnalyticsRecommendationStateRequest) async throws {

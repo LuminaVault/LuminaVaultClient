@@ -2,7 +2,7 @@
 
 ## Hybrid local execution
 
-The execution profile and local endpoint URL/model are stored in app preferences. Optional endpoint API keys are stored in Keychain under `localEndpointAPIKey`. Do not add local endpoint credentials to xcconfig or Info.plist. Private mode must remain usable without `API_BASE_URL` reachability and must never silently fall back to cloud.
+The execution profile, fallback controls, conversation-sync choice, and local endpoint URL/model are stored in app preferences. Optional endpoint API keys are stored in Keychain under `localEndpointAPIKey`. Do not add local endpoint credentials to xcconfig or Info.plist. Private mode must remain usable without `API_BASE_URL` reachability and must never silently fall back to cloud. The app declares local-network access and permits local networking through App Transport Security so Ollama, LM Studio, and MLX servers on the user's LAN can be tested from Settings.
 
 On iOS 26 and eligible Apple Intelligence devices, users can select the Apple on-device model. This uses the system Foundation Models runtime and does not require a downloaded third-party model or API key. Incrementally synchronized local memories are AES-GCM encrypted with a device-only Keychain key and protected with complete file protection.
 

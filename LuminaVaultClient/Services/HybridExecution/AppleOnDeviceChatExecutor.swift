@@ -23,9 +23,19 @@
                         let prompt = messages
                             .map { "\($0.role.uppercased()):\n\($0.content)" }
                             .joined(separator: "\n\n")
-                        let response = try await LanguageModelSession().respond(to: prompt)
-                        try Task.checkCancellation()
-                        continuation.yield(response.content)
+                        let snapshots = LanguageModelSession().streamResponse(to: prompt)
+                        var previous = ""
+                        for try await snapshot in snapshots {
+                            try Task.checkCancellation()
+                            let content = snapshot.content
+                            let delta = content.hasPrefix(previous)
+                                ? String(content.dropFirst(previous.count))
+                                : content
+                            if !delta.isEmpty {
+                                continuation.yield(delta)
+                            }
+                            previous = content
+                        }
                         continuation.finish()
                     } catch {
                         continuation.finish(throwing: error)
@@ -40,7 +50,9 @@
 func makeAppleOnDeviceChatExecutor() -> (any LocalChatExecuting)? {
     #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
-            return AppleOnDeviceChatExecutor()
+            if case .available = SystemLanguageModel.default.availability {
+                return AppleOnDeviceChatExecutor()
+            }
         }
     #endif
     return nil

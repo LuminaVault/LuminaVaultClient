@@ -1,11 +1,11 @@
 // LuminaVaultClient/LuminaVaultClient/Services/SignInServiceProtocol.swift
-import Foundation
 import AuthenticationServices
+import Foundation
 
 /// Which server exchange route to use for the token in `ProviderCredential.idToken`.
 /// Apple / Google issue OIDC id_tokens; X issues a plain OAuth 2.0 access_token,
 /// and the server has separate routes for the two body shapes.
-enum OAuthTokenKind: Sendable {
+enum OAuthTokenKind: Equatable, Sendable {
     case idToken
     case accessToken
 }

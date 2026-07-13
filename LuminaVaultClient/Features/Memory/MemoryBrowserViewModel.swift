@@ -19,6 +19,7 @@ final class MemoryBrowserViewModel {
     private let client: any MemoryClientProtocol
     private let routerClient: (any RouterClientProtocol)?
     private let conversationsClient: (any ConversationsClientProtocol)?
+    let healthFilter: MemoryHealthFilter?
     private let pageSize = 50
 
     var state: LoadState = .loading
@@ -38,11 +39,13 @@ final class MemoryBrowserViewModel {
     init(
         client: any MemoryClientProtocol,
         routerClient: (any RouterClientProtocol)? = nil,
-        conversationsClient: (any ConversationsClientProtocol)? = nil
+        conversationsClient: (any ConversationsClientProtocol)? = nil,
+        healthFilter: MemoryHealthFilter? = nil
     ) {
         self.client = client
         self.routerClient = routerClient
         self.conversationsClient = conversationsClient
+        self.healthFilter = healthFilter
     }
 
     func load() async {
@@ -51,7 +54,7 @@ final class MemoryBrowserViewModel {
         isSearching = false
         actionError = nil
         do {
-            let response = try await client.list(limit: pageSize, offset: 0)
+            let response = try await client.list(limit: pageSize, offset: 0, healthFilter: healthFilter)
             memories = response.memories
             offset = response.memories.count
             canLoadMore = response.memories.count == pageSize
@@ -64,7 +67,7 @@ final class MemoryBrowserViewModel {
     func loadMore() async {
         guard canLoadMore, !isSearching, state == .ready else { return }
         do {
-            let response = try await client.list(limit: pageSize, offset: offset)
+            let response = try await client.list(limit: pageSize, offset: offset, healthFilter: healthFilter)
             memories.append(contentsOf: response.memories)
             offset += response.memories.count
             canLoadMore = response.memories.count == pageSize

@@ -17,6 +17,8 @@ final class KnowledgeReasoningViewModel {
     private(set) var explanation: ConnectionExplanationResponse?
     private(set) var isReasoning = false
     private(set) var errorMessage: String?
+    private(set) var selectedNodeIDs: [UUID] = []
+    var selectedPathID: UUID?
     var query = ""
 
     init(client: any KnowledgeGraphClientProtocol) {
@@ -32,6 +34,51 @@ final class KnowledgeReasoningViewModel {
         }
     }
 
+    func loadIfNeeded() async {
+        guard case .idle = graphState else { return }
+        await load()
+    }
+
+    var graph: KnowledgeGraphResponse? {
+        guard case let .ready(graph) = graphState else { return nil }
+        return graph
+    }
+
+    var selectedNodes: [KnowledgeNodeDTO] {
+        guard let graph else { return [] }
+        let ids = Set(selectedNodeIDs)
+        return graph.nodes.filter { ids.contains($0.id) }
+    }
+
+    var selectedPath: KnowledgePathDTO? {
+        guard let selectedPathID else { return nil }
+        return (explanation?.paths ?? result?.paths ?? []).first { $0.id == selectedPathID }
+    }
+
+    func selectPath(_ id: UUID?) {
+        selectedPathID = selectedPathID == id ? nil : id
+    }
+
+    func clearSelection() {
+        selectedNodeIDs = []
+        explanation = nil
+        selectedPathID = nil
+    }
+
+    @discardableResult
+    func selectNode(_ id: UUID) async -> Bool {
+        if selectedNodeIDs.count != 1 || selectedNodeIDs[0] == id {
+            selectedNodeIDs = selectedNodeIDs.first == id ? [] : [id]
+            explanation = nil
+            selectedPathID = nil
+            return false
+        }
+        let from = selectedNodeIDs[0]
+        selectedNodeIDs = [from, id]
+        await explain(from: from, to: id)
+        return explanation != nil
+    }
+
     func reason() async {
         let value = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty, !isReasoning else { return }
@@ -39,6 +86,7 @@ final class KnowledgeReasoningViewModel {
         errorMessage = nil
         explanation = nil
         result = nil
+        selectedPathID = nil
         defer { isReasoning = false }
         do {
             var streamedAnswer = ""
@@ -73,11 +121,17 @@ final class KnowledgeReasoningViewModel {
     }
 
     func explain(_ edge: KnowledgeEdgeDTO) async {
+        selectedNodeIDs = [edge.from, edge.to]
+        await explain(from: edge.from, to: edge.to)
+    }
+
+    func explain(from: UUID, to: UUID) async {
         isReasoning = true
         errorMessage = nil
+        selectedPathID = nil
         defer { isReasoning = false }
         do {
-            explanation = try await client.explain(from: edge.from, to: edge.to, maxDepth: 4)
+            explanation = try await client.explain(from: from, to: to, maxDepth: 4)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -85,7 +139,14 @@ final class KnowledgeReasoningViewModel {
 
     func review(_ edge: KnowledgeEdgeDTO, action: KnowledgeReviewAction) async {
         do {
-            _ = try await client.review(edgeID: edge.id, action: action, note: nil)
+            let updated = try await client.review(edgeID: edge.id, action: action, note: nil)
+            if case let .ready(graph) = graphState {
+                graphState = .ready(KnowledgeGraphResponse(
+                    nodes: graph.nodes,
+                    edges: graph.edges.map { $0.id == updated.id ? updated : $0 },
+                    generatedAt: graph.generatedAt
+                ))
+            }
             guard let current = result else { return }
             result = ReasoningQueryResponse(
                 answer: current.answer,

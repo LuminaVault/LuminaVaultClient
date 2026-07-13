@@ -12,12 +12,14 @@ struct MemoryBrowserView: View {
     init(
         client: any MemoryClientProtocol,
         routerClient: (any RouterClientProtocol)? = nil,
-        conversationsClient: (any ConversationsClientProtocol)? = nil
+        conversationsClient: (any ConversationsClientProtocol)? = nil,
+        healthFilter: MemoryHealthFilter? = nil
     ) {
         _viewModel = State(initialValue: MemoryBrowserViewModel(
             client: client,
             routerClient: routerClient,
-            conversationsClient: conversationsClient
+            conversationsClient: conversationsClient,
+            healthFilter: healthFilter
         ))
     }
 
@@ -36,7 +38,7 @@ struct MemoryBrowserView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .navigationTitle("Memories")
+        .navigationTitle(viewModel.healthFilter?.title ?? "Memories")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $viewModel.query, prompt: "Search memories")
         .onSubmit(of: .search) { Task { await viewModel.runSearch() } }

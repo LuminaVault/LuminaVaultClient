@@ -8,11 +8,24 @@ struct KnowledgeReasoningSheet: View {
     @State var viewModel: KnowledgeReasoningViewModel
     let memoryClient: (any MemoryClientProtocol)?
     @State private var selectedEvidence: KnowledgeEvidenceDTO?
-    @State private var selectedPathID: UUID?
 
     var body: some View {
         NavigationStack {
             List {
+                if !viewModel.selectedNodes.isEmpty {
+                    Section("Selected connection") {
+                        Text(viewModel.selectedNodes.map(\.label).joined(separator: "  ↔  "))
+                        if viewModel.selectedNodes.count == 1 {
+                            Text("Select another node in the graph to explain their connection.")
+                                .font(.caption)
+                                .foregroundStyle(palette.textSecondary)
+                        }
+                        Button("Clear selection", systemImage: "xmark.circle") {
+                            viewModel.clearSelection()
+                        }
+                    }
+                }
+
                 Section("Ask your graph") {
                     TextField("What changed my view on…?", text: $viewModel.query, axis: .vertical)
                         .lineLimit(2 ... 5)
@@ -56,7 +69,7 @@ struct KnowledgeReasoningSheet: View {
                         Section("Reasoning paths") {
                             ForEach(result.paths) { path in
                                 Button {
-                                    selectedPathID = selectedPathID == path.id ? nil : path.id
+                                    viewModel.selectPath(path.id)
                                 } label: {
                                     VStack(alignment: .leading, spacing: 6) {
                                         Text(path.nodes.map(\.label).joined(separator: "  →  "))
@@ -70,7 +83,7 @@ struct KnowledgeReasoningSheet: View {
                                         .foregroundStyle(palette.textSecondary)
                                     }
                                 }
-                                .listRowBackground(selectedPathID == path.id ? palette.accent.opacity(0.14) : Color.clear)
+                                .listRowBackground(viewModel.selectedPathID == path.id ? palette.accent.opacity(0.14) : Color.clear)
                                 .accessibilityElement(children: .combine)
                             }
                         }
@@ -113,6 +126,20 @@ struct KnowledgeReasoningSheet: View {
                         ForEach(explanation.caveats, id: \.self) { caveat in
                             Label(caveat, systemImage: "sparkles")
                         }
+                        ForEach(explanation.paths) { path in
+                            Button {
+                                viewModel.selectPath(path.id)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(path.nodes.map(\.label).joined(separator: "  →  "))
+                                        .font(.callout)
+                                    Text(path.confidence, format: .percent.precision(.fractionLength(0)))
+                                        .font(.caption)
+                                        .foregroundStyle(palette.textSecondary)
+                                }
+                            }
+                            .listRowBackground(viewModel.selectedPathID == path.id ? palette.accent.opacity(0.14) : Color.clear)
+                        }
                     }
                 }
 
@@ -127,7 +154,7 @@ struct KnowledgeReasoningSheet: View {
                     Button("Done", action: dismiss.callAsFunction)
                 }
             }
-            .task { await viewModel.load() }
+            .task { await viewModel.loadIfNeeded() }
             .sheet(item: $selectedEvidence) { evidence in
                 KnowledgeEvidenceDetailSheet(evidence: evidence, memoryClient: memoryClient)
             }

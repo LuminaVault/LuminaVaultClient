@@ -12,6 +12,24 @@ struct HybridExecutionCapabilities: Equatable, Sendable {
     let cloudAvailable: Bool
     let requiresCloudTool: Bool
     let contextFitsLocally: Bool
+    let localFallbackEnabled: Bool
+    let cloudFallbackEnabled: Bool
+
+    init(
+        localAvailable: Bool,
+        cloudAvailable: Bool,
+        requiresCloudTool: Bool,
+        contextFitsLocally: Bool,
+        localFallbackEnabled: Bool = true,
+        cloudFallbackEnabled: Bool = true
+    ) {
+        self.localAvailable = localAvailable
+        self.cloudAvailable = cloudAvailable
+        self.requiresCloudTool = requiresCloudTool
+        self.contextFitsLocally = contextFitsLocally
+        self.localFallbackEnabled = localFallbackEnabled
+        self.cloudFallbackEnabled = cloudFallbackEnabled
+    }
 }
 
 struct HybridExecutionCoordinator: Sendable {
@@ -32,12 +50,17 @@ struct HybridExecutionCoordinator: Sendable {
             if capabilities.localAvailable, capabilities.contextFitsLocally, !capabilities.requiresCloudTool {
                 return .local
             }
-            return capabilities.cloudAvailable ? .cloud : .unavailable("No local or cloud model is available.")
+            return capabilities.cloudFallbackEnabled && capabilities.cloudAvailable
+                ? .cloud
+                : .unavailable("The local model cannot handle this turn and cloud fallback is unavailable.")
         case .quality:
             if capabilities.cloudAvailable {
                 return .cloud
             }
-            return capabilities.localAvailable ? .local : .unavailable("No model is available.")
+            return capabilities.localFallbackEnabled && capabilities.localAvailable && capabilities.contextFitsLocally
+                && !capabilities.requiresCloudTool
+                ? .local
+                : .unavailable("Cloud is unavailable and local fallback cannot handle this turn.")
         }
     }
 }
