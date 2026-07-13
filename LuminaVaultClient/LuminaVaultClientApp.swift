@@ -437,6 +437,7 @@ struct LuminaVaultClientApp: App {
                 if appState.vaultInitialized, captureCoordinator == nil {
                     let coord = CaptureCoordinator(
                         tokenProvider: { [appState] in appState.keychain.accessToken },
+                        httpClient: appState.makeHTTPClient()
                     )
                     await coord.start()
                     captureCoordinator = coord

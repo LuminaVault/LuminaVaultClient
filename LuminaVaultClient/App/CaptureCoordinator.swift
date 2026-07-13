@@ -24,9 +24,14 @@ final class CaptureCoordinator {
     private var container: ModelContainer?
 
     private let tokenProvider: @Sendable () async -> String?
+    private let providedHTTPClient: BaseHTTPClient?
 
-    init(tokenProvider: @escaping @Sendable () async -> String?) {
+    init(
+        tokenProvider: @escaping @Sendable () async -> String?,
+        httpClient: BaseHTTPClient? = nil
+    ) {
         self.tokenProvider = tokenProvider
+        providedHTTPClient = httpClient
     }
 
     func start() async {
@@ -37,12 +42,17 @@ final class CaptureCoordinator {
             let queue = CaptureQueue(container: container)
             self.queue = queue
 
-            let httpBase = BaseHTTPClient(tokenProvider: tokenProvider)
+            let httpBase = providedHTTPClient ?? BaseHTTPClient(tokenProvider: tokenProvider)
             let uploader = VaultUploadHTTPClient(client: httpBase)
             let memory = MemoryHTTPClient(client: httpBase)
             let safari = CaptureSafariHTTPClient(client: httpBase)
             spacesClient = SpacesHTTPClient(client: httpBase)
-            BackgroundIngestionUploader.shared.configure(tokenProvider: tokenProvider)
+            BackgroundIngestionUploader.shared.configure(
+                tokenProvider: tokenProvider,
+                refreshAuthorization: {
+                    _ = try? await httpBase.execute(IngestionEndpoints.List())
+                }
+            )
             ingestionClient = IngestionHTTPClient(client: httpBase, backgroundUploader: .shared)
             hermesCapabilitiesClient = HermesCapabilitiesHTTPClient(client: httpBase)
             let drainer = CaptureDrainer(

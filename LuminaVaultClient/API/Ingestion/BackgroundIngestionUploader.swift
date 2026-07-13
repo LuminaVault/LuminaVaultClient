@@ -25,6 +25,7 @@ final class BackgroundIngestionUploader: NSObject, URLSessionTaskDelegate, URLSe
 
     private var jobs: [UUID: Job] = [:]
     private var tokenProvider: (@Sendable () async -> String?)?
+    private var refreshAuthorization: (@Sendable () async -> Void)?
     private var backgroundCompletionHandler: (() -> Void)?
     private lazy var session: URLSession = {
         let configuration = URLSessionConfiguration.background(withIdentifier: Self.sessionIdentifier)
@@ -41,8 +42,12 @@ final class BackgroundIngestionUploader: NSObject, URLSessionTaskDelegate, URLSe
         jobs = Self.loadJobs()
     }
 
-    func configure(tokenProvider: @escaping @Sendable () async -> String?) {
+    func configure(
+        tokenProvider: @escaping @Sendable () async -> String?,
+        refreshAuthorization: (@Sendable () async -> Void)? = nil
+    ) {
         self.tokenProvider = tokenProvider
+        self.refreshAuthorization = refreshAuthorization
         _ = session
         Task { await resumePendingJobs() }
     }
@@ -142,6 +147,9 @@ final class BackgroundIngestionUploader: NSObject, URLSessionTaskDelegate, URLSe
             if let status, 400 ..< 500 ~= status, status != 401, status != 429 {
                 backgroundUploadLog.error("upload paused after permanent response job=\(jobID) status=\(status)")
                 return
+            }
+            if status == 401 {
+                await self.refreshAuthorization?()
             }
             if error != nil || status == 401 || status == 429 || (status ?? 500) >= 500 {
                 try? await Task.sleep(for: .seconds(min(60, 1 << min(job.attempts, 6))))
