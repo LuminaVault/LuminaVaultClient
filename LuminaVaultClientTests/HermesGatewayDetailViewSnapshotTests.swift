@@ -3,13 +3,12 @@
 // HER-241 — image snapshots for the per-gateway detail/edit screen.
 // 3 cases × 2 schemes = 6 baselines.
 
+@testable import LuminaVaultClient
+@testable import LuminaVaultShared
 import SnapshotTesting
 import SwiftUI
 import UIKit
 import XCTest
-
-@testable import LuminaVaultClient
-@testable import LuminaVaultShared
 
 @MainActor
 final class HermesGatewayDetailViewSnapshotTests: XCTestCase {
@@ -29,53 +28,58 @@ final class HermesGatewayDetailViewSnapshotTests: XCTestCase {
         init(getResult: Result<HermesGatewayCatalogEntry, Error>) {
             self.getResult = getResult
         }
+
         func list() async throws -> HermesGatewaysListResponse {
-            HermesGatewaysListResponse(items: [try getResult.get()])
+            try HermesGatewaysListResponse(items: [getResult.get()])
         }
-        func get(_: HermesGatewayID) async throws -> HermesGatewayCatalogEntry { try getResult.get() }
-        func upsert(_: HermesGatewayID, _: HermesGatewayPutRequest) async throws -> HermesGatewayCatalogEntry { try getResult.get() }
+
+        func get(_: HermesGatewayID) async throws -> HermesGatewayCatalogEntry {
+            try getResult.get()
+        }
+
+        func upsert(_: HermesGatewayID, _: HermesGatewayPutRequest) async throws -> HermesGatewayCatalogEntry {
+            try getResult.get()
+        }
+
         func delete(_: HermesGatewayID) async throws {}
         func test(_: HermesGatewayID) async throws -> HermesGatewayTestResponse {
             HermesGatewayTestResponse(ok: true, verifiedAt: Date())
         }
+
         func startApply() async throws -> StartHermesGatewayApplyResponse {
             StartHermesGatewayApplyResponse(jobID: UUID(), state: .succeeded)
         }
+
         func applyStatus(_ jobID: UUID) async throws -> HermesGatewayApplyJobStatus {
             HermesGatewayApplyJobStatus(
                 jobID: jobID, state: .succeeded, steps: [],
-                startedAt: Date(), updatedAt: Date(),
+                startedAt: Date(), updatedAt: Date()
             )
         }
+
         func applyStream(_: UUID) -> AsyncThrowingStream<HermesGatewayApplyEvent, any Error> {
             AsyncThrowingStream { $0.finish() }
         }
+
         func startWhatsAppPair() async throws -> StartWhatsAppPairResponse {
             StartWhatsAppPairResponse(sessionID: UUID())
         }
+
         func whatsAppPairStream(_: UUID) -> AsyncThrowingStream<HermesWhatsAppPairEvent, any Error> {
             AsyncThrowingStream { $0.finish() }
         }
+
         func unlinkWhatsApp() async throws -> HermesGatewayCatalogEntry {
             try getResult.get()
         }
 
-        // Actuation + WhatsApp — not exercised by snapshot tests.
-        func startApply() async throws -> StartHermesGatewayApplyResponse { throw URLError(.unsupportedURL) }
-        func applyStatus(_ jobID: UUID) async throws -> HermesGatewayApplyJobStatus { throw URLError(.unsupportedURL) }
-        func applyStream(_ jobID: UUID) -> AsyncThrowingStream<HermesGatewayApplyEvent, any Error> {
-            AsyncThrowingStream { _ in }
+        /// Photon (new pairing kind)
+        func startPhotonSetup() async throws -> StartPhotonSetupResponse {
+            StartPhotonSetupResponse(sessionID: UUID())
         }
-        func startWhatsAppPair() async throws -> StartWhatsAppPairResponse { StartWhatsAppPairResponse(sessionID: UUID()) }
-        func whatsAppPairStream(_ sessionID: UUID) -> AsyncThrowingStream<HermesWhatsAppPairEvent, any Error> {
-            AsyncThrowingStream { _ in }
-        }
-        func unlinkWhatsApp() async throws -> HermesGatewayCatalogEntry { try getResult.get() }
 
-        // Photon (new pairing kind)
-        func startPhotonSetup() async throws -> StartPhotonSetupResponse { StartPhotonSetupResponse(sessionID: UUID()) }
-        func photonSetupPhone(sessionID: UUID, phone: String) async throws {}
-        func photonSetupStream(_ sessionID: UUID) -> AsyncThrowingStream<HermesPhotonSetupEvent, any Error> {
+        func photonSetupPhone(sessionID _: UUID, phone _: String) async throws {}
+        func photonSetupStream(_: UUID) -> AsyncThrowingStream<HermesPhotonSetupEvent, any Error> {
             AsyncThrowingStream { _ in }
         }
     }
@@ -92,20 +96,20 @@ final class HermesGatewayDetailViewSnapshotTests: XCTestCase {
                     label: "Bot token",
                     placeholder: "123456:ABC-DEF…",
                     kind: .secret,
-                    isRequired: true,
+                    isRequired: true
                 ),
             ],
             status: status,
             hasConfig: hasConfig,
             verifiedAt: status == .verified ? Date(timeIntervalSince1970: 1_700_000_000) : nil,
-            lastFailureCode: nil,
+            lastFailureCode: nil
         )
     }
 
     private func makeView(
         entry: HermesGatewayCatalogEntry,
         prefillValues: [String: String] = [:],
-        save: HermesGatewayDetailViewModel.SaveOutcome = .idle,
+        save: HermesGatewayDetailViewModel.SaveOutcome = .idle
     ) -> some View {
         let client = StubHermesGatewaysClient(getResult: .success(entry))
         let vm = HermesGatewayDetailViewModel(gatewayID: entry.id, client: client)
@@ -138,9 +142,9 @@ final class HermesGatewayDetailViewSnapshotTests: XCTestCase {
             makeView(
                 entry: Self.telegramEntry(status: .verified, hasConfig: true),
                 prefillValues: ["bot_token": "•••••••••••••"],
-                save: .saved(verifyOk: true, errorCode: nil),
+                save: .saved(verifyOk: true, errorCode: nil)
             ),
-            scheme: .dark, named: "iPhone13Pro-saved-reachable-dark",
+            scheme: .dark, named: "iPhone13Pro-saved-reachable-dark"
         )
     }
 
@@ -149,9 +153,9 @@ final class HermesGatewayDetailViewSnapshotTests: XCTestCase {
             makeView(
                 entry: Self.telegramEntry(status: .verified, hasConfig: true),
                 prefillValues: ["bot_token": "•••••••••••••"],
-                save: .saved(verifyOk: true, errorCode: nil),
+                save: .saved(verifyOk: true, errorCode: nil)
             ),
-            scheme: .light, named: "iPhone13Pro-saved-reachable-light",
+            scheme: .light, named: "iPhone13Pro-saved-reachable-light"
         )
     }
 
@@ -160,9 +164,9 @@ final class HermesGatewayDetailViewSnapshotTests: XCTestCase {
             makeView(
                 entry: Self.telegramEntry(status: .configured, hasConfig: true),
                 prefillValues: ["bot_token": "•••••••••••••"],
-                save: .saved(verifyOk: false, errorCode: "hermes_unreachable:dns"),
+                save: .saved(verifyOk: false, errorCode: "hermes_unreachable:dns")
             ),
-            scheme: .dark, named: "iPhone13Pro-saved-unreachable-dark",
+            scheme: .dark, named: "iPhone13Pro-saved-unreachable-dark"
         )
     }
 
@@ -171,9 +175,9 @@ final class HermesGatewayDetailViewSnapshotTests: XCTestCase {
             makeView(
                 entry: Self.telegramEntry(status: .configured, hasConfig: true),
                 prefillValues: ["bot_token": "•••••••••••••"],
-                save: .saved(verifyOk: false, errorCode: "hermes_unreachable:dns"),
+                save: .saved(verifyOk: false, errorCode: "hermes_unreachable:dns")
             ),
-            scheme: .light, named: "iPhone13Pro-saved-unreachable-light",
+            scheme: .light, named: "iPhone13Pro-saved-unreachable-light"
         )
     }
 
@@ -184,9 +188,9 @@ final class HermesGatewayDetailViewSnapshotTests: XCTestCase {
                 precision: 0.98,
                 perceptualPrecision: 0.96,
                 layout: .device(config: .iPhone13Pro),
-                traits: .init(userInterfaceStyle: scheme),
+                traits: .init(userInterfaceStyle: scheme)
             ),
-            named: named,
+            named: named
         )
     }
 }

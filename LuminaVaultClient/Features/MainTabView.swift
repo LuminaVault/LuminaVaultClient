@@ -271,7 +271,7 @@ struct MainTabView: View {
     private func makeChatViewModel() -> ChatViewModel {
         let settings = HybridExecutionSettingsStore()
         let executor: (any LocalChatExecuting)? = if settings.useAppleOnDeviceModel {
-            makeAppleOnDeviceChatExecutor()
+            makeAppleOnDeviceChatExecutor() ?? settings.configuration.map { LocalEndpointChatExecutor(configuration: $0) }
         } else {
             settings.configuration.map { LocalEndpointChatExecutor(configuration: $0) }
         }
@@ -294,6 +294,9 @@ struct MainTabView: View {
             cloudAvailable: { appState.networkMonitor.isConnected }
         )
         viewModel.hybridProfile = settings.profile
+        viewModel.hybridLocalFallbackEnabled = settings.localFallbackEnabled
+        viewModel.hybridCloudFallbackEnabled = settings.cloudFallbackEnabled
+        viewModel.syncLocalConversations = settings.syncLocalConversations
         viewModel.transport = .hybrid
         return viewModel
     }
@@ -479,12 +482,7 @@ struct MainTabView: View {
             ),
             httpClient: appState.makeHTTPClient(),
             vaultClient: vaultClient,
-            memoryClient: memoryUpsertClient,
-            onOpenRecommendation: { deepLink in
-                selection = deepLink.contains("analytics#models")
-                    ? Self.tabIds.settings
-                    : Self.tabIds.workspaces
-            }
+            memoryClient: memoryUpsertClient
         )
     }
 

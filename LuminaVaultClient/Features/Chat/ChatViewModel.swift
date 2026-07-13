@@ -31,19 +31,80 @@ final class ChatViewModel {
         var content: String
         var sources: [QueryHitDTO]
         var parallelExecutionID: UUID?
+        var imageURLs: [URL]
+        var renderedMarkdown: String
 
         init(
             id: UUID = UUID(),
             role: ConversationMessageRole,
             content: String,
             sources: [QueryHitDTO] = [],
-            parallelExecutionID: UUID? = nil
+            parallelExecutionID: UUID? = nil,
+            imageURLs: [URL]? = nil,
+            renderedMarkdown: String? = nil
         ) {
             self.id = id
             self.role = role
             self.content = content
             self.sources = sources
             self.parallelExecutionID = parallelExecutionID
+            self.imageURLs = imageURLs ?? Self.imageURLs(role: role, content: content)
+            self.renderedMarkdown = renderedMarkdown ?? Self.renderedMarkdown(role: role, content: content)
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case id, role, content, sources, parallelExecutionID, imageURLs, renderedMarkdown
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decode(UUID.self, forKey: .id)
+            role = try container.decode(ConversationMessageRole.self, forKey: .role)
+            content = try container.decode(String.self, forKey: .content)
+            sources = try container.decodeIfPresent([QueryHitDTO].self, forKey: .sources) ?? []
+            parallelExecutionID = try container.decodeIfPresent(UUID.self, forKey: .parallelExecutionID)
+            imageURLs = try container.decodeIfPresent([URL].self, forKey: .imageURLs)
+                ?? Self.imageURLs(role: role, content: content)
+            renderedMarkdown = try container.decodeIfPresent(String.self, forKey: .renderedMarkdown)
+                ?? Self.renderedMarkdown(role: role, content: content)
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(id, forKey: .id)
+            try container.encode(role, forKey: .role)
+            try container.encode(content, forKey: .content)
+            try container.encode(sources, forKey: .sources)
+            try container.encodeIfPresent(parallelExecutionID, forKey: .parallelExecutionID)
+            try container.encode(imageURLs, forKey: .imageURLs)
+            try container.encode(renderedMarkdown, forKey: .renderedMarkdown)
+        }
+
+        private static func renderedMarkdown(role: ConversationMessageRole, content: String) -> String {
+            guard role == .assistant else { return content }
+            return WikilinkParser.markdownByRenderingLinks(in: content)
+        }
+
+        private static func imageURLs(role: ConversationMessageRole, content: String) -> [URL] {
+            guard role == .assistant else { return [] }
+            let ns = content as NSString
+            var urls: [URL] = []
+            func scan(_ pattern: String, group: Int) {
+                guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+                    return
+                }
+                for match in regex.matches(in: content, range: NSRange(location: 0, length: ns.length))
+                    where match.numberOfRanges > group
+                {
+                    if let url = URL(string: ns.substring(with: match.range(at: group))) {
+                        urls.append(url)
+                    }
+                }
+            }
+            scan(#"!\[[^\]]*\]\((https?://[^\s)]+)\)"#, group: 1)
+            scan(#"(?<!\()(https?://[^\s)]+\.(?:png|jpe?g|gif|webp))"#, group: 1)
+            var seen = Set<String>()
+            return urls.filter { seen.insert($0.absoluteString).inserted }
         }
     }
 
@@ -100,6 +161,9 @@ final class ChatViewModel {
     /// HER-269 SSE path); user toggles via the toolbar.
     var transport: Transport = .memoryGrounded
     var hybridProfile: HybridExecutionProfile = .balanced
+    var hybridLocalFallbackEnabled = true
+    var hybridCloudFallbackEnabled = true
+    var syncLocalConversations = true
     private(set) var executionLabel: String?
 
     /// Chat preferences (server-backed `autoExpandThinking`/`sendOnReturn` +
@@ -520,7 +584,9 @@ final class ChatViewModel {
                 localAvailable: localAvailable,
                 cloudAvailable: cloudAvailable(),
                 requiresCloudTool: multiModelEnabled,
-                contextFitsLocally: content.count < 32000
+                contextFitsLocally: messages.reduce(content.count) { $0 + $1.content.count } < 32000,
+                localFallbackEnabled: hybridLocalFallbackEnabled,
+                cloudFallbackEnabled: hybridCloudFallbackEnabled
             )
         )
         switch decision {
@@ -544,8 +610,14 @@ final class ChatViewModel {
                 displayedAssistant = ""
                 pendingSources = []
                 var prompt: [ChatMessage]
-                if hybridProfile == .private {
+                if hybridProfile == .private || !syncLocalConversations {
                     prompt = messages.map { ChatMessage(role: $0.role.rawValue, content: $0.content) }
+                    if hybridProfile != .private,
+                       let cached = await localMemorySync?.context(for: content), !cached.isEmpty
+                    {
+                        let context = cached.map(\.content).joined(separator: "\n\n")
+                        prompt.insert(ChatMessage(role: "system", content: "Relevant local memories:\n\(context)"), at: 0)
+                    }
                 } else {
                     do {
                         let id = try await ensureConversation()
@@ -567,6 +639,8 @@ final class ChatViewModel {
                 }
                 executionLabel = degradedContext
                     ? "Offline local · \(localExecutor.modelID)"
+                    : !syncLocalConversations
+                    ? "Device-only · \(localExecutor.displayName) · \(localExecutor.modelID)"
                     : hybridProfile == .private
                     ? "Private · \(localExecutor.displayName) · \(localExecutor.modelID)"
                     : "Local · \(localExecutor.displayName) · \(localExecutor.modelID)"

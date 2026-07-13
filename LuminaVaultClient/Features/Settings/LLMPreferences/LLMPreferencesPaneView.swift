@@ -103,6 +103,12 @@ struct LLMPreferencesPaneView: View {
                 Text("Balanced").tag(HybridExecutionProfile.balanced)
                 Text("Quality").tag(HybridExecutionProfile.quality)
             }
+            Toggle("Allow local fallback", isOn: $hybridSettings.localFallbackEnabled)
+                .disabled(hybridSettings.profile != .quality)
+            Toggle("Allow cloud fallback", isOn: $hybridSettings.cloudFallbackEnabled)
+                .disabled(hybridSettings.profile != .balanced)
+            Toggle("Sync local conversations", isOn: $hybridSettings.syncLocalConversations)
+                .disabled(hybridSettings.profile == .private)
             Picker("Local server", selection: $hybridSettings.endpointKind) {
                 Text("Ollama").tag(LocalEndpointKind.ollama)
                 Text("LM Studio").tag(LocalEndpointKind.lmStudio)
@@ -121,6 +127,16 @@ struct LLMPreferencesPaneView: View {
                 .disabled(hybridSettings.useAppleOnDeviceModel)
             SecureField("Local endpoint API key (optional)", text: $hybridSettings.apiKey)
                 .disabled(hybridSettings.useAppleOnDeviceModel)
+            Button(hybridSettings.isTestingConnection ? "Testing local model…" : "Test local model") {
+                Task { await hybridSettings.testConnection() }
+            }
+            .disabled(hybridSettings.isTestingConnection || (!hybridSettings.useAppleOnDeviceModel && hybridSettings.configuration == nil))
+            if let status = hybridSettings.connectionStatus {
+                Text(status)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Local model status: \(status)")
+            }
             Button("Save local execution settings") {
                 hybridSettings.save()
                 if let hybridClient {
@@ -131,7 +147,7 @@ struct LLMPreferencesPaneView: View {
         } header: {
             Text("Hybrid execution")
         } footer: {
-            Text("Private never sends prompts to LuminaVault. Balanced prefers this local model and may use cloud fallback. Quality uses cloud first.")
+            Text("Private never sends prompts to LuminaVault. Balanced prefers local and can fall back to cloud. Quality prefers cloud and can fall back locally. Disable conversation sync to keep locally generated turns only on this device.")
         }
     }
 

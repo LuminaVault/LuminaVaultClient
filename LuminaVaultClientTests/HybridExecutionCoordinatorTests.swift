@@ -27,16 +27,47 @@ final class HybridExecutionCoordinatorTests: XCTestCase {
         XCTAssertEqual(decision, .local)
     }
 
+    func testQualityHonorsDisabledLocalFallback() {
+        let decision = HybridExecutionCoordinator().decide(
+            profile: .quality,
+            capabilities: .init(
+                localAvailable: true,
+                cloudAvailable: false,
+                requiresCloudTool: false,
+                contextFitsLocally: true,
+                localFallbackEnabled: false
+            )
+        )
+        XCTAssertEqual(decision, .unavailable("Cloud is unavailable and local fallback cannot handle this turn."))
+    }
+
+    func testBalancedHonorsDisabledCloudFallback() {
+        let decision = HybridExecutionCoordinator().decide(
+            profile: .balanced,
+            capabilities: .init(
+                localAvailable: false,
+                cloudAvailable: true,
+                requiresCloudTool: false,
+                contextFitsLocally: true,
+                cloudFallbackEnabled: false
+            )
+        )
+        XCTAssertEqual(decision, .unavailable("The local model cannot handle this turn and cloud fallback is unavailable."))
+    }
+
     @MainActor
-    func testSettingsKeepEndpointSecretInKeychain() {
+    func testSettingsKeepEndpointSecretInKeychain() throws {
         let suiteName = "HybridExecutionCoordinatorTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let keychain = KeychainService(inMemory: true)
         let settings = HybridExecutionSettingsStore(defaults: defaults, keychain: keychain)
         settings.profile = .private
         settings.apiKey = "device-secret"
         settings.useAppleOnDeviceModel = true
+        settings.localFallbackEnabled = false
+        settings.cloudFallbackEnabled = false
+        settings.syncLocalConversations = false
 
         settings.save(defaults: defaults, keychain: keychain)
 
@@ -44,6 +75,9 @@ final class HybridExecutionCoordinatorTests: XCTestCase {
         XCTAssertNil(defaults.string(forKey: "localEndpointAPIKey"))
         XCTAssertEqual(keychain.localEndpointAPIKey, "device-secret")
         XCTAssertTrue(defaults.bool(forKey: "hybrid.useAppleOnDeviceModel"))
+        XCTAssertFalse(defaults.bool(forKey: "hybrid.localFallbackEnabled"))
+        XCTAssertFalse(defaults.bool(forKey: "hybrid.cloudFallbackEnabled"))
+        XCTAssertFalse(defaults.bool(forKey: "hybrid.syncLocalConversations"))
     }
 
     func testEncryptedMemoryCacheMergesUpdatesAndTombstones() async throws {

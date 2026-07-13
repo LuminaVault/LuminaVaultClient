@@ -32,6 +32,14 @@ final class MemoryHTTPClient: MemoryClientProtocol {
         try await client.execute(MemoryEndpoints.List(limit: limit, offset: offset))
     }
 
+    func list(limit: Int, offset: Int, healthFilter: MemoryHealthFilter?) async throws -> MemoryListResponse {
+        try await client.execute(MemoryEndpoints.List(
+            limit: limit,
+            offset: offset,
+            healthFilter: healthFilter
+        ))
+    }
+
     func search(_ request: MemorySearchRequest) async throws -> MemorySearchResponse {
         try await client.execute(MemoryEndpoints.Search(request: request))
     }

@@ -29,12 +29,17 @@ struct LocalEndpointConfiguration: Codable, Equatable, Sendable {
     let apiKey: String?
 }
 
-final class LocalEndpointChatExecutor: LocalChatExecuting, @unchecked Sendable {
+struct LocalEndpointChatExecutor: LocalChatExecuting {
     let configuration: LocalEndpointConfiguration
     private let session: URLSession
 
     var displayName: String {
-        configuration.kind == .ollama ? "Ollama" : "Local server"
+        switch configuration.kind {
+        case .ollama: "Ollama"
+        case .lmStudio: "LM Studio"
+        case .mlxServer: "MLX"
+        case .openAICompatible: "OpenAI-compatible server"
+        }
     }
 
     var modelID: String {
@@ -54,9 +59,20 @@ final class LocalEndpointChatExecutor: LocalChatExecuting, @unchecked Sendable {
             request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         }
         request.timeoutInterval = 3
-        guard let (_, response) = try? await session.data(for: request),
+        guard let (data, response) = try? await session.data(for: request),
               let http = response as? HTTPURLResponse else { return false }
-        return (200 ..< 300).contains(http.statusCode)
+        guard (200 ..< 300).contains(http.statusCode),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return false }
+        let models: [String]
+        if configuration.kind == .ollama {
+            models = (object["models"] as? [[String: Any]] ?? []).flatMap { item in
+                [item["name"] as? String, item["model"] as? String].compactMap(\.self)
+            }
+        } else {
+            models = (object["data"] as? [[String: Any]] ?? []).compactMap { $0["id"] as? String }
+        }
+        return models.contains(configuration.model)
     }
 
     func stream(messages: [ChatMessage]) -> AsyncThrowingStream<String, any Error> {

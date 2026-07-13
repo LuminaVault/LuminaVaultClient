@@ -28,6 +28,7 @@ protocol MemoryClientProtocol: Sendable {
 
     /// Phase 2 — GET /v1/memory?limit=&offset= for the memory browser.
     func list(limit: Int, offset: Int) async throws -> MemoryListResponse
+    func list(limit: Int, offset: Int, healthFilter: MemoryHealthFilter?) async throws -> MemoryListResponse
 
     /// Phase 2 — POST /v1/memory/search semantic search.
     func search(_ request: MemorySearchRequest) async throws -> MemorySearchResponse
@@ -46,6 +47,10 @@ protocol MemoryClientProtocol: Sendable {
 extension MemoryClientProtocol {
     func upsert(_ request: MemoryUpsertRequest, spaceID _: UUID?) async throws -> MemoryUpsertResponse {
         try await upsert(request)
+    }
+
+    func list(limit: Int, offset: Int, healthFilter _: MemoryHealthFilter?) async throws -> MemoryListResponse {
+        try await list(limit: limit, offset: offset)
     }
 
     func provenance(id _: UUID) async throws -> MemoryProvenanceResponse {

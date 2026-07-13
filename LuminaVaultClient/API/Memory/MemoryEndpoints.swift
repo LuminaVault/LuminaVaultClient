@@ -27,7 +27,7 @@ enum MemoryEndpoints {
         /// `?space_id=` query param (mirrors `/v1/vault/files`) because the
         /// shared `MemoryUpsertRequest` DTO is a pinned package and can't gain
         /// a body field without a coordinated release.
-        var spaceID: UUID? = nil
+        var spaceID: UUID?
 
         var path: String {
             guard let spaceID else { return "/v1/memory/upsert" }
@@ -74,9 +74,14 @@ enum MemoryEndpoints {
         typealias Response = MemoryListResponse
         let limit: Int
         let offset: Int
+        var healthFilter: MemoryHealthFilter?
 
         var path: String {
-            "/v1/memory?limit=\(limit)&offset=\(offset)"
+            var path = "/v1/memory?limit=\(limit)&offset=\(offset)"
+            if let healthFilter {
+                path += "&healthFilter=\(healthFilter.rawValue)"
+            }
+            return path
         }
 
         var method: HTTPMethod {

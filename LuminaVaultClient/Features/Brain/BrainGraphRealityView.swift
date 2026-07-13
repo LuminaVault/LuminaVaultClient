@@ -98,7 +98,9 @@ struct BrainGraphRealityView: View {
         SpatialTapGesture()
             .targetedToAnyEntity()
             .onEnded { value in
-                if let id = UUID(uuidString: value.entity.name) { onSelect(id) }
+                if let id = UUID(uuidString: value.entity.name) {
+                    onSelect(id)
+                }
             }
     }
 
@@ -123,7 +125,7 @@ struct BrainGraphRealityView: View {
         let capped = graph.edges.sorted { $0.weight > $1.weight }.prefix(1200)
         for edge in capped {
             guard let a = positions[edge.from], let b = positions[edge.to] else { continue }
-            root.addChild(makeEdgeEntity(from: a, to: b, weight: Float(edge.weight)))
+            root.addChild(makeEdgeEntity(from: a, to: b, kind: edge.kind, weight: Float(edge.weight)))
         }
     }
 
@@ -176,19 +178,34 @@ struct BrainGraphRealityView: View {
         return core
     }
 
-    private static func makeEdgeEntity(from a: SIMD3<Float>, to b: SIMD3<Float>, weight: Float) -> ModelEntity {
+    private static func makeEdgeEntity(
+        from a: SIMD3<Float>,
+        to b: SIMD3<Float>,
+        kind: MemoryEdgeKindDTO,
+        weight: Float
+    ) -> ModelEntity {
         let mid = (a + b) / 2
         let length = simd_distance(a, b)
         let thickness = 0.15 + weight * 0.5
         let box = ModelEntity(
             mesh: .generateBox(size: [thickness, thickness, length]),
-            materials: [UnlitMaterial(color: UIColor(white: 1, alpha: Double(0.10 + weight * 0.25)))]
+            materials: [UnlitMaterial(color: edgeColor(kind).withAlphaComponent(CGFloat(0.16 + weight * 0.34)))]
         )
         box.position = mid
         // Orient the box's local +Z along (b - a).
         let dir = simd_normalize(b - a)
         box.orientation = simd_quatf(from: [0, 0, 1], to: dir)
         return box
+    }
+
+    private static func edgeColor(_ kind: MemoryEdgeKindDTO) -> UIColor {
+        switch kind {
+        case .wikilink: UIColor(red: 0.96, green: 0.62, blue: 0.04, alpha: 1)
+        case .tag: UIColor(red: 0.98, green: 0.32, blue: 0.42, alpha: 1)
+        case .space: UIColor(red: 0.20, green: 0.85, blue: 0.76, alpha: 1)
+        case .semantic: UIColor(red: 0, green: 0.83, blue: 1, alpha: 1)
+        case .temporal: UIColor(white: 0.72, alpha: 1)
+        }
     }
 
     // MARK: - Brand ramp (mirrors web brain-palette.ts)
@@ -199,7 +216,7 @@ struct BrainGraphRealityView: View {
     }
 
     private static func activityFromCreatedAt(_ date: Date) -> Double {
-        let ageDays = Date().timeIntervalSince(date) / 86_400
+        let ageDays = Date().timeIntervalSince(date) / 86400
         return min(1, max(0, 1 - ageDays / 90))
     }
 

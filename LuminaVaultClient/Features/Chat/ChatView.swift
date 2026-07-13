@@ -136,7 +136,9 @@ struct ChatView: View {
 
     /// Short label under the mascot badge, derived from voice + phase.
     private var statusLabel: String {
-        if viewModel.voice.isRecording { return "Listening…" }
+        if viewModel.voice.isRecording {
+            return "Listening…"
+        }
         switch viewModel.phase {
         case .starting, .streaming: return "Thinking…"
         case .failed: return "Let's try that again"
@@ -164,7 +166,7 @@ struct ChatView: View {
                     message: message,
                     mascotState: .idle,
                     vaultClient: vaultClient,
-                    memoryClient: memoryClient,
+                    memoryClient: memoryClient
                 )
                 .id(message.id)
                 .contextMenu {
@@ -189,7 +191,7 @@ struct ChatView: View {
                     sources: viewModel.pendingSources,
                     isStreaming: viewModel.isStreaming,
                     autoExpandThinking: viewModel.autoExpandThinking,
-                    mascotState: viewModel.mascotState,
+                    mascotState: viewModel.mascotState
                 )
                 .id(Self.pendingAnchor)
             }
@@ -219,7 +221,7 @@ struct ChatView: View {
                 JobProposalCard(
                     proposal: proposal,
                     onCreate: viewModel.confirmJob,
-                    onDismiss: viewModel.dismissJob,
+                    onDismiss: viewModel.dismissJob
                 )
                 .padding(.horizontal, LVSpacing.base)
                 .padding(.bottom, LVSpacing.sm)
@@ -230,7 +232,7 @@ struct ChatView: View {
                 ReminderProposalCard(
                     proposal: proposal,
                     onCreate: viewModel.confirmReminder,
-                    onDismiss: viewModel.dismissReminder,
+                    onDismiss: viewModel.dismissReminder
                 )
                 .padding(.horizontal, LVSpacing.base)
                 .padding(.bottom, LVSpacing.sm)
@@ -285,7 +287,7 @@ struct ChatView: View {
                 onPickNote: { showNotePicker = true },
                 onPickPhoto: { showPhotoPicker = true },
                 onAddLink: { linkText = ""; showLinkPrompt = true },
-                onRunWorkflow: { showWorkflowPicker = true },
+                onRunWorkflow: { showWorkflowPicker = true }
             )
             .focused($composerFocused)
             .sheet(isPresented: $showNotePicker) {
@@ -376,7 +378,7 @@ struct ChatView: View {
                     data: data,
                     contentType: "image/jpeg",
                     relativePath: "uploads/\(name)",
-                    spaceID: nil,
+                    spaceID: nil
                 )
             }
             viewModel.attach(name: name, text: "[Photo added to your vault: \(name)]")
@@ -397,7 +399,9 @@ struct ChatView: View {
         guard let vaultUploadClient else { return }
         let scoped = url.startAccessingSecurityScopedResource()
         let data = try? Data(contentsOf: url)
-        if scoped { url.stopAccessingSecurityScopedResource() }
+        if scoped {
+            url.stopAccessingSecurityScopedResource()
+        }
         guard let data else { return }
 
         let name = url.lastPathComponent
@@ -409,7 +413,7 @@ struct ChatView: View {
                 data: data,
                 contentType: contentType,
                 relativePath: "uploads/\(name)",
-                spaceID: nil,
+                spaceID: nil
             )
         }
     }
@@ -526,7 +530,7 @@ private struct MessageRow: View {
             // Render any images the assistant returned (e.g. Hermes Tool
             // Gateway image generation) — AttributedString markdown drops
             // image syntax, so surface them explicitly.
-            ForEach(imageURLs, id: \.self) { url in
+            ForEach(message.imageURLs, id: \.self) { url in
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case let .success(image):
@@ -567,30 +571,6 @@ private struct MessageRow: View {
         }
     }
 
-    /// Image URLs an assistant turn carries (markdown `![](url)` or bare
-    /// image links). Empty for user turns.
-    private var imageURLs: [URL] {
-        guard message.role == .assistant else { return [] }
-        return Self.extractImageURLs(from: message.content)
-    }
-
-    static func extractImageURLs(from text: String) -> [URL] {
-        let ns = text as NSString
-        var urls: [URL] = []
-        func scan(_ pattern: String, group: Int) {
-            guard let re = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return }
-            for m in re.matches(in: text, range: NSRange(location: 0, length: ns.length)) where m.numberOfRanges > group {
-                if let url = URL(string: ns.substring(with: m.range(at: group))) { urls.append(url) }
-            }
-        }
-        // Markdown image: ![alt](url)
-        scan(#"!\[[^\]]*\]\((https?://[^\s)]+)\)"#, group: 1)
-        // Bare image URL (not already part of a markdown link)
-        scan(#"(?<!\()(https?://[^\s)]+\.(?:png|jpe?g|gif|webp))"#, group: 1)
-        var seen = Set<String>()
-        return urls.filter { seen.insert($0.absoluteString).inserted }
-    }
-
     @ViewBuilder
     private var bubbleBody: some View {
         // HER-155 follow-up — only assistant messages can carry
@@ -602,8 +582,9 @@ private struct MessageRow: View {
         {
             WikilinkMarkdownView(
                 markdown: message.content,
+                renderedMarkdown: message.renderedMarkdown,
                 vaultClient: vaultClient,
-                memoryClient: memoryClient,
+                memoryClient: memoryClient
             )
             .foregroundStyle(palette.textPrimary)
         } else {
@@ -644,7 +625,9 @@ private struct PendingAssistantRow: View {
                             .lvFont(.body)
                             .foregroundStyle(palette.textPrimary)
                             .multilineTextAlignment(.leading)
-                        if isStreaming { StreamingCaret() }
+                        if isStreaming {
+                            StreamingCaret()
+                        }
                     }
                 }
                 if !sources.isEmpty {
@@ -685,7 +668,7 @@ private struct TypingIndicator: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            ForEach(0..<3, id: \.self) { index in
+            ForEach(0 ..< 3, id: \.self) { index in
                 Circle()
                     .fill(palette.glowPrimary)
                     .frame(width: 6, height: 6)

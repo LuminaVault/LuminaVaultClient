@@ -4,14 +4,13 @@
 // parsing, retry-on-bad-redirect, state-mismatch, cancellation, and the
 // X token-exchange HTTP call. ASWebAuthenticationSession is faked via the
 // `WebAuthSessionDriving` protocol so the suite never opens a real browser.
-import XCTest
 import AuthenticationServices
 import CryptoKit
 @testable import LuminaVaultClient
+import XCTest
 
 @MainActor
 final class XSignInServiceTests: XCTestCase {
-
     // MARK: - PKCE
 
     func testCodeVerifierIsBase64URLAndCorrectLength() {
@@ -40,7 +39,7 @@ final class XSignInServiceTests: XCTestCase {
             state: "STATE123",
             codeChallenge: "CHAL456"
         )
-        let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        let comps = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
         let items = Dictionary(uniqueKeysWithValues: (comps.queryItems ?? []).map { ($0.name, $0.value ?? "") })
         XCTAssertEqual(url.host, "twitter.com")
         XCTAssertEqual(url.path, "/i/oauth2/authorize")
@@ -55,8 +54,8 @@ final class XSignInServiceTests: XCTestCase {
 
     // MARK: - Callback parsing
 
-    func testQueryItemPullsValueFromCallbackURL() {
-        let url = URL(string: "luminavault-debug://oauth/x/callback?code=abc&state=xyz")!
+    func testQueryItemPullsValueFromCallbackURL() throws {
+        let url = try XCTUnwrap(URL(string: "luminavault-debug://oauth/x/callback?code=abc&state=xyz"))
         XCTAssertEqual(XSignInService.queryItem(url, "code"), "abc")
         XCTAssertEqual(XSignInService.queryItem(url, "state"), "xyz")
         XCTAssertNil(XSignInService.queryItem(url, "missing"))
@@ -70,16 +69,18 @@ final class XSignInServiceTests: XCTestCase {
             _ = try await svc.signIn(presentationAnchor: ASPresentationAnchor())
             XCTFail("expected throw")
         } catch let err as XSignInError {
-            if case .notConfigured = err { } else { XCTFail("unexpected case \(err)") }
+            if case .notConfigured = err { } else {
+                XCTFail("unexpected case \(err)")
+            }
         } catch {
             XCTFail("unexpected error \(error)")
         }
     }
 
     func testStateMismatchThrowsXSignInError() async {
-        let driver = StubWebAuthDriver(responder: { url in
+        let driver = StubWebAuthDriver(responder: { _ in
             // X returns a different `state` than what we sent.
-            return URL(string: "x://cb?code=abc&state=tampered")!
+            URL(string: "x://cb?code=abc&state=tampered")!
         })
         let svc = makeService(driver: driver, urlSessionData: tokenSuccessData(token: "tok"))
         do {
@@ -122,10 +123,10 @@ final class XSignInServiceTests: XCTestCase {
 
     func testMissingCodeRetriesOnceThenSucceeds() async throws {
         var attempt = 0
-        let driver = StubWebAuthDriver(responder: { _ in
+        let driver = StubWebAuthDriver(responder: { url in
             attempt += 1
             if attempt == 1 {
-                return URL(string: "x://cb?state=STATE")!  // missing code → badRedirect
+                return URL(string: "x://cb?state=STATE")! // missing code → badRedirect
             }
             let state = XSignInService.queryItem(url, "state")!
             return URL(string: "x://cb?code=goodcode&state=\(state)")!
@@ -172,7 +173,7 @@ final class XSignInServiceTests: XCTestCase {
         do {
             _ = try await svc.signIn(presentationAnchor: ASPresentationAnchor())
             XCTFail("expected throw")
-        } catch XSignInError.invalidGrant(let msg) {
+        } catch let XSignInError.invalidGrant(msg) {
             XCTAssertTrue(msg.contains("invalid_grant"))
         } catch {
             XCTFail("unexpected error \(error)")
@@ -232,15 +233,18 @@ final class XSignInServiceTests: XCTestCase {
 @MainActor
 private final class StubWebAuthDriver: WebAuthSessionDriving {
     private let responder: (URL) throws -> URL
-    init(responder: @escaping (URL) throws -> URL) { self.responder = responder }
-    func authenticate(url: URL, callbackURLScheme: String, presentationAnchor: ASPresentationAnchor) async throws -> URL {
+    init(responder: @escaping (URL) throws -> URL) {
+        self.responder = responder
+    }
+
+    func authenticate(url: URL, callbackURLScheme _: String, presentationAnchor _: ASPresentationAnchor) async throws -> URL {
         try responder(url)
     }
 }
 
 @MainActor
 private final class NoopWebAuthDriver: WebAuthSessionDriving {
-    func authenticate(url: URL, callbackURLScheme: String, presentationAnchor: ASPresentationAnchor) async throws -> URL {
+    func authenticate(url _: URL, callbackURLScheme _: String, presentationAnchor _: ASPresentationAnchor) async throws -> URL {
         XCTFail("driver should not be called when client config is missing")
         return URL(string: "about:blank")!
     }
@@ -258,8 +262,14 @@ final class URLProtocolStub: URLProtocol, @unchecked Sendable {
         return URLSession(configuration: cfg)
     }
 
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override class func canInit(with _: URLRequest) -> Bool {
+        true
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
     override func startLoading() {
         guard let handler = URLProtocolStub.handler else {
             client?.urlProtocol(self, didFailWithError: NSError(domain: "stub", code: -1))
@@ -274,5 +284,6 @@ final class URLProtocolStub: URLProtocol, @unchecked Sendable {
             client?.urlProtocol(self, didFailWithError: error)
         }
     }
+
     override func stopLoading() {}
 }
