@@ -31,7 +31,7 @@ struct CaptureSheet: View {
     @Environment(\.lvThemeManager) private var themeManager
     @Environment(\.dismiss) private var dismiss
 
-    @State private var mode: Mode = .photo
+    @State private var mode: Mode
 
     /// The Capture sheet is an intentionally always-dark cinematic surface
     /// (`.preferredColorScheme(.dark)` below). The inherited `\.lvPalette` is
@@ -52,12 +52,14 @@ struct CaptureSheet: View {
         photoViewModel: CapturePhotosViewModel,
         textViewModel: TextCaptureViewModel,
         urlViewModel: URLCaptureViewModel,
-        multimodalViewModel: MultimodalCaptureViewModel
+        multimodalViewModel: MultimodalCaptureViewModel,
+        initialMode: Mode = .photo
     ) {
         self.photoViewModel = photoViewModel
         self.textViewModel = textViewModel
         self.urlViewModel = urlViewModel
         self.multimodalViewModel = multimodalViewModel
+        _mode = State(initialValue: initialMode)
     }
 
     var body: some View {

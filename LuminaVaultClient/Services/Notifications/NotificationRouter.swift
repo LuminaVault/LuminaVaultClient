@@ -11,6 +11,7 @@ import SwiftUI
 enum APNSDeepLink: Sendable, Equatable {
     case today(highlightOutputID: UUID?)
     case think(systemMessage: String?)
+    case ingestion(batchID: UUID, itemID: UUID?)
     case none
 }
 
@@ -28,8 +29,20 @@ final class NotificationRouter {
     /// Parse a `UNNotificationContent.userInfo` dict produced by the
     /// server-side `APNSNotificationService`.
     func deepLink(from userInfo: [AnyHashable: Any]) -> APNSDeepLink {
-        guard let categoryRaw = userInfo["category"] as? String,
-              let category = APNSCategory(rawValue: categoryRaw)
+        guard let categoryRaw = userInfo["category"] as? String else {
+            return .none
+        }
+        if categoryRaw == "ingestion" {
+            guard let batchIDRaw = userInfo["batchID"] as? String,
+                  let batchID = UUID(uuidString: batchIDRaw)
+            else {
+                return .none
+            }
+            let itemID = (userInfo["itemID"] as? String).flatMap(UUID.init(uuidString:))
+            return .ingestion(batchID: batchID, itemID: itemID)
+        }
+        guard
+            let category = APNSCategory(rawValue: categoryRaw)
         else {
             return .none
         }

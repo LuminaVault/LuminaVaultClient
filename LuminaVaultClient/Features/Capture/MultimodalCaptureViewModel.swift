@@ -10,6 +10,7 @@ final class MultimodalCaptureViewModel {
     private let defaults: UserDefaults
     private let capabilitiesClient: (any HermesCapabilitiesClientProtocol)?
     private let spacesClient: (any SpacesClientProtocol)?
+    private let requestedBatchID: UUID?
     private static let latestBatchKey = "lv.ingestion.latestBatch"
     private static let selectedSpaceKey = "lv.ingestion.selectedSpace"
     var selectedFiles: [URL] = []
@@ -30,11 +31,13 @@ final class MultimodalCaptureViewModel {
         client: any IngestionClientProtocol,
         capabilitiesClient: (any HermesCapabilitiesClientProtocol)? = nil,
         spacesClient: (any SpacesClientProtocol)? = nil,
+        requestedBatchID: UUID? = nil,
         defaults: UserDefaults = .standard
     ) {
         self.client = client
         self.capabilitiesClient = capabilitiesClient
         self.spacesClient = spacesClient
+        self.requestedBatchID = requestedBatchID
         self.defaults = defaults
         selectedSpaceID = defaults.string(forKey: Self.selectedSpaceKey).flatMap(UUID.init(uuidString:))
         latestBatch = defaults.data(forKey: Self.latestBatchKey)
@@ -123,6 +126,15 @@ final class MultimodalCaptureViewModel {
         guard let batchID = latestBatch?.id else { return }
         do {
             latestBatch = try await client.detail(batchID: batchID)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func loadRequestedBatch() async {
+        guard let requestedBatchID, latestBatch?.id != requestedBatchID else { return }
+        do {
+            latestBatch = try await client.detail(batchID: requestedBatchID)
         } catch {
             errorMessage = error.localizedDescription
         }

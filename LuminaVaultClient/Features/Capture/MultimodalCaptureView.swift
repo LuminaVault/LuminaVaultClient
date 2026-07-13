@@ -107,6 +107,7 @@ struct MultimodalCaptureView: View {
         .task(id: viewModel.latestBatch?.id) {
             await viewModel.loadSpaces()
             await viewModel.loadCapabilities()
+            await viewModel.loadRequestedBatch()
             await viewModel.monitorStatus()
         }
     }

@@ -22,7 +22,9 @@ struct CaptureFAB: View {
     @Environment(\.lvPalette) private var palette
 
     @Environment(\.captureCoordinator) private var coordinator
+    @Environment(NotificationRouter.self) private var notificationRouter
     @State private var showingSheet = false
+    @State private var requestedBatchID: UUID?
 
     var style: Style = .floating
 
@@ -40,6 +42,7 @@ struct CaptureFAB: View {
 
     var body: some View {
         Button {
+            requestedBatchID = nil
             showingSheet = true
         } label: {
             label
@@ -68,14 +71,26 @@ struct CaptureFAB: View {
                     multimodalViewModel: MultimodalCaptureViewModel(
                         client: ingestionClient,
                         capabilitiesClient: coordinator?.hermesCapabilitiesClient,
-                        spacesClient: coordinator?.spacesClient
-                    )
+                        spacesClient: coordinator?.spacesClient,
+                        requestedBatchID: requestedBatchID
+                    ),
+                    initialMode: requestedBatchID == nil ? .photo : .files
                 )
             } else {
                 Text("Capture is initializing…")
                     .padding()
             }
         }
+        .task(id: notificationRouter.pendingDeepLink) {
+            routePendingIngestion()
+        }
+    }
+
+    private func routePendingIngestion() {
+        guard case let .ingestion(batchID, _) = notificationRouter.pendingDeepLink else { return }
+        requestedBatchID = batchID
+        showingSheet = true
+        _ = notificationRouter.consume()
     }
 
     private var label: some View {
