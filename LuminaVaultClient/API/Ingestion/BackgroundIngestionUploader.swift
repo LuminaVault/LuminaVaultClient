@@ -65,8 +65,14 @@ final class BackgroundIngestionUploader: NSObject, URLSessionTaskDelegate, URLSe
         if FileManager.default.fileExists(atPath: staged.path) {
             try FileManager.default.removeItem(at: staged)
         }
-        try FileManager.default.copyItem(at: fileURL, to: staged)
         let bookmark = try? fileURL.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
+        // File coordination can take seconds for provider-backed or multi-GB
+        // sources. This task is intentionally detached so the MainActor never
+        // performs blocking disk I/O; security-scope access remains active
+        // until the awaited copy completes.
+        try await Task.detached(priority: .utility) {
+            try FileManager.default.copyItem(at: fileURL, to: staged)
+        }.value
         let aligned = item.uploadedBytes - (item.uploadedBytes % Int64(batch.chunkSizeBytes))
         let job = Job(
             id: UUID(), batchID: batch.id, itemID: itemID, stagedPath: staged.path,
@@ -105,7 +111,10 @@ final class BackgroundIngestionUploader: NSObject, URLSessionTaskDelegate, URLSe
                 return
             }
             let length = min(Int64(job.chunkSize), job.size - job.offset)
-            uploadFile = try Self.makeChunk(job: job, length: Int(length))
+            uploadFile = try await Task.detached(priority: .utility) {
+                try Self.restoreStagedFileIfNeeded(job: job)
+                return try Self.makeChunk(job: job, length: Int(length))
+            }.value
             let index = job.offset / Int64(job.chunkSize)
             request = URLRequest(url: Config.apiBaseURL.appendingPathComponent("v1/ingestions/\(job.batchID)/items/\(job.itemID)/chunks/\(index)"))
             request.httpMethod = "PUT"
@@ -184,18 +193,18 @@ final class BackgroundIngestionUploader: NSObject, URLSessionTaskDelegate, URLSe
         return Dictionary(uniqueKeysWithValues: values.map { ($0.id, $0) })
     }
 
-    private static func stagingDirectory() throws -> URL {
+    private nonisolated static func stagingDirectory() throws -> URL {
         let root = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("IngestionUploads", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         return root
     }
 
-    private static func jobsURL() throws -> URL {
+    private nonisolated static func jobsURL() throws -> URL {
         try stagingDirectory().appendingPathComponent("jobs.json")
     }
 
-    private static func makeChunk(job: Job, length: Int) throws -> URL {
+    private nonisolated static func makeChunk(job: Job, length: Int) throws -> URL {
         let url = try stagingDirectory().appendingPathComponent("\(job.id)-\(job.offset).chunk")
         let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: job.stagedPath))
         defer { try? handle.close() }
@@ -205,7 +214,35 @@ final class BackgroundIngestionUploader: NSObject, URLSessionTaskDelegate, URLSe
         return url
     }
 
-    private static func emptyUploadFile(jobID: UUID) throws -> URL {
+    nonisolated static func restoreStagedFileIfNeeded(job: Job) throws {
+        guard !FileManager.default.fileExists(atPath: job.stagedPath) else { return }
+        guard let bookmark = job.bookmark else {
+            throw CocoaError(.fileNoSuchFile, userInfo: [NSFilePathErrorKey: job.stagedPath])
+        }
+        var isStale = false
+        let source = try URL(
+            resolvingBookmarkData: bookmark,
+            options: [.withoutUI],
+            relativeTo: nil,
+            bookmarkDataIsStale: &isStale
+        )
+        let granted = source.startAccessingSecurityScopedResource()
+        defer {
+            if granted {
+                source.stopAccessingSecurityScopedResource()
+            }
+        }
+        try FileManager.default.createDirectory(
+            at: URL(fileURLWithPath: job.stagedPath).deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.copyItem(at: source, to: URL(fileURLWithPath: job.stagedPath))
+        if isStale {
+            backgroundUploadLog.notice("restored upload source from a stale bookmark job=\(job.id)")
+        }
+    }
+
+    private nonisolated static func emptyUploadFile(jobID: UUID) throws -> URL {
         let url = try stagingDirectory().appendingPathComponent("\(jobID)-complete")
         if !FileManager.default.fileExists(atPath: url.path) {
             FileManager.default.createFile(atPath: url.path, contents: Data())
@@ -213,7 +250,7 @@ final class BackgroundIngestionUploader: NSObject, URLSessionTaskDelegate, URLSe
         return url
     }
 
-    private static func removeTransientFiles(jobID: UUID) {
+    private nonisolated static func removeTransientFiles(jobID: UUID) {
         guard let directory = try? stagingDirectory(),
               let urls = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else { return }
         for url in urls where url.lastPathComponent.hasPrefix(jobID.uuidString) {
