@@ -241,25 +241,41 @@ private struct ChartBlock: View {
     @Environment(\.lvPalette) private var palette
     let block: LuminaBlock
 
+    // Marks are extracted into @ChartContentBuilder helpers: the fully-inlined
+    // Chart { ForEach { ForEach { if/else marks } } } expression times out the
+    // Swift 6.2 type-checker ("unable to type-check in reasonable time").
     var body: some View {
         Chart {
             ForEach(Array((block.series ?? []).enumerated()), id: \.offset) { _, series in
-                ForEach(Array(series.points.enumerated()), id: \.offset) { _, point in
-                    if block.type == "barChart" {
-                        BarMark(x: .value("x", point.x), y: .value("y", point.y))
-                            .foregroundStyle(by: .value("series", series.name))
-                    } else {
-                        LineMark(x: .value("x", point.x), y: .value("y", point.y))
-                            .foregroundStyle(by: .value("series", series.name))
-                            .interpolationMethod(.catmullRom)
-                    }
-                }
+                seriesMarks(series)
             }
         }
         .chartLegend(.visible)
         .frame(height: 200)
         .padding(12)
         .background(RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous).fill(palette.surface.opacity(0.4)))
+    }
+
+    @ChartContentBuilder
+    private func seriesMarks(_ series: LuminaSeries) -> some ChartContent {
+        ForEach(Array(series.points.enumerated()), id: \.offset) { _, point in
+            if block.type == "barChart" {
+                barMark(point, seriesName: series.name)
+            } else {
+                lineMark(point, seriesName: series.name)
+            }
+        }
+    }
+
+    private func barMark(_ point: LuminaChartPoint, seriesName: String) -> some ChartContent {
+        BarMark(x: .value("x", point.x), y: .value("y", point.y))
+            .foregroundStyle(by: .value("series", seriesName))
+    }
+
+    private func lineMark(_ point: LuminaChartPoint, seriesName: String) -> some ChartContent {
+        LineMark(x: .value("x", point.x), y: .value("y", point.y))
+            .foregroundStyle(by: .value("series", seriesName))
+            .interpolationMethod(.catmullRom)
     }
 }
 
