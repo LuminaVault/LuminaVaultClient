@@ -222,6 +222,9 @@ final class BaseHTTPClient: Sendable {
         if requiresAuth, let token = await tokenProvider() {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
+        if requiresAuth, let vaultID = await vaultProvider() {
+            req.setValue(vaultID.uuidString, forHTTPHeaderField: "X-Vault-ID")
+        }
 
         log.debug("→ \(method.rawValue) \(path) [bytes]")
         let data: Data
@@ -269,12 +272,13 @@ final class BaseHTTPClient: Sendable {
     /// the consumer unchanged.
     func executeStream<E: StreamingEndpoint>(_ endpoint: E) -> AsyncThrowingStream<E.Event, any Error> {
         AsyncThrowingStream { continuation in
-            let task = Task { [session, baseURL, tokenProvider] in
+            let task = Task { [session, baseURL, tokenProvider, vaultProvider] in
                 do {
                     let request = try await Self.buildStreamRequest(
                         endpoint: endpoint,
                         baseURL: baseURL,
                         tokenProvider: tokenProvider,
+                        vaultProvider: vaultProvider,
                     )
                     log.debug("→ \(endpoint.method.rawValue) \(endpoint.path) [stream]")
                     let (bytes, response) = try await session.bytes(for: request)
@@ -369,6 +373,7 @@ final class BaseHTTPClient: Sendable {
         endpoint: E,
         baseURL: URL,
         tokenProvider: TokenProvider,
+        vaultProvider: VaultProvider,
     ) async throws -> URLRequest {
         guard let url = URL(string: endpoint.path, relativeTo: baseURL) else {
             throw APIError.invalidURL
@@ -383,6 +388,9 @@ final class BaseHTTPClient: Sendable {
         req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         if endpoint.requiresAuth, let token = await tokenProvider() {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        if endpoint.requiresAuth, let vaultID = await vaultProvider() {
+            req.setValue(vaultID.uuidString, forHTTPHeaderField: "X-Vault-ID")
         }
         // HER-330: extra caller headers (e.g. X-Admin-Token) for streams.
         for (name, value) in endpoint.additionalHeaders {

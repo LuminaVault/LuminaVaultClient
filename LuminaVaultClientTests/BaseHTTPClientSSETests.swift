@@ -243,6 +243,12 @@ final class BaseHTTPClientSSETransportTests: XCTestCase {
         var requiresAuth: Bool { false }
     }
 
+    private struct AuthenticatedStubStreamEndpoint: StreamingEndpoint {
+        typealias Event = QueryStreamEvent
+        var path: String { "/stream" }
+        var method: HTTPMethod { .post }
+    }
+
     func testNon2xxThrowsHTTPError() async {
         let body = #"{"error":"upstream_unreachable"}"#
         MockURLProtocol.handler = { _ in
@@ -265,6 +271,40 @@ final class BaseHTTPClientSSETransportTests: XCTestCase {
             // Trailing body capture relies on URLSession.bytes which is
             // unreliable under URLProtocol mocks; status code is the
             // load-bearing assertion here.
+        } catch {
+            XCTFail("wrong error: \(error)")
+        }
+    }
+
+    func testAuthenticatedStreamIncludesActiveVaultHeader() async {
+        let vaultID = UUID()
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let client = BaseHTTPClient(
+            session: URLSession(configuration: config),
+            tokenProvider: { "stream-token" },
+            vaultProvider: { vaultID }
+        )
+
+        MockURLProtocol.handler = { req in
+            XCTAssertEqual(req.value(forHTTPHeaderField: "Authorization"), "Bearer stream-token")
+            XCTAssertEqual(req.value(forHTTPHeaderField: "X-Vault-ID"), vaultID.uuidString)
+            let response = HTTPURLResponse(
+                url: URL(string: "http://test.local/stream")!,
+                statusCode: 401,
+                httpVersion: nil,
+                headerFields: nil,
+            )!
+            return (response, Data())
+        }
+
+        do {
+            for try await _ in client.executeStream(AuthenticatedStubStreamEndpoint()) {
+                XCTFail("should not yield on 401")
+            }
+            XCTFail("expected APIError.unauthorized")
+        } catch APIError.unauthorized {
+            // pass
         } catch {
             XCTFail("wrong error: \(error)")
         }

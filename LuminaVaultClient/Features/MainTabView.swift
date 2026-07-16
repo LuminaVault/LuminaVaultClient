@@ -79,7 +79,8 @@ struct MainTabView: View {
                             memoryDetailClient: memoryUpsertClient,
                             uploadClient: vaultUploadClient,
                             teamClient: TeamHTTPClient(client: appState.makeHTTPClient()),
-                            activeVaultStore: appState.activeVaultStore
+                            activeVaultStore: appState.activeVaultStore,
+                            currentUserIDProvider: { appState.currentUserId }
                         )
                         .tag(Self.tabIds.workspaces)
                         .toolbar(.hidden, for: .tabBar)
