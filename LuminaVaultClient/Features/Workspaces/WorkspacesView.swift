@@ -20,14 +20,19 @@ struct WorkspacesView: View {
     init(vm: SpacesViewModel, vaultClient: any VaultClientProtocol,
          memoryClient: any MemoryQueryClientProtocol, memoryDetailClient: any MemoryClientProtocol,
          uploadClient: any VaultUploadClientProtocol, teamClient: TeamHTTPClient,
-         activeVaultStore: ActiveVaultStore)
+         activeVaultStore: ActiveVaultStore,
+         currentUserIDProvider: @escaping @MainActor () -> UUID?)
     {
         self.vm = vm
         self.vaultClient = vaultClient
         self.memoryClient = memoryClient
         self.memoryDetailClient = memoryDetailClient
         self.uploadClient = uploadClient
-        _teamViewModel = State(initialValue: TeamSpacesViewModel(client: teamClient, store: activeVaultStore))
+        _teamViewModel = State(initialValue: TeamSpacesViewModel(
+            client: teamClient,
+            store: activeVaultStore,
+            userIDProvider: currentUserIDProvider
+        ))
     }
 
     var body: some View {

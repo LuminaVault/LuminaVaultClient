@@ -24,7 +24,7 @@ final class AppStateBillingHookTests: XCTestCase {
     func testHandleAuthSuccessConstructsBillingServiceAndCallsLogIn() async {
         XCTAssertNil(state.billingService)
 
-        state.handleAuthSuccess(.stub)
+        await state.handleAuthSuccess(.stub)
 
         XCTAssertNotNil(state.billingService, "billing service must be wired post sign-in")
 
@@ -38,7 +38,7 @@ final class AppStateBillingHookTests: XCTestCase {
     }
 
     func testSignOutTearsDownBillingService() async {
-        state.handleAuthSuccess(.stub)
+        await state.handleAuthSuccess(.stub)
         XCTAssertNotNil(state.billingService)
 
         // Let bootstrap settle so teardown observes a live stream.

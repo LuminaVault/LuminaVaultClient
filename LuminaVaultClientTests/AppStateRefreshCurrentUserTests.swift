@@ -13,11 +13,17 @@ final class AppStateRefreshCurrentUserTests: XCTestCase {
         super.setUp()
         state = AppState(keychain: KeychainService(service: "test.her238.\(UUID().uuidString)"))
         mock = MockAuthClient()
-        // Put state into a signed-in baseline matching the stub user.
-        state.handleAuthSuccess(.stub)
+    }
+
+    override func tearDown() {
+        UserDefaults.standard.removeObject(forKey: "lv.active-vault.\(signedInUserId.uuidString)")
+        state = nil
+        mock = nil
+        super.tearDown()
     }
 
     func testRefreshUpdatesEmailWhenServerValueChanged() async {
+        await signIn()
         mock.getMeResult = .success(MeResponse(
             userId: signedInUserId,
             email: "renamed@example.com",
@@ -36,6 +42,7 @@ final class AppStateRefreshCurrentUserTests: XCTestCase {
     }
 
     func testRefreshIsDebouncedWithinFiveMinutes() async {
+        await signIn()
         let t0 = Date(timeIntervalSince1970: 10_000)
         await state.refreshCurrentUserIfNeeded(authClient: mock, now: t0)
         XCTAssertEqual(mock.getMeCallCount, 1)
@@ -56,12 +63,14 @@ final class AppStateRefreshCurrentUserTests: XCTestCase {
     }
 
     func testRefreshSkipsWhenSignedOut() async {
+        await signIn()
         await state.signOut()
         await state.refreshCurrentUserIfNeeded(authClient: mock, now: .now)
         XCTAssertEqual(mock.getMeCallCount, 0)
     }
 
     func testRefreshFailureKeepsStaleState() async {
+        await signIn()
         struct NetBoom: Error {}
         mock.getMeResult = .failure(NetBoom())
 
@@ -76,6 +85,7 @@ final class AppStateRefreshCurrentUserTests: XCTestCase {
     }
 
     func testRefreshOnUnauthorizedDoesNotSignOutDirectly() async {
+        await signIn()
         // HER-237's interceptor is what fires the sign-out. This call only
         // needs to swallow the propagated error without crashing.
         mock.getMeResult = .failure(APIError.unauthorized)
@@ -85,5 +95,43 @@ final class AppStateRefreshCurrentUserTests: XCTestCase {
         XCTAssertNil(state.lastMeFetchAt)
         // We don't assert isAuthenticated here because the interceptor (not
         // this method) is responsible for that side effect.
+    }
+
+    func testAuthSuccessRestoresUserScopedActiveVault() async {
+        let vaultID = UUID()
+        await state.activeVaultStore.select(vaultID, for: signedInUserId)
+
+        await signIn()
+
+        let restored = await state.activeVaultStore.selectedVaultID()
+        XCTAssertEqual(restored, vaultID)
+    }
+
+    func testRefreshRestoresActiveVaultWhenStoredSessionLearnsUserID() async {
+        let vaultID = UUID()
+        await state.activeVaultStore.select(vaultID, for: signedInUserId)
+        state = AppState(keychain: KeychainService(service: "test.her238.cold.\(UUID().uuidString)"))
+        state.keychain.accessToken = "stored-access"
+        state.isAuthenticated = true
+
+        await state.refreshCurrentUserIfNeeded(authClient: mock, now: Date(timeIntervalSince1970: 1_000))
+
+        let restored = await state.activeVaultStore.selectedVaultID()
+        XCTAssertEqual(restored, vaultID)
+    }
+
+    func testSignOutClearsCachedActiveVaultHeader() async {
+        await signIn()
+        await state.activeVaultStore.select(UUID(), for: signedInUserId)
+
+        await state.signOut()
+
+        let selected = await state.activeVaultStore.selectedVaultID()
+        XCTAssertNil(selected)
+    }
+
+    private func signIn() async {
+        // Put state into a signed-in baseline matching the stub user.
+        await state.handleAuthSuccess(.stub)
     }
 }

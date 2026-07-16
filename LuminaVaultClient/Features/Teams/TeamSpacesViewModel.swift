@@ -13,10 +13,16 @@ final class TeamSpacesViewModel {
 
     private let client: TeamHTTPClient
     private let store: ActiveVaultStore
+    private let userIDProvider: @MainActor () -> UUID?
 
-    init(client: TeamHTTPClient, store: ActiveVaultStore) {
+    init(
+        client: TeamHTTPClient,
+        store: ActiveVaultStore,
+        userIDProvider: @escaping @MainActor () -> UUID? = { nil }
+    ) {
         self.client = client
         self.store = store
+        self.userIDProvider = userIDProvider
     }
 
     var selectedVault: SharedVaultSummary? {
@@ -31,6 +37,7 @@ final class TeamSpacesViewModel {
             async let loadedVaults = client.vaults()
             teams = try await loadedTeams
             vaults = try await loadedVaults
+            await store.restore(for: userIDProvider())
             let stored = await store.selectedVaultID()
             let chosen = vaults.contains(where: { $0.id == stored }) ? stored : vaults.first(where: \.isPersonal)?.id
             await select(chosen)
@@ -42,7 +49,7 @@ final class TeamSpacesViewModel {
 
     func select(_ id: UUID?) async {
         selectedVaultID = id
-        await store.select(id, for: nil)
+        await store.select(id, for: userIDProvider())
     }
 
     func createTeam(name: String, vaultName: String) async -> Bool {

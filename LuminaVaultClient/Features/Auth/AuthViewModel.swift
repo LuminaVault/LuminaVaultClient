@@ -93,7 +93,7 @@ final class AuthViewModel {
                 mfaChallengeId = r.mfaChallengeId
                 mfaRequired = true
             } else {
-                appState.handleAuthSuccess(r)
+                await appState.handleAuthSuccess(r)
                 // PostHog: capture email/password sign-in
                 PostHogSDK.shared.capture("auth_signed_in", properties: ["method": "email"])
             }
@@ -105,7 +105,7 @@ final class AuthViewModel {
         isLoading = true; error = nil; defer { isLoading = false }
         do {
             let r = try await authClient.register(email: email, username: username, password: password)
-            appState.handleAuthSuccess(r)
+            await appState.handleAuthSuccess(r)
             // PostHog: capture new account registration
             PostHogSDK.shared.capture("auth_signed_up", properties: ["method": "email"])
         } catch { self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription }
@@ -142,7 +142,7 @@ final class AuthViewModel {
         isLoading = true; error = nil; defer { isLoading = false }
         do {
             let r = try await authClient.verifyMFA(challengeId: challengeId, code: mfaCode)
-            appState.handleAuthSuccess(r)
+            await appState.handleAuthSuccess(r)
         } catch { self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription }
     }
 
@@ -196,7 +196,7 @@ final class AuthViewModel {
                 credential: credential
             )
             let response = try await authClient.webAuthnAuthenticateFinish(request)
-            appState.handleAuthSuccess(response)
+            await appState.handleAuthSuccess(response)
             PostHogSDK.shared.capture("auth_signed_in", properties: ["method": "passkey"])
         } catch PasskeyError.cancelled {
             // Silent — user dismissed the system sheet.
@@ -246,7 +246,7 @@ final class AuthViewModel {
             case .accessToken:
                 response = try await authClient.exchangeOAuthAccessToken(provider: provider, accessToken: credential.idToken)
             }
-            appState.handleAuthSuccess(response)
+            await appState.handleAuthSuccess(response)
             persistAppleCredentialIfNeeded(provider: provider, credential: credential)
             // PostHog: capture SSO sign-in
             PostHogSDK.shared.capture("auth_signed_in_sso", properties: ["provider": provider])
@@ -335,7 +335,7 @@ final class AuthViewModel {
         isLoading = true; error = nil; defer { isLoading = false }
         do {
             let r = try await authClient.phoneVerify(phone: phoneE164, code: phoneOtpCode)
-            appState.handleAuthSuccess(r)
+            await appState.handleAuthSuccess(r)
             resetPhoneState()
             // PostHog: capture phone OTP sign-in
             PostHogSDK.shared.capture("auth_signed_in_phone")
@@ -433,7 +433,7 @@ final class AuthViewModel {
         isLoading = true; error = nil; defer { isLoading = false }
         do {
             let response = try await authClient.emailMagicVerify(email: email, code: emailMagicCode)
-            appState.handleAuthSuccess(response)
+            await appState.handleAuthSuccess(response)
             resetEmailMagicState()
             // PostHog: capture email magic-link sign-in
             PostHogSDK.shared.capture("auth_signed_in_email_magic")
