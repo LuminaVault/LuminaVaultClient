@@ -373,12 +373,13 @@ final class AppState {
         BillingHTTPClient(client: makeHTTPClient())
     }
 
-    func handleAuthSuccess(_ response: AuthResponse) {
+    func handleAuthSuccess(_ response: AuthResponse) async {
         keychain.accessToken = response.accessToken
         keychain.refreshToken = response.refreshToken
         sharedSessionKeychain.accessToken = response.accessToken
         currentUserId = response.userId
         currentEmail = response.email
+        await activeVaultStore.restore(for: response.userId)
         vaultInitialized = response.vaultInitialized
         isAuthenticated = true
         Task { await healthKit?.start() }
@@ -423,6 +424,7 @@ final class AppState {
             Task { await billing.teardown() }
         }
         billingService = nil
+        await activeVaultStore.clearCachedSelection()
         sharedSessionKeychain.clear()
         keychain.clearAll()
         currentUserId = nil
@@ -507,7 +509,10 @@ final class AppState {
             let me = try await authClient.getMe()
             lastMeFetchAt = now
             let emailChanged = (currentEmail != me.email)
-            if currentUserId != me.userId { currentUserId = me.userId }
+            if currentUserId != me.userId {
+                currentUserId = me.userId
+                await activeVaultStore.restore(for: me.userId)
+            }
             if emailChanged { currentEmail = me.email }
             // Re-identify with PostHog only when the email moved; otherwise
             // we'd spam identify on every foreground.

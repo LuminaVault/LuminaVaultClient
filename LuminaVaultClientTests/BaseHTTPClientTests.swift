@@ -63,6 +63,33 @@ final class BaseHTTPClientTests: XCTestCase {
         }
     }
 
+    func testFetchBytesIncludesActiveVaultHeader() async throws {
+        let vaultID = UUID()
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let client = BaseHTTPClient(
+            session: URLSession(configuration: config),
+            tokenProvider: { "bytes-token" },
+            vaultProvider: { vaultID }
+        )
+
+        MockURLProtocol.handler = { req in
+            XCTAssertEqual(req.value(forHTTPHeaderField: "Authorization"), "Bearer bytes-token")
+            XCTAssertEqual(req.value(forHTTPHeaderField: "X-Vault-ID"), vaultID.uuidString)
+            let response = HTTPURLResponse(
+                url: URL(string: "http://test.local/files/1")!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "text/plain"],
+            )!
+            return (response, Data("ok".utf8))
+        }
+
+        let (data, contentType) = try await client.fetchBytes(path: "/files/1")
+        XCTAssertEqual(String(data: data, encoding: .utf8), "ok")
+        XCTAssertEqual(contentType, "text/plain")
+    }
+
     // MARK: - HER-237: 401 auto-refresh interceptor
 
     private struct ProtectedEndpoint: Endpoint {
