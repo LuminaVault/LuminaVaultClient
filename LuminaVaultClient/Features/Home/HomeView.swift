@@ -1,92 +1,56 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Home/HomeView.swift
 //
-// HER-244 — OS Shell Home/Dashboard screen. Replaces the kb-compile-only
-// "Sync & Learn" home tab with a real control surface: mascot greeting,
-// four cards (vault health · active tasks · recent insights · system
-// status), and a three-button action row.
+// Command Center Home — neural brain core, system vitals, command deck,
+// power progress, active jobs, and skills. Backed by GET /v1/dashboard/home.
 
 import Combine
+import LuminaVaultShared
 import SwiftUI
 
 struct HomeView: View {
 
     @Environment(\.lvPalette) private var palette
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State var vm: HomeViewModel
     let onAskLumina: () -> Void
     /// Switches the root tab selection. Quick-action cards that target a
     /// tab (Spaces, AI) call this instead of pushing a duplicate screen.
-    /// Pass tab ids matching `MainTabView.tabIds` ("workspaces", "think").
     var onSelectTab: (String) -> Void = { _ in }
-    /// HER-245/246/248/250 — pushed destinations from the dashboard cards.
-    /// Owners are constructed by `MainTabView`; HomeView just navigates.
-    ///
-    /// PERF — these are lazy builders, not prebuilt `AnyView`s. Building a
-    /// destination eagerly forced its view + view-model graph to allocate
-    /// inside `MainTabView.body` on *every* tab switch (even when Home is
-    /// not visible). Closures defer construction to the moment the matching
-    /// `NavigationLink` actually renders.
     let sessionsDestination: () -> AnyView
     let tasksDestination: () -> AnyView
     let insightsDestination: () -> AnyView
     let serverConnectionDestination: () -> AnyView
-    /// HER-243 — surfaces demoted from the tab bar in the 5-tab redesign.
-    /// Optional so existing call sites (and unit tests) keep compiling
-    /// without forcing every variant to wire every destination.
     var skillsDestination: (() -> AnyView)? = nil
     var todayDestination: (() -> AnyView)? = nil
     var visualSearchDestination: (() -> AnyView)? = nil
-    /// HER-118 — Health card pushes the sparkline dashboard. Optional so
-    /// older call sites (tests, previews) keep compiling without wiring
-    /// the new screen.
     var healthDestination: (() -> AnyView)? = nil
-    /// Achievements screen — pushed by tapping the player-profile HUD.
-    /// Optional so older call sites (tests, previews) keep compiling.
     var achievementsDestination: (() -> AnyView)? = nil
-    /// "Your Brain" stat tiles — Projects + Reminders push their own list
-    /// screens. Optional so older call sites (tests, previews) compile;
-    /// a nil destination renders the tile inert (e.g. the Jobs tile, which
-    /// has no list surface).
     var projectsDestination: (() -> AnyView)? = nil
     var remindersDestination: (() -> AnyView)? = nil
-    /// Lumina Jobs — the Jobs tile opens the scheduled-jobs surface.
     var jobsDestination: (() -> AnyView)? = nil
-    /// C6 — Kanban board entry point.
     var kanbanDestination: (() -> AnyView)? = nil
-    /// HER-56 — Deep Analytics & Patterns dashboard (trend graphs). Optional
-    /// so older call sites (tests, previews) keep compiling without wiring it.
     var analyticsDestination: (() -> AnyView)? = nil
-
-    private let columns = [
-        GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16)
-    ]
 
     var body: some View {
         NavigationStack {
             ZStack {
-                // Background
                 Color.black.ignoresSafeArea()
-                
-                // Deep cosmic gradients
+
                 RadialGradient(
                     colors: [palette.glowPrimary.opacity(0.12), .clear],
                     center: .topTrailing,
                     startRadius: 0,
                     endRadius: 500
                 ).ignoresSafeArea()
-                
+
                 RadialGradient(
                     colors: [palette.accent.opacity(0.08), .clear],
                     center: .bottomLeading,
                     startRadius: 0,
                     endRadius: 600
                 ).ignoresSafeArea()
-                
-                // HER-304 — subtle neural-network particle field anchored
-                // to the top half of the screen. Reads §13.4 placement rule:
-                // hero surface, subtle intensity, no scroll interaction.
+
                 Color.clear
                     .lvParticleBackground(intensity: .subtle)
                     .frame(maxHeight: 420)
@@ -94,46 +58,27 @@ struct HomeView: View {
                     .allowsHitTesting(false)
 
                 ScrollView {
-                    VStack(spacing: 40) {
-                        // HER-304 — Mascot hero. Stitch reference places the
-                        // mascot prominently below the wordmark; previously
-                        // the Home tab had no mascot at all.
-                        MascotHero()
-
-                        // Player-profile HUD: power level ring + stat tiles.
-                        // Tapping pushes the Achievements screen when wired.
-                        if let achievementsDestination {
-                            NavigationLink {
-                                achievementsDestination()
-                            } label: {
-                                ProfileStatsHUDView(state: vm.profile)
-                            }
-                            .buttonStyle(.plain)
+                    VStack(spacing: 20) {
+                        if horizontalSizeClass == .regular {
+                            wideHero
                         } else {
-                            ProfileStatsHUDView(state: vm.profile)
+                            compactHero
                         }
 
-                        // HER-Home — live counts for the user's brain: skills,
-                        // jobs, reminders, tasks, insights, projects + active
-                        // profile, sourced from GET /v1/dashboard/home.
-                        VStack(spacing: 24) {
-                            // HER-235 — tapping the section opens the Brain
-                            // tab (the knowledge graph). The stats tiles below
-                            // stay display-only.
-                            Button { onSelectTab("brain") } label: {
-                                yourBrainHeader
+                        powerStrip
+
+                        if horizontalSizeClass == .regular {
+                            HStack(alignment: .top, spacing: 16) {
+                                activeJobsSection
+                                skillsSection
                             }
-                            statsGrid
-                        }
-
-                        VStack(spacing: 24) {
-                            quickActionsHeader
-                            cardGrid
+                        } else {
+                            activeJobsSection
+                            skillsSection
                         }
 
                         syncAndLearnButton
 
-                        // Extra spacing at bottom for tab bar
                         Spacer().frame(height: 120)
                     }
                     .padding(.horizontal, 20)
@@ -143,8 +88,6 @@ struct HomeView: View {
                     await vm.refresh()
                 }
             }
-            // HER-255 — header hoisted to MainTabView (app-wide base header);
-            // QuickSettings now opens from that global header's mascot tap.
             .lvBackground()
             .onReceive(NotificationCenter.default.publisher(for: BackendModeStore.modeChangedNotification)) { _ in
                 Task { await vm.refresh() }
@@ -156,123 +99,139 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
-    private var quickActionsHeader: some View {
-        sectionHeader("Quick Actions")
-    }
+    // MARK: - Hero layouts
 
-    private func sectionHeader(_ title: String) -> some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(palette.textPrimary)
-                .shadow(color: palette.glowPrimary.opacity(0.3), radius: 4)
-            Spacer()
+    private var compactHero: some View {
+        VStack(spacing: 16) {
+            CommandCenterHeroView(
+                modelName: home?.primaryModel,
+                providerName: home?.primaryProvider,
+                agentOnline: home?.agentOnline ?? true,
+                networkOnline: vm.isOnline,
+                onOpenBrain: { onSelectTab("brain") }
+            )
+            SystemVitalsPanel(
+                home: home,
+                tokenTotal: tokenTotal,
+                isLoading: isHomeLoading
+            )
+            commandDeck
         }
     }
 
-    // HER-235 — "Your Brain" header doubles as the entry point to the Brain
-    // tab (knowledge graph). The chevron + brain glyph signal it's tappable.
-    private var yourBrainHeader: some View {
-        HStack(spacing: 10) {
-            LVIconView(.brain, size: 22, tint: palette.primary)
-            Text("Your Brain")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(palette.textPrimary)
-                .shadow(color: palette.glowPrimary.opacity(0.3), radius: 4)
-            Spacer()
-            LVIconView(.chevronRight, size: 15, tint: palette.textSecondary)
-        }
-        .contentShape(Rectangle())
-    }
+    private var wideHero: some View {
+        HStack(alignment: .top, spacing: 16) {
+            SystemVitalsPanel(
+                home: home,
+                tokenTotal: tokenTotal,
+                isLoading: isHomeLoading
+            )
+            .frame(maxWidth: 280)
 
-    // HER-Home — seven count tiles. Counts come from `vm.home`; the Insights
-    // tile prefers month-to-date token usage from `vm.usage`. Tiles are
-    // display-only until detail screens land.
-    private var statsGrid: some View {
-        let home = vm.home.value
-        return LazyVGrid(columns: columns, spacing: 16) {
-            brainTile(icon: .brainHeadProfile, title: "Skills", subtitle: count(home?.skillsCount), destination: skillsDestination)
-            brainTile(icon: .briefcase, title: "Workflows", subtitle: count(home?.jobsCount), destination: jobsDestination)
-            brainTile(icon: .heartWinged, title: "Reminders", subtitle: count(home?.remindersCount), destination: remindersDestination)
-            brainTile(icon: .scrollWinged, title: "Tasks", subtitle: count(home?.todosCount), destination: tasksDestination)
-            brainTile(icon: .sparklesRectangleStack, title: "Projects", subtitle: count(home?.projectsCount), destination: projectsDestination)
-            brainTile(icon: .lightbulbFill, title: "Insights", subtitle: insightsSubtitle, destination: insightsDestination)
-            brainTile(icon: .tabSettings, title: "Profile", subtitle: home?.activeProfileName ?? "—", destination: achievementsDestination)
-            // C6 — Kanban board tile.
-            brainTile(icon: .layers, title: "Kanban", subtitle: "Board", destination: kanbanDestination)
-            // HER-56 — Deep Analytics & Patterns tile.
-            brainTile(icon: .chartUp, title: "Analytics", subtitle: "Trends", destination: analyticsDestination)
+            CommandCenterHeroView(
+                modelName: home?.primaryModel,
+                providerName: home?.primaryProvider,
+                agentOnline: home?.agentOnline ?? true,
+                networkOnline: vm.isOnline,
+                onOpenBrain: { onSelectTab("brain") }
+            )
+            .frame(maxWidth: .infinity)
+
+            commandDeck
+                .frame(maxWidth: 280)
         }
     }
 
-    /// One "Your Brain" stat tile. Wraps the card in a `NavigationLink` when
-    /// a destination is wired; otherwise renders a dimmed, inert tile so the
-    /// grid never looks tappable when it isn't.
-    @ViewBuilder
-    private func brainTile(
-        icon: LVIcon,
-        title: String,
-        subtitle: String,
-        destination: (() -> AnyView)?
-    ) -> some View {
-        if let destination {
-            NavigationLink {
-                destination()
+    private var commandDeck: some View {
+        CommandDeckPanel {
+            Button(action: onAskLumina) {
+                CommandDeckRow(title: "Ask Lumina", number: "01")
+            }
+            Button {
+                Task { await vm.triggerCompile() }
             } label: {
-                SciFiCardView(icon: icon, title: title, subtitle: subtitle)
+                CommandDeckRow(title: "Sync & Learn", number: "02")
             }
-            .buttonStyle(.plain)
-        } else {
-            SciFiCardView(icon: icon, title: title, subtitle: subtitle)
-                .opacity(0.55)
-        }
-    }
-
-    private func count(_ value: Int?) -> String {
-        value.map(String.init) ?? "—"
-    }
-
-    /// Insights tile shows total month-to-date LLM tokens when usage has
-    /// loaded; otherwise the count of active findings from the home summary.
-    private var insightsSubtitle: String {
-        if let usage = vm.usage.value {
-            let total = usage.llmTokensIn + usage.llmTokensOut
-            return "\(total) tok"
-        }
-        return count(vm.home.value?.insightsCount)
-    }
-
-    private var cardGrid: some View {
-        // HER-304 — every card ships an LVIcon token that resolves to a
-        // Lumina/Icons/* PNG (HER-301) for the brand-glyph look. Only
-        // surfaces with a real destination are shown (no "Stocks" stub):
-        // Spaces + AI switch tabs; Health/Ideas/Work push their screens.
-        LazyVGrid(columns: columns, spacing: 16) {
-            // Tab-targeting cards.
-            Button { onSelectTab("workspaces") } label: {
-                SciFiCardView(icon: .scrollWinged, title: "Spaces", subtitle: "Winged docs")
+            if let skillsDestination {
+                NavigationLink { skillsDestination() } label: {
+                    CommandDeckRow(title: "Skills", number: "03")
+                }
             }
-
-            Button { onSelectTab("think") } label: {
-                SciFiCardView(icon: .brainHeadProfile, title: "AI", subtitle: "Neural brain")
+            if let jobsDestination {
+                NavigationLink { jobsDestination() } label: {
+                    CommandDeckRow(title: "Jobs", number: "04")
+                }
             }
-
-            // Pushed destinations.
-            NavigationLink {
-                healthDestination?() ?? sessionsDestination()
-            } label: {
-                SciFiCardView(icon: .heartWinged, title: "Health", subtitle: "Sparklines")
-            }
-
             NavigationLink { insightsDestination() } label: {
-                SciFiCardView(icon: .lightbulbFill, title: "Ideas", subtitle: "Glowing light")
+                CommandDeckRow(title: "Insights", number: "05")
             }
-
-            NavigationLink { tasksDestination() } label: {
-                SciFiCardView(icon: .briefcase, title: "Work", subtitle: "Core tasks")
+            if let healthDestination {
+                NavigationLink { healthDestination() } label: {
+                    CommandDeckRow(title: "Health", number: "06")
+                }
+            } else {
+                Button { onSelectTab("workspaces") } label: {
+                    CommandDeckRow(title: "Spaces", number: "06")
+                }
             }
         }
     }
+
+    // MARK: - Sections
+
+    @ViewBuilder
+    private var powerStrip: some View {
+        let strip = PowerProgressStrip(
+            powerLevel: home?.powerLevel ?? vm.profile.value?.powerLevel,
+            powerXP: home?.powerXP ?? vm.profile.value?.powerXP,
+            isLoading: isHomeLoading && vm.profile.value == nil
+        )
+        if let achievementsDestination {
+            NavigationLink { achievementsDestination() } label: { strip }
+        } else {
+            strip
+        }
+    }
+
+    private var activeJobsSection: some View {
+        Group {
+            if let jobsDestination {
+                NavigationLink { jobsDestination() } label: {
+                    ActiveJobsPanel(
+                        jobs: activeJobs,
+                        isLoading: isHomeLoading && activeJobs.isEmpty
+                    )
+                }
+            } else {
+                ActiveJobsPanel(
+                    jobs: activeJobs,
+                    isLoading: isHomeLoading && activeJobs.isEmpty
+                )
+            }
+        }
+    }
+
+    private var skillsSection: some View {
+        Group {
+            if let skillsDestination {
+                NavigationLink { skillsDestination() } label: {
+                    SkillsPreviewPanel(
+                        skills: home?.skills ?? [],
+                        skillsCount: home?.skillsCount,
+                        isLoading: isHomeLoading
+                    )
+                }
+            } else {
+                SkillsPreviewPanel(
+                    skills: home?.skills ?? [],
+                    skillsCount: home?.skillsCount,
+                    isLoading: isHomeLoading
+                )
+            }
+        }
+    }
+
+    // MARK: - Sync CTA
 
     private var syncAndLearnButton: some View {
         Button {
@@ -287,11 +246,11 @@ struct HomeView: View {
                         LVIconView(.sparkles, size: 24, tint: .white, weight: .bold)
                             .shadow(color: .white.opacity(0.8), radius: 8)
                     }
-                    
+
                     Text("Sync & Learn")
                         .font(.system(size: 22, weight: .black))
                 }
-                
+
                 Text("Compile new captures into your memory.")
                     .font(.system(size: 14, weight: .medium))
                     .opacity(0.9)
@@ -300,9 +259,6 @@ struct HomeView: View {
             .padding(.vertical, 30)
             .frame(maxWidth: .infinity)
             .background {
-                // HER-304 — single cyan→secondary gradient fill (the white
-                // inner stroke was removed; cinematic gold ring carries the
-                // premium-CTA spec from DESIGN_SYSTEM §13.3).
                 RoundedRectangle(cornerRadius: 28)
                     .fill(
                         LinearGradient(
@@ -319,29 +275,24 @@ struct HomeView: View {
         }
         .padding(.top, 10)
     }
-    
-}
 
-// MARK: - Mascot hero (HER-304)
+    // MARK: - Derived state
 
-/// Large mascot anchor at the top of Home. Sits below `LuminaHeader`
-/// and above Quick Actions. Stitch reference puts the mascot here at
-/// roughly 200pt with a subtle particle halo (the halo is the parent
-/// `lvParticleBackground` underlayer, not painted by this view).
-private struct MascotHero: View {
-    @Environment(\.lvPalette) private var palette
+    private var home: HomeSummaryResponse? { vm.home.value }
 
-    var body: some View {
-        VStack(spacing: 12) {
-            HermieMascotView(state: .idle, size: 200, fallbackImageName: "Lumina/Mascot/hermie-hero")
-                .shadow(color: palette.glowPrimary.opacity(0.55), radius: 28)
-                .shadow(color: palette.accent.opacity(0.25), radius: 48)
-                .accessibilityHidden(true)
+    private var isHomeLoading: Bool {
+        if case .loading = vm.home { return true }
+        return false
+    }
 
-            Text(BrandCopy.brainOnline)
-                .font(LVTypography.callout.font)
-                .foregroundStyle(palette.textSecondary)
-        }
-        .padding(.top, 4)
+    private var activeJobs: [TaskDTO] {
+        if let jobs = home?.activeJobs, !jobs.isEmpty { return jobs }
+        // Prefer live running/queued from tasks card load when home list is empty.
+        return (vm.tasks.value ?? []).filter { $0.state == .running || $0.state == .queued }
+    }
+
+    private var tokenTotal: Int? {
+        guard let usage = vm.usage.value else { return nil }
+        return usage.llmTokensIn + usage.llmTokensOut
     }
 }
