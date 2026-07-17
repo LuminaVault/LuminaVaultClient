@@ -71,6 +71,8 @@ final class LLMPreferencesPaneViewModel {
     var softBudgetUSD = 0.0
     var hardBudgetUSD = 0.0
     var routerDirty = false
+    /// Task-aware routing policy (Auto / presets / locked). Stored on router profile.
+    var routingPolicy: LLMRoutingPolicy = .autoSmart
 
     private let client: LLMPreferencesClientProtocol
     private let providersClient: ProvidersClientProtocol
@@ -226,6 +228,7 @@ final class LLMPreferencesPaneViewModel {
                     blockedProviders: Array(blockedProviders),
                     defaultAction: profile.defaultAction,
                     rules: profile.rules,
+                    routingPolicy: routingPolicy,
                     expectedRevision: profile.revision
                 )
                 let updated = try await routerClient.updateProfile(id: profile.id, request: request)
@@ -389,7 +392,23 @@ final class LLMPreferencesPaneViewModel {
         costWeight = Double(profile.objective.cost)
         softBudgetUSD = Double(profile.budget.softLimitUsdMicros ?? 0) / 1_000_000
         hardBudgetUSD = Double(profile.budget.hardLimitUsdMicros ?? 0) / 1_000_000
+        routingPolicy = profile.routingPolicy
+        // Apply preset objective weights when selecting a named preset.
+        if let preset = routingPolicy.presetObjective {
+            qualityWeight = Double(preset.quality)
+            costWeight = Double(preset.cost)
+        }
         routerDirty = false
+    }
+
+    func selectRoutingPolicy(_ policy: LLMRoutingPolicy) {
+        routingPolicy = policy
+        if let preset = policy.presetObjective {
+            qualityWeight = Double(preset.quality)
+            costWeight = Double(preset.cost)
+        }
+        routerDirty = true
+        hasUnsavedChanges = true
     }
 
     private static func message(for error: Error) -> String {

@@ -256,9 +256,14 @@ struct ChatView: View {
                 .padding(.bottom, LVSpacing.xs)
             }
             if let routing = viewModel.routingEvent {
-                CerberusUsageIndicator(routing: routing, usage: viewModel.routeUsage)
-                    .padding(.horizontal, LVSpacing.base)
-                    .padding(.bottom, LVSpacing.xs)
+                CerberusUsageIndicator(
+                    routing: routing,
+                    usage: viewModel.routeUsage,
+                    canEscalate: viewModel.canEscalateToStrongerModel,
+                    onEscalate: { viewModel.escalateToStrongerModel() }
+                )
+                .padding(.horizontal, LVSpacing.base)
+                .padding(.bottom, LVSpacing.xs)
             }
             if let voiceError = viewModel.voice.errorMessage {
                 VoiceErrorToast(text: voiceError)
@@ -441,6 +446,8 @@ private struct CerberusUsageIndicator: View {
     @Environment(\.lvPalette) private var palette
     let routing: RouterRoutingEventDTO
     let usage: RouterUsageDTO?
+    var canEscalate: Bool = false
+    var onEscalate: (() -> Void)?
 
     private var routeLabel: String {
         if routing.strategy == .ensemble {
@@ -450,32 +457,52 @@ private struct CerberusUsageIndicator: View {
         return "\(route.provider.rawValue) · \(route.model)"
     }
 
+    private var headline: String {
+        if routing.profileName == "BYO Hermes" {
+            return "Routing managed by your Hermes"
+        }
+        return "Auto · \(routing.taskType.rawValue.capitalized) · \(routing.profileName)"
+    }
+
     var body: some View {
-        HStack(spacing: LVSpacing.sm) {
-            Image(systemName: routing.strategy == .ensemble ? "point.3.connected.trianglepath.dotted" : "arrow.triangle.branch")
-                .foregroundStyle(palette.accent)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("CERBERUS · \(routing.profileName) · \(routing.taskType.rawValue.capitalized)")
+        VStack(alignment: .leading, spacing: LVSpacing.xs) {
+            HStack(spacing: LVSpacing.sm) {
+                Image(systemName: routing.strategy == .ensemble
+                    ? "point.3.connected.trianglepath.dotted"
+                    : "arrow.triangle.branch")
+                    .foregroundStyle(palette.accent)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(headline)
+                        .lvFont(.microTag)
+                        .foregroundStyle(palette.textSecondary)
+                    Text(routeLabel)
+                        .lvFont(.footnote)
+                        .foregroundStyle(palette.textPrimary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                if let usage {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("\(usage.tokensIn + usage.tokensOut) tokens")
+                        Text((Double(usage.estimatedCostUsdMicros) / 1_000_000).formatted(.currency(code: "USD")))
+                    }
                     .lvFont(.microTag)
                     .foregroundStyle(palette.textSecondary)
-                Text(routeLabel)
-                    .lvFont(.footnote)
-                    .foregroundStyle(palette.textPrimary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            if let usage {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(usage.tokensIn + usage.tokensOut) tokens")
-                    Text((Double(usage.estimatedCostUsdMicros) / 1_000_000).formatted(.currency(code: "USD")))
+                } else {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("Cerberus is routing")
                 }
-                .lvFont(.microTag)
-                .foregroundStyle(palette.textSecondary)
-            } else {
-                ProgressView()
-                    .controlSize(.small)
-                    .accessibilityLabel("Cerberus is routing")
+            }
+            if canEscalate, let onEscalate {
+                Button(action: onEscalate) {
+                    Label("Use stronger model", systemImage: "bolt.fill")
+                        .lvFont(.microTag)
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(palette.accent)
+                .accessibilityHint("Retry the last turn with a higher-capability model")
             }
         }
         .padding(LVSpacing.sm)
@@ -489,7 +516,7 @@ private struct CerberusUsageIndicator: View {
     }
 
     private var accessibilitySummary: String {
-        var value = "Cerberus profile \(routing.profileName), task \(routing.taskType.rawValue), route \(routeLabel)."
+        var value = "\(headline), route \(routeLabel)."
         if let usage {
             value += " \(usage.tokensIn + usage.tokensOut) tokens, \(usage.latencyMs) milliseconds."
         }
