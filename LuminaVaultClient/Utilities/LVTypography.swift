@@ -46,6 +46,10 @@ enum LVTypography {
     /// `.caption2` weight `.semibold` — micro tags, env badges.
     case microTag
 
+    /// `.caption2` monospaced weight `.semibold` — identity kickers / eyebrows
+    /// (`LVKickerLabel`). Pair with `.kerning(1.6)` + `.textCase(.uppercase)`.
+    case kicker
+
     /// 13pt weight `.heavy` — primary CTA button labels (`LVButton`).
     case button
 
@@ -69,6 +73,7 @@ enum LVTypography {
         case .footnote:     return .system(.footnote)
         case .caption:      return .system(.caption)
         case .microTag:     return .system(.caption2, design: .default, weight: .semibold)
+        case .kicker:       return .system(.caption2, design: .monospaced, weight: .semibold)
         case .button:       return .system(size: 13, weight: .heavy)
         case .otp:          return .system(size: 18, weight: .bold).monospacedDigit()
         case .mono:         return .system(.body, design: .monospaced)
