@@ -70,6 +70,19 @@ struct LuminaVaultClientApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        // Skip analytics + crash-reporter bootstrap under the XCTest host.
+        // The unit-test target loads the app as its `TEST_HOST`, so this
+        // `init()` runs during `xcodebuild test`. Booting Sentry (crash
+        // handler + sampling profiler) *and* PostHog (which bundles
+        // `PHPLCrashReporter`) inside the test runner makes both install
+        // signal / Mach exception handlers; across xcodebuild's per-suite
+        // host relaunches they double-free ("pointer being freed was not
+        // allocated") and abort the whole test run. None of these SDKs are
+        // exercised by the unit tests, so skip them entirely under XCTest.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            return
+        }
+
         SentrySDK.start { options in
             // No hardcoded fallback: a missing SENTRY_DSN disables the SDK
             // instead of shipping crashes to a baked-in project.
