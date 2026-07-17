@@ -113,13 +113,15 @@ For interactive exploration, see the regenerated Bruno collection at [`LuminaVau
 
 ## Environments
 
-- **Prod**: `com.lumina.fernando`
-- **Test**: `com.lumina.fernando.test`
-- **Beta/TestFlight**: `com.lumina.fernando.beta`
+| Track | Bundle ID | Xcode config | Ship with |
+| --- | --- | --- | --- |
+| **App Store** | `com.lumina.fernando` | Release | `bundle exec fastlane release` |
+| **TestFlight** | `com.lumina.fernando.beta` | Beta | `bundle exec fastlane beta` |
+| **Local** | `com.lumina.fernando.test` | Debug | Xcode Run |
 
-Each bundle id has its own iCloud container, push topic, and dev-server base URL. Switching environments wipes Keychain — by design, so prod tokens never bleed into test.
+Each bundle id has its own push topic and OAuth audience. Switching environments wipes Keychain — by design, so prod tokens never bleed into test.
 
-Build-time public configuration is supplied through gitignored xcconfig files copied from `LuminaVaultClient/Config/Config.*.xcconfig.sample`. Those files define the hosted API URL, Apple/Google/X OAuth IDs, RevenueCat public SDK key, PostHog keys, Sentry DSN, and legal URLs. See [`LuminaVaultClient/Config/README.md`](LuminaVaultClient/Config/README.md) and [`docs/TESTFLIGHT.md`](docs/TESTFLIGHT.md).
+Build-time public configuration is supplied through gitignored xcconfig files copied from `LuminaVaultClient/Config/Config.*.xcconfig.sample`. Those files define the hosted API URL, Apple/Google/X OAuth IDs, RevenueCat public SDK key, PostHog keys, Sentry DSN, and legal URLs. See [`LuminaVaultClient/Config/README.md`](LuminaVaultClient/Config/README.md) and [`docs/TESTFLIGHT.md`](docs/TESTFLIGHT.md) (Fastlane + CI).
 
 ## Logo assets
 

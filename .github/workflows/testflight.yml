@@ -1,5 +1,8 @@
 name: TestFlight Beta
 
+# Ships the Beta identity (com.lumina.fernando.beta) to TestFlight.
+# Production App Store uploads use release.yml (manual until ASC app exists).
+
 on:
   workflow_dispatch:
     inputs:
@@ -51,6 +54,32 @@ jobs:
             ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
           key: spm-${{ runner.os }}-${{ hashFiles('LuminaVaultClient.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
           restore-keys: spm-${{ runner.os }}-
+
+      # Real Config.*.xcconfig files are gitignored. Prefer a full Beta config
+      # secret when set; otherwise copy the sample so the pbxproj reference resolves.
+      - name: Materialize Beta xcconfig
+        env:
+          CONFIG_BETA_XCCONFIG: ${{ secrets.CONFIG_BETA_XCCONFIG }}
+        run: |
+          set -euo pipefail
+          dest="LuminaVaultClient/Config/Config.Beta.xcconfig"
+          if [ -n "${CONFIG_BETA_XCCONFIG:-}" ]; then
+            printf '%s\n' "$CONFIG_BETA_XCCONFIG" > "$dest"
+            echo "Wrote $dest from CONFIG_BETA_XCCONFIG secret"
+          elif [ -f "${dest}.sample" ]; then
+            cp "${dest}.sample" "$dest"
+            echo "Materialized $dest from sample (set CONFIG_BETA_XCCONFIG for real values)"
+          else
+            echo "Missing Beta xcconfig sample" >&2
+            exit 1
+          fi
+          # Debug/Release also referenced by the project graph; placeholders are fine.
+          for cfg in Debug Release; do
+            src="LuminaVaultClient/Config/Config.$cfg.xcconfig"
+            if [ ! -f "$src" ] && [ -f "$src.sample" ]; then
+              cp "$src.sample" "$src"
+            fi
+          done
 
       - name: Resolve Swift packages
         run: xcodebuild -project LuminaVaultClient.xcodeproj -resolvePackageDependencies

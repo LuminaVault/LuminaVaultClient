@@ -1,91 +1,191 @@
+# frozen_string_literal: true
+
 default_platform(:ios)
 
-# HER-209: TestFlight + App Store release pipeline.
+# Dual-track iOS shipping (TestFlight beta vs App Store production).
+#
+# Identities (must stay in sync with project.pbxproj + LUMINAVAULT_DEPLOYMENT_CONFIG_GUIDE.md):
+#   Beta / TestFlight  → com.lumina.fernando.beta          (Xcode config: Beta)
+#   Production / Store → com.lumina.fernando               (Xcode config: Release)
+#   Debug / local      → com.lumina.fernando.test          (not shipped via Fastlane)
+#
+# Share extension suffixes:
+#   .LuminaVaultShareExtension on each host bundle ID.
 #
 # Prereqs (one-time):
-# - `fastlane match init` against a PRIVATE git repo for certs.
-# - `bundle exec fastlane match appstore --app_identifier com.lumina.fernando`
-#   to seed signing material into the match repo (one identity for TestFlight
-#   and App Store).
-# - GitHub repo secrets: MATCH_GIT_URL, MATCH_PASSWORD, APP_STORE_CONNECT_API_KEY_ID,
-#   APP_STORE_CONNECT_API_KEY_ISSUER_ID, APP_STORE_CONNECT_API_KEY_KEY (base64
-#   of .p8 file contents), FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD.
+# 1. Private match certs repo (see Matchfile git_url).
+# 2. Seed beta signing (TestFlight app already exists):
+#      bundle exec fastlane sync_signing
+# 3. After the production App Store Connect app + App IDs exist:
+#      SEED_PRODUCTION=1 bundle exec fastlane sync_signing
+# 4. GitHub secrets: MATCH_GIT_URL, MATCH_PASSWORD,
+#    APP_STORE_CONNECT_API_KEY_ID, APP_STORE_CONNECT_API_KEY_ISSUER_ID,
+#    APP_STORE_CONNECT_API_KEY_KEY (base64 of .p8), optional
+#    FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD, SENTRY_AUTH_TOKEN.
 #
-# Build numbers come from $BUILD_NUMBER (defaults to 1 in pbxproj; CI overrides
-# via the runner's run number).
+# Build numbers: $BUILD_NUMBER (CI sets to github.run_number).
+
+PROJECT = "LuminaVaultClient.xcodeproj"
+
+FLAVORS = {
+  beta: {
+    name: "beta",
+    app_identifier: "com.lumina.fernando.beta",
+    extension_identifier: "com.lumina.fernando.beta.LuminaVaultShareExtension",
+    scheme: "LuminaVaultClient-Beta",
+    configuration: "Beta"
+  },
+  release: {
+    name: "release",
+    app_identifier: "com.lumina.fernando",
+    extension_identifier: "com.lumina.fernando.LuminaVaultShareExtension",
+    scheme: "LuminaVaultClient",
+    configuration: "Release"
+  }
+}.freeze
+
+def flavor_identifiers(flavor_key)
+  flavor = FLAVORS.fetch(flavor_key)
+  [flavor[:app_identifier], flavor[:extension_identifier]]
+end
+
+def build_number
+  ENV["BUILD_NUMBER"] || "1"
+end
+
 platform :ios do
   before_all do
     setup_ci if ENV["CI"]
+
     if ENV["APP_STORE_CONNECT_API_KEY_KEY"]
       app_store_connect_api_key(
-        key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
-        issuer_id: ENV["APP_STORE_CONNECT_API_KEY_ISSUER_ID"],
-        key_content: ENV["APP_STORE_CONNECT_API_KEY_KEY"],
+        key_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_ID"),
+        issuer_id: ENV.fetch("APP_STORE_CONNECT_API_KEY_ISSUER_ID"),
+        key_content: ENV.fetch("APP_STORE_CONNECT_API_KEY_KEY"),
         is_key_content_base64: true
       )
     end
   end
 
-  desc "Upload a TestFlight build (single identity: production Release build)"
-  lane :beta do
-    # One identity: TestFlight ships the production `com.lumina.fernando`
-    # Release build (same API, DB, OAuth clients, APNS, passkeys as App Store).
-    # The legacy `.beta` bundle / Beta config is retired.
+  # ---------------------------------------------------------------------------
+  # Signing helpers
+  # ---------------------------------------------------------------------------
+
+  desc "Seed or refresh match certs/profiles. Beta always; production only with SEED_PRODUCTION=1"
+  lane :sync_signing do
     match(
       type: "appstore",
-      app_identifier: "com.lumina.fernando",
-      readonly: ENV["CI"] ? true : false
-    )
-    build_app(
-      project: "LuminaVaultClient.xcodeproj",
-      scheme: "LuminaVaultClient",
-      configuration: "Release",
-      export_method: "app-store",
-      xcargs: "BUILD_NUMBER=#{ENV['BUILD_NUMBER'] || 1}",
-      clean: true
-    )
-    upload_to_testflight(
-      app_identifier: "com.lumina.fernando",
-      skip_waiting_for_build_processing: true,
-      changelog: ENV["CHANGELOG"] || "Latest internal build."
+      app_identifier: flavor_identifiers(:beta),
+      readonly: false
     )
 
-    if ENV["SENTRY_AUTH_TOKEN"]
-      sentry_debug_files_upload(
-        org_slug: 'fernando-lda',
-        project_slug: 'luminavault',
-        include_sources: true
+    if ENV["SEED_PRODUCTION"] == "1"
+      UI.header("Seeding production signing (com.lumina.fernando)")
+      match(
+        type: "appstore",
+        app_identifier: flavor_identifiers(:release),
+        readonly: false
+      )
+    else
+      UI.important(
+        "Skipped production signing. After the App Store Connect app exists, run:\n" \
+        "  SEED_PRODUCTION=1 bundle exec fastlane sync_signing"
       )
     end
   end
 
-  desc "Ship to App Store (manual review submission)"
-  lane :release do
+  private_lane :sign_for do |options|
+    flavor_key = options.fetch(:flavor)
+    ids = flavor_identifiers(flavor_key)
+
     match(
       type: "appstore",
-      app_identifier: "com.lumina.fernando",
-      readonly: ENV["CI"] ? true : false
+      app_identifier: ids,
+      # CI never creates certs; local runs may repair/create.
+      readonly: !ENV["CI"].to_s.empty?
     )
+  end
+
+  private_lane :build_flavor do |options|
+    flavor = FLAVORS.fetch(options.fetch(:flavor))
+
     build_app(
-      project: "LuminaVaultClient.xcodeproj",
-      scheme: "LuminaVaultClient",
-      configuration: "Release",
+      project: PROJECT,
+      scheme: flavor[:scheme],
+      configuration: flavor[:configuration],
       export_method: "app-store",
-      xcargs: "BUILD_NUMBER=#{ENV['BUILD_NUMBER'] || 1}",
-      clean: true
+      xcargs: "BUILD_NUMBER=#{build_number}",
+      clean: true,
+      output_directory: "build/#{flavor[:name]}",
+      output_name: "LuminaVault-#{flavor[:name]}.ipa"
     )
+  end
+
+  private_lane :upload_dsyms_if_configured do
+    next unless ENV["SENTRY_AUTH_TOKEN"]
+
+    begin
+      sentry_debug_files_upload(
+        org_slug: "fernando-lda",
+        project_slug: "luminavault",
+        include_sources: true
+      )
+    rescue StandardError => e
+      UI.important("Sentry dSYM upload skipped/failed: #{e.message}")
+      UI.important("Install with: bundle exec fastlane add_plugin sentry")
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Ship lanes
+  # ---------------------------------------------------------------------------
+
+  desc "Build Beta (com.lumina.fernando.beta) and upload to TestFlight"
+  lane :beta do
+    UI.message("Shipping TestFlight identity: #{FLAVORS[:beta][:app_identifier]}")
+    sign_for(flavor: :beta)
+    build_flavor(flavor: :beta)
+    upload_to_testflight(
+      app_identifier: FLAVORS[:beta][:app_identifier],
+      skip_waiting_for_build_processing: true,
+      changelog: ENV["CHANGELOG"] || "Latest internal build."
+    )
+    upload_dsyms_if_configured
+  end
+
+  desc "Build Production (com.lumina.fernando) and upload a draft App Store release"
+  lane :release do
+    UI.header("Production App Store lane")
+    UI.important(
+      "Requires an App Store Connect app for #{FLAVORS[:release][:app_identifier]}. " \
+      "Create that app in ASC, then seed signing with:\n" \
+      "  SEED_PRODUCTION=1 bundle exec fastlane sync_signing"
+    )
+
+    sign_for(flavor: :release)
+    build_flavor(flavor: :release)
     upload_to_app_store(
-      app_identifier: "com.lumina.fernando",
+      app_identifier: FLAVORS[:release][:app_identifier],
       skip_metadata: true,
       skip_screenshots: true,
       precheck_include_in_app_purchases: false,
+      # Draft only — flip to true (or use a separate submit lane) when ready.
       submit_for_review: false
     )
+    upload_dsyms_if_configured
+  end
 
-    sentry_debug_files_upload(
-      org_slug: 'fernando-lda',
-      project_slug: 'luminavault',
-      include_sources: true
-    )
+  desc "Build production IPA only (no upload) — useful before the ASC app exists"
+  lane :build_release do
+    sign_for(flavor: :release)
+    build_flavor(flavor: :release)
+    UI.success("IPA at build/release/LuminaVault-release.ipa")
+  end
+
+  desc "Build beta IPA only (no upload)"
+  lane :build_beta do
+    sign_for(flavor: :beta)
+    build_flavor(flavor: :beta)
+    UI.success("IPA at build/beta/LuminaVault-beta.ipa")
   end
 end

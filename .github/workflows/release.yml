@@ -1,19 +1,23 @@
 name: App Store Release
 
+# Ships the production identity (com.lumina.fernando) as a draft App Store
+# upload. Manual-only until the production App Store Connect app exists —
+# do not auto-fire on main until that app + match profiles are ready.
+
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - ".github/**"
+    inputs:
+      confirm:
+        description: "Type ship-production to confirm (requires ASC app + match certs)"
+        required: true
+        default: ""
 
 jobs:
   release:
     runs-on: macos-15
     timeout-minutes: 90
+    # Hard stop until the operator explicitly confirms.
+    if: github.event.inputs.confirm == 'ship-production'
     env:
       LANG: en_US.UTF-8
       LC_ALL: en_US.UTF-8
@@ -46,8 +50,31 @@ jobs:
           key: spm-${{ runner.os }}-${{ hashFiles('LuminaVaultClient.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
           restore-keys: spm-${{ runner.os }}-
 
+      - name: Materialize Release xcconfig
+        env:
+          CONFIG_RELEASE_XCCONFIG: ${{ secrets.CONFIG_RELEASE_XCCONFIG }}
+        run: |
+          set -euo pipefail
+          dest="LuminaVaultClient/Config/Config.Release.xcconfig"
+          if [ -n "${CONFIG_RELEASE_XCCONFIG:-}" ]; then
+            printf '%s\n' "$CONFIG_RELEASE_XCCONFIG" > "$dest"
+            echo "Wrote $dest from CONFIG_RELEASE_XCCONFIG secret"
+          elif [ -f "${dest}.sample" ]; then
+            cp "${dest}.sample" "$dest"
+            echo "Materialized $dest from sample (set CONFIG_RELEASE_XCCONFIG for real values)"
+          else
+            echo "Missing Release xcconfig sample" >&2
+            exit 1
+          fi
+          for cfg in Debug Beta; do
+            src="LuminaVaultClient/Config/Config.$cfg.xcconfig"
+            if [ ! -f "$src" ] && [ -f "$src.sample" ]; then
+              cp "$src.sample" "$src"
+            fi
+          done
+
       - name: Resolve Swift packages
         run: xcodebuild -project LuminaVaultClient.xcodeproj -resolvePackageDependencies
 
-      - name: Build + upload to App Store Connect
+      - name: Build + upload draft to App Store Connect
         run: bundle exec fastlane release

@@ -1,126 +1,124 @@
-# TestFlight Submission
+# TestFlight + App Store shipping
 
-End-to-end checklist for getting a build into TestFlight, plus the required CI secrets and known-blocker follow-ups.
+End-to-end checklist for dual-track iOS builds: **TestFlight beta** (exists today) and **App Store production** (create later).
 
 ## Build configurations
 
 The Xcode project has three target configurations:
 
-| Configuration | Bundle ID | Used for |
-| --- | --- | --- |
-| Debug | `com.lumina.fernando.test` | Local dev on simulator + physical device |
-| Beta | `com.lumina.fernando.beta` | TestFlight builds (Fastlane `beta` lane) |
-| Release | `com.lumina.fernando` | App Store submission (Fastlane `release` lane) |
+| Configuration | Bundle ID | Scheme | Fastlane lane | Destination |
+| --- | --- | --- | --- | --- |
+| Debug | `com.lumina.fernando.test` | `LuminaVaultClient` (Run) | — | Local simulator/device |
+| Beta | `com.lumina.fernando.beta` | `LuminaVaultClient-Beta` | `beta` | TestFlight |
+| Release | `com.lumina.fernando` | `LuminaVaultClient` (Archive) | `release` | App Store Connect draft |
 
-`MARKETING_VERSION` lives in `project.pbxproj`. `CURRENT_PROJECT_VERSION` is read from the env var `BUILD_NUMBER`; CI sets this to `${{ github.run_number }}` (see `.github/workflows/testflight.yml:26`).
+Share extension IDs mirror the host:
 
-Each build configuration should use the matching local xcconfig copied from `LuminaVaultClient/Config/*.xcconfig.sample`. Those files provide `API_BASE_URL`, OAuth client IDs, RevenueCat public SDK key, PostHog keys, Sentry DSN, and legal URLs.
-
-## Pre-submission checklist
-
-Run through these before pushing a build to TestFlight. Most are already wired in `project.pbxproj` / `LuminaVaultClient.entitlements`; this list exists so the next contributor doesn't re-discover the requirements from rejection emails.
-
-### Encryption export
-
-`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` is set across all three configs. **Do not flip this without legal review** — flipping to YES enables the export-compliance question wall.
-
-### Privacy usage descriptions
-
-All required strings are baked into `INFOPLIST_KEY_*` keys:
-
-- `NSFaceIDUsageDescription` — biometric unlock copy.
-- `NSHealthShareUsageDescription` — HealthKit read copy.
-- `NSHealthUpdateUsageDescription` — HealthKit write copy.
-
-If you add a feature that touches camera, photo library, location, microphone, or contacts, **add the matching `NS*UsageDescription` key in all three build configs** in the same PR or TestFlight will reject the build.
-
-### Background execution
-
-`INFOPLIST_KEY_UIBackgroundModes = processing` is required for HealthKit background delivery (`HKObserverQuery` + `enableBackgroundDelivery`). It is set in all three build configs.
-
-### Entitlements (`LuminaVaultClient/LuminaVaultClient.entitlements`)
-
-- `com.apple.developer.applesignin` — `[Default]`. Required for Sign in with Apple.
-- `aps-environment` — required for APNS device-token registration.
-- `com.apple.developer.healthkit` — `true`. Required for any HealthKit read/write.
-- `com.apple.developer.healthkit.background-delivery` — `true`. Required for HealthKit background queries.
-- `com.apple.security.application-groups` — `group.com.lumina.fernando`. Required by the share extension.
-
-These must match the App ID's capabilities in App Store Connect. The Fastlane `match` setup keeps the provisioning profile in sync — re-run `bundle exec fastlane match appstore` after adding a new entitlement.
-
-### OAuth URL schemes
-
-`GoogleSignIn` requires `CFBundleURLTypes` in `Info.plist` containing the reversed `GIDClientID`. Use `LuminaVaultClient/Config/Info.plist` as the target plist and set `REVERSED_CLIENT_ID` from the environment xcconfig.
-
-Cross-repo invariants:
-
-- `GID_CLIENT_ID` must equal server `OAUTH_GOOGLE_CLIENTID`.
-- `APPLE_SERVICE_ID` must equal server `OAUTH_APPLE_CLIENTID`.
-- `X_CLIENT_ID` must equal server `OAUTH_X_CLIENTID`.
-- `X_REDIRECT_URI` must match the X Developer Portal callback exactly.
-
-### RevenueCat and App Store products
-
-RevenueCat is configured by `LV_RC_API_KEY` in the active xcconfig. The server receives RevenueCat webhook events at `/v1/billing/revenuecat` and validates them with `REVENUECAT_WEBHOOK_SECRET`.
-
-Recommended SKU/product identifiers:
-
-| Item | Identifier |
+| Config | Share extension bundle ID |
 | --- | --- |
-| App SKU | `luminavault-ios` |
-| Beta/internal SKU | `luminavault-ios-beta` |
-| Monthly Plus | `lv_plus_monthly` |
-| Annual Plus | `lv_plus_annual` |
-| Monthly Pro | `lv_pro_monthly` |
-| Annual Pro | `lv_pro_annual` |
+| Debug | `com.lumina.fernando.test.LuminaVaultShareExtension` |
+| Beta | `com.lumina.fernando.beta.LuminaVaultShareExtension` |
+| Release | `com.lumina.fernando.LuminaVaultShareExtension` |
 
-Before TestFlight with purchases, create products in App Store Connect, attach them to RevenueCat offerings, and verify purchase plus restore on a sandbox tester.
+`MARKETING_VERSION` lives in `project.pbxproj`. `CURRENT_PROJECT_VERSION` is read from `BUILD_NUMBER`; CI sets this to `${{ github.run_number }}`.
+
+Each configuration uses the matching local xcconfig copied from `LuminaVaultClient/Config/*.xcconfig.sample`. See `LuminaVaultClient/Config/README.md`.
+
+## Current status
+
+| Track | App Store Connect app | Signing (match) | CI |
+| --- | --- | --- | --- |
+| **TestFlight beta** | Exists | Seed with `bundle exec fastlane sync_signing` | `.github/workflows/testflight.yml` on `development` + manual |
+| **App Store production** | Create later | Seed after ASC app + App IDs: `SEED_PRODUCTION=1 bundle exec fastlane sync_signing` | `.github/workflows/release.yml` **manual only** (type `ship-production`) |
+
+Do **not** re-collapse beta into the production bundle ID without updating Fastlane, match profiles, APNS topic, RevenueCat, and server `APNS_BUNDLE_ID` in the same change.
 
 ## Fastlane lanes
 
-`fastlane/Fastfile` defines two lanes:
-
-- `bundle exec fastlane beta` — builds the Beta config, signs with `com.lumina.fernando.beta`, uploads to TestFlight.
-- `bundle exec fastlane release` — builds the Release config, signs with `com.lumina.fernando`, submits a draft release to App Store Connect.
-
-The `beta` lane is the one CI invokes (`.github/workflows/testflight.yml`). The `release` lane has no CI trigger yet — invoke it manually until the release workflow lands.
-
-## Required GitHub Actions secrets
-
-`.github/workflows/testflight.yml` reads these (lines 29–30 and below):
-
-| Secret | Purpose |
+| Command | What it does |
 | --- | --- |
-| `MATCH_GIT_URL` | URL of the private match certificates repo. |
-| `MATCH_PASSWORD` | Passphrase for the match-encrypted certs/profiles. |
-| `APP_STORE_CONNECT_API_KEY_KEY_ID` | App Store Connect API key ID. |
-| `APP_STORE_CONNECT_API_KEY_ISSUER_ID` | API key issuer ID. |
-| `APP_STORE_CONNECT_API_KEY_KEY` | The raw `.p8` private key contents. |
-| `FASTLANE_USER` | Apple ID with App Store Connect access (fallback if API key path fails). |
-| `FASTLANE_PASSWORD` | App-specific password for the above. |
-| `SENTRY_AUTH_TOKEN` | Required if dSYM upload runs in CI. |
+| `bundle exec fastlane beta` | Match (beta IDs) → Beta archive → TestFlight upload |
+| `bundle exec fastlane release` | Match (prod IDs) → Release archive → ASC draft (no review submit) |
+| `bundle exec fastlane build_beta` | Beta IPA only, no upload |
+| `bundle exec fastlane build_release` | Production IPA only, no upload |
+| `bundle exec fastlane sync_signing` | Create/refresh match certs for **beta** |
+| `SEED_PRODUCTION=1 bundle exec fastlane sync_signing` | Also seed **production** certs/profiles |
 
-Rotate annually or whenever a team member with access leaves.
-
-## Local invocation
+### One-time local setup
 
 ```sh
-# Beta build → TestFlight (uses match for signing)
-bundle exec fastlane beta
+cd LuminaVaultClient
+bundle install
 
-# Bump build number manually before invoking the lane:
+# 1. Ensure match certs repo exists (private) and MATCH_PASSWORD is set.
+export MATCH_PASSWORD='…'
+export MATCH_GIT_URL='git@github.com:LuminaVault/LuminaVaultIOSSecrets.git'  # optional override
+
+# 2. Seed TestFlight signing (host + share extension)
+bundle exec fastlane sync_signing
+
+# 3. Ship a TestFlight build
 BUILD_NUMBER=$(date +%s) bundle exec fastlane beta
 ```
 
-CI auto-bumps via `${{ github.run_number }}`; locally you pass `BUILD_NUMBER` yourself.
+When the production ASC app exists:
 
-## Post-build smoke test
+```sh
+# Developer portal App IDs + ASC app for com.lumina.fernando (+ share extension)
+SEED_PRODUCTION=1 bundle exec fastlane sync_signing
+BUILD_NUMBER=$(date +%s) bundle exec fastlane release
+```
 
-After a TestFlight build lands on a physical device:
+## Required GitHub Actions secrets
 
-1. Launch on a device that has **never** opened any version of LuminaVault.
-2. Walk through onboarding to the auth landing.
-3. Tap **Sign in with Apple** — confirm the native Apple sheet appears and authenticates.
-4. Tap **Continue with phone** — confirm the OTP flow lands.
-5. Sign in, then grant HealthKit permissions when prompted.
-6. Backbone the app, leave it overnight, re-open. Confirm a fresh HealthKit batch lands (background delivery sanity).
+| Secret | Purpose |
+| --- | --- |
+| `MATCH_GIT_URL` | Private match certificates repo URL |
+| `MATCH_PASSWORD` | Passphrase for match-encrypted certs/profiles |
+| `APP_STORE_CONNECT_API_KEY_ID` | App Store Connect API key ID |
+| `APP_STORE_CONNECT_API_KEY_ISSUER_ID` | API key issuer ID |
+| `APP_STORE_CONNECT_API_KEY_KEY` | Base64-encoded `.p8` private key contents |
+| `FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD` | Fallback Apple ID app-specific password |
+| `SENTRY_AUTH_TOKEN` | Optional dSYM upload |
+| `CONFIG_BETA_XCCONFIG` | Full contents of `Config.Beta.xcconfig` for CI TestFlight builds |
+| `CONFIG_RELEASE_XCCONFIG` | Full contents of `Config.Release.xcconfig` for CI release builds |
+
+If `CONFIG_*_XCCONFIG` is unset, CI copies the `.sample` file so the project graph resolves — those placeholders are not suitable for a real TestFlight binary. Prefer storing the real xcconfig body in the secret.
+
+## Pre-submission checklist
+
+### Encryption export
+
+`INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` is set across all three configs. **Do not flip this without legal review.**
+
+### Privacy usage descriptions
+
+Required `NS*UsageDescription` keys must exist in **all three** build configs when a capability is added.
+
+### Entitlements
+
+Host app (Debug/Beta share `LuminaVaultClient.entitlements`; Release uses `LuminaVaultClient.Release.entitlements`):
+
+- Sign in with Apple, APNS, HealthKit (+ background delivery), App Groups, Keychain Sharing, Associated Domains as required.
+
+These must match App ID capabilities. After adding an entitlement:
+
+```sh
+bundle exec fastlane sync_signing
+# and when production is live:
+SEED_PRODUCTION=1 bundle exec fastlane sync_signing
+```
+
+### OAuth / analytics / billing
+
+Cross-repo invariants are documented in `LuminaVaultClient/Config/README.md` and the root `LUMINAVAULT_DEPLOYMENT_CONFIG_GUIDE.md`.
+
+Beta and production may use different Google client IDs and RevenueCat public keys (see sample xcconfigs). Server audiences must accept the identity token for each shipping bundle.
+
+## Post-build smoke test (TestFlight)
+
+1. Install on a device that has never opened LuminaVault.
+2. Walk through onboarding to auth.
+3. Sign in with Apple / phone OTP.
+4. Grant HealthKit when prompted.
+5. Confirm capture/share extension and push registration against the beta bundle topic.
