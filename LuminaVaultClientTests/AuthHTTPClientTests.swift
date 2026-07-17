@@ -1,5 +1,12 @@
 // LuminaVaultClient/LuminaVaultClientTests/AuthHTTPClientTests.swift
 // HER-213: round-trip tests for /me and /logout against Shared DTOs.
+//
+// Response fixtures are ENCODED FROM the Shared DTO rather than hand-written
+// JSON: every time MeResponse gained a required field (autoSaveLinks,
+// mnemosyneEnabled, isAdmin, ...) the stale hand-rolled fixture broke these
+// tests with keyNotFound. Encoding the DTO keeps the fixture in lock-step
+// with the wire shape by construction.
+import LuminaVaultShared
 import XCTest
 @testable import LuminaVaultClient
 
@@ -20,6 +27,15 @@ final class AuthHTTPClientTests: XCTestCase {
 
     func testGetMeDecodesMeResponseFromSharedDTO() async throws {
         let userId = UUID(uuidString: "00000000-0000-0000-0000-000000000042")!
+        let fixture = MeResponse(
+            userId: userId,
+            email: "a@b.co",
+            username: "abby",
+            isVerified: true,
+            privacyNoCNOrigin: false,
+            contextRouting: true
+        )
+        let fixtureBody = try JSONEncoder().encode(fixture)
         MockURLProtocol.handler = { request in
             XCTAssertEqual(request.url?.path, "/v1/auth/me")
             XCTAssertEqual(request.httpMethod, "GET")
@@ -27,19 +43,7 @@ final class AuthHTTPClientTests: XCTestCase {
                 url: request.url!, statusCode: 200,
                 httpVersion: nil, headerFields: nil
             )!
-            let body = """
-            {
-              "userId":"\(userId.uuidString)",
-              "email":"a@b.co",
-              "username":"abby",
-              "isVerified":true,
-              "privacyNoCNOrigin":false,
-              "contextRouting":true,
-              "autoSaveLinks":true,
-              "mnemosyneEnabled":true
-            }
-            """.data(using: .utf8)!
-            return (response, body)
+            return (response, fixtureBody)
         }
 
         let me = try await auth.getMe()
@@ -80,6 +84,17 @@ final class AuthHTTPClientTests: XCTestCase {
 
     func testUpdatePrivacyPutsPatchBodyAndDecodesUpdatedMeResponse() async throws {
         let userId = UUID(uuidString: "00000000-0000-0000-0000-000000000043")!
+        let fixture = MeResponse(
+            userId: userId,
+            email: "a@b.co",
+            username: "abby",
+            isVerified: true,
+            privacyNoCNOrigin: true,
+            contextRouting: false,
+            autoSaveLinks: false,
+            mnemosyneEnabled: true
+        )
+        let fixtureBody = try JSONEncoder().encode(fixture)
         let sent = expectation(description: "privacy update sent")
         MockURLProtocol.handler = { request in
             XCTAssertEqual(request.url?.path, "/v1/auth/me/privacy")
@@ -98,19 +113,7 @@ final class AuthHTTPClientTests: XCTestCase {
                 url: request.url!, statusCode: 200,
                 httpVersion: nil, headerFields: nil
             )!
-            let body = """
-            {
-              "userId":"\(userId.uuidString)",
-              "email":"a@b.co",
-              "username":"abby",
-              "isVerified":true,
-              "privacyNoCNOrigin":true,
-              "contextRouting":false,
-              "autoSaveLinks":false,
-              "mnemosyneEnabled":true
-            }
-            """.data(using: .utf8)!
-            return (response, body)
+            return (response, fixtureBody)
         }
 
         let me = try await auth.updatePrivacy(
