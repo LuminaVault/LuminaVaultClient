@@ -1,3 +1,14 @@
-app_identifier(["com.lumina.fernando", "com.lumina.fernando.beta"])
+# Host app + share extension for both shipping identities.
+# Debug (com.lumina.fernando.test) is local-only and not listed here.
+app_identifier([
+  "com.lumina.fernando",
+  "com.lumina.fernando.LuminaVaultShareExtension",
+  "com.lumina.fernando.beta",
+  "com.lumina.fernando.beta.LuminaVaultShareExtension"
+])
+
 apple_id("fernandocorreia316@gmail.com")
 team_id("84X9WYBF36")
+
+# Optional: set via env if the Apple ID differs per machine.
+# ENV["FASTLANE_USER"]

@@ -1,9 +1,18 @@
-# Dedicated PRIVATE certs repo — NOT the app source repo. Create it empty first.
-# SSH url so `match` can push without a token prompt.
-git_url("git@github.com:LuminaVault/LuminaVaultIOSSecrets.git")
+# Dedicated PRIVATE certs repo — NOT the app source repo.
+# Create it empty first. SSH URL so match can push without a token prompt.
+# CI may override with the MATCH_GIT_URL secret.
+git_url(ENV["MATCH_GIT_URL"] || "git@github.com:LuminaVault/LuminaVaultIOSSecrets.git")
 
 storage_mode("git")
 
 type("appstore") # appstore | adhoc | enterprise | development
 
-app_identifier("com.lumina.fernando")
+# Default identity for bare `fastlane match` invocations.
+# Lanes pass explicit host + extension identifiers for beta/production.
+app_identifier([
+  "com.lumina.fernando.beta",
+  "com.lumina.fernando.beta.LuminaVaultShareExtension"
+])
+
+# team_id is also set in Appfile; keep explicit for match CLI.
+team_id("84X9WYBF36")
