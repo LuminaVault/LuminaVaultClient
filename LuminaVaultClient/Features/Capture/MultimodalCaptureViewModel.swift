@@ -6,6 +6,17 @@ import UniformTypeIdentifiers
 @MainActor
 @Observable
 final class MultimodalCaptureViewModel {
+    private enum SaveError: LocalizedError {
+        case missingUploadItem(fileName: String)
+
+        var errorDescription: String? {
+            switch self {
+            case let .missingUploadItem(fileName):
+                "Could not prepare upload for \(fileName). Please try again."
+            }
+        }
+    }
+
     private let client: any IngestionClientProtocol
     private let defaults: UserDefaults
     private let capabilitiesClient: (any HermesCapabilitiesClientProtocol)?
@@ -92,10 +103,18 @@ final class MultimodalCaptureViewModel {
             }
             let urlInputs = urls.map { IngestionCreateItemRequest(kind: .url, url: $0) }
             var batch = try await client.create(IngestionCreateRequest(spaceID: selectedSpaceID, items: fileInputs + urlInputs))
+            var assignedItemIDs = Set<UUID>()
             for file in selectedFiles {
-                guard let size = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize,
-                      let item = batch.items.first(where: { $0.fileName == file.lastPathComponent && $0.sizeBytes == Int64(size) })
-                else { continue }
+                let values = try file.resourceValues(forKeys: [.fileSizeKey])
+                guard let size = values.fileSize,
+                      let item = batch.items.first(where: {
+                          !assignedItemIDs.contains($0.id)
+                              && $0.kind == .file
+                              && $0.fileName == file.lastPathComponent
+                              && $0.sizeBytes == Int64(size)
+                      })
+                else { throw SaveError.missingUploadItem(fileName: file.lastPathComponent) }
+                assignedItemIDs.insert(item.id)
                 batch = try await client.upload(fileURL: file, itemID: item.id, batch: batch)
             }
             latestBatch = batch
