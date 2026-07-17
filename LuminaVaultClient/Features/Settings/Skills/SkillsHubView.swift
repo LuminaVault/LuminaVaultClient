@@ -35,6 +35,11 @@ struct SkillsHubView: View {
                 .padding()
         case .loaded:
             List {
+                Section {
+                    EmptyView()
+                } header: {
+                    LVKickerLabel("Skills / Teach your brain")
+                }
                 if !vm.builtInEnabled.isEmpty {
                     Section("Built-in") {
                         ForEach(vm.builtInEnabled) { skill in

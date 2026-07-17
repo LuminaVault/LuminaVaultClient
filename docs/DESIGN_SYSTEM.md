@@ -559,3 +559,34 @@ The per-surface subtasks (c–i) replace SF-Symbol-only `Image(systemName:)` cal
 ### 13.7 Inspiration
 
 Reference frames live on [HER-299](https://linear.app/luminavault/issue/HER-299/redesign-app). When a tradeoff is ambiguous (how much glow? how dense the particles? how big the mascot?), the Stitch frames are the source of truth. Match the energy of the frame for the surface you're building.
+
+## 14. Motif Kit & Kickers (identity-deepening pass, 2026-07)
+
+Cross-platform layer that makes the cyanGold identity pervasive. Same vocabulary on both surfaces; web classes live in `LuminaVaultWebApp/src/lib/theme/palette.css`, iOS counterparts below. All iOS motifs read `palette.*` slots — never hardcode cyan/amber (nebula/solar must keep working).
+
+| Motif | iOS | Web |
+|---|---|---|
+| Kicker (mono small-caps eyebrow with amber tick) | `LVKickerLabel("Vault / Connections")`, `LVTypography.kicker` | `.lv-kicker` |
+| Glass card | `lvGlassCard` (existing) | `.lv-glass-card` |
+| Sigil frame (sealed-card corner ticks) | `.lvSigilFrame(cornerRadius:)` | `.lv-sigil-frame` |
+| Vault seam (hairline divider, warm center) | `LVVaultSeam` / `lvVaultSeam()` | `.lv-vault-seam` |
+| Constellation dot grid | `lvConstellationBackdrop(spacing:)` | `.lv-constellation` |
+| Status lumen (glowing status dot) | `LVStatusLumen` | `.lv-status-lumen` + `connectionHealthTone()` |
+| Premium/headline halo | `lvAuroraGoldRing` (existing) | `.lv-lumen-ring` |
+| Starfield (dark-only ambient) | `LVStarField` (existing) | `.lv-starfield` |
+| Capture-lifecycle pulse | `View+LVPulse` (existing) | `.lv-node-pulse` |
+
+Rules: one lumen ring per view (amber = premium signal). Kickers are for eyebrows/system labels, not body copy. Motion mirrors product states (capture → embed → recalled; Hermie `.thinking` = agent working) and always respects reduced motion.
+
+## 15. Domain Language Glossary
+
+Applied in eyebrows, empty states, onboarding, marketing — never nav labels. Web source of truth: `LuminaVaultWebApp/src/lib/brand/copy.ts`; iOS: `BrandCopy`.
+
+- **Vault** — the encrypted store ("Unseal your vault")
+- **Lumen** — one captured memory fragment / graph node ("1,204 lumens")
+- **Recall** — retrieval/search ("Recall anything")
+- **Constellation** — the brain graph / connected knowledge
+- **Gateway** — a messaging bridge (WhatsApp, Telegram, Matrix, …)
+- **Keys** — BYOK provider credentials ("Your keys, your models")
+
+Cross-surface parity contract: `LuminaVaultWebApp/src/lib/theme/palette.css` is a port of `LVPalette.swift` — palette changes must land in both.
