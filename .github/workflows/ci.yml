@@ -95,11 +95,25 @@ jobs:
       - name: Run unit tests (Debug)
         run: |
           set -euo pipefail
+          # Resolve an available iPhone simulator instead of hardcoding a
+          # name. Device presets differ across runner images — macos-26
+          # dropped the "iPhone 16 Pro" preset the old macos-15 image had,
+          # so a fixed name exit-70s with "Unable to find a device". Pick the
+          # newest available iPhone (prefer a Pro model) from this image.
+          DEVICE=$(xcrun simctl list devices available --json | python3 -c '
+          import sys, json
+          devs = json.load(sys.stdin)["devices"]
+          iphones = [d["name"] for rt in devs for d in devs[rt] if d["name"].startswith("iPhone")]
+          pros = [n for n in iphones if "Pro" in n]
+          pick = sorted(pros or iphones)
+          print(pick[-1] if pick else "")')
+          if [ -z "$DEVICE" ]; then echo "::error::no iPhone simulator available on this runner"; exit 1; fi
+          echo "Using simulator: $DEVICE"
           xcodebuild test \
             -project LuminaVaultClient.xcodeproj \
             -scheme LuminaVaultClient \
             -configuration Debug \
-            -destination "platform=iOS Simulator,name=iPhone 16 Pro,OS=latest" \
+            -destination "platform=iOS Simulator,name=$DEVICE,OS=latest" \
             -only-testing:LuminaVaultClientTests \
             -resultBundlePath TestResults.xcresult
 
