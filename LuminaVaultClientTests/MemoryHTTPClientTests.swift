@@ -33,7 +33,8 @@ final class MemoryHTTPClientTests: XCTestCase {
           "id": "\#(memoryID.uuidString)",
           "content": "linked memory body",
           "tags": ["memo", "source"],
-          "created_at": "2026-05-23T10:00:00Z"
+          "created_at": "2026-05-23T10:00:00Z",
+          "review_state": "approved"
         }
         """#
         let captured = CaptureBox()

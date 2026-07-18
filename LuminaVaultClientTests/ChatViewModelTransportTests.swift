@@ -64,9 +64,14 @@ final class ChatViewModelTransportTests: XCTestCase {
             memoryClient: NoOpMemoryClient(),
             historyStore: nil,
         )
+        // toggleTransport cycles through all three modes now that hybrid
+        // (on-device + cloud) execution exists: memoryGrounded → fresh →
+        // hybrid → memoryGrounded.
         XCTAssertEqual(vm.transport, .memoryGrounded)
         vm.toggleTransport()
         XCTAssertEqual(vm.transport, .fresh)
+        vm.toggleTransport()
+        XCTAssertEqual(vm.transport, .hybrid)
         vm.toggleTransport()
         XCTAssertEqual(vm.transport, .memoryGrounded)
     }
@@ -128,7 +133,14 @@ final class ChatViewModelTransportTests: XCTestCase {
         vm.multiModelStrategy = .debate
         vm.composer = "Compare this"
         vm.send()
-        try await Task.sleep(for: .milliseconds(150))
+        // Poll for the finalized assistant turn rather than a fixed sleep:
+        // `.done` awaits the typewriter reveal before `finalizeAssistantTurn`
+        // appends the assistant message, so the id-carrying turn can land
+        // well after the parallel events are reduced. A fixed 150ms raced
+        // that reveal and flaked on `messages.last`.
+        for _ in 0 ..< 60 where vm.messages.last?.parallelExecutionID != executionID {
+            try await Task.sleep(for: .milliseconds(50))
+        }
 
         XCTAssertEqual(conversations.lastRequest?.multiModel?.enabled, true)
         XCTAssertEqual(conversations.lastRequest?.multiModel?.strategy, .debate)
