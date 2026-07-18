@@ -32,6 +32,8 @@ struct ProvidersPaneView: View {
                     }
                     .buttonStyle(.plain)
                 }
+            } header: {
+                LVKickerLabel("Your keys / Your models")
             } footer: {
                 Text("Falls back through your chain automatically when a provider runs out of credits or rate-limits.")
                     .font(LVTypography.footnote.font)
@@ -47,7 +49,7 @@ struct ProvidersPaneView: View {
                     }
                 }
             } header: {
-                Text("Round-robin key pools")
+                LVKickerLabel("Round-robin key pools")
             } footer: {
                 Text("Add extra API keys per provider; requests rotate across them to spread rate limits.")
                     .font(LVTypography.footnote.font)

@@ -1,40 +1,56 @@
-fastlane documentation
-----
+# Fastlane (LuminaVault iOS)
 
-# Installation
+Dual-track shipping. Full operator guide: [`docs/TESTFLIGHT.md`](../docs/TESTFLIGHT.md).
 
-Make sure you have the latest version of the Xcode command line tools installed:
-
-```sh
-xcode-select --install
-```
-
-For _fastlane_ installation instructions, see [Installing _fastlane_](https://docs.fastlane.tools/#installing-fastlane)
-
-# Available Actions
-
-## iOS
-
-### ios beta
+## Install
 
 ```sh
-[bundle exec] fastlane ios beta
+bundle install
 ```
 
-Upload a TestFlight build (single identity: production Release build)
+## Lanes
 
-### ios release
+### `beta` — TestFlight (ready now)
+
+Builds **Beta** (`com.lumina.fernando.beta` + share extension) and uploads to TestFlight.
 
 ```sh
-[bundle exec] fastlane ios release
+BUILD_NUMBER=$(date +%s) bundle exec fastlane beta
 ```
 
-Ship to App Store (manual review submission)
+### `release` — App Store draft (after production ASC app exists)
 
-----
+Builds **Release** (`com.lumina.fernando` + share extension) and uploads a **draft** to App Store Connect (does not submit for review).
 
-This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
+```sh
+SEED_PRODUCTION=1 bundle exec fastlane sync_signing   # once
+BUILD_NUMBER=$(date +%s) bundle exec fastlane release
+```
 
-More information about _fastlane_ can be found on [fastlane.tools](https://fastlane.tools).
+### `sync_signing` — match certs
 
-The documentation of _fastlane_ can be found on [docs.fastlane.tools](https://docs.fastlane.tools).
+```sh
+bundle exec fastlane sync_signing                    # beta only
+SEED_PRODUCTION=1 bundle exec fastlane sync_signing  # + production
+```
+
+### Build-only (no upload)
+
+```sh
+bundle exec fastlane build_beta
+bundle exec fastlane build_release
+```
+
+## CI
+
+| Workflow | Trigger | Lane |
+| --- | --- | --- |
+| `testflight.yml` | `development` push + `workflow_dispatch` | `beta` |
+| `release.yml` | `workflow_dispatch` with confirm `ship-production` | `release` |
+
+## Identities
+
+| Track | Host bundle ID | Xcode config | Scheme |
+| --- | --- | --- | --- |
+| TestFlight | `com.lumina.fernando.beta` | Beta | `LuminaVaultClient-Beta` |
+| App Store | `com.lumina.fernando` | Release | `LuminaVaultClient` |

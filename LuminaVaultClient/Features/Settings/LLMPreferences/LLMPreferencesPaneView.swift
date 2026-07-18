@@ -47,6 +47,7 @@ struct LLMPreferencesPaneView: View {
         Form {
             currentlyPoweringSection
 
+            routingPolicySection
             routerProfileSection
             routerAnalyticsSection
             routerObjectiveSection
@@ -59,6 +60,7 @@ struct LLMPreferencesPaneView: View {
             fallbackEditorSection
 
             if viewModel.mode == .byok {
+                byokKeysCalloutSection
                 routingBlockedSection
                 routingAllowSection
                 manageKeysSection
@@ -148,6 +150,57 @@ struct LLMPreferencesPaneView: View {
             Text("Hybrid execution")
         } footer: {
             Text("Private never sends prompts to LuminaVault. Balanced prefers local and can fall back to cloud. Quality prefers cloud and can fall back locally. Disable conversation sync to keep locally generated turns only on this device.")
+        }
+    }
+
+    @ViewBuilder
+    private var routingPolicySection: some View {
+        Section {
+            Picker("Policy", selection: Binding(
+                get: { viewModel.routingPolicy },
+                set: { viewModel.selectRoutingPolicy($0) }
+            )) {
+                ForEach(LLMRoutingPolicy.allCases, id: \.self) { policy in
+                    Text(policy.displayName).tag(policy)
+                }
+            }
+            .pickerStyle(.menu)
+        } header: {
+            Text("Auto model selection")
+        } footer: {
+            Text(routingPolicyFooter)
+        }
+    }
+
+    private var routingPolicyFooter: String {
+        switch viewModel.routingPolicy {
+        case .autoSmart:
+            return "Picks the smallest model that can handle each turn using your keys (or managed models). Complex work escalates automatically."
+        case .fastCheap:
+            return "Bias toward speed and cost. Best for light chat when quality risk is acceptable."
+        case .balanced:
+            return "Even mix of quality, cost, and latency — a good daily driver."
+        case .maxQuality:
+            return "Prefer frontier models. Still uses a fast model on clearly trivial turns."
+        case .locked:
+            return "Always use your primary model. Disable Auto routing."
+        }
+    }
+
+    @ViewBuilder
+    private var byokKeysCalloutSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: LVSpacing.sm) {
+                Text("Bring your own keys")
+                    .font(.headline)
+                Text("Auto (Smart) only routes across models you have keys for. OpenRouter is recommended — one key unlocks cheap and frontier models.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Text("Without a key, chat is blocked until you add one or switch to Managed.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, LVSpacing.xs)
         }
     }
 

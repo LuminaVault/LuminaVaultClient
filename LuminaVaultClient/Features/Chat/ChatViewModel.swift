@@ -538,6 +538,55 @@ final class ChatViewModel {
         }
     }
 
+    /// Whether the live turn can be re-run on a stronger forced model.
+    var canEscalateToStrongerModel: Bool {
+        lastSentContent != nil
+            && !isStreaming
+            && phase != .starting
+            && routingEvent != nil
+            && routingEvent?.profileName != "BYO Hermes"
+    }
+
+    /// Opens a fresh conversation locked to a max-tier model and resends the
+    /// last user turn — the server-side "Ask another model" force-route path.
+    func escalateToStrongerModel() {
+        guard let content = lastSentContent, canEscalateToStrongerModel else { return }
+        fallbackNotice = nil
+        routingEvent = nil
+        routeUsage = nil
+        setMascot(.thinking)
+        streamTask?.cancel()
+        streamTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let dto = try await conversationsClient.create(ConversationCreateRequest(
+                    title: "Stronger model retry",
+                    routeOverride: Self.strongerModelRoute
+                ))
+                conversationID = dto.id
+                await runSend(content: content)
+            } catch {
+                phase = .idle
+                setMascot(.idle)
+                fallbackNotice = nil
+                // Surface via the last-error path used by stream failures.
+                phase = .failed(message: "Couldn't escalate: \(friendlyError(error))")
+            }
+        }
+    }
+
+    /// Conservative max-tier lock for escalate. Prefer Anthropic Opus; fall
+    /// back to OpenAI o3 if the catalog ever drops that id.
+    private static var strongerModelRoute: RouterModelRouteDTO {
+        if LLMModelCatalog.models(for: .anthropic).contains(where: { $0.id == "claude-opus-4-1" }) {
+            return RouterModelRouteDTO(provider: .anthropic, model: "claude-opus-4-1")
+        }
+        if let o3 = LLMModelCatalog.models(for: .openai).first(where: { $0.tier == .max }) {
+            return RouterModelRouteDTO(provider: .openai, model: o3.id)
+        }
+        return RouterModelRouteDTO(provider: .anthropic, model: "claude-opus-4-1")
+    }
+
     /// Maps transport errors to user-facing copy. `URLError.timedOut`
     /// (often a cold managed-brain that hasn't emitted its first SSE byte)
     /// gets a friendlier, retry-oriented message instead of Foundation's

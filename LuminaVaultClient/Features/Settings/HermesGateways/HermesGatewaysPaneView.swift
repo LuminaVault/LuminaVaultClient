@@ -60,6 +60,8 @@ struct HermesGatewaysPaneView: View {
                 stat("Off", off, .secondary)
             }
             .frame(maxWidth: .infinity)
+            .padding(LVSpacing.sm)
+            .lvSigilFrame(cornerRadius: LVRadius.md)
             if errored > 0 {
                 Label(
                     "\(errored) gateway\(errored == 1 ? "" : "s") need attention.",
@@ -69,7 +71,7 @@ struct HermesGatewaysPaneView: View {
                 .foregroundStyle(.red)
             }
         } header: {
-            Text("Status")
+            LVKickerLabel("Gateways / Everywhere you talk")
         }
     }
 

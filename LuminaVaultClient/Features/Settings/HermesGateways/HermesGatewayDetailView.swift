@@ -64,6 +64,8 @@ struct HermesGatewayDetailView: View {
     private func fieldSection(entry: HermesGatewayCatalogEntry) -> some View {
         Section {
             Text(entry.description).font(.callout).foregroundStyle(.secondary)
+        } header: {
+            LVKickerLabel("Gateways / \(entry.displayName)")
         }
         Section("Configuration") {
             ForEach(entry.requiredFields, id: \.key) { field in

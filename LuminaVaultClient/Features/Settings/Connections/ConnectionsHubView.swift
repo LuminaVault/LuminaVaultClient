@@ -32,7 +32,7 @@ struct ConnectionsHubView: View {
                     }
                 }
             } header: {
-                Text("Connections")
+                LVKickerLabel("Vault / Connections")
             } footer: {
                 if let checkedAt = viewModel.checkedAt {
                     Text("Checked \(checkedAt.formatted(.relative(presentation: .named))).")
@@ -60,14 +60,16 @@ struct ConnectionsHubView: View {
                         .foregroundStyle(.red)
                 }
             } header: {
-                Text("Diagnostics")
+                LVKickerLabel("Diagnostics")
             }
 
             if !viewModel.events.isEmpty {
-                Section("Recent Events") {
+                Section {
                     ForEach(viewModel.events) { event in
                         ConnectionDiagnosticEventRow(event: event)
                     }
+                } header: {
+                    LVKickerLabel("Recent Events")
                 }
             }
         }
@@ -119,10 +121,8 @@ private struct ConnectionDiagnosticEventRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: LVSpacing.base) {
-            Circle()
-                .fill(event.severity.tint)
-                .frame(width: 8, height: 8)
-                .padding(.top, 6)
+            LVStatusLumen(color: event.severity.tint)
+                .padding(.top, 5)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(event.connectionTitle ?? event.connectionID ?? "Connection")

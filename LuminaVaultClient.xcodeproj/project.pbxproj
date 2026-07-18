@@ -1080,6 +1080,7 @@
 				minimumVersion = 3.17.0;
 			};
 		};
+
 		60GRP000C2FAE1200006F894F /* XCRemoteSwiftPackageReference "Grape" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SwiftGraphs/Grape";

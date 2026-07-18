@@ -7,9 +7,7 @@ struct ConnectionHealthDot: View {
     let health: ConnectionHealth
 
     var body: some View {
-        Image(systemName: health.symbolName)
-            .font(.caption.bold())
-            .foregroundStyle(health.tint)
+        LVStatusLumen(color: health.tint, symbolName: health.symbolName)
             .frame(width: 14, height: 14)
             .accessibilityLabel("Status: \(health.label)")
     }
