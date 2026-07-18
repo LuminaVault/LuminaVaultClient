@@ -82,17 +82,26 @@ final class HermesGatewayViewModelTests: XCTestCase {
 
     // MARK: - submit()
 
-    func testSubmitRejectsNonHTTPSURL() async {
+    // HER-218 relaxation: the server now accepts http:// gateways
+    // (BYO_HERMES_REQUIRE_HTTPS=false, e.g. Tailscale tunnels), so submit no
+    // longer rejects a non-HTTPS URL. It is accepted and PUT, while the
+    // ViewModel exposes a plaintext transport warning the form shows as a
+    // caution banner.
+    func testSubmitAcceptsHTTPURLButSurfacesTransportWarning() async {
         sut.baseUrlInput = "http://hermes.example.com"
+        XCTAssertNotNil(sut.transportWarning)
         await sut.submit()
-        XCTAssertEqual(sut.lastError, "Base URL must start with https://")
-        XCTAssertTrue(mockClient.calls.isEmpty)
+        XCTAssertNil(sut.lastError)
+        guard case let .put(baseUrl, _)? = mockClient.calls.first else {
+            return XCTFail("expected PUT for accepted http:// URL, got \(mockClient.calls)")
+        }
+        XCTAssertEqual(baseUrl, "http://hermes.example.com")
     }
 
     func testSubmitRejectsMalformedURL() async {
         sut.baseUrlInput = "not a url"
         await sut.submit()
-        XCTAssertEqual(sut.lastError, "Base URL must start with https://")
+        XCTAssertEqual(sut.lastError, "Enter a valid http:// or https:// URL with a host.")
         XCTAssertTrue(mockClient.calls.isEmpty)
     }
 
