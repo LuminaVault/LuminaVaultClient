@@ -17,6 +17,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @Environment(AppState.self) private var appState
+    @Environment(NotificationRouter.self) private var notificationRouter
     @State private var selection: String = "home"
     @State private var hermieState: HermieMascotState = .idle
     // HER-255 — QuickSettings now opens from the global header's mascot tap
@@ -33,6 +34,7 @@ struct MainTabView: View {
         brain: "brain",
         settings: "settings"
     )
+    private static let studioTabID = "studio"
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -155,6 +157,11 @@ struct MainTabView: View {
             guard conversationID != nil else { return }
             selection = Self.tabIds.think
         }
+        .onChange(of: notificationRouter.pendingDeepLink) { _, deepLink in
+            if case .workflow = deepLink {
+                selection = Self.studioTabID
+            }
+        }
         .sheet(isPresented: $showQuickSettings) {
             QuickSettingsView()
                 .presentationDetents([.medium, .large])
@@ -171,6 +178,7 @@ struct MainTabView: View {
         case Self.tabIds.think: return "AI"
         case Self.tabIds.brain: return "Brain"
         case Self.tabIds.settings: return "Settings"
+        case Self.studioTabID: return "Studio"
         case "visual_search": return "Visual Search"
         default: return "LuminaVault"
         }
@@ -181,7 +189,7 @@ struct MainTabView: View {
     static let visualSearchTabId = "visual_search"
 
     private static func isOverflow(_ id: String) -> Bool {
-        id == tabIds.settings || id == visualSearchTabId
+        id == tabIds.settings || id == visualSearchTabId || id == studioTabID
     }
 
     @ViewBuilder
@@ -196,6 +204,11 @@ struct MainTabView: View {
                 client: memoryClient,
                 telemetry: LoggerTelemetry()
             ))
+        case Self.studioTabID:
+            WorkflowListView(
+                client: WorkflowsHTTPClient(client: appState.makeHTTPClient()),
+                memoryClient: memoryUpsertClient
+            )
         default:
             EmptyView()
         }
@@ -222,6 +235,7 @@ struct MainTabView: View {
 
     private var overflowTabItems: [LVTabItem] {
         [
+            LVTabItem(id: Self.studioTabID, label: "Studio", icon: .sparklesRectangleStack),
             LVTabItem(id: "visual_search", label: "Visual Search", icon: .photoOnRectangleAngled),
             LVTabItem(id: Self.tabIds.settings, label: "Settings", icon: .tabSettings),
         ]
@@ -449,7 +463,10 @@ struct MainTabView: View {
                 RemindersListView(vm: RemindersListViewModel(client: remindersClient))
             ) },
             jobsDestination: { [self] in AnyView(
-                WorkflowListView(client: WorkflowsHTTPClient(client: appState.makeHTTPClient()))
+                WorkflowListView(
+                    client: WorkflowsHTTPClient(client: appState.makeHTTPClient()),
+                    memoryClient: memoryUpsertClient
+                )
             ) },
             // C6 — Kanban entry: loader resolves the default board then pushes KanbanBoardView.
             kanbanDestination: { [self] in AnyView(
