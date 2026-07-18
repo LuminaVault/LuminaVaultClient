@@ -29,4 +29,28 @@ struct NotificationRouterTests {
             "batchID": "not-a-uuid",
         ]) == .none)
     }
+
+    @Test
+    func `workflow payload routes to the Studio run monitor`() {
+        let runID = UUID()
+        let router = NotificationRouter()
+
+        let link = router.deepLink(from: [
+            "category": "workflow",
+            "runID": runID.uuidString,
+            "state": "waitingForApproval",
+        ])
+
+        #expect(link == .workflow(runID: runID))
+    }
+
+    @Test
+    func `workflow payload without a valid run is ignored`() {
+        let router = NotificationRouter()
+
+        #expect(router.deepLink(from: [
+            "category": "workflow",
+            "runID": "not-a-uuid",
+        ]) == .none)
+    }
 }

@@ -6,6 +6,12 @@ The execution profile, fallback controls, conversation-sync choice, and local en
 
 On iOS 26 and eligible Apple Intelligence devices, users can select the Apple on-device model. This uses the system Foundation Models runtime and does not require a downloaded third-party model or API key. Incrementally synchronized local memories are AES-GCM encrypted with a device-only Keychain key and protected with complete file protection.
 
+## Cerberus Studio
+
+Studio does not add a client-side provider secret. The app calls the hosted `API_BASE_URL`; the server owns managed OpenRouter credentials, tier spend enforcement, durable execution, and the free-router fallback. Ultimate BYOK remains encrypted server-side and is never copied into xcconfig or notification payloads.
+
+Workflow APNS payloads use category `workflow` and carry `workflowID`, `runID`, `state`, and a `luminavault://studio/runs/<runID>` deep link. Keep Push Notifications enabled and verify approval, completion, paused, and failed taps open the Studio run monitor. The app and server must consume a released `LuminaVaultShared` version that includes the workflow event, template, limit, pause, and provenance DTOs.
+
 This directory contains the client-side build configuration contract for OAuth, RevenueCat, analytics, Sentry, legal URLs, and hosted backend selection.
 
 ## Files

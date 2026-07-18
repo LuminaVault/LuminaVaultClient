@@ -12,6 +12,7 @@ enum APNSDeepLink: Sendable, Equatable {
     case today(highlightOutputID: UUID?)
     case think(systemMessage: String?)
     case ingestion(batchID: UUID, itemID: UUID?)
+    case workflow(runID: UUID)
     case none
 }
 
@@ -40,6 +41,12 @@ final class NotificationRouter {
             }
             let itemID = (userInfo["itemID"] as? String).flatMap(UUID.init(uuidString:))
             return .ingestion(batchID: batchID, itemID: itemID)
+        }
+        if categoryRaw == "workflow",
+           let rawRunID = userInfo["runID"] as? String,
+           let runID = UUID(uuidString: rawRunID)
+        {
+            return .workflow(runID: runID)
         }
         guard
             let category = APNSCategory(rawValue: categoryRaw)
