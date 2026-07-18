@@ -30,19 +30,24 @@ jobs:
 
   test:
     name: Run Tests
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      # LuminaVaultShared ≥ 1.3.0 requires swift-tools 6.2 — Xcode 16.4 ships
-      # Swift 6.1 and cannot resolve it, so we need the newest stable Xcode.
-      # The "ensure iOS runtime" step below covers images that ship 26.x
-      # without a preinstalled simulator runtime.
+      # Pin Xcode 26.4 explicitly (was `latest-stable`, which resolved to
+      # 26.3 on the macos-15 image). Xcode 26.3's XCTest runtime has a
+      # double-free bug ("pointer being freed was not allocated") that crashes
+      # the first `@MainActor` test class using an `async setUp()` — for us
+      # BYOHermesPromptViewModelTests — aborting the whole run. The bug is
+      # fixed in 26.4, which is the latest-stable on the macos-26 image and
+      # passes the full suite. LuminaVaultShared ≥ 1.3.0 also needs
+      # swift-tools 6.2, which 26.x satisfies. The "ensure iOS runtime" step
+      # below covers images shipping without a preinstalled simulator runtime.
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "26.4"
 
       - name: Ensure an iOS simulator runtime is installed
         run: |
