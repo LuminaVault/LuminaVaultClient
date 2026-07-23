@@ -25,8 +25,29 @@ enum RiveAssets {
     }
 
     /// Fresh view model bound to its own artboard instance on the shared file.
-    static func viewModel(named name: String, stateMachineName: String) -> RiveViewModel? {
+    ///
+    /// When `artboardName` is supplied the named artboard is selected (several
+    /// marks live as separate artboards inside one bundled `.riv`); otherwise
+    /// the file's default artboard is used. Returns nil — so callers keep their
+    /// static-PNG fallback — when the file, artboard, or state machine is
+    /// absent, instead of trapping on the runtime's `try!` initializers.
+    static func viewModel(
+        named name: String,
+        artboardName: String? = nil,
+        stateMachineName: String
+    ) -> RiveViewModel? {
         guard let file = file(named: name) else { return nil }
-        return RiveViewModel(RiveModel(riveFile: file), stateMachineName: stateMachineName)
+        let model = RiveModel(riveFile: file)
+        do {
+            if let artboardName {
+                try model.setArtboard(artboardName)
+            } else {
+                try model.setArtboard()
+            }
+            try model.setStateMachine(stateMachineName)
+        } catch {
+            return nil
+        }
+        return RiveViewModel(model, stateMachineName: stateMachineName, artboardName: artboardName)
     }
 }

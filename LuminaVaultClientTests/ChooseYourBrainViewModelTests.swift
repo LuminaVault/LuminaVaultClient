@@ -4,37 +4,40 @@
 // managed-default LLM preference, latches the onboarding step on either
 // path, and surfaces network failures via `errorMessage`.
 
-import XCTest
-import LuminaVaultShared
 @testable import LuminaVaultClient
+import LuminaVaultShared
+import XCTest
 
 @MainActor
 final class ChooseYourBrainViewModelTests: XCTestCase {
-
     // MARK: Test doubles
 
     private final class MockLLMPreferencesClient: LLMPreferencesClientProtocol {
-        var stubbedGet: LLMPreferencesGetResponse = LLMPreferencesGetResponse(
+        var stubbedGet: LLMPreferencesGetResponse = .init(
             mode: .managed,
             primaryProvider: .openRouter,
-            primaryModel: "qwen/qwen-2.5-72b-instruct",
+            primaryModel: "deepseek/deepseek-v4-flash",
             fallbackChain: []
         )
         var stubbedPutResponse: LLMPreferencesGetResponse?
         var putError: Error?
         private(set) var putCalls: [LLMPreferencesPutRequest] = []
 
-        func get() async throws -> LLMPreferencesGetResponse { stubbedGet }
+        func get() async throws -> LLMPreferencesGetResponse {
+            stubbedGet
+        }
 
         func put(_ body: LLMPreferencesPutRequest) async throws -> LLMPreferencesGetResponse {
             putCalls.append(body)
-            if let putError { throw putError }
+            if let putError {
+                throw putError
+            }
             return stubbedPutResponse ?? stubbedGet
         }
     }
 
     private final class MockOnboardingClient: OnboardingClientProtocol {
-        var stubbedState: OnboardingStateDTO = OnboardingStateDTO(
+        var stubbedState: OnboardingStateDTO = .init(
             signupCompleted: true,
             signupCompletedAt: nil,
             emailVerifiedCompleted: true,
@@ -53,11 +56,15 @@ final class ChooseYourBrainViewModelTests: XCTestCase {
         var patchError: Error?
         private(set) var patchCalls: [OnboardingPatchRequest] = []
 
-        func get() async throws -> OnboardingStateDTO { stubbedState }
+        func get() async throws -> OnboardingStateDTO {
+            stubbedState
+        }
 
         func patch(_ body: OnboardingPatchRequest) async throws -> OnboardingStateDTO {
             patchCalls.append(body)
-            if let patchError { throw patchError }
+            if let patchError {
+                throw patchError
+            }
             return stubbedState
         }
     }
@@ -89,15 +96,15 @@ final class ChooseYourBrainViewModelTests: XCTestCase {
 
     // MARK: Managed-default path
 
-    func testAcceptManagedDefaultPutsCorrectPayloadAndPatchesFlag() async {
+    func testAcceptManagedDefaultPutsCorrectPayloadAndPatchesFlag() async throws {
         let sut = makeSUT()
         await sut.acceptManagedDefault()
 
         XCTAssertEqual(preferencesClient.putCalls.count, 1)
-        let put = preferencesClient.putCalls.first!
+        let put = try XCTUnwrap(preferencesClient.putCalls.first)
         XCTAssertEqual(put.mode, .managed)
-        XCTAssertEqual(put.primaryProvider, .openRouter)
-        XCTAssertEqual(put.primaryModel, "qwen/qwen-2.5-72b-instruct")
+        XCTAssertEqual(put.primaryProvider, .custom)
+        XCTAssertEqual(put.primaryModel, "")
         XCTAssertTrue(put.fallbackChain.isEmpty)
 
         XCTAssertEqual(onboardingClient.patchCalls.count, 1)

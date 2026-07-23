@@ -13,7 +13,8 @@ struct WingedScrollRiveView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
 
-    private static let riveFileName = "winged_scroll"
+    private static let riveFileName = "lumina_anims"
+    private static let artboardName = "winged_scroll"
     private static let stateMachineName = "State Machine 1"
     private static let isPlayingInput = "isPlaying"
 
@@ -50,6 +51,7 @@ struct WingedScrollRiveView: View {
         guard viewModel == nil else { return }
         guard let vm = RiveAssets.viewModel(
             named: Self.riveFileName,
+            artboardName: Self.artboardName,
             stateMachineName: Self.stateMachineName
         ) else { return }
         viewModel = vm

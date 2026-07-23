@@ -9,12 +9,9 @@
 // flag; the BYOK editor is rendered disabled when `mode == .managed`
 // so users can preview-without-editing.
 //
-// When the user saves with `mode == .managed`, we pin the PUT body to
-// the LuminaVault-funded canonical default (OpenRouter / Qwen2.5-72B,
-// matching `ChooseYourBrainViewModel.managedDefault*`) regardless of
-// whatever values the disabled BYOK editor is still holding. This
-// guarantees the server sees a consistent managed payload even if a
-// previous BYOK config is still in memory.
+// Managed requests intentionally omit provider/model policy. The backend
+// selects the funded route and returns the effective provider/model for this
+// view to render.
 
 import Foundation
 import LuminaVaultShared
@@ -28,14 +25,6 @@ final class LLMPreferencesPaneViewModel {
         case loaded
         case failed(String)
     }
-
-    /// HER-300 — canonical managed-mode model. Duplicated from
-    /// `ChooseYourBrainViewModel` to keep the Settings feature
-    /// independent of the Onboarding feature; both call sites must
-    /// stay in lockstep with the server-side default in
-    /// `LLMPreferencesController`.
-    static let managedDefaultProvider: ProviderID = .openRouter
-    static let managedDefaultModel: String = "qwen/qwen-2.5-72b-instruct"
 
     var state: LoadState = .loading
     /// HER-300 — `.managed` keeps the user on the LuminaVault-funded
@@ -101,20 +90,27 @@ final class LLMPreferencesPaneViewModel {
     /// `availableModels`, so a dead fetch must not break the picker.
     func refreshModels(for provider: ProviderID) async {
         modelsLoading = true
-        defer { if provider == primaryProvider { modelsLoading = false } }
+        defer {
+            if provider == primaryProvider {
+                modelsLoading = false
+            }
+        }
         guard let response = try? await providersClient.models(provider),
               !response.models.isEmpty
         else { return }
         liveModels[provider] = response.models
         // If the freshly-loaded list doesn't contain the current model and
         // this is still the active provider, seed a valid default.
-        if provider == primaryProvider,
-           !response.models.contains(where: { $0.id == primaryModel }) {
+        if mode == .byok, provider == primaryProvider,
+           !response.models.contains(where: { $0.id == primaryModel })
+        {
             primaryModel = response.models.first?.id ?? primaryModel
         }
     }
 
-    var usesModelCatalog: Bool { !availableModels.isEmpty }
+    var usesModelCatalog: Bool {
+        !availableModels.isEmpty
+    }
 
     /// Picker rows: the curated catalog plus the currently-selected model when
     /// it isn't in the catalog (e.g. a previously-saved managed default like
@@ -138,7 +134,9 @@ final class LLMPreferencesPaneViewModel {
     /// written through the setter.
     var pickerSelectedModel: String {
         let options = modelPickerOptions
-        if options.contains(where: { $0.id == primaryModel }) { return primaryModel }
+        if options.contains(where: { $0.id == primaryModel }) {
+            return primaryModel
+        }
         return options.first?.id ?? ""
     }
 
@@ -171,17 +169,16 @@ final class LLMPreferencesPaneViewModel {
 
     func save() async {
         do {
-            // HER-300 — managed payloads always carry the canonical
-            // OpenRouter/Qwen pair; the BYOK editor may still hold the
-            // user's last BYOK config in memory but we deliberately
-            // ignore it on the managed path.
             let body: LLMPreferencesPutRequest
             switch mode {
             case .managed:
+                // The backend owns the funded provider/model policy and
+                // returns the effective route in its response. These inert
+                // values only satisfy the current v1 wire schema.
                 body = LLMPreferencesPutRequest(
                     mode: .managed,
-                    primaryProvider: Self.managedDefaultProvider,
-                    primaryModel: Self.managedDefaultModel,
+                    primaryProvider: .custom,
+                    primaryModel: "",
                     fallbackChain: []
                 )
             case .byok:
@@ -196,7 +193,7 @@ final class LLMPreferencesPaneViewModel {
                         kind: kind,
                         apiKey: kind == .hostURL ? nil : trimmedKey,
                         baseUrl: kind == .hostURL ? trimmedKey : nil,
-                        label: nil,
+                        label: nil
                     )
                     _ = try await providersClient.upsert(primaryProvider, credential)
                 }
@@ -265,7 +262,7 @@ final class LLMPreferencesPaneViewModel {
         let current = fallbackChain[index]
         fallbackChain[index] = ModelRouteDTO(
             provider: provider ?? current.provider,
-            model: model ?? current.model,
+            model: model ?? current.model
         )
         markDirty()
     }
@@ -282,11 +279,11 @@ final class LLMPreferencesPaneViewModel {
         }
         hasUnsavedChanges = !(
             snapshot.mode == mode &&
-            snapshot.primaryProvider == primaryProvider &&
-            snapshot.primaryModel == primaryModel &&
-            snapshot.fallbackChain == fallbackChain &&
-            Set(snapshot.allowedProviders) == allowedProviders &&
-            Set(snapshot.blockedProviders) == blockedProviders
+                snapshot.primaryProvider == primaryProvider &&
+                snapshot.primaryModel == primaryModel &&
+                snapshot.fallbackChain == fallbackChain &&
+                Set(snapshot.allowedProviders) == allowedProviders &&
+                Set(snapshot.blockedProviders) == blockedProviders
         )
     }
 
@@ -315,8 +312,8 @@ final class LLMPreferencesPaneViewModel {
     }
 
     /// HER-300 — `canSave` enables the Save button. Managed mode is
-    /// always saveable when dirty (no model field validation needed —
-    /// we pin to the canonical default); BYOK additionally requires a
+    /// always saveable when dirty (the backend selects the route); BYOK
+    /// additionally requires a
     /// non-empty primary model slug.
     var canSave: Bool {
         guard hasUnsavedChanges || routerDirty else { return false }

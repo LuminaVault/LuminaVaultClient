@@ -52,6 +52,10 @@ struct ChatView: View {
     @State private var linkText = ""
     @State private var comparisonPresentation: ParallelComparisonPresentation?
     @State private var showWorkflowPicker = false
+    /// Throttles auto-scroll during token streaming so the list doesn't jitter.
+    @State private var lastAutoScrollTime: Date = .distantPast
+    @State private var pendingScrollAnchor: String?
+    @State private var scrollThrottleTask: Task<Void, Never>?
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -71,15 +75,11 @@ struct ChatView: View {
                     .padding(.bottom, LVSpacing.hero)
                 }
                 .onChange(of: viewModel.displayedAssistant) { _, _ in
-                    withAnimation(.easeOut(duration: 0.15)) {
-                        proxy.scrollTo(Self.pendingAnchor, anchor: .bottom)
-                    }
+                    scheduleAutoScroll(to: Self.pendingAnchor, proxy: proxy)
                 }
                 .onChange(of: viewModel.messages.count) { _, _ in
                     guard let last = viewModel.messages.last?.id else { return }
-                    withAnimation(.easeOut(duration: 0.15)) {
-                        proxy.scrollTo(last, anchor: .bottom)
-                    }
+                    scrollToImmediately(last, proxy: proxy)
                 }
             }
             // HER-255 — header hoisted to MainTabView (app-wide base header).
@@ -96,6 +96,9 @@ struct ChatView: View {
         }
         .sensoryFeedback(.impact(weight: .light), trigger: viewModel.sendHapticTrigger)
         .sensoryFeedback(.success, trigger: viewModel.completionHapticTrigger)
+        .onDisappear {
+            scrollThrottleTask?.cancel()
+        }
         .sheet(item: $comparisonPresentation) { _ in
             ParallelComparisonView(viewModel: viewModel)
         }
@@ -197,7 +200,13 @@ struct ChatView: View {
             }
 
             if case let .failed(message) = viewModel.phase {
-                ErrorRow(message: message, onRetry: { viewModel.retryLast() })
+                ErrorRow(
+                    message: message,
+                    recoveryActions: viewModel.recoveryActions,
+                    onRetry: { viewModel.retryLast() },
+                    onAddKey: { viewModel.openIntelligenceSettings() },
+                    onSwitchToManaged: { viewModel.switchToManagedBrain() }
+                )
             }
         }
         .padding(.horizontal, LVSpacing.lg)
@@ -327,6 +336,46 @@ struct ChatView: View {
         }
         .padding(.bottom, bottomPadding)
         .background(.clear)
+    }
+
+    // MARK: - Auto-scroll (throttled during streaming)
+
+    private static let autoScrollThrottle: TimeInterval = 0.18
+
+    private func scrollToImmediately(_ id: String, proxy: ScrollViewProxy) {
+        scrollThrottleTask?.cancel()
+        scrollThrottleTask = nil
+        pendingScrollAnchor = nil
+        lastAutoScrollTime = Date()
+        withAnimation(.easeOut(duration: 0.15)) {
+            proxy.scrollTo(id, anchor: .bottom)
+        }
+    }
+
+    private func scheduleAutoScroll(to id: String, proxy: ScrollViewProxy) {
+        pendingScrollAnchor = id
+        let now = Date()
+        if now.timeIntervalSince(lastAutoScrollTime) >= Self.autoScrollThrottle {
+            performPendingScroll(proxy: proxy)
+            return
+        }
+        scrollThrottleTask?.cancel()
+        scrollThrottleTask = Task {
+            try? await Task.sleep(for: .milliseconds(180))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                performPendingScroll(proxy: proxy)
+            }
+        }
+    }
+
+    private func performPendingScroll(proxy: ScrollViewProxy) {
+        guard let id = pendingScrollAnchor else { return }
+        lastAutoScrollTime = Date()
+        pendingScrollAnchor = nil
+        withAnimation(.easeOut(duration: 0.12)) {
+            proxy.scrollTo(id, anchor: .bottom)
+        }
     }
 
     /// "Do both": extract the file's text into the turn (immediate use)
@@ -819,26 +868,45 @@ private struct VoiceErrorToast: View {
 private struct ErrorRow: View {
     @Environment(\.lvPalette) private var palette
     let message: String
+    var recoveryActions: [ChatRecoveryAction] = []
     /// Re-sends the last user turn. Surfaced as a tappable "Retry" pill so
     /// a timed-out / failed reply is recoverable without retyping.
     var onRetry: (() -> Void)?
+    var onAddKey: (() -> Void)?
+    var onSwitchToManaged: (() -> Void)?
     var body: some View {
-        HStack(spacing: 8) {
-            LVIconView(.exclamationmarkTriangleFill, size: 14, tint: .orange)
-            Text(message)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 0)
-            if let onRetry {
-                Button(action: onRetry) {
-                    HStack(spacing: 4) {
-                        LVIconView(.arrowUpCircleFill, size: 13, tint: palette.glowPrimary)
-                        Text("Retry")
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                LVIconView(.exclamationmarkTriangleFill, size: 14, tint: .orange)
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                if let onRetry {
+                    Button(action: onRetry) {
+                        HStack(spacing: 4) {
+                            LVIconView(.arrowUpCircleFill, size: 13, tint: palette.glowPrimary)
+                            Text("Retry")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(palette.glowPrimary)
+                        }
+                    }
+                    .lvGlowPress()
+                }
+            }
+            if !recoveryActions.isEmpty {
+                HStack(spacing: 8) {
+                    if recoveryActions.contains(.addKey), let onAddKey {
+                        Button("Add API key", action: onAddKey)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(palette.glowPrimary)
+                    }
+                    if recoveryActions.contains(.switchToManaged), let onSwitchToManaged {
+                        Button("Use managed brain", action: onSwitchToManaged)
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(palette.glowPrimary)
                     }
                 }
-                .lvGlowPress()
             }
         }
         .padding(.horizontal, 12)

@@ -80,7 +80,7 @@ struct LVCaptureToolbar: View {
         .padding(.vertical, LVSpacing.md)
         .background {
             Rectangle()
-                .fill(.ultraThinMaterial)
+                .fill(.regularMaterial)
                 .overlay(alignment: .top) {
                     Rectangle()
                         .frame(height: 1)

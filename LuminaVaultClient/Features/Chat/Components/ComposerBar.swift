@@ -75,8 +75,8 @@ struct ComposerBar: View {
         }
         .padding(.horizontal, LVSpacing.base)
         .padding(.vertical, LVSpacing.md)
-        .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.card)
-        .lvInnerGlow(cornerRadius: LVRadius.card, intensity: LVGlow.subtle)
+        .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.focused, material: .regularMaterial)
+        .lvInnerGlow(cornerRadius: LVRadius.card, intensity: LVGlow.card)
         .padding(.horizontal, LVSpacing.lg)
         .padding(.vertical, LVSpacing.sm)
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: canSend)

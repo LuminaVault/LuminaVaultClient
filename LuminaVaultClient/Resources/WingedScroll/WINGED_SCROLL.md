@@ -1,5 +1,10 @@
 # WingedScroll Rive Asset Contract
 
+> **SUPERSEDED (2026-07):** `winged_scroll` now ships as an **artboard inside
+> the shared `Resources/lumina_anims.riv`** — see `Resources/README_RIVE.md`
+> for the current contract + export steps. Do not drop a standalone
+> `winged_scroll.riv`. Below is the original design intent, kept for reference.
+
 Drop the Rive file `winged_scroll.riv` into this directory and add it to the
 LuminaVaultClient Xcode target so it is bundled into the app.
 

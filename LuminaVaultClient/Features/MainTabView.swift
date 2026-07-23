@@ -25,6 +25,8 @@ struct MainTabView: View {
     @State private var showQuickSettings = false
     @State private var tabBarHeight: CGFloat = LVTabBarHeightKey.defaultValue
     @Namespace private var tabUnderline
+    @AppStorage("lv.chat.hapticsEnabled") private var hapticsEnabled = true
+    @State private var tabHapticTrigger = 0
 
     private static let tabIds = (
         workspaces: "workspaces",
@@ -146,7 +148,10 @@ struct MainTabView: View {
             // the floating FAB over the tab bar is retired.
         }
         .onPreferenceChange(LVTabBarHeightKey.self) { tabBarHeight = $0 }
-        .onChange(of: selection) { _, newValue in
+        .onChange(of: selection) { oldValue, newValue in
+            if oldValue != newValue, hapticsEnabled {
+                tabHapticTrigger += 1
+            }
             // HER-243 — drive Hermie state from the active tab. ".thinking"
             // for Think tab; calm idle elsewhere. Streaming-aware sub-state
             // wiring lands when ThinkWithLuminaViewModel exposes its phase
@@ -167,6 +172,7 @@ struct MainTabView: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
+        .sensoryFeedback(.selection, trigger: tabHapticTrigger)
     }
 
     /// HER-255 — global header title per active tab.
@@ -303,10 +309,14 @@ struct MainTabView: View {
             historyStore: chatHistoryStore,
             jobsClient: jobsClient,
             remindersClient: remindersClient,
+            llmPreferencesClient: appState.makeLLMPreferencesClient(),
             localExecutor: executor,
             localMemorySync: localMemorySync,
             cloudAvailable: { appState.networkMonitor.isConnected }
         )
+        viewModel.onOpenIntelligenceSettings = {
+            selection = Self.tabIds.settings
+        }
         viewModel.hybridProfile = settings.profile
         viewModel.hybridLocalFallbackEnabled = settings.localFallbackEnabled
         viewModel.hybridCloudFallbackEnabled = settings.cloudFallbackEnabled
