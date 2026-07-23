@@ -11,6 +11,11 @@
 // a Menu attached to the More button. When an overflow item is the
 // active tab, More's icon swaps to that item's icon (Apple HIG — the
 // More tab represents the active overflow selection).
+//
+// Revolut / expo-glass-tabs morph: inactive tabs are icon-only; the active
+// tab grows into a wider light capsule with icon + label. Minimize-on-scroll
+// collapses labels and tightens padding. Optional raised Capture sits above
+// the bar centre and is NOT a TabView selection.
 import SwiftUI
 
 /// One entry in the LuminaVault tab bar.
@@ -47,12 +52,17 @@ struct LVTabItem: Identifiable, Equatable {
 
 struct LVTabBar: View {
     @Environment(\.lvPalette) private var palette
+    @Environment(LVTabBarMinimizeState.self) private var minimize
+
     let primaryItems: [LVTabItem]
     let overflowItems: [LVTabItem]
     /// When true, the More overflow ("...") button renders as the FIRST
     /// (leading) item instead of trailing. Used to make the Menu the first
     /// option on the tab bar.
     let overflowLeading: Bool
+    /// Raised Capture disc over the bar centre. Action-only — never a
+    /// TabView selection tag.
+    let showsCenterCapture: Bool
     @Binding var selection: String
     private let underlineNamespace: Namespace.ID
 
@@ -60,12 +70,14 @@ struct LVTabBar: View {
         primaryItems: [LVTabItem],
         overflowItems: [LVTabItem] = [],
         overflowLeading: Bool = false,
+        showsCenterCapture: Bool = true,
         selection: Binding<String>,
         underlineNamespace: Namespace.ID
     ) {
         self.primaryItems = primaryItems
         self.overflowItems = overflowItems
         self.overflowLeading = overflowLeading
+        self.showsCenterCapture = showsCenterCapture
         self._selection = selection
         self.underlineNamespace = underlineNamespace
     }
@@ -88,30 +100,49 @@ struct LVTabBar: View {
         return LVTabItem(id: "lv.tab.more", label: "More", icon: .ellipsis)
     }
 
+    private var minimizeProgress: CGFloat { minimize.progress }
+
+    /// Vertical / horizontal inset of the capsule — tightens as we minimize.
+    private var capsulePaddingH: CGFloat {
+        LVSpacing.xs + (1 - minimizeProgress) * 2
+    }
+
+    private var capsulePaddingV: CGFloat {
+        LVSpacing.xs * (1 - 0.45 * minimizeProgress)
+    }
+
     var body: some View {
-        Group {
-            if #available(iOS 26.0, *) {
-                // Floating Liquid Glass capsule (iOS 26+ `.glassEffect`). Icon-only,
-                // inset from the screen edges, sitting above the home indicator —
-                // content scrolls beneath and refracts through the glass.
-                GlassEffectContainer(spacing: LVSpacing.sm) {
-                    tabItemsHStack
-                        .glassEffect(.regular.interactive(), in: Capsule())
-                }
-            } else {
-                // Fallback for older iOS: ultra-thin material capsule to approximate
-                // the floating glass look using the project's established material
-                // styling (consistent with lvGlassCard / palette.surface).
-                tabItemsHStack
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .overlay {
-                        Capsule()
-                            .stroke(palette.surfaceStroke.opacity(0.3), lineWidth: 0.5)
+        ZStack(alignment: .top) {
+            Group {
+                if #available(iOS 26.0, *) {
+                    // Floating Liquid Glass capsule (iOS 26+ `.glassEffect`).
+                    GlassEffectContainer(spacing: LVSpacing.sm) {
+                        tabItemsHStack
+                            .glassEffect(.regular.interactive(), in: Capsule())
                     }
+                } else {
+                    // Fallback for older iOS: ultra-thin material capsule.
+                    tabItemsHStack
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .overlay {
+                            Capsule()
+                                .stroke(palette.surfaceStroke.opacity(0.3), lineWidth: 0.5)
+                        }
+                }
+            }
+            .scaleEffect(1 - 0.06 * minimizeProgress, anchor: .bottom)
+            .padding(.top, showsCenterCapture ? 22 : 0)
+
+            if showsCenterCapture {
+                CaptureFAB(style: .floating)
+                    .scaleEffect(0.72 * (1 - 0.12 * minimizeProgress))
+                    .offset(y: -6 + 4 * minimizeProgress)
+                    .accessibilityLabel("New capture")
             }
         }
         .padding(.horizontal, LVSpacing.lg)
         .padding(.bottom, LVSpacing.xs)
+        .animation(LVTabBarMinimizeState.spring, value: minimizeProgress)
         .background {
             GeometryReader { geo in
                 Color.clear.preference(key: LVTabBarHeightKey.self, value: geo.size.height)
@@ -120,10 +151,9 @@ struct LVTabBar: View {
     }
 
     /// Common tab items row (HStack of primary + optional More).
-    /// Extracted so it can be wrapped by either GlassEffectContainer or the
-    /// material fallback without duplication.
+    /// Intrinsic sizing so the active pill can grow wider than siblings.
     private var tabItemsHStack: some View {
-        HStack(spacing: 0) { // zero-gap intentional — items flex equal-width
+        HStack(spacing: LVSpacing.xs) {
             if overflowLeading {
                 moreButton
             }
@@ -131,37 +161,36 @@ struct LVTabBar: View {
                 LVTabBarButton(
                     item: item,
                     isActive: item.id == selection,
+                    minimizeProgress: minimizeProgress,
                     underlineNamespace: underlineNamespace,
                     onTap: { selectWithAnimation(item.id) }
                 )
-                .frame(maxWidth: .infinity)
             }
             if !overflowLeading {
                 moreButton
             }
         }
-        .padding(.horizontal, LVSpacing.xs)
-        .padding(.vertical, LVSpacing.xs)
+        .padding(.horizontal, capsulePaddingH)
+        .padding(.vertical, capsulePaddingV)
     }
 
-    /// The More overflow button. Rendered leading or trailing per
-    /// `overflowLeading`; hidden entirely when there are no overflow items.
     @ViewBuilder
     private var moreButton: some View {
         if !overflowItems.isEmpty {
             LVTabBarMoreButton(
                 item: moreItem,
                 isActive: activeOverflowItem != nil,
+                minimizeProgress: minimizeProgress,
                 overflowItems: overflowItems,
                 selection: $selection,
                 underlineNamespace: underlineNamespace,
             )
-            .frame(maxWidth: .infinity)
         }
     }
 
     private func selectWithAnimation(_ id: String) {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+        minimize.expand()
+        withAnimation(LVTabBarMinimizeState.spring) {
             selection = id
         }
     }
@@ -170,6 +199,7 @@ struct LVTabBar: View {
 private struct LVTabBarButton: View {
     let item: LVTabItem
     let isActive: Bool
+    let minimizeProgress: CGFloat
     let underlineNamespace: Namespace.ID
     let onTap: () -> Void
 
@@ -178,6 +208,7 @@ private struct LVTabBarButton: View {
             LVTabBarItemContent(
                 item: item,
                 isActive: isActive,
+                minimizeProgress: minimizeProgress,
                 underlineNamespace: underlineNamespace,
             )
         }
@@ -190,28 +221,26 @@ private struct LVTabBarButton: View {
 private struct LVTabBarMoreButton: View {
     let item: LVTabItem
     let isActive: Bool
+    let minimizeProgress: CGFloat
     let overflowItems: [LVTabItem]
     @Binding var selection: String
     let underlineNamespace: Namespace.ID
 
-    // HER-bugfix — the overflow trigger was a SwiftUI `Menu`, whose label is
-    // hosted in a separate UIHostingController. The label's
-    // `matchedGeometryEffect` (shared `underlineNamespace` with the primary
-    // tabs) then reparents across that hosting boundary, spamming
-    // `_UIReparentingView ... is not supported` plus
-    // `UIContextMenuInteraction updateVisibleMenuWithBlock` on every tap.
-    // A plain Button keeps the label in the same hosting controller as the
-    // primary tabs (which never warn); a confirmationDialog replaces the
-    // dropdown without any UIMenu/context-menu interaction.
+    @Environment(LVTabBarMinimizeState.self) private var minimize
+
+    // HER-bugfix — plain Button + confirmationDialog (not Menu) so
+    // matchedGeometryEffect stays in one hosting controller.
     @State private var showOverflow = false
 
     var body: some View {
         Button {
+            minimize.expand()
             showOverflow = true
         } label: {
             LVTabBarItemContent(
                 item: item,
                 isActive: isActive,
+                minimizeProgress: minimizeProgress,
                 underlineNamespace: underlineNamespace,
             )
         }
@@ -219,7 +248,7 @@ private struct LVTabBarMoreButton: View {
         .confirmationDialog("More", isPresented: $showOverflow, titleVisibility: .visible) {
             ForEach(overflowItems) { overflowItem in
                 Button(overflowItem.label) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                    withAnimation(LVTabBarMinimizeState.spring) {
                         selection = overflowItem.id
                     }
                 }
@@ -230,46 +259,73 @@ private struct LVTabBarMoreButton: View {
     }
 }
 
-/// Pure visual content for one tab bar item. Wrapped in either a `Button`
-/// (regular primary tab) or a `Menu` (More overflow trigger). Kept
-/// separate so the Menu's label doesn't nest a Button — SwiftUI menus
-/// don't combine cleanly with inner Buttons.
+/// Pure visual content for one tab bar item.
+/// Inactive: icon-only. Active (expanded): horizontal icon + label inside a
+/// wider light capsule. Minimized: all icon-only, tighter padding.
 private struct LVTabBarItemContent: View {
     @Environment(\.lvPalette) private var palette
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let item: LVTabItem
     let isActive: Bool
+    let minimizeProgress: CGFloat
     let underlineNamespace: Namespace.ID
 
-    var body: some View {
-        // Branded glyph + small label. A soft palette-tinted capsule slides
-        // behind the active item via `matchedGeometryEffect` (driven by
-        // `selectWithAnimation`'s spring). Clean — no sparkle/bloom/heavy glow.
-        VStack(spacing: 2) {
-            iconView
-                .frame(width: 26, height: 26)
-                .lvPulse(active: item.pulses && !reduceMotion)
-            Text(item.label)
-                .font(LVTypography.microTag.font.weight(isActive ? .semibold : .regular))
-                .foregroundStyle(isActive ? palette.primary : palette.textSecondary)
-                .lineLimit(1)
+    /// Show the label only when this tab is active and the bar isn't minimized.
+    private var showsLabel: Bool {
+        isActive && minimizeProgress < 0.55
+    }
+
+    private var labelOpacity: Double {
+        showsLabel ? Double(1 - (minimizeProgress / 0.55)) : 0
+    }
+
+    private var activePillFill: Color {
+        colorScheme == .dark
+            ? Color.white.opacity(0.18)
+            : Color.black.opacity(0.08)
+    }
+
+    private var horizontalPadding: CGFloat {
+        if isActive && showsLabel {
+            return LVSpacing.md + LVSpacing.xs // ~16 — wider active capsule
         }
-        .padding(.horizontal, LVSpacing.sm)
-        .padding(.vertical, LVSpacing.xs)
+        return LVSpacing.sm
+    }
+
+    private var verticalPadding: CGFloat {
+        let base: CGFloat = isActive ? LVSpacing.sm : LVSpacing.xs + 2
+        return base * (1 - 0.35 * minimizeProgress)
+    }
+
+    var body: some View {
+        HStack(spacing: LVSpacing.xs) {
+            iconView
+                .frame(width: 24, height: 24)
+                .lvPulse(active: item.pulses && !reduceMotion)
+
+            if showsLabel {
+                Text(item.label)
+                    .font(LVTypography.microTag.font.weight(.semibold))
+                    .foregroundStyle(palette.textPrimary)
+                    .lineLimit(1)
+                    .opacity(labelOpacity)
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            }
+        }
+        .padding(.horizontal, horizontalPadding)
+        .padding(.vertical, verticalPadding)
         .background {
             if isActive {
                 Capsule()
-                    .fill(palette.primary.opacity(0.14))
+                    .fill(activePillFill)
                     .matchedGeometryEffect(id: "activeTab", in: underlineNamespace)
             }
         }
-        .contentShape(Rectangle())
+        .contentShape(Capsule())
+        .layoutPriority(isActive ? 1 : 0)
     }
 
-    // Branded `Lumina/Tab/*` artwork when present (full-colour, fit), with mild
-    // desaturation/dimming on inactive tabs. Falls back to the SF Symbol for
-    // tabs without custom artwork (e.g. the More "ellipsis"). No holographic
-    // bloom — keeps the floating-glass bar calm and modern.
     @ViewBuilder
     private var iconView: some View {
         if let assetName = item.icon.customAssetName, UIImage(named: assetName) != nil {
@@ -278,12 +334,12 @@ private struct LVTabBarItemContent: View {
                 .renderingMode(.original)
                 .aspectRatio(contentMode: .fit)
                 .saturation(isActive ? 1.0 : 0.7)
-                .opacity(isActive ? 1.0 : 0.8)
+                .opacity(isActive ? 1.0 : 0.75)
         } else {
             Image(systemName: item.icon.sfSymbol)
-                .font(.system(size: LVSize.tabBarGlyph, weight: isActive ? .semibold : .regular))
+                .font(.system(size: LVSize.tabBarGlyph - 2, weight: isActive ? .semibold : .regular))
                 .symbolVariant(isActive ? .fill : .none)
-                .foregroundStyle(isActive ? palette.primary : palette.textSecondary)
+                .foregroundStyle(isActive ? palette.textPrimary : palette.textSecondary)
         }
     }
 }
@@ -291,7 +347,7 @@ private struct LVTabBarItemContent: View {
 /// Reports the measured height of the floating tab bar so scroll content can
 /// clear the capsule on any device without hard-coded padding.
 enum LVTabBarHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 60
+    static let defaultValue: CGFloat = 72
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())

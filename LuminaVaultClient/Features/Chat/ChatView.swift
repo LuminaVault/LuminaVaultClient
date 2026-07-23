@@ -74,6 +74,7 @@ struct ChatView: View {
                     // Clearance so content never hides under the composer.
                     .padding(.bottom, LVSpacing.hero)
                 }
+                .lvTabBarMinimizeOnScroll()
                 .onChange(of: viewModel.displayedAssistant) { _, _ in
                     scheduleAutoScroll(to: Self.pendingAnchor, proxy: proxy)
                 }
@@ -342,7 +343,7 @@ struct ChatView: View {
 
     private static let autoScrollThrottle: TimeInterval = 0.18
 
-    private func scrollToImmediately(_ id: String, proxy: ScrollViewProxy) {
+    private func scrollToImmediately(_ id: some Hashable, proxy: ScrollViewProxy) {
         scrollThrottleTask?.cancel()
         scrollThrottleTask = nil
         pendingScrollAnchor = nil
