@@ -160,7 +160,12 @@ struct LLMPreferencesPaneView: View {
                 set: { viewModel.selectRoutingPolicy($0) }
             )) {
                 ForEach(LLMRoutingPolicy.allCases, id: \.self) { policy in
-                    Text(policy.displayName).tag(policy)
+                    // Auto (Smart) is the server default — flag it so users
+                    // who wandered in here know which one to pick.
+                    Text(policy == .autoSmart
+                        ? "\(policy.displayName) — Recommended"
+                        : policy.displayName)
+                        .tag(policy)
                 }
             }
             .pickerStyle(.menu)

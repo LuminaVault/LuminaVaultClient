@@ -65,17 +65,30 @@ struct HomeView: View {
                             compactHero
                         }
 
+                        brainPreviewSection
+
                         powerStrip
 
                         if horizontalSizeClass == .regular {
+                            HStack(alignment: .top, spacing: 16) {
+                                TrendSparklineView(daily: dailyTrend, isLoading: isOverviewLoading)
+                                RetrievalHealthTile(health: vm.retrievalHealth.value, isLoading: isRetrievalLoading)
+                            }
                             HStack(alignment: .top, spacing: 16) {
                                 activeJobsSection
                                 skillsSection
                             }
                         } else {
+                            TrendSparklineView(daily: dailyTrend, isLoading: isOverviewLoading)
+                            RetrievalHealthTile(health: vm.retrievalHealth.value, isLoading: isRetrievalLoading)
                             activeJobsSection
                             skillsSection
                         }
+
+                        ActivityFeedView(
+                            items: vm.activity.value ?? [],
+                            isLoading: isActivityLoading
+                        )
 
                         syncAndLearnButton
 
@@ -179,6 +192,16 @@ struct HomeView: View {
     }
 
     // MARK: - Sections
+
+    /// Command Center — miniature 3D memory-graph preview. Tap opens the
+    /// full Brain tab.
+    private var brainPreviewSection: some View {
+        BrainPreviewCard(
+            nodes: home?.graphPreview ?? [],
+            isLoading: isHomeLoading,
+            onOpen: { onSelectTab("brain") }
+        )
+    }
 
     @ViewBuilder
     private var powerStrip: some View {
@@ -295,5 +318,24 @@ struct HomeView: View {
     private var tokenTotal: Int? {
         guard let usage = vm.usage.value else { return nil }
         return usage.llmTokensIn + usage.llmTokensOut
+    }
+
+    private var dailyTrend: [AnalyticsDailyPointDTO] {
+        vm.overview.value?.daily ?? []
+    }
+
+    private var isOverviewLoading: Bool {
+        if case .loading = vm.overview { return true }
+        return false
+    }
+
+    private var isRetrievalLoading: Bool {
+        if case .loading = vm.retrievalHealth { return true }
+        return false
+    }
+
+    private var isActivityLoading: Bool {
+        if case .loading = vm.activity { return true }
+        return false
     }
 }

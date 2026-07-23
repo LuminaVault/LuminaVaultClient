@@ -414,7 +414,11 @@ struct MainTabView: View {
                 ),
                 displayName: Self.deriveDisplayName(from: appState.currentEmail),
                 homeClient: HomeSummaryHTTPClient(client: appState.makeHTTPClient()),
-                analyticsClient: AnalyticsHTTPClient(client: appState.makeHTTPClient())
+                analyticsClient: AnalyticsHTTPClient(client: appState.makeHTTPClient()),
+                activityClient: ActivityFeedHTTPClient(client: appState.makeHTTPClient()),
+                // Same concrete client — `overview` lives on the
+                // UsageIntelligence protocol face.
+                overviewClient: AnalyticsHTTPClient(client: appState.makeHTTPClient())
             ),
             onAskLumina: {
                 // TODO(HER-107): when chat detail ships, route to it

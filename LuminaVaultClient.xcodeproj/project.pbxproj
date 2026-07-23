@@ -1077,7 +1077,7 @@
 			repositoryURL = "https://github.com/LuminaVault/LuminaVaultShared.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 3.17.0;
+				minimumVersion = 3.19.0;
 			};
 		};
 

@@ -33,6 +33,10 @@ final class ChatViewModel {
         var parallelExecutionID: UUID?
         var imageURLs: [URL]
         var renderedMarkdown: String
+        /// Cerberus transparency — the model that produced this assistant
+        /// turn (from the terminal routing/usage event). `nil` for user
+        /// turns and turns that predate the field.
+        var modelLabel: String?
 
         init(
             id: UUID = UUID(),
@@ -41,7 +45,8 @@ final class ChatViewModel {
             sources: [QueryHitDTO] = [],
             parallelExecutionID: UUID? = nil,
             imageURLs: [URL]? = nil,
-            renderedMarkdown: String? = nil
+            renderedMarkdown: String? = nil,
+            modelLabel: String? = nil
         ) {
             self.id = id
             self.role = role
@@ -50,10 +55,11 @@ final class ChatViewModel {
             self.parallelExecutionID = parallelExecutionID
             self.imageURLs = imageURLs ?? Self.imageURLs(role: role, content: content)
             self.renderedMarkdown = renderedMarkdown ?? Self.renderedMarkdown(role: role, content: content)
+            self.modelLabel = modelLabel
         }
 
         enum CodingKeys: String, CodingKey {
-            case id, role, content, sources, parallelExecutionID, imageURLs, renderedMarkdown
+            case id, role, content, sources, parallelExecutionID, imageURLs, renderedMarkdown, modelLabel
         }
 
         init(from decoder: Decoder) throws {
@@ -67,6 +73,7 @@ final class ChatViewModel {
                 ?? Self.imageURLs(role: role, content: content)
             renderedMarkdown = try container.decodeIfPresent(String.self, forKey: .renderedMarkdown)
                 ?? Self.renderedMarkdown(role: role, content: content)
+            modelLabel = try container.decodeIfPresent(String.self, forKey: .modelLabel)
         }
 
         func encode(to encoder: Encoder) throws {
@@ -78,6 +85,7 @@ final class ChatViewModel {
             try container.encodeIfPresent(parallelExecutionID, forKey: .parallelExecutionID)
             try container.encode(imageURLs, forKey: .imageURLs)
             try container.encode(renderedMarkdown, forKey: .renderedMarkdown)
+            try container.encodeIfPresent(modelLabel, forKey: .modelLabel)
         }
 
         private static func renderedMarkdown(role: ConversationMessageRole, content: String) -> String {
@@ -1115,7 +1123,8 @@ final class ChatViewModel {
             role: .assistant,
             content: pendingAssistant,
             sources: pendingSources,
-            parallelExecutionID: parallelExecution?.id
+            parallelExecutionID: parallelExecution?.id,
+            modelLabel: routeUsage?.model ?? routingEvent?.activeRoutes.first?.model
         )
         messages.append(assistant)
         let spokenBody = pendingAssistant
