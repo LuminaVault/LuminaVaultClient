@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/LuminaVault/LuminaVaultShared.git",
       "state" : {
-        "branch" : "feature/command-center-dashboard",
-        "revision" : "aeb9152fab9ddaf661b6e922b6a6a49915f928c2"
+        "revision" : "064f90ff5128f6719633f1ee635be12f7a22a694",
+        "version" : "3.19.0"
       }
     },
     {

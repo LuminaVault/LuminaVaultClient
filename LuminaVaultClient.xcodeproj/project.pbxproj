@@ -1076,8 +1076,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/LuminaVault/LuminaVaultShared.git";
 			requirement = {
-				branch = "feature/command-center-dashboard";
-				kind = branch;
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.19.0;
 			};
 		};
 
