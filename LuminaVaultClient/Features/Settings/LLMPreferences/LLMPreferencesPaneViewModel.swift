@@ -140,6 +140,35 @@ final class LLMPreferencesPaneViewModel {
         return options.first?.id ?? ""
     }
 
+    /// Auto (Smart) is OpenRouter-only: Managed mode (the system key lives
+    /// server-side) or BYOK with OpenRouter as the active provider. The
+    /// server enforces the same rule (`AUTO_REQUIRES_OPENROUTER`).
+    var isAutoRoutingAvailable: Bool {
+        mode == .managed || (mode == .byok && primaryProvider == .openRouter)
+    }
+
+    /// Drops `autoSmart` when the current mode/provider can no longer route
+    /// Auto, so a save never trips the server's gate.
+    private func enforceAutoRoutingEligibility() {
+        guard routingPolicy == .autoSmart, !isAutoRoutingAvailable else { return }
+        selectRoutingPolicy(.balanced)
+    }
+
+    /// HER-300 — mode switch. Entering BYOK clears any managed placeholder
+    /// model (the server sends a generic brain label under managed) and
+    /// seeds the provider's catalog default instead.
+    func selectMode(_ newMode: LLMBrainMode) {
+        mode = newMode
+        if newMode == .byok {
+            let models = LLMModelCatalog.models(for: primaryProvider)
+            if !models.isEmpty, !models.contains(where: { $0.id == primaryModel }) {
+                primaryModel = models.first?.id ?? ""
+            }
+        }
+        enforceAutoRoutingEligibility()
+        markDirty()
+    }
+
     /// Switch primary provider and seed a sensible default model from the
     /// catalog so the picker is never left on a model the provider can't serve.
     func selectProvider(_ provider: ProviderID) {
@@ -149,6 +178,7 @@ final class LLMPreferencesPaneViewModel {
             primaryModel = first.id
         }
         apiKeyInput = ""
+        enforceAutoRoutingEligibility()
         markDirty()
         let target = provider
         Task { await refreshModels(for: target) }
@@ -413,6 +443,13 @@ final class LLMPreferencesPaneViewModel {
             switch apiError {
             case .unauthorized: return "Session expired — sign in again."
             case .networkFailure: return "Network unavailable."
+            case let .httpError(_, data):
+                if String(decoding: data, as: UTF8.self)
+                    .contains(LLMRoutingErrorCode.autoRequiresOpenRouter)
+                {
+                    return "Auto (Smart) needs an OpenRouter key. Add one or switch to Managed."
+                }
+                return "Couldn't load preferences."
             default: return "Couldn't load preferences."
             }
         }
