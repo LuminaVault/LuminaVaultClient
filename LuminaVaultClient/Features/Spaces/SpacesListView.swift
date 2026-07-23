@@ -170,6 +170,7 @@ struct SpacesListView: View {
             .padding(.top, 40)
             .padding(.bottom, 120)
         }
+        .lvTabBarMinimizeOnScroll()
     }
 
     private var headerSection: some View {

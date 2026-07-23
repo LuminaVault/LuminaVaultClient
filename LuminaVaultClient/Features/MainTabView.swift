@@ -24,6 +24,7 @@ struct MainTabView: View {
     // (was owned by HomeView's per-screen header).
     @State private var showQuickSettings = false
     @State private var tabBarHeight: CGFloat = LVTabBarHeightKey.defaultValue
+    @State private var tabBarMinimize = LVTabBarMinimizeState()
     @Namespace private var tabUnderline
     @AppStorage("lv.chat.hapticsEnabled") private var hapticsEnabled = true
     @State private var tabHapticTrigger = 0
@@ -134,23 +135,25 @@ struct MainTabView: View {
                 }
             }
 
-            // HER-107 — primary 3 (Home / Think / Spaces) + More overflow
-            // (Settings / Memory). HER-243's FAB sits centred over the bar
-            // anchored via the VStack below.
+            // Revolut-style glass pill + raised Capture (action only, not a
+            // TabView tag). Header still keeps the compact CaptureFAB.
             LVTabBar(
                 primaryItems: primaryTabItems,
                 overflowItems: overflowTabItems,
                 overflowLeading: false,
+                showsCenterCapture: true,
                 selection: $selection,
                 underlineNamespace: tabUnderline
             )
-            // HER-255 — capture "+" moved into LuminaHeader (compact style);
-            // the floating FAB over the tab bar is retired.
         }
+        .environment(tabBarMinimize)
         .onPreferenceChange(LVTabBarHeightKey.self) { tabBarHeight = $0 }
         .onChange(of: selection) { oldValue, newValue in
-            if oldValue != newValue, hapticsEnabled {
-                tabHapticTrigger += 1
+            if oldValue != newValue {
+                tabBarMinimize.expand()
+                if hapticsEnabled {
+                    tabHapticTrigger += 1
+                }
             }
             // HER-243 — drive Hermie state from the active tab. ".thinking"
             // for Think tab; calm idle elsewhere. Streaming-aware sub-state

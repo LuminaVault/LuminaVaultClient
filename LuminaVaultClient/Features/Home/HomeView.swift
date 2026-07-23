@@ -84,6 +84,7 @@ struct HomeView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 24)
                 }
+                .lvTabBarMinimizeOnScroll()
                 .refreshable {
                     await vm.refresh()
                 }
