@@ -47,6 +47,14 @@ extension APIError {
     }
 
     var chatRecoveryActions: [ChatRecoveryAction] {
-        structuredError?.cta.compactMap(ChatRecoveryAction.init) ?? []
+        guard let structured = structuredError else { return [] }
+        let actions = structured.cta.compactMap(ChatRecoveryAction.init)
+        if !actions.isEmpty { return actions }
+        // Older servers emit `byok_keys_required` (403) without a `cta`
+        // array — the recovery paths are still exactly these two.
+        if structured.code == "byok_keys_required" {
+            return [.addKey, .switchToManaged]
+        }
+        return []
     }
 }

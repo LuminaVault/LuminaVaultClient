@@ -9,6 +9,9 @@ import LuminaVaultShared
 
 protocol AnalyticsClientProtocol: Sendable {
     func usageSummary() async throws -> UsageSummaryResponse
+    /// Aggregate recall-quality stats (M107/M108) for the Home
+    /// "recall health" tile.
+    func retrievalHealth() async throws -> RetrievalHealthResponse
 }
 
 protocol UsageIntelligenceClientProtocol: Sendable {
@@ -23,6 +26,12 @@ enum AnalyticsEndpoints {
     struct UsageSummary: Endpoint {
         typealias Response = UsageSummaryResponse
         var path: String { "/v1/analytics/usage-summary" }
+        var method: HTTPMethod { .get }
+    }
+
+    struct RetrievalHealth: Endpoint {
+        typealias Response = RetrievalHealthResponse
+        var path: String { "/v1/analytics/retrieval-health" }
         var method: HTTPMethod { .get }
     }
 
@@ -71,6 +80,10 @@ final class AnalyticsHTTPClient: AnalyticsClientProtocol, UsageIntelligenceClien
 
     func usageSummary() async throws -> UsageSummaryResponse {
         try await client.execute(AnalyticsEndpoints.UsageSummary())
+    }
+
+    func retrievalHealth() async throws -> RetrievalHealthResponse {
+        try await client.execute(AnalyticsEndpoints.RetrievalHealth())
     }
 
     func overview(range: AnalyticsRange) async throws -> AnalyticsOverviewResponse {

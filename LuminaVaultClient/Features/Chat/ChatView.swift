@@ -54,7 +54,9 @@ struct ChatView: View {
     @State private var showWorkflowPicker = false
     /// Throttles auto-scroll during token streaming so the list doesn't jitter.
     @State private var lastAutoScrollTime: Date = .distantPast
-    @State private var pendingScrollAnchor: String?
+    // `AnyHashable`: message rows anchor on `Message.id` (UUID) while the
+    // streaming row anchors on the `pendingAnchor` String constant.
+    @State private var pendingScrollAnchor: AnyHashable?
     @State private var scrollThrottleTask: Task<Void, Never>?
 
     var body: some View {
@@ -343,7 +345,7 @@ struct ChatView: View {
 
     private static let autoScrollThrottle: TimeInterval = 0.18
 
-    private func scrollToImmediately(_ id: some Hashable, proxy: ScrollViewProxy) {
+    private func scrollToImmediately(_ id: AnyHashable, proxy: ScrollViewProxy) {
         scrollThrottleTask?.cancel()
         scrollThrottleTask = nil
         pendingScrollAnchor = nil
@@ -353,7 +355,7 @@ struct ChatView: View {
         }
     }
 
-    private func scheduleAutoScroll(to id: String, proxy: ScrollViewProxy) {
+    private func scheduleAutoScroll(to id: AnyHashable, proxy: ScrollViewProxy) {
         pendingScrollAnchor = id
         let now = Date()
         if now.timeIntervalSince(lastAutoScrollTime) >= Self.autoScrollThrottle {
@@ -594,7 +596,17 @@ private struct MessageRow: View {
             } else {
                 AssistantAvatar(state: mascotState)
                     .padding(.top, LVSpacing.xs)
-                bubble
+                VStack(alignment: .leading, spacing: LVSpacing.xs) {
+                    bubble
+                    // Cerberus transparency — which model produced this turn.
+                    if let model = message.modelLabel {
+                        Text(model)
+                            .font(.caption2)
+                            .foregroundStyle(palette.textSecondary.opacity(0.7))
+                            .padding(.leading, LVSpacing.xs)
+                            .accessibilityLabel("Answered by \(model)")
+                    }
+                }
                 Spacer(minLength: LVSpacing.hero)
             }
         }
@@ -896,6 +908,11 @@ private struct ErrorRow: View {
                 }
             }
             if !recoveryActions.isEmpty {
+                if recoveryActions.contains(.addKey) {
+                    Text("OpenRouter is recommended — one key unlocks many models, best for Auto routing.")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
                 HStack(spacing: 8) {
                     if recoveryActions.contains(.addKey), let onAddKey {
                         Button("Add API key", action: onAddKey)

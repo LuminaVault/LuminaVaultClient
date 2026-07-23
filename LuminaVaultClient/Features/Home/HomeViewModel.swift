@@ -31,6 +31,12 @@ final class HomeViewModel {
     // projects, insights) + active profile, and month-to-date usage.
     var home: CardState<HomeSummaryResponse> = .loading
     var usage: CardState<UsageSummaryResponse> = .loading
+    // Command Center — recent-activity stream, 30-day trend series, and
+    // recall-quality stats. Each stays `.loading` forever when its client
+    // wasn't injected, which the view treats as "don't render the card".
+    var activity: CardState<[ActivityFeedItemDTO]> = .loading
+    var overview: CardState<AnalyticsOverviewResponse> = .loading
+    var retrievalHealth: CardState<RetrievalHealthResponse> = .loading
     var isOnline: Bool = true
 
     // Inherited from the existing kb-compile flow (HER-36 / HER-39). The
@@ -51,6 +57,8 @@ final class HomeViewModel {
     // corresponding card simply stays in its initial state.
     private let homeClient: HomeSummaryClientProtocol?
     private let analyticsClient: AnalyticsClientProtocol?
+    private let activityClient: ActivityFeedClientProtocol?
+    private let overviewClient: (any UsageIntelligenceClientProtocol)?
 
     init(
         statsClient: DashboardStatsClientProtocol,
@@ -61,7 +69,9 @@ final class HomeViewModel {
         compileViewModel: SyncAndLearnViewModel,
         displayName: String,
         homeClient: HomeSummaryClientProtocol? = nil,
-        analyticsClient: AnalyticsClientProtocol? = nil
+        analyticsClient: AnalyticsClientProtocol? = nil,
+        activityClient: ActivityFeedClientProtocol? = nil,
+        overviewClient: (any UsageIntelligenceClientProtocol)? = nil
     ) {
         self.statsClient = statsClient
         self.profileClient = profileClient
@@ -72,6 +82,8 @@ final class HomeViewModel {
         self.displayName = displayName
         self.homeClient = homeClient
         self.analyticsClient = analyticsClient
+        self.activityClient = activityClient
+        self.overviewClient = overviewClient
     }
 
     func refresh() async {
@@ -87,7 +99,40 @@ final class HomeViewModel {
         async let healthTask: Void = checkHealth()
         async let homeTask: Void = loadHome()
         async let usageTask: Void = loadUsage()
-        _ = await (statsTask, profileTask, tasksTask, insightsTask, healthTask, homeTask, usageTask)
+        async let activityTask: Void = loadActivity()
+        async let overviewTask: Void = loadOverview()
+        async let retrievalTask: Void = loadRetrievalHealth()
+        _ = await (
+            statsTask, profileTask, tasksTask, insightsTask, healthTask,
+            homeTask, usageTask, activityTask, overviewTask, retrievalTask
+        )
+    }
+
+    private func loadActivity() async {
+        guard let activityClient else { return }
+        do {
+            activity = .loaded(try await activityClient.activity(limit: 8).items)
+        } catch {
+            activity = .failed(message: friendlyMessage(error))
+        }
+    }
+
+    private func loadOverview() async {
+        guard let overviewClient else { return }
+        do {
+            overview = .loaded(try await overviewClient.overview(range: .month))
+        } catch {
+            overview = .failed(message: friendlyMessage(error))
+        }
+    }
+
+    private func loadRetrievalHealth() async {
+        guard let analyticsClient else { return }
+        do {
+            retrievalHealth = .loaded(try await analyticsClient.retrievalHealth())
+        } catch {
+            retrievalHealth = .failed(message: friendlyMessage(error))
+        }
     }
 
     private func loadHome() async {
