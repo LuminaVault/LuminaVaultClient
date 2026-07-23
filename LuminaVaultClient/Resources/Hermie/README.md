@@ -1,5 +1,12 @@
 # Hermie Rive Asset
 
+> **SUPERSEDED (2026-07):** Hermie now ships as the `hermie` **artboard inside
+> the shared `Resources/lumina_anims.riv`** — see `Resources/README_RIVE.md`.
+> Do not drop a standalone `hermie.riv`. The `state`-input multi-state
+> behavior below is NOT wired yet (editor MCP can't author classic inputs);
+> `hermie` ships idle-only. The rest of this file is the original design
+> intent, kept for reference.
+
 Drop `hermie.riv` into this folder once exported from Rive.
 
 ## Required Rive contract

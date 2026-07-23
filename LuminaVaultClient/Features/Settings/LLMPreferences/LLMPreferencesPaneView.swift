@@ -10,8 +10,8 @@
 // muted state when on Managed (so users can preview what their BYOK
 // config would look like without accidentally editing it). On BYOK we
 // add a "Manage API Keys →" entry that pushes the existing
-// `ProvidersPaneView`. Save persists the chosen `mode`; managed mode
-// always pins the canonical OpenRouter/Qwen pair on the wire.
+// `ProvidersPaneView`. Save persists the chosen `mode`; the backend owns
+// and returns the effective managed provider/model.
 
 import LuminaVaultShared
 import SwiftUI
@@ -153,7 +153,6 @@ struct LLMPreferencesPaneView: View {
         }
     }
 
-    @ViewBuilder
     private var routingPolicySection: some View {
         Section {
             Picker("Policy", selection: Binding(
@@ -187,7 +186,6 @@ struct LLMPreferencesPaneView: View {
         }
     }
 
-    @ViewBuilder
     private var byokKeysCalloutSection: some View {
         Section {
             VStack(alignment: .leading, spacing: LVSpacing.sm) {
@@ -326,15 +324,12 @@ struct LLMPreferencesPaneView: View {
     }
 
     private var currentlyPoweringTitle: String {
-        switch viewModel.mode {
-        case .managed:
-            return "Qwen2.5-72B"
-        case .byok:
-            if viewModel.primaryModel.isEmpty {
-                return ProvidersPaneViewModel.displayName(for: viewModel.primaryProvider)
-            }
-            return viewModel.primaryModel
+        if viewModel.primaryModel.isEmpty {
+            return ProvidersPaneViewModel.displayName(for: viewModel.primaryProvider)
         }
+        return viewModel.modelPickerOptions
+            .first(where: { $0.id == viewModel.primaryModel })?
+            .displayName ?? viewModel.primaryModel
     }
 
     private var currentlyPoweringSubtitle: String {
@@ -374,7 +369,7 @@ struct LLMPreferencesPaneView: View {
     private var modePickerFooter: String {
         switch viewModel.mode {
         case .managed:
-            return "LuminaVault funds Qwen2.5-72B for every chat, query, and kb-compile call."
+            return "LuminaVault funds the server-selected model for chat, query, and knowledge compilation."
         case .byok:
             return "Routes traffic through your own provider keys. Manage them below."
         }

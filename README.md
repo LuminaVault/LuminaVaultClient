@@ -1,8 +1,10 @@
 # LuminaVaultClient
 
-Native iOS client for **LuminaVault** — your personal knowledge guardian. Captures everything from your phone, compiles it into a private Markdown vault, and lets Lumina (the AI) remember, organise, and surface it back to you.
+Native iOS client for **LuminaVault Agentic OS** — vault capture, Brain graph, Think/chat, skills, and settings against the same Hummingbird API as the web app. Product positioning: [../docs/AGENTIC_OS.md](../docs/AGENTIC_OS.md).
 
-This app is the front door to [LuminaVaultServer](../LuminaVaultServer): an OpenAPI-first Hummingbird 2 backend (Swift 6) that owns your vault, your Hermes Profile, and your semantic memory. The client never touches third-party clouds — it talks only to your own server, hosted on your own VPS.
+Captures everything from your phone, compiles it into a private Markdown vault, and lets Lumina (the AI) remember, organise, and surface it back to you. SaaS (TestFlight) or BYO Hermes — same app, different packaging ([GTM](../docs/GTM_PACKAGING.md)).
+
+This app is the front door to [LuminaVaultServer](../LuminaVaultServer): an OpenAPI-first Hummingbird 2 backend (Swift 6) that owns your vault, your Hermes Profile, and your semantic memory.
 
 ## Meet Lumina
 

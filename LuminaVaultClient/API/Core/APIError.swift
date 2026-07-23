@@ -28,7 +28,11 @@ enum APIError: Error, LocalizedError {
         case .invalidURL:              return "Invalid server URL."
         case .encodingFailed:          return "Failed to encode request."
         case .networkFailure(let e):   return e.localizedDescription
-        case .httpError(let code, _):  return "Server error (\(code))."
+        case .httpError(let code, let data):
+            if let structured = StructuredAPIError.parse(from: data) {
+                return structured.message
+            }
+            return "Server error (\(code))."
         case .decodingFailed:          return "Unexpected server response."
         case .unauthorized:            return "Session expired. Please sign in again."
         case .paymentRequired(_, let tier):

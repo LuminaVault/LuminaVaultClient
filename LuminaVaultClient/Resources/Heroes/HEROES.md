@@ -1,5 +1,11 @@
 # Hero Rive Assets
 
+> **SUPERSEDED (2026-07):** `splash_hero` and `get_started_hero` now ship as
+> **artboards inside the shared `Resources/lumina_anims.riv`** — see
+> `Resources/README_RIVE.md` for the current contract + export steps. Do not
+> drop standalone `splash_hero.riv` / `get_started_hero.riv`. Below is the
+> original per-file design intent, kept for reference.
+
 Drop `splash_hero.riv` and `get_started_hero.riv` into this folder once
 exported from Rive. The `LuminaVaultClient` group is a file-system
 synchronized root group (Xcode 16+), so the files are bundled automatically

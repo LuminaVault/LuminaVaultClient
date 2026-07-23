@@ -8,8 +8,14 @@ extension View {
     /// - Parameters:
     ///   - cornerRadius: corner radius of the card shape.
     ///   - intensity: 0...1 glow strength. 0.6 is a comfortable default.
-    func lvGlassCard(cornerRadius: CGFloat = 20, intensity: CGFloat = 0.6) -> some View {
-        modifier(LVGlassCardModifier(cornerRadius: cornerRadius, intensity: intensity))
+    ///   - material: SwiftUI material behind the glass fill. Use `.regularMaterial`
+    ///     for composer strips and other high-touch OS chrome.
+    func lvGlassCard(
+        cornerRadius: CGFloat = 20,
+        intensity: CGFloat = 0.6,
+        material: Material = .ultraThinMaterial
+    ) -> some View {
+        modifier(LVGlassCardModifier(cornerRadius: cornerRadius, intensity: intensity, material: material))
     }
 
     /// A glowing pill or capsule outline using palette.glowPrimary.
@@ -40,13 +46,14 @@ private struct LVGlassCardModifier: ViewModifier {
     @Environment(\.lvPalette) private var palette
     let cornerRadius: CGFloat
     let intensity: CGFloat
+    let material: Material
 
     func body(content: Content) -> some View {
         content
             .background {
                 ZStack {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(.ultraThinMaterial)
+                        .fill(material)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .fill(palette.surface)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)

@@ -4,7 +4,7 @@
 // gate. Two paths:
 //
 //   1. `acceptManagedDefault()` — user keeps the LuminaVault-funded
-//      Qwen2.5-72B default. PUTs `mode: .managed` to /v1/me/preferences/llm
+//      server-selected default. PUTs `mode: .managed` to /v1/me/preferences/llm
 //      (so server-side routing short-circuits BYOK credential lookup), then
 //      PATCHes `brainConfiguredCompleted: true` to latch the onboarding
 //      step. Both calls must succeed; on any failure the latch never flips
@@ -30,15 +30,6 @@ import LuminaVaultShared
 @Observable
 @MainActor
 final class ChooseYourBrainViewModel {
-    /// HER-300 — Qwen2.5-72B-Instruct hosted via OpenRouter is the
-    /// LuminaVault-funded default for the `managed` brain mode. The model
-    /// slug is the OpenRouter canonical name. Server-side routing keys off
-    /// `mode: .managed` and ignores BYOK credentials; the
-    /// `primaryProvider` + `primaryModel` values still need to round-trip
-    /// so existing chat surfaces continue to render the right model name.
-    static let managedDefaultProvider: ProviderID = .openRouter
-    static let managedDefaultModel: String = "qwen/qwen-2.5-72b-instruct"
-
     private let preferencesClient: any LLMPreferencesClientProtocol
     private let onboardingClient: any OnboardingClientProtocol
     private let onCompleted: @MainActor () -> Void
@@ -78,10 +69,12 @@ final class ChooseYourBrainViewModel {
         defer { isSubmitting = false }
         do {
             _ = try await preferencesClient.put(
+                // Provider/model are inert compatibility values for the v1
+                // schema. The backend ignores them in managed mode.
                 LLMPreferencesPutRequest(
                     mode: .managed,
-                    primaryProvider: Self.managedDefaultProvider,
-                    primaryModel: Self.managedDefaultModel,
+                    primaryProvider: .custom,
+                    primaryModel: "",
                     fallbackChain: []
                 )
             )

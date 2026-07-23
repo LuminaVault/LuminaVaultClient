@@ -12,6 +12,17 @@ struct SkillsHubView: View {
 
     @State var vm: SkillsHubViewModel
     let detailClient: SkillsClientProtocol
+    let improvementClient: (any SelfImprovementClientProtocol)?
+
+    init(
+        vm: SkillsHubViewModel,
+        detailClient: SkillsClientProtocol,
+        improvementClient: (any SelfImprovementClientProtocol)? = nil
+    ) {
+        _vm = State(initialValue: vm)
+        self.detailClient = detailClient
+        self.improvementClient = improvementClient
+    }
 
     var body: some View {
         ZStack {
@@ -100,7 +111,11 @@ struct SkillsHubView: View {
     }
 
     private func rowLink(_ skill: LuminaVaultShared.SkillDTO) -> some View {
-        let detailVM = SkillDetailViewModel(skill: skill, client: detailClient)
+        let detailVM = SkillDetailViewModel(
+            skill: skill,
+            client: detailClient,
+            improvementClient: improvementClient
+        )
         detailVM.onSkillUpdated = { [weak vm] updated in vm?.replace(updated) }
         return NavigationLink {
             SkillDetailView(vm: detailVM)

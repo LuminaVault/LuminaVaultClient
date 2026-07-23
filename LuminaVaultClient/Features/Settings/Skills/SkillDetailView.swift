@@ -22,6 +22,7 @@ struct SkillDetailView: View {
                     descriptionSection
                     cadenceSection
                     channelSection
+                    curatorProtectionSection
                     usageSection
                     recentRunsSection
                 }
@@ -103,6 +104,22 @@ struct SkillDetailView: View {
         VStack(alignment: .leading, spacing: LVSpacing.sm) {
             sectionLabel("Usage (14 days)")
             UsageSparklineView(points: vm.sparkline)
+        }
+    }
+
+    @ViewBuilder
+    private var curatorProtectionSection: some View {
+        if let resource = vm.curatorResource {
+            VStack(alignment: .leading, spacing: LVSpacing.sm) {
+                sectionLabel("Curator protection")
+                Toggle("Pin this skill", isOn: Binding(
+                    get: { resource.pinned },
+                    set: { pinned in Task { await vm.setPinned(pinned) } }
+                ))
+                Text("Pinned skills are never consolidated, marked stale, or archived.")
+                    .font(LVTypography.caption.font)
+                    .foregroundStyle(palette.textSecondary)
+            }
         }
     }
 

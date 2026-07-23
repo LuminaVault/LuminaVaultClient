@@ -112,6 +112,12 @@ struct SettingsRootView: View {
                                     conversationsClient: appState.makeConversationsClient()
                                 )
                             }
+                            LVSettingsDivider()
+                            LVSettingsRow("Self-Improvement", icon: .sparkles) {
+                                SelfImprovementView(
+                                    viewModel: SelfImprovementViewModel(client: selfImprovementClient)
+                                )
+                            }
                         }
 
                         LVSectionCard("Account & Data") {
@@ -217,7 +223,8 @@ struct SettingsRootView: View {
                             LVSettingsRow("Skills", icon: .sparkles) {
                                 SkillsHubView(
                                     vm: SkillsHubViewModel(client: skillsClient),
-                                    detailClient: skillsClient
+                                    detailClient: skillsClient,
+                                    improvementClient: selfImprovementClient
                                 )
                             }
                             LVSettingsDivider()
@@ -285,6 +292,10 @@ struct SettingsRootView: View {
 
     private var skillsClient: any SkillsClientProtocol {
         SkillsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private var selfImprovementClient: any SelfImprovementClientProtocol {
+        SelfImprovementHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var soulClient: any SoulClientProtocol {

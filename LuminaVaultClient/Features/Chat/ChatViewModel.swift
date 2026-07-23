@@ -131,6 +131,9 @@ final class ChatViewModel {
     // MARK: - Observable state
 
     var phase: Phase = .idle
+    /// Recovery CTAs from structured API errors (e.g. BYOK missing keys).
+    var recoveryActions: [ChatRecoveryAction] = []
+    var onOpenIntelligenceSettings: (() -> Void)?
     var messages: [Message] = []
     /// Live token buffer for the in-flight assistant turn. Empty when no
     /// stream is active. This is the *authoritative* received-so-far text;
@@ -231,6 +234,7 @@ final class ChatViewModel {
     /// HER-55 — optional; when wired, each user turn is classified for
     /// reminder intent and a "Set a reminder?" card may surface.
     private let remindersClient: (any RemindersClientProtocol)?
+    private let llmPreferencesClient: (any LLMPreferencesClientProtocol)?
     /// HER-153 — owns the hold-to-talk recording state and Lumina's
     /// spoken-reply pipeline. Lazily wired through the init chain so
     /// existing call sites and previews don't need to know about it.
@@ -260,6 +264,7 @@ final class ChatViewModel {
         voice: VoiceModeController = VoiceModeController(),
         jobsClient: (any JobsClientProtocol)? = nil,
         remindersClient: (any RemindersClientProtocol)? = nil,
+        llmPreferencesClient: (any LLMPreferencesClientProtocol)? = nil,
         localExecutor: (any LocalChatExecuting)? = nil,
         localMemorySync: LocalMemorySyncService? = nil,
         cloudAvailable: @escaping @MainActor @Sendable () -> Bool = { true }
@@ -270,6 +275,7 @@ final class ChatViewModel {
         self.historyStore = historyStore
         self.jobsClient = jobsClient
         self.remindersClient = remindersClient
+        self.llmPreferencesClient = llmPreferencesClient
         self.localExecutor = localExecutor
         self.localMemorySync = localMemorySync
         self.cloudAvailable = cloudAvailable
@@ -353,6 +359,7 @@ final class ChatViewModel {
 
         lastSentContent = wireContent
         fallbackNotice = nil
+        recoveryActions = []
         routingEvent = nil
         routeUsage = nil
         parallelExecution = nil
@@ -595,7 +602,38 @@ final class ChatViewModel {
         if let urlError = error as? URLError, urlError.code == .timedOut {
             return "Lumina took too long to respond. Tap Retry."
         }
-        return (error as? APIError)?.errorDescription ?? error.localizedDescription
+        if let apiError = error as? APIError {
+            return apiError.userFacingMessage
+        }
+        return error.localizedDescription
+    }
+
+    private func failSend(with error: Error) {
+        recoveryActions = (error as? APIError)?.chatRecoveryActions ?? []
+        phase = .failed(message: friendlyError(error))
+    }
+
+    func openIntelligenceSettings() {
+        onOpenIntelligenceSettings?()
+    }
+
+    func switchToManagedBrain() {
+        recoveryActions = []
+        Task {
+            do {
+                if let llmPreferencesClient {
+                    _ = try await llmPreferencesClient.put(LLMPreferencesPutRequest(
+                        mode: .managed,
+                        primaryProvider: .openRouter,
+                        primaryModel: "",
+                        fallbackChain: []
+                    ))
+                }
+                await MainActor.run { self.phase = .idle }
+            } catch {
+                await MainActor.run { self.failSend(with: error) }
+            }
+        }
     }
 
     /// Programmatic seed — used by empty-state suggestion chips.
@@ -721,7 +759,7 @@ final class ChatViewModel {
             } catch {
                 await cancelPreparedExecutionIfNeeded(prepared)
                 drainTypewriterNow()
-                phase = .failed(message: friendlyError(error))
+                failSend(with: error)
                 setMascot(.idle)
             }
         }
@@ -934,7 +972,7 @@ final class ChatViewModel {
         } catch is CancellationError {
             phase = .idle
         } catch {
-            phase = .failed(message: friendlyError(error))
+            failSend(with: error)
         }
     }
 

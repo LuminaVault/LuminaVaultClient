@@ -20,13 +20,20 @@ final class SkillDetailViewModel {
     var runsState: LoadState = .loading
     var runs: [SkillRunDTO] = []
     var sparkline: [SkillSparklinePoint] = []
+    var curatorResource: LVImprovementResource?
 
     private let client: SkillsClientProtocol
+    private let improvementClient: (any SelfImprovementClientProtocol)?
     var onSkillUpdated: ((LuminaVaultShared.SkillDTO) -> Void)?
 
-    init(skill: LuminaVaultShared.SkillDTO, client: SkillsClientProtocol) {
+    init(
+        skill: LuminaVaultShared.SkillDTO,
+        client: SkillsClientProtocol,
+        improvementClient: (any SelfImprovementClientProtocol)? = nil
+    ) {
         self.skill = skill
         self.client = client
+        self.improvementClient = improvementClient
     }
 
     func loadRuns() async {
@@ -35,6 +42,11 @@ final class SkillDetailViewModel {
             let response = try await client.runs(name: skill.name, limit: 50)
             runs = response.runs
             sparkline = response.sparkline
+            if let improvementClient {
+                curatorResource = try await improvementClient.resources().first {
+                    $0.kind == .skill && $0.name == skill.name
+                }
+            }
             runsState = .loaded
         } catch {
             runsState = .failed(Self.message(for: error))
@@ -52,6 +64,12 @@ final class SkillDetailViewModel {
 
     func setChannel(_ category: APNSCategory) async {
         await patch(body: SkillPatchRequest(apnsCategory: category))
+    }
+
+    func setPinned(_ pinned: Bool) async {
+        guard let resource = curatorResource, let improvementClient else { return }
+        do { curatorResource = try await improvementClient.pin(resource, pinned: pinned) }
+        catch { runsState = .failed(Self.message(for: error)) }
     }
 
     private func patch(body: SkillPatchRequest) async {

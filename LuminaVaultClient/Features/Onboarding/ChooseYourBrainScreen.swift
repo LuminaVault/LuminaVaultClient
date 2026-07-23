@@ -3,8 +3,8 @@
 // HER-300 ticket 4 — onboarding gate that lets the user pick their LLM
 // brain BEFORE landing on the main shell. Two paths:
 //
-//   • Primary CTA: "Use LuminaVault Default" — keeps the managed
-//     Qwen2.5-72B routing, latches the onboarding step, advances.
+//   • Primary CTA: "Use LuminaVault Default" — keeps the backend-managed
+//     funded routing, latches the onboarding step, advances.
 //   • Secondary CTA: "Use my own API key" — latches the onboarding step
 //     and pushes the existing ProvidersPaneView so the user can wire up
 //     their first key. (Ticket 5 revamps the Settings → Intelligence
@@ -19,7 +19,6 @@ import LuminaVaultShared
 import SwiftUI
 
 struct ChooseYourBrainScreen: View {
-
     @Environment(\.lvPalette) private var palette
     @State private var viewModel: ChooseYourBrainViewModel
     @State private var showError: Bool = false
@@ -112,7 +111,7 @@ struct ChooseYourBrainScreen: View {
                 Text("Use LuminaVault Default")
                     .lvFont(.subtitle)
                     .foregroundStyle(palette.textPrimary)
-                Text("Qwen 2.5-72B — free, no API key needed")
+                Text("Managed by LuminaVault — no API key needed")
                     .lvFont(.footnote)
                     .foregroundStyle(palette.textSecondary)
             }

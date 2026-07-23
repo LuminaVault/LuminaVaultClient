@@ -2,35 +2,36 @@
 //
 // HER-300 ticket 5 — verifies the Settings → Intelligence view model
 // correctly loads / dirties / saves the LLM brain `mode`, and that the
-// managed-mode Save path always PUTs the canonical OpenRouter/Qwen
-// pair regardless of whatever the BYOK editor is still holding in
-// memory.
+// managed-mode Save path leaves provider/model policy to the backend.
 
-import XCTest
-import LuminaVaultShared
 @testable import LuminaVaultClient
+import LuminaVaultShared
+import XCTest
 
 @MainActor
 final class LLMPreferencesPaneViewModelTests: XCTestCase {
-
     // MARK: Test doubles
 
     private final class MockLLMPreferencesClient: LLMPreferencesClientProtocol {
-        var stubbedGet: LLMPreferencesGetResponse = LLMPreferencesGetResponse(
+        var stubbedGet: LLMPreferencesGetResponse = .init(
             mode: .managed,
             primaryProvider: .openRouter,
-            primaryModel: "qwen/qwen-2.5-72b-instruct",
+            primaryModel: "deepseek/deepseek-v4-flash",
             fallbackChain: []
         )
         var stubbedPutResponse: LLMPreferencesGetResponse?
         var putError: Error?
         private(set) var putCalls: [LLMPreferencesPutRequest] = []
 
-        func get() async throws -> LLMPreferencesGetResponse { stubbedGet }
+        func get() async throws -> LLMPreferencesGetResponse {
+            stubbedGet
+        }
 
         func put(_ body: LLMPreferencesPutRequest) async throws -> LLMPreferencesGetResponse {
             putCalls.append(body)
-            if let putError { throw putError }
+            if let putError {
+                throw putError
+            }
             return stubbedPutResponse ?? stubbedGet
         }
     }
@@ -40,13 +41,13 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
             ProviderCredentialsListResponse(providers: [])
         }
 
-        func upsert(_ provider: ProviderID, _ body: ProviderCredentialPutRequest) async throws -> ProviderCredentialDTO {
+        func upsert(_: ProviderID, _: ProviderCredentialPutRequest) async throws -> ProviderCredentialDTO {
             throw URLError(.unsupportedURL)
         }
 
-        func delete(_ provider: ProviderID) async throws {}
+        func delete(_: ProviderID) async throws {}
 
-        func test(_ provider: ProviderID) async throws -> ProviderTestResponse {
+        func test(_: ProviderID) async throws -> ProviderTestResponse {
             throw URLError(.unsupportedURL)
         }
 
@@ -58,11 +59,11 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
             ProviderPoolListResponse(provider: provider, keys: [])
         }
 
-        func addPool(_ provider: ProviderID, _ body: ProviderPoolAddRequest) async throws -> ProviderPoolKeyDTO {
+        func addPool(_: ProviderID, _: ProviderPoolAddRequest) async throws -> ProviderPoolKeyDTO {
             throw URLError(.unsupportedURL)
         }
 
-        func deletePool(_ provider: ProviderID, keyID: UUID) async throws {}
+        func deletePool(_: ProviderID, keyID _: UUID) async throws {}
     }
 
     // MARK: Fixtures
@@ -84,7 +85,7 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
         client.stubbedGet = LLMPreferencesGetResponse(
             mode: .managed,
             primaryProvider: .openRouter,
-            primaryModel: "qwen/qwen-2.5-72b-instruct",
+            primaryModel: "deepseek/deepseek-v4-flash",
             fallbackChain: []
         )
         let sut = makeSUT()
@@ -93,7 +94,7 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
         XCTAssertEqual(sut.state, .loaded)
         XCTAssertEqual(sut.mode, .managed)
         XCTAssertEqual(sut.primaryProvider, .openRouter)
-        XCTAssertEqual(sut.primaryModel, "qwen/qwen-2.5-72b-instruct")
+        XCTAssertEqual(sut.primaryModel, "deepseek/deepseek-v4-flash")
         XCTAssertTrue(sut.fallbackChain.isEmpty)
         XCTAssertFalse(sut.hasUnsavedChanges)
     }
@@ -121,7 +122,7 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
         client.stubbedGet = LLMPreferencesGetResponse(
             mode: .managed,
             primaryProvider: .openRouter,
-            primaryModel: "qwen/qwen-2.5-72b-instruct",
+            primaryModel: "deepseek/deepseek-v4-flash",
             fallbackChain: []
         )
         let sut = makeSUT()
@@ -166,9 +167,9 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
         XCTAssertTrue(sut.canSave)
     }
 
-    // MARK: Save — canonical managed payload
+    // MARK: Save — backend-owned managed payload
 
-    func testSaveWithManagedModePinsCanonicalDefaults() async {
+    func testSaveWithManagedModeOmitsBackendOwnedRoute() async throws {
         // Start in BYOK with a custom config so we can confirm the
         // managed save path overrides the in-memory BYOK editor state.
         client.stubbedGet = LLMPreferencesGetResponse(
@@ -186,29 +187,21 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
         await sut.save()
 
         XCTAssertEqual(client.putCalls.count, 1)
-        let put = client.putCalls.first!
+        let put = try XCTUnwrap(client.putCalls.first)
         XCTAssertEqual(put.mode, .managed)
-        XCTAssertEqual(
-            put.primaryProvider,
-            LLMPreferencesPaneViewModel.managedDefaultProvider,
-            "Managed save must pin the canonical OpenRouter provider."
-        )
-        XCTAssertEqual(
-            put.primaryModel,
-            LLMPreferencesPaneViewModel.managedDefaultModel,
-            "Managed save must pin the canonical Qwen2.5-72B model."
-        )
+        XCTAssertEqual(put.primaryProvider, .custom, "Managed save must not carry provider policy.")
+        XCTAssertEqual(put.primaryModel, "", "Managed save must not carry model policy.")
         XCTAssertTrue(
             put.fallbackChain.isEmpty,
             "Managed save must clear the fallback chain — the managed router doesn't consult it."
         )
     }
 
-    func testSaveWithBYOKModePutsUserEditedFields() async {
+    func testSaveWithBYOKModePutsUserEditedFields() async throws {
         client.stubbedGet = LLMPreferencesGetResponse(
             mode: .managed,
             primaryProvider: .openRouter,
-            primaryModel: "qwen/qwen-2.5-72b-instruct",
+            primaryModel: "deepseek/deepseek-v4-flash",
             fallbackChain: []
         )
         let sut = makeSUT()
@@ -222,7 +215,7 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
         await sut.save()
 
         XCTAssertEqual(client.putCalls.count, 1)
-        let put = client.putCalls.first!
+        let put = try XCTUnwrap(client.putCalls.first)
         XCTAssertEqual(put.mode, .byok)
         XCTAssertEqual(put.primaryProvider, .anthropic)
         XCTAssertEqual(put.primaryModel, "claude-3-5-sonnet-latest")
