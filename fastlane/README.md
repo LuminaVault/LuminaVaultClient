@@ -1,56 +1,64 @@
-# Fastlane (LuminaVault iOS)
+fastlane documentation
+----
 
-Dual-track shipping. Full operator guide: [`docs/TESTFLIGHT.md`](../docs/TESTFLIGHT.md).
+# Installation
 
-## Install
-
-```sh
-bundle install
-```
-
-## Lanes
-
-### `beta` — TestFlight (ready now)
-
-Builds **Beta** (`com.lumina.fernando.beta` + share extension) and uploads to TestFlight.
+Make sure you have the latest version of the Xcode command line tools installed:
 
 ```sh
-BUILD_NUMBER=$(date +%s) bundle exec fastlane beta
+xcode-select --install
 ```
 
-### `release` — App Store draft (after production ASC app exists)
+For _fastlane_ installation instructions, see [Installing _fastlane_](https://docs.fastlane.tools/#installing-fastlane)
 
-Builds **Release** (`com.lumina.fernando` + share extension) and uploads a **draft** to App Store Connect (does not submit for review).
+# Available Actions
+
+## iOS
+
+### ios sync_signing
 
 ```sh
-SEED_PRODUCTION=1 bundle exec fastlane sync_signing   # once
-BUILD_NUMBER=$(date +%s) bundle exec fastlane release
+[bundle exec] fastlane ios sync_signing
 ```
 
-### `sync_signing` — match certs
+Seed or refresh match certs/profiles. Beta always; production only with SEED_PRODUCTION=1
+
+### ios beta
 
 ```sh
-bundle exec fastlane sync_signing                    # beta only
-SEED_PRODUCTION=1 bundle exec fastlane sync_signing  # + production
+[bundle exec] fastlane ios beta
 ```
 
-### Build-only (no upload)
+Build Beta (com.lumina.fernando.beta) and upload to TestFlight
+
+### ios release
 
 ```sh
-bundle exec fastlane build_beta
-bundle exec fastlane build_release
+[bundle exec] fastlane ios release
 ```
 
-## CI
+Build Production (com.lumina.fernando) and upload a draft App Store release
 
-| Workflow | Trigger | Lane |
-| --- | --- | --- |
-| `testflight.yml` | `development` push + `workflow_dispatch` | `beta` |
-| `release.yml` | `workflow_dispatch` with confirm `ship-production` | `release` |
+### ios build_release
 
-## Identities
+```sh
+[bundle exec] fastlane ios build_release
+```
 
-| Track | Host bundle ID | Xcode config | Scheme |
-| --- | --- | --- | --- |
-| TestFlight | `com.lumina.fernando.beta` | Beta | `LuminaVaultClient-Beta` |
-| App Store | `com.lumina.fernando` | Release | `LuminaVaultClient` |
+Build production IPA only (no upload) — useful before the ASC app exists
+
+### ios build_beta
+
+```sh
+[bundle exec] fastlane ios build_beta
+```
+
+Build beta IPA only (no upload)
+
+----
+
+This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
+
+More information about _fastlane_ can be found on [fastlane.tools](https://fastlane.tools).
+
+The documentation of _fastlane_ can be found on [docs.fastlane.tools](https://docs.fastlane.tools).
