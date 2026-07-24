@@ -153,13 +153,22 @@ struct LLMPreferencesPaneView: View {
         }
     }
 
+    /// Auto (Smart) is OpenRouter-only: Managed mode (system key) or BYOK
+    /// with the user's own OpenRouter key. Other BYOK providers never see
+    /// the Auto option — the server rejects it anyway.
+    private var selectablePolicies: [LLMRoutingPolicy] {
+        LLMRoutingPolicy.allCases.filter {
+            $0 != .autoSmart || viewModel.isAutoRoutingAvailable
+        }
+    }
+
     private var routingPolicySection: some View {
         Section {
             Picker("Policy", selection: Binding(
                 get: { viewModel.routingPolicy },
                 set: { viewModel.selectRoutingPolicy($0) }
             )) {
-                ForEach(LLMRoutingPolicy.allCases, id: \.self) { policy in
+                ForEach(selectablePolicies, id: \.self) { policy in
                     // Auto (Smart) is the server default — flag it so users
                     // who wandered in here know which one to pick.
                     Text(policy == .autoSmart
@@ -177,9 +186,12 @@ struct LLMPreferencesPaneView: View {
     }
 
     private var routingPolicyFooter: String {
+        guard viewModel.isAutoRoutingAvailable || viewModel.routingPolicy != .autoSmart else {
+            return "Auto (Smart) needs OpenRouter — switch to Managed or make OpenRouter your primary provider."
+        }
         switch viewModel.routingPolicy {
         case .autoSmart:
-            return "Picks the smallest model that can handle each turn using your keys (or managed models). Complex work escalates automatically."
+            return "Routes every turn across the OpenRouter catalog — cheap models for light chat, frontier models for hard work. On Managed, the active model stays private."
         case .fastCheap:
             return "Bias toward speed and cost. Best for light chat when quality risk is acceptable."
         case .balanced:
@@ -196,7 +208,7 @@ struct LLMPreferencesPaneView: View {
             VStack(alignment: .leading, spacing: LVSpacing.sm) {
                 Text("Bring your own keys")
                     .font(.headline)
-                Text("Auto (Smart) only routes across models you have keys for. OpenRouter is recommended — one key unlocks cheap and frontier models.")
+                Text("Auto (Smart) requires an OpenRouter key — one key unlocks the whole catalog, cheap through frontier. Other providers always use the exact model you pin.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Text("Without a key, chat is blocked until you add one or switch to Managed.")
@@ -329,6 +341,11 @@ struct LLMPreferencesPaneView: View {
     }
 
     private var currentlyPoweringTitle: String {
+        // Managed: the concrete model is server-owned and private — always
+        // the generic brain label, never a model name.
+        if viewModel.mode == .managed {
+            return "LuminaVault Brain · Auto"
+        }
         if viewModel.primaryModel.isEmpty {
             return ProvidersPaneViewModel.displayName(for: viewModel.primaryProvider)
         }
@@ -354,10 +371,7 @@ struct LLMPreferencesPaneView: View {
         Section {
             Picker("Brain", selection: Binding(
                 get: { viewModel.mode },
-                set: { newValue in
-                    viewModel.mode = newValue
-                    viewModel.markDirty()
-                }
+                set: { viewModel.selectMode($0) }
             )) {
                 Text("Managed").tag(LLMBrainMode.managed)
                 Text("My API Keys").tag(LLMBrainMode.byok)

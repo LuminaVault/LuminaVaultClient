@@ -502,6 +502,11 @@ private struct CerberusUsageIndicator: View {
     var onEscalate: (() -> Void)?
 
     private var routeLabel: String {
+        // Managed tenants get a scrubbed event: no routes, generic label.
+        // Never reconstruct provider/model identity client-side.
+        if let displayLabel = routing.displayLabel, routing.activeRoutes.isEmpty {
+            return displayLabel
+        }
         if routing.strategy == .ensemble {
             return "\(routing.activeRoutes.count) models"
         }
