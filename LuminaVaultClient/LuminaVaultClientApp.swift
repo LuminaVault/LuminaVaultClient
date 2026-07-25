@@ -39,8 +39,8 @@ enum PostHogEnv: String {
     }
 
     private static let defaults: [String: String] = [
-        "POSTHOG_PROJECT_TOKEN": "phc_uJu7ZqyfuPpDAsWpyzNiPH2pow8kdUfNVQVM2PEUCFGU",
-        "POSTHOG_HOST": "https://us.i.posthog.com",
+        "POSTHOG_PROJECT_TOKEN": "phc_qHfAXXGQairNucPjrppE2i9i3bf2Hqvyi3UcG9z7jCNN",
+        "POSTHOG_HOST": "https://eu.i.posthog.com",
     ]
 }
 
