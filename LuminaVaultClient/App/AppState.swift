@@ -483,6 +483,47 @@ final class AppState {
         }
     }
 
+    /// HER-300 — optimistic in-memory latch after Choose-Your-Brain so the
+    /// shell can advance even when the PATCH / subsequent GET is flaky.
+    /// Pair with the AppStorage local flag in `LuminaVaultClientApp`.
+    func markBrainConfiguredCompletedLocally() {
+        guard let current = onboardingState else {
+            onboardingState = OnboardingStateDTO(
+                signupCompleted: true,
+                signupCompletedAt: nil,
+                emailVerifiedCompleted: true,
+                emailVerifiedCompletedAt: nil,
+                soulConfiguredCompleted: true,
+                soulConfiguredCompletedAt: nil,
+                firstCaptureCompleted: false,
+                firstCaptureCompletedAt: nil,
+                firstKBCompileCompleted: false,
+                firstKBCompileCompletedAt: nil,
+                firstQueryCompleted: false,
+                firstQueryCompletedAt: nil,
+                brainConfiguredCompleted: true,
+                brainConfiguredCompletedAt: Date()
+            )
+            return
+        }
+        onboardingState = OnboardingStateDTO(
+            signupCompleted: current.signupCompleted,
+            signupCompletedAt: current.signupCompletedAt,
+            emailVerifiedCompleted: current.emailVerifiedCompleted,
+            emailVerifiedCompletedAt: current.emailVerifiedCompletedAt,
+            soulConfiguredCompleted: current.soulConfiguredCompleted,
+            soulConfiguredCompletedAt: current.soulConfiguredCompletedAt,
+            firstCaptureCompleted: current.firstCaptureCompleted,
+            firstCaptureCompletedAt: current.firstCaptureCompletedAt,
+            firstKBCompileCompleted: current.firstKBCompileCompleted,
+            firstKBCompileCompletedAt: current.firstKBCompileCompletedAt,
+            firstQueryCompleted: current.firstQueryCompleted,
+            firstQueryCompletedAt: current.firstQueryCompletedAt,
+            brainConfiguredCompleted: true,
+            brainConfiguredCompletedAt: current.brainConfiguredCompletedAt ?? Date()
+        )
+    }
+
     /// HER-238 — fetch `/v1/auth/me` on app resume to keep `currentUserId`
     /// and `currentEmail` in sync with the server. Debounced via
     /// `meRefreshInterval` so rapid foreground transitions don't hammer

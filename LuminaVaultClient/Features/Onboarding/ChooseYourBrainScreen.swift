@@ -10,10 +10,9 @@
 //     their first key. (Ticket 5 revamps the Settings → Intelligence
 //     surface; for now we reuse the live providers pane.)
 //
-// No skip button — the choice is one tap and skipping would leave the
-// brain mode undefined. The view stays in the onboarding ladder until
-// the server-side `brainConfiguredCompleted` latch flips, so a network
-// failure re-presents the same screen on next launch.
+// No skip button — the choice is one tap. Select Default always advances
+// into the app (managed OpenRouter already wired); network latch is
+// best-effort and backed by a local AppStorage flag.
 
 import LuminaVaultShared
 import SwiftUI
@@ -90,6 +89,11 @@ struct ChooseYourBrainScreen: View {
             .navigationDestination(isPresented: $viewModel.shouldNavigateToProviders) {
                 ProvidersPaneView(client: makeProvidersClient())
             }
+            .onChange(of: viewModel.shouldNavigateToProviders) { wasPresented, isPresented in
+                if wasPresented, !isPresented {
+                    viewModel.finishBYOKNavigation()
+                }
+            }
             .alert(
                 "Something went wrong",
                 isPresented: $showError,
@@ -117,7 +121,7 @@ struct ChooseYourBrainScreen: View {
             }
 
             Button {
-                Task { await viewModel.acceptManagedDefault() }
+                viewModel.acceptManagedDefault()
             } label: {
                 Text("Select Default")
                     .lvFont(.bodyEmphasis)
@@ -157,7 +161,7 @@ struct ChooseYourBrainScreen: View {
             }
 
             Button {
-                Task { await viewModel.selectBYOK() }
+                viewModel.selectBYOK()
             } label: {
                 Text("Enter API Key")
                     .lvFont(.bodyEmphasis)

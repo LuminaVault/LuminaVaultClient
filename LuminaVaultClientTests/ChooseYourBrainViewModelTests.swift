@@ -2,7 +2,7 @@
 //
 // HER-300 ticket 4 — verifies the Choose-Your-Brain view model PUTs the
 // managed-default LLM preference, latches the onboarding step on either
-// path, and surfaces network failures via `errorMessage`.
+// path, and advances even when network calls soft-fail.
 
 @testable import LuminaVaultClient
 import LuminaVaultShared
@@ -94,11 +94,20 @@ final class ChooseYourBrainViewModelTests: XCTestCase {
         )
     }
 
+    private func waitForBYOKPatch(_ sut: ChooseYourBrainViewModel) async {
+        for _ in 0 ..< 200 {
+            if sut.shouldNavigateToProviders || sut.errorMessage != nil {
+                return
+            }
+            await Task.yield()
+        }
+    }
+
     // MARK: Managed-default path
 
     func testAcceptManagedDefaultPutsCorrectPayloadAndPatchesFlag() async throws {
         let sut = makeSUT()
-        await sut.acceptManagedDefault()
+        await sut.performAcceptManagedDefault()
 
         XCTAssertEqual(preferencesClient.putCalls.count, 1)
         let put = try XCTUnwrap(preferencesClient.putCalls.first)
@@ -116,65 +125,115 @@ final class ChooseYourBrainViewModelTests: XCTestCase {
         XCTAssertFalse(sut.shouldNavigateToProviders)
     }
 
-    func testAcceptManagedDefaultPutFailureSetsErrorAndDoesNotPatch() async {
+    func testAcceptManagedDefaultPutFailureStillCompletesAndStillPatches() async {
         preferencesClient.putError = DummyError()
         let sut = makeSUT()
-        await sut.acceptManagedDefault()
-
-        XCTAssertEqual(preferencesClient.putCalls.count, 1)
-        XCTAssertTrue(onboardingClient.patchCalls.isEmpty)
-        XCTAssertEqual(completedCount, 0)
-        XCTAssertNotNil(sut.errorMessage)
-        XCTAssertTrue(sut.errorMessage?.contains("network down") == true)
-        XCTAssertFalse(sut.isSubmitting)
-    }
-
-    func testAcceptManagedDefaultPatchFailureSetsError() async {
-        onboardingClient.patchError = DummyError()
-        let sut = makeSUT()
-        await sut.acceptManagedDefault()
+        await sut.performAcceptManagedDefault()
 
         XCTAssertEqual(preferencesClient.putCalls.count, 1)
         XCTAssertEqual(onboardingClient.patchCalls.count, 1)
-        XCTAssertEqual(completedCount, 0)
-        XCTAssertNotNil(sut.errorMessage)
+        XCTAssertEqual(completedCount, 1)
+        XCTAssertNil(sut.errorMessage)
+        XCTAssertFalse(sut.isSubmitting)
+    }
+
+    func testAcceptManagedDefaultPatchFailureStillCompletes() async {
+        onboardingClient.patchError = DummyError()
+        let sut = makeSUT()
+        await sut.performAcceptManagedDefault()
+
+        XCTAssertEqual(preferencesClient.putCalls.count, 1)
+        XCTAssertEqual(onboardingClient.patchCalls.count, 1)
+        XCTAssertEqual(completedCount, 1)
+        XCTAssertNil(sut.errorMessage)
+    }
+
+    func testAcceptManagedDefaultCancellationStillCompletes() async {
+        onboardingClient.patchError = CancellationError()
+        let sut = makeSUT()
+        await sut.performAcceptManagedDefault()
+
+        XCTAssertNil(sut.errorMessage)
+        XCTAssertEqual(completedCount, 1)
+    }
+
+    func testAcceptManagedDefaultURLErrorCancelledStillCompletes() async {
+        onboardingClient.patchError = URLError(.cancelled)
+        let sut = makeSUT()
+        await sut.performAcceptManagedDefault()
+
+        XCTAssertNil(sut.errorMessage)
+        XCTAssertEqual(completedCount, 1)
     }
 
     // MARK: BYOK path
 
-    func testSelectBYOKPatchesFlagAndFlipsNavigation() async {
+    func testSelectBYOKPatchesFlagAndFlipsNavigationWithoutCompleting() async {
         let sut = makeSUT()
-        await sut.selectBYOK()
+        await sut.performSelectBYOK()
 
         XCTAssertTrue(preferencesClient.putCalls.isEmpty,
                       "BYOK path must not PUT — preferences are written when the user saves their first key.")
         XCTAssertEqual(onboardingClient.patchCalls.count, 1)
         XCTAssertEqual(onboardingClient.patchCalls.first?.brainConfiguredCompleted, true)
         XCTAssertTrue(sut.shouldNavigateToProviders)
-        XCTAssertEqual(completedCount, 1)
+        XCTAssertEqual(completedCount, 0)
         XCTAssertNil(sut.errorMessage)
     }
 
-    func testSelectBYOKPatchFailureSurfacesError() async {
+    func testFinishBYOKNavigationInvokesOnCompleted() {
+        let sut = makeSUT()
+        sut.finishBYOKNavigation()
+        XCTAssertEqual(completedCount, 1)
+    }
+
+    func testSelectBYOKPatchFailureStillNavigates() async {
         onboardingClient.patchError = DummyError()
         let sut = makeSUT()
-        await sut.selectBYOK()
+        await sut.performSelectBYOK()
 
         XCTAssertEqual(onboardingClient.patchCalls.count, 1)
-        XCTAssertFalse(sut.shouldNavigateToProviders)
+        XCTAssertTrue(sut.shouldNavigateToProviders)
         XCTAssertEqual(completedCount, 0)
-        XCTAssertNotNil(sut.errorMessage)
+        XCTAssertNil(sut.errorMessage)
+    }
+
+    func testSelectBYOKCancellationStillNavigates() async {
+        onboardingClient.patchError = CancellationError()
+        let sut = makeSUT()
+        await sut.performSelectBYOK()
+
+        XCTAssertNil(sut.errorMessage)
+        XCTAssertTrue(sut.shouldNavigateToProviders)
+        XCTAssertEqual(completedCount, 0)
+    }
+
+    func testSelectBYOKNetworkFailureCancelledStillNavigates() async {
+        onboardingClient.patchError = APIError.networkFailure(URLError(.cancelled))
+        let sut = makeSUT()
+        await sut.performSelectBYOK()
+
+        XCTAssertNil(sut.errorMessage)
+        XCTAssertTrue(sut.shouldNavigateToProviders)
+        XCTAssertEqual(completedCount, 0)
     }
 
     // MARK: Concurrent-tap safety
 
     func testInFlightSubmitBlocksReentrantCalls() async {
-        // Both paths short-circuit if `isSubmitting` is already true. We
-        // can't easily race the awaits in XCTest, so instead we verify
-        // the guard by manually setting submission state.
         let sut = makeSUT()
-        await sut.acceptManagedDefault()
+        await sut.performAcceptManagedDefault()
         XCTAssertFalse(sut.isSubmitting)
         XCTAssertEqual(preferencesClient.putCalls.count, 1)
+    }
+
+    func testPublicEntryPointsRunWorkToCompletion() async {
+        let sut = makeSUT()
+        sut.selectBYOK()
+        await waitForBYOKPatch(sut)
+
+        XCTAssertEqual(onboardingClient.patchCalls.count, 1)
+        XCTAssertTrue(sut.shouldNavigateToProviders)
+        XCTAssertEqual(completedCount, 0)
     }
 }
