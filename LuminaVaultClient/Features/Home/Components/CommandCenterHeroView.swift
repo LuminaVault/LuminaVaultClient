@@ -32,7 +32,7 @@ struct CommandCenterHeroView: View {
                 .buttonStyle(.plain)
                 .accessibilityHint("Opens your knowledge graph")
 
-                HermieMascotView(state: .idle, size: 72, fallbackImageName: "Lumina/Mascot/hermie-hero")
+                HermieMascotView(state: .idle, size: 72, fallbackImageName: "Lumina/Mascot/hermie-hero", hostTab: "home")
                     .shadow(color: palette.glowPrimary.opacity(0.4), radius: 12)
                     .offset(x: 8, y: 12)
                     .accessibilityHidden(true)

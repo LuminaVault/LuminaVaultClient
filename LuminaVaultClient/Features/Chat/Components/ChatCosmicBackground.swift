@@ -27,7 +27,7 @@ struct ChatCosmicBackground: View {
                 endRadius: 420
             )
 
-            SparkleField(density: 18, maxRadius: 1.6)
+            SparkleField(density: 8, maxRadius: 1.6, activeWhenTab: "think")
                 .opacity(0.4)
                 .blendMode(.screen)
                 .allowsHitTesting(false)

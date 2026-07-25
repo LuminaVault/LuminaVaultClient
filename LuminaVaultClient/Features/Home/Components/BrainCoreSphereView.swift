@@ -8,12 +8,20 @@ import SwiftUI
 struct BrainCoreSphereView: View {
     @Environment(\.lvPalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.lvActiveTab) private var activeTab
 
     var size: CGFloat = 180
 
+    private var isLive: Bool {
+        !reduceMotion
+            && scenePhase == .active
+            && (activeTab.isEmpty || activeTab == "home")
+    }
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: reduceMotion ? 1.0 : 1.0 / 30.0, paused: reduceMotion)) { timeline in
-            let t = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
+        TimelineView(.animation(minimumInterval: isLive ? 1.0 / 12.0 : 1.0, paused: !isLive)) { timeline in
+            let t = isLive ? timeline.date.timeIntervalSinceReferenceDate : 0
             Canvas { context, canvasSize in
                 let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
                 let radius = min(canvasSize.width, canvasSize.height) * 0.38

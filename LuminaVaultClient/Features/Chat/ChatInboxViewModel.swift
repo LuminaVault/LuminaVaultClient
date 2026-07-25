@@ -27,6 +27,7 @@ final class ChatInboxViewModel {
         do {
             items = try await client.inbox(limit: 50).items
         } catch {
+            guard !error.isBenignCancellation else { return }
             errorMessage = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
@@ -36,6 +37,7 @@ final class ChatInboxViewModel {
             try await conversationsClient.delete(item.id)
             items.removeAll { $0.id == item.id }
         } catch {
+            guard !error.isBenignCancellation else { return }
             errorMessage = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }

@@ -44,6 +44,24 @@ enum APIError: Error, LocalizedError {
             return "You've hit today's limit. Try again later."
         }
     }
+
+    /// True when the error is a cooperative cancel (SwiftUI `.task` teardown,
+    /// refreshable abort, user cancel) — never surface as a user-facing failure.
+    static func isBenignCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
+        if case APIError.networkFailure(let underlying) = error {
+            return isBenignCancellation(underlying)
+        }
+        return false
+    }
+}
+
+extension Error {
+    /// Convenience for call sites that catch `any Error`.
+    var isBenignCancellation: Bool {
+        APIError.isBenignCancellation(self)
+    }
 }
 
 /// HER-188 — best-effort decode of the server's 402 response body. Property

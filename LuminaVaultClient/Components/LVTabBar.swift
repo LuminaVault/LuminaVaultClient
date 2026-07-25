@@ -143,10 +143,13 @@ struct LVTabBar: View {
         .padding(.horizontal, LVSpacing.lg)
         .padding(.bottom, LVSpacing.xs)
         .animation(LVTabBarMinimizeState.spring, value: minimizeProgress)
+        // Fixed clearance — do not GeometryReader-publish during minimize
+        // animation (that rewrote safeAreaPadding every frame and killed scroll).
         .background {
-            GeometryReader { geo in
-                Color.clear.preference(key: LVTabBarHeightKey.self, value: geo.size.height)
-            }
+            Color.clear.preference(
+                key: LVTabBarHeightKey.self,
+                value: showsCenterCapture ? 88 : 72
+            )
         }
     }
 

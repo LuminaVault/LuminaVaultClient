@@ -41,6 +41,7 @@ final class BrainGraphViewModel {
         includeWikiPages: Bool? = nil,
         kinds: [MemoryEdgeKindDTO]? = nil,
     ) async {
+        let previous = state
         state = .loading
         selectedNodeID = nil
         do {
@@ -53,6 +54,14 @@ final class BrainGraphViewModel {
             )
             state = .loaded(response)
         } catch {
+            guard !error.isBenignCancellation else {
+                if case .loaded = previous {
+                    state = previous
+                } else {
+                    state = .idle
+                }
+                return
+            }
             state = .failed(error.localizedDescription)
         }
     }

@@ -5,11 +5,16 @@ struct SparkleField: View {
 
     @Environment(\.lvPalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.lvActiveTab) private var activeTab
 
-    var density: Int = 10
+    var density: Int = 8
     var seed: UInt64 = 0xC05_5_C0DE
     var maxRadius: CGFloat = 1.8
     var driftSpeed: Double = 1.0
+    /// When non-nil, animation only runs while `lvActiveTab` matches.
+    /// Chat/Think hosts pass `"think"`; sheets/previews leave this nil.
+    var activeWhenTab: String? = nil
     /// Override the sparkle tint palette. When nil, derives from the active
     /// `\.lvPalette` so theme switches re-tint the field automatically.
     var colors: [Color]? = nil
@@ -18,16 +23,23 @@ struct SparkleField: View {
         colors ?? [palette.primary, palette.accent, Color.white]
     }
 
+    private var isLive: Bool {
+        guard !reduceMotion, scenePhase == .active else { return false }
+        guard let activeWhenTab else { return true }
+        if activeTab.isEmpty { return true }
+        return activeTab == activeWhenTab
+    }
+
     var body: some View {
         let particles = buildParticles()
 
-        if reduceMotion {
+        if !isLive {
             Canvas { ctx, size in
                 drawParticles(particles, t: 0, in: &ctx, size: size)
             }
             .allowsHitTesting(false)
         } else {
-            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { tl in
+            TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { tl in
                 Canvas { ctx, size in
                     let t = tl.date.timeIntervalSinceReferenceDate
                     drawParticles(particles, t: t, in: &ctx, size: size)
@@ -80,9 +92,7 @@ struct SparkleField: View {
                 height: p.dotRadius * 2
             )
 
-            var sub = ctx
-            sub.addFilter(.blur(radius: 0.8))
-            sub.fill(Path(ellipseIn: rect), with: .color(color))
+            ctx.fill(Path(ellipseIn: rect), with: .color(color))
         }
     }
 }

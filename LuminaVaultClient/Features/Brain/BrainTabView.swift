@@ -28,7 +28,10 @@ struct BrainTabView: View {
     @State private var reasoningViewModel: KnowledgeReasoningViewModel
     @State private var reloadTask: Task<Void, Never>?
     @State private var showReasoning = false
-    @State private var graphLayer: GraphLayer = .knowledge
+    /// Prefer Memories until Knowledge has nodes — most tenants land empty
+    /// on Knowledge (confidence floor / extraction lag) and read as "broken".
+    @State private var graphLayer: GraphLayer = .memories
+    @State private var didAutoPickLayer = false
 
     /// Loads a single memory's full content when a memory node is opened
     /// (HER-235 open-on-click). Passed through to `BrainNodeDetailSheet`.
@@ -98,16 +101,14 @@ struct BrainTabView: View {
         switch vm.state {
         case .idle, .loading:
             loadingState
-        case let .loaded(graph) where graph.nodes.isEmpty:
-            emptyState
         case let .loaded(graph):
             ZStack(alignment: .bottom) {
-                if graphLayer == .knowledge {
-                    knowledgeGraphContent
-                } else {
-                    // HER-235 3D viz — RealityKit orbitable cluster (iOS 18+); the 2D
-                    // Canvas remains the fallback for older OSes.
-                    if #available(iOS 18.0, *) {
+                Group {
+                    if graphLayer == .knowledge {
+                        knowledgeGraphContent
+                    } else if graph.nodes.isEmpty {
+                        emptyState
+                    } else if #available(iOS 18.0, *) {
                         BrainGraphRealityView(graph: filtered(graph)) { id in
                             vm.selectedNodeID = id
                         }
@@ -126,7 +127,7 @@ struct BrainTabView: View {
                         KnowledgeSelectionBar(viewModel: reasoningViewModel) {
                             showReasoning = true
                         }
-                    } else {
+                    } else if !graph.nodes.isEmpty {
                         GraphLegend(
                             activeEdgeKinds: $activeEdgeKinds,
                             showWikiPages: $showWikiPages,
@@ -137,8 +138,36 @@ struct BrainTabView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 90) // clear the floating tab bar
             }
+            .onAppear { pickInitialLayerIfNeeded(memoryGraph: graph) }
+            .onChange(of: reasoningViewModel.graphState) { _, _ in
+                pickInitialLayerIfNeeded(memoryGraph: graph)
+            }
         case let .failed(message):
-            errorState(message)
+            // Memory failure must not own the whole tab — Knowledge may still work.
+            ZStack(alignment: .bottom) {
+                if graphLayer == .knowledge {
+                    knowledgeGraphContent
+                } else {
+                    errorState(message)
+                }
+                graphLayerPicker
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 90)
+            }
+        }
+    }
+
+    private func pickInitialLayerIfNeeded(memoryGraph: MemoryGraphResponse) {
+        guard !didAutoPickLayer else { return }
+        switch reasoningViewModel.graphState {
+        case let .ready(knowledge) where !knowledge.nodes.isEmpty:
+            graphLayer = .knowledge
+            didAutoPickLayer = true
+        case .ready, .unavailable:
+            graphLayer = memoryGraph.nodes.isEmpty ? .knowledge : .memories
+            didAutoPickLayer = true
+        case .idle, .loading:
+            break
         }
     }
 
@@ -186,12 +215,17 @@ struct BrainTabView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .lvBackground()
         case let .ready(graph) where graph.nodes.isEmpty:
-            LVEmptyState(
-                mascot: .thinking,
-                headline: "No reasoning graph yet.",
-                supporting: "New memories are converted into claims, entities, events, and evidence-backed connections.",
-                backgroundImage: "Lumina/Backgrounds/neural-network"
-            )
+            VStack(spacing: 16) {
+                LVEmptyState(
+                    mascot: .thinking,
+                    headline: "No reasoning graph yet.",
+                    supporting: "New memories are converted into claims, entities, events, and evidence-backed connections.",
+                    backgroundImage: "Lumina/Backgrounds/neural-network"
+                )
+                Button("Show memory graph") { graphLayer = .memories }
+                    .buttonStyle(.borderedProminent)
+                    .tint(palette.primary)
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .lvBackground()
         case let .ready(graph):
@@ -201,7 +235,17 @@ struct BrainTabView: View {
                 selectedNodeIDs: Set(reasoningViewModel.selectedNodeIDs)
             )
             let identity = "\(reasoningViewModel.selectedPathID?.uuidString ?? "all")-\(reasoningViewModel.selectedNodeIDs.map(\.uuidString).joined())"
-            if #available(iOS 18.0, *) {
+            if projected.nodes.isEmpty {
+                VStack(spacing: 12) {
+                    Text("Nothing to show for this path.")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    Button("Show all memories") { graphLayer = .memories }
+                        .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .lvBackground()
+            } else if #available(iOS 18.0, *) {
                 BrainGraphRealityView(graph: projected, onSelect: selectKnowledgeNode)
                     .id(identity)
                     .lvBackground()
@@ -257,12 +301,16 @@ struct BrainTabView: View {
     }
 
     private var emptyState: some View {
-        LVEmptyState(
-            mascot: .thinking,
-            headline: "No memory graph yet.",
-            supporting: "Capture or save memories to grow your brain.",
-            backgroundImage: "Lumina/Backgrounds/neural-network"
-        )
+        VStack(spacing: 16) {
+            LVEmptyState(
+                mascot: .thinking,
+                headline: "No memory graph yet.",
+                supporting: "Capture or save memories to grow your brain.",
+                backgroundImage: "Lumina/Backgrounds/neural-network"
+            )
+            Button("Check reasoning graph") { graphLayer = .knowledge }
+                .buttonStyle(.bordered)
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .lvBackground()
     }
@@ -278,7 +326,7 @@ struct BrainTabView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(palette.textSecondary)
                 .padding(.horizontal, 32)
-            Button("Try again") { Task { await vm.load() } }
+            Button("Try again") { Task { await loadGraph() } }
                 .buttonStyle(.borderedProminent)
                 .tint(palette.primary)
         }

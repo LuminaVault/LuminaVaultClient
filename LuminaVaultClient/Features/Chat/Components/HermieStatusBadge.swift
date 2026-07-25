@@ -34,8 +34,12 @@ struct HermieStatusBadge: View {
                     }
                     .shadow(color: palette.glowPrimary.opacity(0.5), radius: 20)
 
-                HermieMascotView(state: mascotState, size: size * 1.05,
-                                 fallbackImageName: "OnboardingMascot")
+                HermieMascotView(
+                    state: mascotState,
+                    size: size * 1.05,
+                    fallbackImageName: "OnboardingMascot",
+                    hostTab: "think"
+                )
             }
             .frame(height: size * 1.4)
 

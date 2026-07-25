@@ -40,6 +40,9 @@ extension APIError {
     }
 
     var userFacingMessage: String {
+        if APIError.isBenignCancellation(self) {
+            return "Something went wrong."
+        }
         if let structured = structuredError {
             return structured.message
         }

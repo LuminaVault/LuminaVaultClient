@@ -20,8 +20,12 @@ import SwiftUI
 struct BrainGraphRealityView: View {
     let graph: MemoryGraphResponse
     let onSelect: (UUID) -> Void
+    /// Home neural-map preview must stay static (no ~30fps MainActor churn).
+    var autoRotate: Bool = true
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.lvActiveTab) private var activeTab
 
     // Orbit + zoom state (persist across gesture updates).
     @State private var yaw: Float = 0
@@ -35,6 +39,15 @@ struct BrainGraphRealityView: View {
 
     /// Camera distance from the cluster centre at zoom == 1.
     private let baseDistance: Float = 220
+
+    /// Only spin while the Brain tab is selected (or when the host has not
+    /// published an active tab — e.g. previews) and the app is foregrounded.
+    private var shouldAutoRotate: Bool {
+        guard autoRotate, !reduceMotion else { return false }
+        guard scenePhase == .active else { return false }
+        if activeTab.isEmpty { return true }
+        return activeTab == "brain"
+    }
 
     var body: some View {
         RealityView { content in
@@ -60,13 +73,13 @@ struct BrainGraphRealityView: View {
         .simultaneousGesture(zoomGesture)
         .gesture(tapGesture)
         .background(Color.black)
-        .task {
-            // Idle auto-rotate — a slow drift so the cluster reads as a living
-            // cosmos. Pauses while the user manipulates it and honors
-            // reduce-motion. ~30fps is plenty for a gentle spin.
+        .task(id: shouldAutoRotate) {
+            // Idle auto-rotate — gated so Home preview and off-tab Brain
+            // do not burn MainActor at ~30fps forever under TabView.
+            guard shouldAutoRotate else { return }
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(33))
-                guard !isInteracting, !reduceMotion else { continue }
+                guard shouldAutoRotate, !isInteracting else { continue }
                 yaw += 0.0022
                 baseYaw = yaw
             }

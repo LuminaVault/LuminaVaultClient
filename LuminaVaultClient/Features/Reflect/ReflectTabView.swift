@@ -58,6 +58,7 @@ struct ReflectTabView: View {
                 state: tabMascotState,
                 size: 110,
                 fallbackImageName: "OnboardingMascot",
+                hostTab: "reflect"
             )
             Text("Reflect")
                 .font(.system(size: 22, weight: .heavy))

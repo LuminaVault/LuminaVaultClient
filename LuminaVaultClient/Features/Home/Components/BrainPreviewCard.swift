@@ -6,10 +6,8 @@
 // the existing `BrainGraphRealityView`. Tapping anywhere opens the full
 // Brain tab.
 //
-// PERF: `BrainGraphRealityView` has no per-frame loop (RealityKit only
-// re-renders on state change, and all gestures are disabled here), so
-// this card costs ~0% CPU when idle or offscreen — unlike the old
-// TimelineView-driven canvas (see brain_tab_perf_idle_loop).
+// PERF: Home preview passes `autoRotate: false` so RealityKit stays static
+// (no ~30fps yaw Task). Gestures are disabled; tap opens the Brain tab.
 
 import LuminaVaultShared
 import SwiftUI
@@ -34,7 +32,7 @@ struct BrainPreviewCard: View {
                 if nodes.isEmpty {
                     placeholder
                 } else {
-                    BrainGraphRealityView(graph: previewGraph) { _ in }
+                    BrainGraphRealityView(graph: previewGraph, onSelect: { _ in }, autoRotate: false)
                         .allowsHitTesting(false)
                         // Rebuild the RealityKit scene when the preview set
                         // changes (RealityView's `make` runs once per identity).

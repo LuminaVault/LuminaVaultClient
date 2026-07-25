@@ -617,6 +617,11 @@ final class ChatViewModel {
     }
 
     private func failSend(with error: Error) {
+        // SwiftUI / refresh cancel must never land as "cancelled" in the composer.
+        guard !error.isBenignCancellation else {
+            phase = .idle
+            return
+        }
         recoveryActions = (error as? APIError)?.chatRecoveryActions ?? []
         phase = .failed(message: friendlyError(error))
     }
@@ -868,8 +873,7 @@ final class ChatViewModel {
             setMascot(.idle)
         } catch {
             drainTypewriterNow()
-            let message = friendlyError(error)
-            phase = .failed(message: message)
+            failSend(with: error)
             setMascot(.idle)
         }
     }

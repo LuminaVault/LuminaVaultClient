@@ -147,7 +147,12 @@ struct MainTabView: View {
             )
         }
         .environment(tabBarMinimize)
-        .onPreferenceChange(LVTabBarHeightKey.self) { tabBarHeight = $0 }
+        .environment(\.lvActiveTab, selection)
+        .onPreferenceChange(LVTabBarHeightKey.self) { newHeight in
+            // Avoid safeAreaPadding thrash during minimize animation.
+            guard abs(newHeight - tabBarHeight) > 1.5 else { return }
+            tabBarHeight = newHeight
+        }
         .onChange(of: selection) { oldValue, newValue in
             if oldValue != newValue {
                 tabBarMinimize.expand()

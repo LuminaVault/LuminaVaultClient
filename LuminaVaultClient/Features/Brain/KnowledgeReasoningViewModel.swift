@@ -4,7 +4,7 @@ import LuminaVaultShared
 @MainActor
 @Observable
 final class KnowledgeReasoningViewModel {
-    enum LoadState {
+    enum LoadState: Equatable {
         case idle
         case loading
         case ready(KnowledgeGraphResponse)
@@ -26,10 +26,19 @@ final class KnowledgeReasoningViewModel {
     }
 
     func load() async {
+        let previous = graphState
         graphState = .loading
         do {
             graphState = try .ready(await client.fetchGraph(limit: 200, minimumConfidence: 0.5))
         } catch {
+            guard !error.isBenignCancellation else {
+                if case .ready = previous {
+                    graphState = previous
+                } else {
+                    graphState = .idle
+                }
+                return
+            }
             graphState = .unavailable(error.localizedDescription)
         }
     }

@@ -60,6 +60,7 @@ final class SpacesViewModel {
         do {
             spaces = try await spacesClient.list()
         } catch {
+            guard !error.isBenignCancellation else { return }
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
@@ -75,6 +76,7 @@ final class SpacesViewModel {
             if let category = created.category { props["category"] = category }
             PostHogSDK.shared.capture("space_created", properties: props)
         } catch {
+            guard !error.isBenignCancellation else { return }
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
@@ -87,6 +89,7 @@ final class SpacesViewModel {
                 spaces[idx] = updated
             }
         } catch {
+            guard !error.isBenignCancellation else { return }
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
@@ -99,6 +102,7 @@ final class SpacesViewModel {
             // PostHog: capture space deletion
             PostHogSDK.shared.capture("space_deleted", properties: ["space_id": id.uuidString])
         } catch {
+            guard !error.isBenignCancellation else { return }
             // Roll back the optimistic removal.
             spaces = previous
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription

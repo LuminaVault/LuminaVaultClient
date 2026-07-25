@@ -45,11 +45,15 @@ public struct HermieMascotView: View {
     /// Call-site opt-out from the Rive canvas. Small avatars skip Rive
     /// regardless — dozens of live instances in a chat list is real CPU.
     public var animated: Bool = true
+    /// When set, Rive only plays while `lvActiveTab` matches (TabView keeps
+    /// sibling tabs mounted, so `onDisappear` alone is insufficient).
+    public var hostTab: String? = nil
 
     @State private var viewModel: RiveViewModel?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.lvActiveTab) private var activeTab
 
     private static let riveFileName = "lumina_anims"
     private static let artboardName = "hermie"
@@ -60,14 +64,28 @@ public struct HermieMascotView: View {
     /// canvas is not worth its runtime cost; the static PNG renders instead.
     private static let animationSizeThreshold: CGFloat = 64
 
-    public init(state: HermieMascotState, size: CGFloat = 220, fallbackImageName: String = "Mascot", animated: Bool = true) {
+    public init(
+        state: HermieMascotState,
+        size: CGFloat = 220,
+        fallbackImageName: String = "Mascot",
+        animated: Bool = true,
+        hostTab: String? = nil
+    ) {
         self.state = state
         self.size = size
         self.fallbackImageName = fallbackImageName
         self.animated = animated
+        self.hostTab = hostTab
     }
 
     private var riveEligible: Bool { animated && size >= Self.animationSizeThreshold }
+
+    private var shouldPlay: Bool {
+        guard !reduceMotion, scenePhase == .active else { return false }
+        guard let hostTab else { return true }
+        if activeTab.isEmpty { return true }
+        return activeTab == hostTab
+    }
 
     public var body: some View {
         Group {
@@ -91,10 +109,13 @@ public struct HermieMascotView: View {
         .onChange(of: reduceMotion) { _, _ in
             apply(state: state)
         }
-        .onChange(of: scenePhase) { _, phase in
-            setLive(phase == .active)
+        .onChange(of: scenePhase) { _, _ in
+            setLive(shouldPlay)
         }
-        .onAppear { setLive(true) }
+        .onChange(of: activeTab) { _, _ in
+            setLive(shouldPlay)
+        }
+        .onAppear { setLive(shouldPlay) }
         .onDisappear { setLive(false) }
     }
 

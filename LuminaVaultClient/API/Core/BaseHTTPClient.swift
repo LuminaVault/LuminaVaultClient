@@ -104,7 +104,10 @@ final class BaseHTTPClient: Sendable {
         let data: Data
         let response: URLResponse
         do { (data, response) = try await session.data(for: req) }
-        catch { throw APIError.networkFailure(error) }
+        catch {
+            if APIError.isBenignCancellation(error) { throw CancellationError() }
+            throw APIError.networkFailure(error)
+        }
 
         if let http = response as? HTTPURLResponse {
             log.debug("← \(http.statusCode) \(endpoint.path)")
@@ -177,7 +180,10 @@ final class BaseHTTPClient: Sendable {
         let data: Data
         let response: URLResponse
         do { (data, response) = try await session.data(for: req) }
-        catch { throw APIError.networkFailure(error) }
+        catch {
+            if APIError.isBenignCancellation(error) { throw CancellationError() }
+            throw APIError.networkFailure(error)
+        }
 
         if let http = response as? HTTPURLResponse {
             log.debug("← \(http.statusCode) \(path) [upload]")
@@ -227,7 +233,10 @@ final class BaseHTTPClient: Sendable {
         let data: Data
         let response: URLResponse
         do { (data, response) = try await session.data(for: req) }
-        catch { throw APIError.networkFailure(error) }
+        catch {
+            if APIError.isBenignCancellation(error) { throw CancellationError() }
+            throw APIError.networkFailure(error)
+        }
 
         var contentType = "application/octet-stream"
         if let http = response as? HTTPURLResponse {
