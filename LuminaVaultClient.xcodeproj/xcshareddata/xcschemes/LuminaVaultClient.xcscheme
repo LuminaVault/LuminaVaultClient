@@ -75,12 +75,12 @@
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "POSTHOG_PROJECT_TOKEN"
-            value = "phc_uJu7ZqyfuPpDAsWpyzNiPH2pow8kdUfNVQVM2PEUCFGU"
+            value = "phc_qHfAXXGQairNucPjrppE2i9i3bf2Hqvyi3UcG9z7jCNN"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "POSTHOG_HOST"
-            value = "https://us.i.posthog.com"
+            value = "https://eu.i.posthog.com"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable

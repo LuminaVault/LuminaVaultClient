@@ -28,10 +28,12 @@ final class PostHogEnvTests: XCTestCase {
         let token = PostHogEnv.projectToken.value
         try XCTSkipIf(token == "REPLACE_WITH_POSTHOG_PROJECT_TOKEN",
                       "placeholder token from materialized sample xcconfig (CI)")
-        XCTAssertEqual(token, "phc_uJu7ZqyfuPpDAsWpyzNiPH2pow8kdUfNVQVM2PEUCFGU")
+        XCTAssertEqual(token, "phc_qHfAXXGQairNucPjrppE2i9i3bf2Hqvyi3UcG9z7jCNN")
     }
 
-    func testHostDefaultIsUSCluster() {
-        XCTAssertEqual(PostHogEnv.host.value, "https://us.i.posthog.com")
+    func testHostDefaultIsEUCluster() {
+        // Analytics live in the team's EU PostHog org (project 203764). The
+        // app previously shipped to a US project nobody could read.
+        XCTAssertEqual(PostHogEnv.host.value, "https://eu.i.posthog.com")
     }
 }
