@@ -101,7 +101,21 @@ enum BackendModeStore {
     static var current: BackendMode {
         if let raw = UserDefaults.standard.string(forKey: userDefaultsKey),
            let mode = BackendMode(rawValue: raw) {
+            #if DEBUG
             return mode
+            #else
+            // A persisted `.localhost` in a shipping build is never a real user
+            // choice — it can only come from the debug environment toggle or a
+            // dev session on this device, and UserDefaults survives app
+            // updates, TestFlight → App Store moves, and iCloud restores. Left
+            // alone it points every API call at http://localhost:8080 forever.
+            //
+            // `.byo` and `.tailscale` ARE deliberate user choices and are
+            // preserved untouched.
+            guard mode == .localhost else { return mode }
+            UserDefaults.standard.set(BackendMode.hosted.rawValue, forKey: userDefaultsKey)
+            return .hosted
+            #endif
         }
         #if DEBUG
         return .localhost

@@ -106,7 +106,7 @@ final class BaseHTTPClient: Sendable {
         do { (data, response) = try await session.data(for: req) }
         catch {
             if APIError.isBenignCancellation(error) { throw CancellationError() }
-            throw APIError.networkFailure(error)
+            throw APIError.transport(error)
         }
 
         if let http = response as? HTTPURLResponse {
@@ -182,7 +182,7 @@ final class BaseHTTPClient: Sendable {
         do { (data, response) = try await session.data(for: req) }
         catch {
             if APIError.isBenignCancellation(error) { throw CancellationError() }
-            throw APIError.networkFailure(error)
+            throw APIError.transport(error)
         }
 
         if let http = response as? HTTPURLResponse {
@@ -235,7 +235,7 @@ final class BaseHTTPClient: Sendable {
         do { (data, response) = try await session.data(for: req) }
         catch {
             if APIError.isBenignCancellation(error) { throw CancellationError() }
-            throw APIError.networkFailure(error)
+            throw APIError.transport(error)
         }
 
         var contentType = "application/octet-stream"
@@ -336,6 +336,13 @@ final class BaseHTTPClient: Sendable {
                 } catch is CancellationError {
                     continuation.finish()
                 } catch {
+                    // A TLS pin rejection reaches here as a bare
+                    // `URLError.cancelled`. Promote it so the consumer gets a
+                    // real message instead of silently treating it as teardown.
+                    if APIError.isTLSPinningFailure(error) {
+                        continuation.finish(throwing: APIError.transport(error))
+                        return
+                    }
                     continuation.finish(throwing: error)
                 }
             }

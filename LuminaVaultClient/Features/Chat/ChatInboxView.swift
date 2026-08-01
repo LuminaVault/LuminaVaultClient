@@ -28,6 +28,10 @@ struct ChatInboxView: View {
                 if viewModel.isLoading && viewModel.items.isEmpty {
                     ProgressView()
                         .frame(maxWidth: .infinity)
+                } else if viewModel.items.isEmpty, let error = viewModel.errorMessage {
+                    // A failed load must never render as "No chats yet" — that
+                    // told users with full histories their chats were gone.
+                    failureState(error)
                 } else if viewModel.items.isEmpty {
                     emptyState
                 } else {
@@ -84,6 +88,25 @@ struct ChatInboxView: View {
             .accessibilityLabel("New chat")
         }
         .padding(.top, LVSpacing.sm)
+    }
+
+    /// Shown when the inbox fetch failed and we have nothing cached. Distinct
+    /// from `emptyState`: "we couldn't load your chats" is a very different
+    /// claim from "you have no chats".
+    private func failureState(_ message: String) -> some View {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
+            LVIconView(.exclamationmarkTriangleFill, size: 26, tint: palette.accent)
+            Text("Couldn't load your chats")
+                .font(LVTypography.bodyEmphasis.font)
+                .foregroundStyle(palette.textPrimary)
+            Text(message)
+                .font(LVTypography.callout.font)
+                .foregroundStyle(palette.textSecondary)
+            Button("Try again") { Task { await viewModel.load() } }
+                .buttonStyle(.borderedProminent)
+                .padding(.top, LVSpacing.xs)
+        }
+        .padding(.vertical, LVSpacing.md)
     }
 
     private var emptyState: some View {

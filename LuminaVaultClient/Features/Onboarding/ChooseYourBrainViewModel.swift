@@ -111,7 +111,7 @@ final class ChooseYourBrainViewModel {
                 OnboardingPatchRequest(brainConfiguredCompleted: true)
             )
         } catch {
-            guard !Self.isBenignCancellation(error) else {
+            guard !error.isBenignCancellation else {
                 // Still open Providers — choice was made.
                 shouldNavigateToProviders = true
                 return
@@ -119,15 +119,5 @@ final class ChooseYourBrainViewModel {
             // Soft-fail PATCH: still open Providers so the user can enter a key.
         }
         shouldNavigateToProviders = true
-    }
-
-    private static func isBenignCancellation(_ error: Error) -> Bool {
-        if error is CancellationError { return true }
-        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
-        if case APIError.networkFailure(let underlying) = error {
-            if underlying is CancellationError { return true }
-            if let urlError = underlying as? URLError, urlError.code == .cancelled { return true }
-        }
-        return false
     }
 }
