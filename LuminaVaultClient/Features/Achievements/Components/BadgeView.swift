@@ -113,12 +113,12 @@ struct BadgeView: View {
 
             if isUnlocked {
                 Text(rarity.label.uppercased())
-                    .font(.system(size: 9, weight: .heavy))
+                    .font(.system(.caption2, weight: .heavy))
                     .tracking(1.2)
                     .foregroundStyle(tint)
             } else {
                 Text("\(sub.progress)/\(sub.target)")
-                    .font(.system(size: 10, weight: .medium).monospacedDigit())
+                    .font(.system(.caption2, weight: .medium).monospacedDigit())
                     .foregroundStyle(palette.textSecondary.opacity(0.8))
             }
         }

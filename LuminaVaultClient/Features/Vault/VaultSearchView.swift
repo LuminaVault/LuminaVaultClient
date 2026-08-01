@@ -129,7 +129,7 @@ struct VaultSearchView: View {
     private func section<Content: View>(title: String, @ViewBuilder _ rows: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title.uppercased())
-                .font(.system(size: 10, weight: .bold))
+                .font(.system(.caption2, weight: .bold))
                 .foregroundStyle(Color.lvTextMuted)
                 .padding(.bottom, 2)
             rows()
@@ -144,7 +144,7 @@ struct VaultSearchView: View {
                 .lineLimit(3)
             if let createdAt = hit.createdAt {
                 Text(createdAt, style: .relative)
-                    .font(.system(size: 10))
+                    .font(.system(.caption2))
                     .foregroundStyle(Color.lvTextMuted)
             }
         }

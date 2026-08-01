@@ -43,7 +43,7 @@ struct SignInView: View {
                     NavigationLink("Forgot password?") {
                         ForgotPasswordView(vm: vm)
                     }
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(.caption2, weight: .semibold))
                     .foregroundStyle(palette.primary.opacity(0.6))
                 }
                 .padding(.top, 6).padding(.bottom, 16)

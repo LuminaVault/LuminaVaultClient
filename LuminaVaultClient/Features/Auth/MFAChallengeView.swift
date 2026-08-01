@@ -45,7 +45,7 @@ struct MFAChallengeView: View {
                     .padding(.horizontal, 24).padding(.bottom, 16)
 
                 Button("Lost access? Use backup code") {}
-                    .font(.system(size: 10)).foregroundStyle(palette.primary.opacity(0.55))
+                    .font(.system(.caption2)).foregroundStyle(palette.primary.opacity(0.55))
             }
             .padding(.top, 48).padding(.bottom, 40)
         }
@@ -75,7 +75,7 @@ private struct LVTOTPTimerView: View {
             }
             (Text("Code expires in ").foregroundStyle(palette.textSecondary)
              + Text("\(secondsLeft)s").foregroundColor(secondsLeft <= 10 ? palette.accent : palette.primary))
-                .font(.system(size: 10))
+                .font(.system(.caption2))
         }
         .onReceive(timer) { _ in
             secondsLeft = secondsLeft > 0 ? secondsLeft - 1 : 30

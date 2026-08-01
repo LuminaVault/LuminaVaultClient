@@ -1,5 +1,6 @@
 // LuminaVaultClient/LuminaVaultClient/App/AppState.swift
 import Foundation
+import HealthKit
 import LuminaVaultShared
 import PostHog
 import SwiftData
@@ -30,7 +31,21 @@ final class AppState {
     /// rapid foreground transitions from hammering the auth server.
     static let meRefreshInterval: TimeInterval = 300
     let keychain: KeychainService
-    let healthKit: HealthKitCoordinator?
+    /// Apple Health bridge.
+    ///
+    /// This used to be a plain `let` defaulting to `nil`, and **nothing ever
+    /// passed a value** — `LuminaVaultClientApp` calls `AppState()` with no
+    /// arguments, so `HealthKitCoordinator` was never constructed anywhere in
+    /// the app. Every `healthKit?.start()` optional-chained into nothing:
+    /// no consent prompt, no background delivery, no sync, ever. The server's
+    /// `health_events` cache was permanently empty as a result, which in turn
+    /// made the Hermes health tooling permanently useless.
+    ///
+    /// It is now built lazily so it can share the authenticated HTTP client,
+    /// mirroring `syncManager` / `vaultRepository`. Tests still inject their own.
+    @ObservationIgnored private let injectedHealthKit: HealthKitCoordinator?
+    @ObservationIgnored private(set) lazy var healthKit: HealthKitCoordinator? =
+        injectedHealthKit ?? makeHealthKitCoordinator()
     /// HER-39: process-wide SwiftData container backing the local vault
     /// inventory, sync queue, and sync log. Built lazily on first read so
     /// tests can override via the in-memory container.
@@ -44,6 +59,9 @@ final class AppState {
     /// HER-39: lazily-built offline sync engine. First touch wires HTTP
     /// clients, the SwiftData-backed queue, and the on-disk vault. Lives
     /// for the process lifetime once constructed.
+    /// Publishes memories to the on-device Spotlight index. Owned here so the
+    /// sign-out teardown can clear it.
+    @ObservationIgnored let spotlightIndexer = SpotlightIndexer()
     @ObservationIgnored private(set) lazy var syncManager: SyncManager = makeSyncManager()
     /// HER-39: feature-facing façade. UI code talks to the repository, never
     /// directly to `SyncManager` or the HTTP clients, so swapping the sync
@@ -102,7 +120,7 @@ final class AppState {
         networkMonitor: NetworkMonitor? = nil
     ) {
         self.keychain = keychain
-        self.healthKit = healthKit
+        self.injectedHealthKit = healthKit
         self.modelContainer = modelContainer ?? SwiftDataStack.makePersistent()
         self.localVault = localVault
         self.networkMonitor = networkMonitor ?? NetworkMonitor()
@@ -114,7 +132,10 @@ final class AppState {
         self.vaultInitialized = hasStoredSession
         if isAuthenticated {
             sharedSessionKeychain.accessToken = keychain.accessToken
-            Task { await healthKit?.start() }
+            // `self.` is load-bearing: inside init, a bare `healthKit` binds to
+            // the (nil-defaulted) parameter rather than the lazy property —
+            // which is exactly how this call silently did nothing for months.
+            Task { await self.healthKit?.resumeIfAuthorized() }
             startRemindersSync()
             startPhotoIndex()
             startCalendarSync()
@@ -179,7 +200,7 @@ final class AppState {
         guard keychain.accessToken != nil else { return }
         isAuthenticated = true
         vaultInitialized = true
-        Task { await healthKit?.start() }
+        Task { await healthKit?.resumeIfAuthorized() }
         startDeviceCommandExecutor()
         startRemindersSync()
         startPhotoIndex()
@@ -233,6 +254,14 @@ final class AppState {
                 }
             }
         }
+    }
+
+    /// Builds the Health bridge against the shared authenticated HTTP client.
+    /// Returns nil where HealthKit doesn't exist (Mac Catalyst, some iPads,
+    /// simulators without a Health store) so callers keep their optional guard.
+    private func makeHealthKitCoordinator() -> HealthKitCoordinator? {
+        guard HKHealthStore.isHealthDataAvailable() else { return nil }
+        return HealthKitCoordinator(service: HealthKitService(httpClient: makeHTTPClient()))
     }
 
     /// HER-39 — wires up the sync engine on first touch.
@@ -381,7 +410,7 @@ final class AppState {
         currentEmail = response.email
         vaultInitialized = response.vaultInitialized
         isAuthenticated = true
-        Task { await healthKit?.start() }
+        Task { await healthKit?.resumeIfAuthorized() }
         startRemindersSync()
         startPhotoIndex()
         startCalendarSync()
@@ -423,6 +452,10 @@ final class AppState {
             Task { await billing.teardown() }
         }
         billingService = nil
+        // The Spotlight index outlives the session and is device-wide. Leaving
+        // this user's note titles searchable after sign-out would expose them
+        // to whoever signs in next.
+        Task { await spotlightIndexer.removeAll() }
         sharedSessionKeychain.clear()
         keychain.clearAll()
         currentUserId = nil

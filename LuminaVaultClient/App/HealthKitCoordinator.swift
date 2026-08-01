@@ -61,32 +61,41 @@ final class HealthKitCoordinator {
         log.info("HealthKit stopped")
     }
 
-    /// HER-118 — coarse permission probe for the dashboard empty state.
-    /// HealthKit reports `sharingAuthorizationStatus` per type; we collapse
-    /// the matrix into a 3-value summary (denied if ANY metric is denied;
-    /// notDetermined if ANY is not yet asked; granted otherwise).
-    func currentPermissionState() async -> PermissionState {
-        guard HKHealthStore.isHealthDataAvailable() else { return .denied }
-        let store = HKHealthStore()
-        let types: [HKObjectType] = [
-            HKObjectType.quantityType(forIdentifier: .stepCount)!,
-            HKObjectType.quantityType(forIdentifier: .heartRate)!,
-            HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!,
-            HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!,
-        ]
-        var hasDenied = false
-        var hasNotDetermined = false
-        for type in types {
-            switch store.authorizationStatus(for: type) {
-            case .sharingDenied: hasDenied = true
-            case .notDetermined: hasNotDetermined = true
-            case .sharingAuthorized: continue
-            @unknown default: continue
-            }
+    /// Resume syncing on launch **without** prompting.
+    ///
+    /// `start()` calls `requestAuthorization()`, which shows the system consent
+    /// sheet. Firing that from `AppState.init` would ambush the user with a
+    /// Health prompt the instant they sign in, with no explanation and no
+    /// context — the kind of thing App Review rejects. Consent belongs to the
+    /// explicit "Connect HealthKit" CTA on the Health dashboard.
+    ///
+    /// So on launch we only resume when access was already granted in a
+    /// previous session.
+    func resumeIfAuthorized() async {
+        guard !isStarted else { return }
+        guard await currentPermissionState() == .granted else {
+            log.info("HealthKit not authorized yet — waiting for the explicit Connect action")
+            return
         }
-        if hasDenied { return .denied }
-        if hasNotDetermined { return .notDetermined }
-        return .granted
+        await start()
+    }
+
+    /// HER-118 — permission summary for the dashboard empty state.
+    ///
+    /// Delegates to `HealthKitService.readAuthorizationState()`. The previous
+    /// implementation called `store.authorizationStatus(for:)`, which reports
+    /// **write** status; since this app requests `toShare: []` that always
+    /// returned `.sharingDenied`, so the dashboard showed "denied" even to
+    /// users who had granted full read access.
+    func currentPermissionState() async -> PermissionState {
+        switch await service.readAuthorizationState() {
+        case .granted: return .granted
+        case .denied, .unavailable: return .denied
+        case .notDetermined: return .notDetermined
+        // An inconclusive probe must not be rendered as a denial — offering
+        // "Connect" is recoverable, claiming denial is a dead end.
+        case .unknown: return .notDetermined
+        }
     }
 
     /// HER-118 — explicit re-authorization trigger for the dashboard's

@@ -12,7 +12,11 @@ struct LVPalette: Equatable {
     let glowPrimary: Color
     let glowSecondary: Color
 
-    let surface: Color           // glass-card fill (kept subtle; pairs with `.ultraThinMaterial`)
+    // Glass-card fill. Held at 4% for a long time, which over an aurora-gradient
+    // background meant cards had no discernible fill AND no edge — surfaces read
+    // as flat washes rather than layers. Raised to 12% dark / 7% light, with a
+    // correspondingly stronger stroke, so every card is actually bounded.
+    let surface: Color           // glass-card fill (pairs with `.ultraThinMaterial`)
     let surfaceStroke: Color     // hairline border
 
     let backgroundBase: Color    // root background fill
@@ -107,8 +111,8 @@ extension LVPalette {
         accent:         Color(red: 0.961, green: 0.620, blue: 0.043), // #F59E0B amber
         glowPrimary:    Color(red: 0.000, green: 0.831, blue: 1.000),
         glowSecondary:  Color(red: 0.961, green: 0.620, blue: 0.043),
-        surface:        Color.white.opacity(0.04),
-        surfaceStroke:  Color(red: 0.000, green: 0.831, blue: 1.000).opacity(0.22),
+        surface:        Color.white.opacity(0.12),
+        surfaceStroke:  Color(red: 0.000, green: 0.831, blue: 1.000).opacity(0.38),
         backgroundBase: Color(red: 0.027, green: 0.051, blue: 0.118), // #070D1E
         auroraTop:      Color(red: 0.961, green: 0.620, blue: 0.043).opacity(0.18),
         auroraBottom:   Color(red: 0.000, green: 0.831, blue: 1.000).opacity(0.14),
@@ -123,8 +127,8 @@ extension LVPalette {
         accent:         Color(red: 0.788, green: 0.502, blue: 0.000),
         glowPrimary:    Color(red: 0.000, green: 0.831, blue: 1.000),
         glowSecondary:  Color(red: 0.961, green: 0.620, blue: 0.043),
-        surface:        Color.black.opacity(0.04),
-        surfaceStroke:  Color(red: 0.000, green: 0.494, blue: 0.658).opacity(0.24),
+        surface:        Color.black.opacity(0.07),
+        surfaceStroke:  Color(red: 0.000, green: 0.494, blue: 0.658).opacity(0.34),
         backgroundBase: Color(red: 0.940, green: 0.970, blue: 1.000), // #F0F7FF
         auroraTop:      Color(red: 0.961, green: 0.620, blue: 0.043).opacity(0.09),
         auroraBottom:   Color(red: 0.000, green: 0.831, blue: 1.000).opacity(0.08),
@@ -140,8 +144,8 @@ extension LVPalette {
         accent:         Color(red: 1.000, green: 0.431, blue: 0.780), // #FF6EC7
         glowPrimary:    Color(red: 0.878, green: 0.251, blue: 0.984),
         glowSecondary:  Color(red: 0.486, green: 0.302, blue: 1.000),
-        surface:        Color.white.opacity(0.04),
-        surfaceStroke:  Color(red: 0.878, green: 0.251, blue: 0.984).opacity(0.22),
+        surface:        Color.white.opacity(0.12),
+        surfaceStroke:  Color(red: 0.878, green: 0.251, blue: 0.984).opacity(0.38),
         backgroundBase: Color(red: 0.082, green: 0.039, blue: 0.180), // #150A2E
         auroraTop:      Color(red: 1.000, green: 0.431, blue: 0.780).opacity(0.20),
         auroraBottom:   Color(red: 0.486, green: 0.302, blue: 1.000).opacity(0.18),
@@ -156,8 +160,8 @@ extension LVPalette {
         accent:         Color(red: 0.780, green: 0.220, blue: 0.520),
         glowPrimary:    Color(red: 0.878, green: 0.251, blue: 0.984),
         glowSecondary:  Color(red: 0.486, green: 0.302, blue: 1.000),
-        surface:        Color.black.opacity(0.04),
-        surfaceStroke:  Color(red: 0.580, green: 0.118, blue: 0.690).opacity(0.24),
+        surface:        Color.black.opacity(0.07),
+        surfaceStroke:  Color(red: 0.580, green: 0.118, blue: 0.690).opacity(0.34),
         backgroundBase: Color(red: 0.973, green: 0.945, blue: 1.000), // #F8F0FF
         auroraTop:      Color(red: 1.000, green: 0.431, blue: 0.780).opacity(0.10),
         auroraBottom:   Color(red: 0.486, green: 0.302, blue: 1.000).opacity(0.08),
@@ -173,8 +177,8 @@ extension LVPalette {
         accent:         Color(red: 1.000, green: 0.835, blue: 0.310), // #FFD54F
         glowPrimary:    Color(red: 1.000, green: 0.702, blue: 0.000),
         glowSecondary:  Color(red: 1.000, green: 0.361, blue: 0.553),
-        surface:        Color.white.opacity(0.04),
-        surfaceStroke:  Color(red: 1.000, green: 0.702, blue: 0.000).opacity(0.22),
+        surface:        Color.white.opacity(0.12),
+        surfaceStroke:  Color(red: 1.000, green: 0.702, blue: 0.000).opacity(0.38),
         backgroundBase: Color(red: 0.118, green: 0.039, blue: 0.078), // #1E0A14
         auroraTop:      Color(red: 1.000, green: 0.835, blue: 0.310).opacity(0.20),
         auroraBottom:   Color(red: 1.000, green: 0.361, blue: 0.553).opacity(0.18),
@@ -189,8 +193,8 @@ extension LVPalette {
         accent:         Color(red: 0.690, green: 0.560, blue: 0.000),
         glowPrimary:    Color(red: 1.000, green: 0.702, blue: 0.000),
         glowSecondary:  Color(red: 1.000, green: 0.361, blue: 0.553),
-        surface:        Color.black.opacity(0.04),
-        surfaceStroke:  Color(red: 0.690, green: 0.380, blue: 0.000).opacity(0.24),
+        surface:        Color.black.opacity(0.07),
+        surfaceStroke:  Color(red: 0.690, green: 0.380, blue: 0.000).opacity(0.34),
         backgroundBase: Color(red: 1.000, green: 0.973, blue: 0.940), // #FFF8F0
         auroraTop:      Color(red: 1.000, green: 0.835, blue: 0.310).opacity(0.10),
         auroraBottom:   Color(red: 1.000, green: 0.361, blue: 0.553).opacity(0.08),

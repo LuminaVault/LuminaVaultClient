@@ -102,7 +102,7 @@ struct SessionsListView: View {
                 .foregroundStyle(palette.textSecondary)
                 .lineLimit(2)
             Text(Self.formatter.localizedString(for: session.lastMessageAt, relativeTo: Date()))
-                .font(.system(size: 10))
+                .font(.system(.caption2))
                 .foregroundStyle(Color.lvTextMuted)
         }
         .padding(.vertical, 4)

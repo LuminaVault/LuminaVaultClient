@@ -283,10 +283,13 @@ private struct LVTabBarItemContent: View {
         showsLabel ? Double(1 - (minimizeProgress / 0.55)) : 0
     }
 
+    /// The only affordance besides the glyph that marks the selected tab, so
+    /// it has to be legible on its own. 8% black over a light background was
+    /// effectively invisible.
     private var activePillFill: Color {
         colorScheme == .dark
-            ? Color.white.opacity(0.18)
-            : Color.black.opacity(0.08)
+            ? Color.white.opacity(0.22)
+            : Color.black.opacity(0.14)
     }
 
     private var horizontalPadding: CGFloat {
@@ -329,20 +332,30 @@ private struct LVTabBarItemContent: View {
         .layoutPriority(isActive ? 1 : 0)
     }
 
+    /// Tint shared by both render paths. Previously custom PNGs took a
+    /// `.original` + `.saturation(0.7)` + `.opacity(0.75)` path while SF
+    /// Symbols took a palette-tinted one, so two tabs sitting next to each
+    /// other in the same bar had wildly different contrast. Measured against
+    /// the dark theme background the PNG path landed at ~2.6:1 — under the
+    /// 3:1 WCAG 1.4.11 floor for UI components, and the literal cause of the
+    /// "icons are barely visible" report.
+    private var glyphTint: Color {
+        isActive ? palette.textPrimary : palette.textSecondary
+    }
+
     @ViewBuilder
     private var iconView: some View {
         if let assetName = item.icon.customAssetName, UIImage(named: assetName) != nil {
             Image(assetName)
                 .resizable()
-                .renderingMode(.original)
+                .renderingMode(.template)
                 .aspectRatio(contentMode: .fit)
-                .saturation(isActive ? 1.0 : 0.7)
-                .opacity(isActive ? 1.0 : 0.75)
+                .foregroundStyle(glyphTint)
         } else {
             Image(systemName: item.icon.sfSymbol)
                 .font(.system(size: LVSize.tabBarGlyph - 2, weight: isActive ? .semibold : .regular))
                 .symbolVariant(isActive ? .fill : .none)
-                .foregroundStyle(isActive ? palette.textPrimary : palette.textSecondary)
+                .foregroundStyle(glyphTint)
         }
     }
 }

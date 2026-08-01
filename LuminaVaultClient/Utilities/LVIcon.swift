@@ -278,21 +278,19 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
         case .tabSettings:             return "Lumina/Tab/settings"
         case .tabVisualSearch:         return "Lumina/Tab/visualsearch"
 
-        // HER-301 — existing semantic cases that now ship a Lumina/Icons/* PNG.
-        // LVIconView renders these .template + palette tint; LVTabBar is the
-        // only call site that uses .original mode.
-        case .brain:                   return "Lumina/Icons/brain"
-        case .brainHeadProfile:        return "Lumina/Icons/brain-neural"
-        case .cameraAperture:          return "Lumina/Icons/camera"
-        case .gear:                    return "Lumina/Icons/gear"
-        case .lightbulbFill:           return "Lumina/Icons/lightbulb"
-        case .linkCircle:              return "Lumina/Icons/link"
-        case .magnifyingglass:         return "Lumina/Icons/magnify"
-        case .micFill:                 return "Lumina/Icons/mic"
-        case .photoOnRectangleAngled:  return "Lumina/Icons/gallery"
-        case .plusCircleFill:          return "Lumina/Icons/plus-circle"
+        // HER-301 once routed these ten semantic cases to Lumina/Icons/* PNGs.
+        // They are back on SF Symbols deliberately: each had an exact symbol
+        // equivalent already declared in `sfSymbol` below, and the PNGs are
+        // ~341pt soft-glow artwork rendered into 13–28pt frames. At 12–26×
+        // minification, with only 8–27% of their pixels near-opaque, the glyph
+        // averages toward transparent as it shrinks — that muddy, washed-out
+        // result is what reads as "low pixel density". SF Symbols are vector,
+        // scale exactly, and inherit weight and Dynamic Type for free.
+        //
+        // The cinematic cases below stay raster: they have no symbol
+        // equivalent, and re-authoring them as vectors is its own task.
 
-        // HER-301 — new cinematic-only cases (no clean SF Symbol equivalent).
+        // HER-301 — cinematic-only cases (no clean SF Symbol equivalent).
         case .brainPremium:            return "Lumina/Icons/brain_premium"
         case .briefcase:               return "Lumina/Icons/briefcase"
         case .chartUp:                 return "Lumina/Icons/chart-up"
@@ -333,23 +331,42 @@ struct LVIconView: View {
     let size: CGFloat
     let tint: Color?
     let weight: Font.Weight
+    /// VoiceOver label. `nil` means decorative — the icon is hidden from
+    /// assistive tech entirely.
+    ///
+    /// Defaulting to decorative is the correct behaviour for the large
+    /// majority of the ~90 call sites, which pair a glyph with adjacent text
+    /// that already carries the meaning. Previously this view set neither a
+    /// label nor `accessibilityHidden`, and rendered `Image(assetName)` rather
+    /// than `Image(decorative:)` — so VoiceOver read out raw asset paths like
+    /// "Lumina slash Icons slash brain neural". Pass `label:` for any icon that
+    /// stands alone, especially icon-only buttons.
+    let accessibilityLabel: String?
 
     init(
         _ icon: LVIcon,
         size: CGFloat = LVSize.rowGlyph,
         tint: Color? = nil,
-        weight: Font.Weight = .regular
+        weight: Font.Weight = .regular,
+        label: String? = nil
     ) {
         self.icon = icon
         self.size = size
         self.tint = tint
         self.weight = weight
+        self.accessibilityLabel = label
     }
 
     var body: some View {
+        glyph
+            .accessibilityLabelOrHidden(accessibilityLabel)
+    }
+
+    @ViewBuilder
+    private var glyph: some View {
         if let assetName = icon.customAssetName,
            UIImage(named: assetName) != nil {
-            Image(assetName)
+            Image(decorative: assetName)
                 .resizable()
                 .renderingMode(.template)
                 .scaledToFit()
@@ -359,6 +376,20 @@ struct LVIconView: View {
             Image(systemName: icon.sfSymbol)
                 .font(.system(size: size, weight: weight))
                 .foregroundStyle(tint ?? Color.primary)
+        }
+    }
+}
+
+private extension View {
+    /// Labels the view for VoiceOver, or hides it when no label is supplied.
+    /// An unlabeled icon must be one or the other — never left to announce
+    /// whatever SwiftUI infers from the image name.
+    @ViewBuilder
+    func accessibilityLabelOrHidden(_ label: String?) -> some View {
+        if let label {
+            self.accessibilityLabel(Text(label))
+        } else {
+            accessibilityHidden(true)
         }
     }
 }

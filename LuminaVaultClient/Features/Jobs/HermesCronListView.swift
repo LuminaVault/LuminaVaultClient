@@ -112,6 +112,7 @@ struct HermesCronListView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showCreate = true } label: { Image(systemName: "plus") }
+                    .accessibilityLabel("New scheduled job")
             }
         }
         .sheet(isPresented: $showCreate) { createSheet }
