@@ -61,6 +61,10 @@ enum LVTypography {
 
     var font: Font {
         switch self {
+        // `.hero` stays a fixed point size on purpose: it is a decorative
+        // display numeral (onboarding splash), and letting it grow to ~130pt at
+        // accessibility sizes would blow up every layout that hosts it. Callers
+        // that need it to respond should wrap it in `@ScaledMetric` themselves.
         case .hero:         return .system(size: 56, weight: .regular)
         case .display:      return .system(.largeTitle, design: .default, weight: .bold)
         case .title:        return .system(.title2, design: .default, weight: .bold)
@@ -74,8 +78,13 @@ enum LVTypography {
         case .caption:      return .system(.caption)
         case .microTag:     return .system(.caption2, design: .default, weight: .semibold)
         case .kicker:       return .system(.caption2, design: .monospaced, weight: .semibold)
-        case .button:       return .system(size: 13, weight: .heavy)
-        case .otp:          return .system(size: 18, weight: .bold).monospacedDigit()
+        // Anchored to text styles rather than fixed points so they track
+        // Dynamic Type. `.footnote` is 13pt and `.body` 17pt at the default
+        // content size, so these render essentially as before at default while
+        // finally growing for users who need larger text — previously every
+        // LVButton label stayed pinned at 13pt no matter the setting.
+        case .button:       return .system(.footnote, design: .default, weight: .heavy)
+        case .otp:          return .system(.body, design: .default, weight: .bold).monospacedDigit()
         case .mono:         return .system(.body, design: .monospaced)
         }
     }

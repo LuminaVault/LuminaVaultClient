@@ -25,7 +25,7 @@ struct SignUpView: View {
                                 textContentType: .username,
                                 autocapitalization: .never)
                     Text("3–32 chars · lowercase · letters / digits / hyphens")
-                        .font(.system(size: 10))
+                        .font(.system(.caption2))
                         .foregroundStyle(Color.lvTextMuted)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 4)

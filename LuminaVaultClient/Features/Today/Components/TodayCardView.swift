@@ -25,7 +25,7 @@ struct TodayCardView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(tint)
                     Text(badge.uppercased())
-                        .font(.system(size: 10, weight: .heavy))
+                        .font(.system(.caption2, weight: .heavy))
                         .tracking(0.8)
                         .foregroundStyle(tint)
                     Spacer()

@@ -260,7 +260,7 @@ private struct AuthLandingButton: View {
             Spacer()
             if isPreferred {
                 Text("Last used")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(.caption2, weight: .semibold))
                     .foregroundStyle(palette.primary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)

@@ -27,7 +27,7 @@ struct ForgotPasswordOTPView: View {
                 .padding(.bottom, 16)
 
             Button("Didn't receive it? Resend") { Task { await vm.sendResetCode() } }
-                .font(.system(size: 10)).foregroundStyle(palette.primary.opacity(0.65))
+                .font(.system(.caption2)).foregroundStyle(palette.primary.opacity(0.65))
         }
         .padding(.horizontal, 24)
     }

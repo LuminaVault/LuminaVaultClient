@@ -60,7 +60,7 @@ struct EmailMagicVerifyView: View {
     private var resendRow: some View {
         if vm.emailMagicResendSecondsLeft > 0 {
             Text("Resend in 0:\(String(format: "%02d", vm.emailMagicResendSecondsLeft))")
-                .font(.system(size: 10))
+                .font(.system(.caption2))
                 .foregroundStyle(Color.lvTextMuted)
         } else {
             Button("Resend code") {

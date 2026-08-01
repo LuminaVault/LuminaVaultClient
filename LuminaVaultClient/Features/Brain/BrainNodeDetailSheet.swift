@@ -18,6 +18,10 @@ struct BrainNodeDetailSheet: View {
     var memoryClient: (any MemoryClientProtocol)?
 
     @State private var content: String?
+    /// The fetched memory, kept whole rather than reduced to its `content`.
+    /// The geo anchor (`lat`/`lng`/`placeName`) has been arriving on this DTO
+    /// since HER-207 and was being discarded on every load.
+    @State private var memory: MemoryDTO?
     @State private var isLoadingContent = false
     @State private var loadFailed = false
 
@@ -76,6 +80,12 @@ struct BrainNodeDetailSheet: View {
                                 .foregroundStyle(palette.textSecondary)
                         }
 
+                        // Where this was captured. Renders nothing when the
+                        // memory carries no coordinate, which is the common case.
+                        if let memory {
+                            MemoryMapCard(memory: memory)
+                        }
+
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Score")
                                 .font(.caption.weight(.semibold))
@@ -104,8 +114,9 @@ struct BrainNodeDetailSheet: View {
         loadFailed = false
         defer { isLoadingContent = false }
         do {
-            let memory = try await memoryClient.get(id: node.id)
-            content = memory.content
+            let fetched = try await memoryClient.get(id: node.id)
+            memory = fetched
+            content = fetched.content
         } catch {
             loadFailed = true
         }

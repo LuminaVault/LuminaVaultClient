@@ -60,7 +60,7 @@ struct ProfileStatsHUDView: View {
                     )
                     .shadow(color: palette.glowPrimary.opacity(0.6), radius: 8)
                 Text("POWER LEVEL")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(.caption2, weight: .bold))
                     .tracking(2)
                     .foregroundStyle(palette.textSecondary)
             }
