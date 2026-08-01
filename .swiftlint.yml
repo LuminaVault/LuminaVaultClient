@@ -47,3 +47,27 @@ force_unwrapping:
 
 trailing_comma:
   mandatory_comma: true
+
+# Accessibility / contrast guardrails. Both of these problems were found by
+# audit rather than by tooling, and both had grown to hundreds of sites before
+# anyone noticed: 358 fixed font sizes (no Dynamic Type anywhere in the app) and
+# tab-bar icons rendering at ~2.6:1, under the 3:1 WCAG floor for UI components.
+# Warnings, not errors — the existing backlog is large and shrinks over time;
+# the point is to stop it growing.
+custom_rules:
+  fixed_font_size:
+    name: "Fixed font size"
+    regex: '\.system\(size: \d+'
+    match_kinds:
+      - identifier
+      - number
+    excluded: ".*/Utilities/.*"
+    message: "Fixed point sizes ignore Dynamic Type. Use an LVTypography token, or .system(.textStyle) so it scales."
+    severity: warning
+
+  near_invisible_opacity:
+    name: "Near-invisible opacity"
+    regex: '\.opacity\(0\.[0-2]\d*\)'
+    excluded: ".*/(Utilities|Components/LVTabBar)\\.swift"
+    message: "Below ~0.3 alpha foreground content falls under the 3:1 contrast floor. Tint from LVPalette instead."
+    severity: warning

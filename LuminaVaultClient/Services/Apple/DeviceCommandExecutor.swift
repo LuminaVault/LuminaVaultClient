@@ -191,9 +191,32 @@ actor DeviceCommandExecutor {
         case .photos: return await fetchPhotos(command)
         case .location: return await fetchLocation(command)
         case .files: return await fetchFiles(command)
+        case .health: return await fetchHealth(command)
         default:
             return DeviceCommandResult(id: command.id, ok: false, error: "device_fetch not supported for \(command.domain?.rawValue ?? "unknown")")
         }
+    }
+
+    // MARK: - Health
+
+    /// `device_fetch` → `.health`. Previously fell through to the `default`
+    /// branch and answered "device_fetch not supported for health", so the
+    /// server fell back to its `health_events` cache — a cache that was itself
+    /// always empty because the HealthKit coordinator was never constructed.
+    /// Both ends of that pipe are now connected.
+    private func fetchHealth(_ command: DeviceCommand) async -> DeviceCommandResult {
+        let service = HealthKitService(httpClient: httpClient)
+        guard await service.readAuthorizationState() == .granted else {
+            return DeviceCommandResult(
+                id: command.id,
+                ok: false,
+                error: "Health permission not granted"
+            )
+        }
+        let days = Int(command.payload["days"] ?? "7") ?? 7
+        let limit = Int(command.payload["limit"] ?? "24") ?? 24
+        let rows = await service.recentSamples(days: days, limitPerType: limit)
+        return Self.encodeItems(command.id, rows)
     }
 
     // MARK: - Files (P5) — user-picked documents; only derived text leaves the

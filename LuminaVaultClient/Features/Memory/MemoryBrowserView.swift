@@ -13,12 +13,14 @@ struct MemoryBrowserView: View {
         client: any MemoryClientProtocol,
         routerClient: (any RouterClientProtocol)? = nil,
         conversationsClient: (any ConversationsClientProtocol)? = nil,
+        spotlight: SpotlightIndexer? = nil,
         healthFilter: MemoryHealthFilter? = nil
     ) {
         _viewModel = State(initialValue: MemoryBrowserViewModel(
             client: client,
             routerClient: routerClient,
             conversationsClient: conversationsClient,
+            spotlight: spotlight,
             healthFilter: healthFilter
         ))
     }

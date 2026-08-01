@@ -52,14 +52,14 @@ struct CommandCenterHeroView: View {
                         .frame(width: 7, height: 7)
                         .shadow(color: isOnline ? .green.opacity(0.8) : .clear, radius: 4)
                     Text(isOnline ? "AGENT CORE · ONLINE" : "AGENT CORE · OFFLINE")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .font(.system(.caption2, design: .rounded, weight: .bold))
                         .tracking(1.2)
                         .foregroundStyle(palette.textSecondary)
                 }
 
                 if let providerName, !providerName.isEmpty {
                     Text(providerName.uppercased())
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .font(.system(.caption2, design: .monospaced, weight: .medium))
                         .foregroundStyle(palette.textSecondary.opacity(0.8))
                 }
             }

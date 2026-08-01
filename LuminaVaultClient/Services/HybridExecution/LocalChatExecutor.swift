@@ -99,16 +99,20 @@ struct LocalEndpointChatExecutor: LocalChatExecuting {
                     guard let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode) else {
                         throw LocalChatExecutorError.unavailable
                     }
-                    for try await rawLine in bytes.lines {
-                        if Task.isCancelled {
-                            break
-                        }
-                        let line = rawLine.hasPrefix("data:") ? String(rawLine.dropFirst(5)).trimmingCharacters(in: .whitespaces) : rawLine
-                        if line.isEmpty || line == "[DONE]" {
-                            continue
-                        }
-                        guard let data = line.data(using: .utf8),
-                              let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { continue }
+                    // Frame at the byte level via the shared `SSEFrameParser`,
+                    // the same path `BaseHTTPClient` uses.
+                    //
+                    // This loop used to read `bytes.lines`. `AsyncLineSequence`
+                    // silently drops empty lines — and empty lines are exactly
+                    // what delimits SSE frames — so multi-frame responses got
+                    // concatenated and failed to decode. `BaseHTTPClient` was
+                    // fixed for this long ago and documents it at its call
+                    // site; local/hybrid streaming never got the same fix.
+                    var parser = SSEFrameParser()
+
+                    func emit(_ data: Data) {
+                        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                        else { return }
                         let delta: String? = if ollama {
                             (object["message"] as? [String: Any])?["content"] as? String
                         } else {
@@ -116,6 +120,26 @@ struct LocalEndpointChatExecutor: LocalChatExecuting {
                         }
                         if let delta, !delta.isEmpty {
                             continuation.yield(delta)
+                        }
+                    }
+
+                    outer: for try await byte in bytes {
+                        if Task.isCancelled { break }
+                        for outcome in parser.feed(bytes: CollectionOfOne(byte)) {
+                            switch outcome {
+                            case .pending: continue
+                            case .event(let data): emit(data)
+                            case .done: break outer
+                            }
+                        }
+                    }
+                    // Drain a trailing partial line + any buffered frame so the
+                    // final token is never dropped.
+                    for outcome in parser.finishBytes() {
+                        switch outcome {
+                        case .pending: continue
+                        case .event(let data): emit(data)
+                        case .done: break
                         }
                     }
                     continuation.finish()

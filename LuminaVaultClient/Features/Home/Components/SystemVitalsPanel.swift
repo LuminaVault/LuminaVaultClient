@@ -47,7 +47,7 @@ struct SystemVitalsPanel: View {
                 .foregroundStyle(palette.textPrimary)
                 .monospacedDigit()
             Text(label.uppercased())
-                .font(.system(size: 9, weight: .bold))
+                .font(.system(.caption2, weight: .bold))
                 .tracking(0.8)
                 .foregroundStyle(palette.textSecondary)
         }

@@ -19,6 +19,10 @@ final class MemoryBrowserViewModel {
     private let client: any MemoryClientProtocol
     private let routerClient: (any RouterClientProtocol)?
     private let conversationsClient: (any ConversationsClientProtocol)?
+    /// Mirrors loaded memories into the on-device Spotlight index so vault
+    /// content is findable from iOS Search. Best-effort and non-blocking —
+    /// indexing must never delay or fail a list load.
+    private let spotlight: SpotlightIndexer?
     let healthFilter: MemoryHealthFilter?
     private let pageSize = 50
 
@@ -40,11 +44,13 @@ final class MemoryBrowserViewModel {
         client: any MemoryClientProtocol,
         routerClient: (any RouterClientProtocol)? = nil,
         conversationsClient: (any ConversationsClientProtocol)? = nil,
+        spotlight: SpotlightIndexer? = nil,
         healthFilter: MemoryHealthFilter? = nil
     ) {
         self.client = client
         self.routerClient = routerClient
         self.conversationsClient = conversationsClient
+        self.spotlight = spotlight
         self.healthFilter = healthFilter
     }
 
@@ -59,6 +65,7 @@ final class MemoryBrowserViewModel {
             offset = response.memories.count
             canLoadMore = response.memories.count == pageSize
             state = .ready
+            indexInSpotlight(response.memories)
         } catch {
             state = .failed("Couldn't load your memories.")
         }
@@ -71,6 +78,7 @@ final class MemoryBrowserViewModel {
             memories.append(contentsOf: response.memories)
             offset += response.memories.count
             canLoadMore = response.memories.count == pageSize
+            indexInSpotlight(response.memories)
         } catch {
             actionError = "Couldn't load more."
         }
@@ -104,10 +112,20 @@ final class MemoryBrowserViewModel {
         }
     }
 
+    /// Fire-and-forget so a slow index write never stalls the list.
+    private func indexInSpotlight(_ memories: [MemoryDTO]) {
+        guard let spotlight, !memories.isEmpty else { return }
+        Task { await spotlight.index(memories: memories) }
+    }
+
     func delete(_ memory: MemoryDTO) async {
         do {
             try await client.delete(id: memory.id)
             memories.removeAll { $0.id == memory.id }
+            // Drop it from Search too, or a deleted note stays findable.
+            if let spotlight {
+                Task { await spotlight.remove(memoryIDs: [memory.id]) }
+            }
         } catch {
             actionError = "Couldn't delete that memory."
         }

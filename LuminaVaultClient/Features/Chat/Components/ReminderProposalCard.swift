@@ -19,6 +19,7 @@ struct ReminderProposalCard: View {
                 Image(systemName: "bell.badge")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(palette.glowPrimary)
+                    .accessibilityHidden(true)
                 Text("Set a reminder?")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(palette.textPrimary)
@@ -28,6 +29,7 @@ struct ReminderProposalCard: View {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(palette.textSecondary)
                 }
+                .accessibilityLabel("Dismiss reminder suggestion")
             }
 
             if let title = proposal.title, !title.isEmpty {
@@ -91,7 +93,7 @@ struct ReminderProposalCard: View {
 
     private func chip(systemImage: String, text: String) -> some View {
         HStack(spacing: 5) {
-            Image(systemName: systemImage).font(.system(size: 10, weight: .semibold))
+            Image(systemName: systemImage).font(.system(.caption2, weight: .semibold))
             Text(text).font(.system(size: 11, weight: .semibold))
         }
         .foregroundStyle(palette.glowPrimary)

@@ -188,6 +188,121 @@ actor HealthKitService {
         }
     }
 
+    // MARK: - Fresh read (device-RPC)
+
+    /// Bounded, on-demand read for the `device_fetch` → `.health` RPC.
+    ///
+    /// Distinct from `syncAll()`: this answers "what does the device say *right
+    /// now*" for a server-side tool call, so it takes the most recent samples
+    /// within a window rather than walking anchors, and never touches the
+    /// anchor store — a tool call must not perturb incremental sync state.
+    func recentSamples(days: Int = 7, limitPerType: Int = 24) async -> [[String: String]] {
+        guard isAvailable else { return [] }
+
+        let start = Calendar.current.date(byAdding: .day, value: -max(1, days), to: Date()) ?? Date()
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: Date(), options: .strictStartDate)
+        let newestFirst = [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]
+        let iso = ISO8601DateFormatter()
+
+        var rows: [[String: String]] = []
+        for metric in HealthKitMetricCatalog.quantityMetrics {
+            guard let unit = metric.quantityUnit else { continue }
+            let samples = (try? await sampleQuery(
+                type: metric.hkSampleType,
+                predicate: predicate,
+                limit: limitPerType,
+                sortDescriptors: newestFirst
+            )) ?? []
+            for case let sample as HKQuantitySample in samples {
+                rows.append([
+                    "type": metric.serverType,
+                    "value": String(sample.quantity.doubleValue(for: unit)),
+                    "unit": metric.defaultUnit ?? "",
+                    "at": iso.string(from: sample.endDate),
+                ])
+            }
+        }
+        return rows
+    }
+
+    private func sampleQuery(
+        type: HKSampleType,
+        predicate: NSPredicate?,
+        limit: Int,
+        sortDescriptors: [NSSortDescriptor]
+    ) async throws -> [HKSample] {
+        try await withCheckedThrowingContinuation { cont in
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: predicate,
+                limit: limit,
+                sortDescriptors: sortDescriptors
+            ) { _, samples, error in
+                if let error {
+                    cont.resume(throwing: error)
+                } else {
+                    cont.resume(returning: samples ?? [])
+                }
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    // MARK: - Authorization probe
+
+    /// Read-authorization summary.
+    ///
+    /// iOS deliberately does **not** expose read permission —
+    /// `authorizationStatus(for:)` reports *share/write* status only, and this
+    /// app requests `toShare: []`, so that call returns `.sharingDenied` for
+    /// every type no matter what the user granted. Anything built on it reports
+    /// "denied" to a fully-authorized user.
+    ///
+    /// So: ask HealthKit whether the prompt still needs showing, then, if it
+    /// doesn't, actually run a query. A denied read doesn't error — it returns
+    /// an empty result — so an empty-but-successful query is treated as granted
+    /// and only an explicit authorization error counts as denied.
+    func readAuthorizationState() async -> ReadAuthorizationState {
+        guard isAvailable else { return .unavailable }
+
+        let read = HealthKitMetricCatalog.allReadTypes
+        guard !read.isEmpty else { return .unavailable }
+
+        let requestStatus = try? await healthStore.statusForAuthorizationRequest(
+            toShare: [],
+            read: read
+        )
+        if requestStatus == .shouldRequest { return .notDetermined }
+
+        // The prompt has been shown. Probe a single type to distinguish an
+        // authorized-but-empty vault from an outright denial.
+        guard let probeType = HealthKitMetricCatalog.quantityMetrics.first?.hkSampleType
+            ?? read.first
+        else { return .notDetermined }
+
+        do {
+            _ = try await anchoredQuery(type: probeType, anchor: nil)
+            return .granted
+        } catch let error as HKError where error.code == .errorAuthorizationDenied
+            || error.code == .errorAuthorizationNotDetermined {
+            return .denied
+        } catch {
+            // Transient failure (device locked, store busy). Don't claim denial
+            // on evidence this weak — report unknown and let the caller retry.
+            log.error("HealthKit read probe failed: \(error.localizedDescription)")
+            return .unknown
+        }
+    }
+
+    enum ReadAuthorizationState: Equatable {
+        case granted
+        case denied
+        case notDetermined
+        case unavailable
+        /// The probe itself failed; authorization is genuinely unknown.
+        case unknown
+    }
+
     // MARK: - Anchored query helper
 
     private func anchoredQuery(

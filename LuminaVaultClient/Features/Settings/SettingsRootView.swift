@@ -109,7 +109,8 @@ struct SettingsRootView: View {
                                 MemoryBrowserView(
                                     client: memoryClient,
                                     routerClient: appState.makeRouterClient(),
-                                    conversationsClient: appState.makeConversationsClient()
+                                    conversationsClient: appState.makeConversationsClient(),
+                                    spotlight: appState.spotlightIndexer
                                 )
                             }
                             LVSettingsDivider()
