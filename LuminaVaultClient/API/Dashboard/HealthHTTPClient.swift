@@ -12,22 +12,39 @@ protocol HealthClientProtocol: Sendable {
 }
 
 final class HealthHTTPClient: HealthClientProtocol {
+    /// Probes the *active* endpoint, so it must go through the same pinned
+    /// session as every other API call. On `URLSession.shared` this probe kept
+    /// reporting "online" while TLS pinning was cancelling every real request —
+    /// the System Status card stayed green through a total outage.
     private let session: URLSession
+    /// Unpinned session for `isReachable(baseURL:)`, which validates arbitrary
+    /// user-entered BYO / Tailscale URLs that are not the managed host and are
+    /// often self-signed.
+    private let probeSession: URLSession
     private let timeout: TimeInterval
 
-    init(session: URLSession = .shared, timeout: TimeInterval = 2.0) {
+    init(
+        session: URLSession = .lvPinned,
+        probeSession: URLSession = .shared,
+        timeout: TimeInterval = 2.0
+    ) {
         self.session = session
+        self.probeSession = probeSession
         self.timeout = timeout
     }
 
     func isOnline() async -> Bool {
-        await isReachable(baseURL: Config.apiBaseURL)
+        await probe(baseURL: Config.apiBaseURL, using: session)
     }
 
-    /// Probes `GET <baseURL>/health`. Used both by the System Status card
-    /// (against the active base URL) and the BYO server picker, which tests
-    /// a user-entered URL *before* persisting it as the active endpoint.
+    /// Probes `GET <baseURL>/health` for a URL the user is about to adopt —
+    /// the BYO / Tailscale server picker tests an endpoint *before* persisting
+    /// it as active. Deliberately unpinned: the host is not the managed host.
     func isReachable(baseURL: URL) async -> Bool {
+        await probe(baseURL: baseURL, using: probeSession)
+    }
+
+    private func probe(baseURL: URL, using session: URLSession) async -> Bool {
         guard let url = URL(string: "/health", relativeTo: baseURL) else {
             return false
         }

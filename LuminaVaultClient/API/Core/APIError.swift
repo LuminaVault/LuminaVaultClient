@@ -22,6 +22,13 @@ enum APIError: Error, LocalizedError {
     /// daily-cap message; the optional interval lets the UI compute a
     /// countdown when available.
     case rateLimited(retryAfter: TimeInterval?)
+    /// The TLS pinning delegate rejected the server's certificate chain and
+    /// cancelled the request. URLSession reports this as a bare
+    /// `URLError.cancelled`, indistinguishable from a cooperative cancel — so
+    /// it gets its own case, or it disappears into `isBenignCancellation` and
+    /// the user sees an empty screen instead of a failure. See
+    /// `PinningFailureLog` for how the two are told apart.
+    case tlsPinningFailed(host: String?)
 
     var errorDescription: String? {
         switch self {
@@ -42,18 +49,53 @@ enum APIError: Error, LocalizedError {
             return "This feature requires an upgraded plan."
         case .rateLimited:
             return "You've hit today's limit. Try again later."
+        case .tlsPinningFailed:
+            return "Couldn't establish a secure connection to LuminaVault. "
+                + "Check for an app update, then try again."
         }
     }
 
     /// True when the error is a cooperative cancel (SwiftUI `.task` teardown,
     /// refreshable abort, user cancel) — never surface as a user-facing failure.
+    ///
+    /// A TLS pin rejection also arrives as `URLError.cancelled`, so it is
+    /// explicitly excluded: treating it as benign is what let a CA rotation
+    /// silently disable the entire app.
     static func isBenignCancellation(_ error: Error) -> Bool {
+        if isTLSPinningFailure(error) { return false }
         if error is CancellationError { return true }
         if let urlError = error as? URLError, urlError.code == .cancelled { return true }
         if case APIError.networkFailure(let underlying) = error {
             return isBenignCancellation(underlying)
         }
         return false
+    }
+
+    /// True when this error is a cancel that coincides with a pin rejection
+    /// recorded by `PinningFailureLog` inside its correlation window.
+    ///
+    /// A genuine user cancel occurring within seconds of a pin rejection is
+    /// misread as a pinning failure. That trade is deliberate: when pinning is
+    /// rejecting, every request is failing anyway, and a false "secure
+    /// connection" message beats a silent empty screen.
+    static func isTLSPinningFailure(_ error: Error) -> Bool {
+        if case APIError.tlsPinningFailed = error { return true }
+        if case APIError.networkFailure(let underlying) = error {
+            return isTLSPinningFailure(underlying)
+        }
+        guard let urlError = error as? URLError, urlError.code == .cancelled else { return false }
+        if let host = urlError.failingURL?.host {
+            return PinningFailureLog.recentFailure(for: host) != nil
+        }
+        return PinningFailureLog.hasRecentFailure()
+    }
+
+    /// Wraps a raw transport error, promoting pin rejections out of the
+    /// generic `.networkFailure` bucket so they carry a real message.
+    static func transport(_ error: Error) -> APIError {
+        guard isTLSPinningFailure(error) else { return .networkFailure(error) }
+        let host = (error as? URLError)?.failingURL?.host
+        return .tlsPinningFailed(host: host)
     }
 }
 

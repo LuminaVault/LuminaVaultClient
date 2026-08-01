@@ -233,6 +233,7 @@ actor SyncManager {
         case .invalidURL: "invalid url"
         case let .encodingFailed(err): "encode: \(err.localizedDescription)"
         case let .decodingFailed(err): "decode: \(err.localizedDescription)"
+        case let .tlsPinningFailed(host): "tls pinning failed\(host.map { " (\($0))" } ?? "")"
         }
     }
 

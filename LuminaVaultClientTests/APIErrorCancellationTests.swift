@@ -4,6 +4,14 @@
 import XCTest
 
 final class APIErrorCancellationTests: XCTestCase {
+    /// `isBenignCancellation` now consults `PinningFailureLog`, so a rejection
+    /// recorded by another test would make these cancels look like TLS
+    /// failures. Clear it so the suite stays order-independent.
+    override func setUp() {
+        super.setUp()
+        PinningFailureLog.reset()
+    }
+
     func testCancellationErrorIsBenign() {
         XCTAssertTrue(APIError.isBenignCancellation(CancellationError()))
     }

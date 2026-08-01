@@ -99,8 +99,14 @@ struct BrainTabView: View {
     @ViewBuilder
     private var content: some View {
         switch vm.state {
-        case .idle, .loading:
+        case .loading:
             loadingState
+        case .idle:
+            // `.idle` after `.task { loadGraph() }` has run means the load was
+            // aborted, not that it is still in flight. Rendering it as
+            // `loadingState` is what made the Brain tab spin on "Building your
+            // brain…" forever when TLS pinning cancelled every request.
+            idleState
         case let .loaded(graph):
             ZStack(alignment: .bottom) {
                 Group {
@@ -295,6 +301,28 @@ struct BrainTabView: View {
             Text("Building your brain…")
                 .font(.callout)
                 .foregroundStyle(palette.textSecondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .lvBackground()
+    }
+
+    /// Shown when a load ended without producing a graph and without a hard
+    /// error — an interrupted first load. Offers a way out instead of an
+    /// indefinite spinner.
+    private var idleState: some View {
+        VStack(spacing: 12) {
+            LVIconView(.exclamationmarkTriangleFill, size: 42, tint: palette.accent)
+            Text("Brain didn't finish loading")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(palette.textPrimary)
+            Text("The request was interrupted before your graph arrived.")
+                .font(.callout)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(palette.textSecondary)
+                .padding(.horizontal, 32)
+            Button("Try again") { Task { await loadGraph() } }
+                .buttonStyle(.borderedProminent)
+                .tint(palette.primary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .lvBackground()
