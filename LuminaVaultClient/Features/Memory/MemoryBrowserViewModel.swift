@@ -5,6 +5,7 @@
 // over the existing /v1/memory CRUD endpoints.
 
 import Foundation
+import WidgetKit
 import LuminaVaultShared
 
 @MainActor
@@ -66,6 +67,7 @@ final class MemoryBrowserViewModel {
             canLoadMore = response.memories.count == pageSize
             state = .ready
             indexInSpotlight(response.memories)
+            publishWidgetSnapshot()
         } catch {
             state = .failed("Couldn't load your memories.")
         }
@@ -118,6 +120,30 @@ final class MemoryBrowserViewModel {
         Task { await spotlight.index(memories: memories) }
     }
 
+    /// Publishes the newest memories to the App Group file the home-screen
+    /// widget reads. The widget process holds no bearer token and cannot call
+    /// the API itself, so if the app never writes this the widget is
+    /// permanently empty — the same dead-on-arrival shape HealthKit had.
+    ///
+    /// Uses `self.memories` rather than the incoming page so a `loadMore`
+    /// doesn't publish page 2 as if it were the newest items.
+    private func publishWidgetSnapshot() {
+        let items = memories.prefix(WidgetSnapshotStore.maxItems).map { memory in
+            WidgetCaptureItem(
+                id: memory.id,
+                title: SpotlightIndexer.title(for: memory),
+                createdAt: memory.createdAt ?? Date(),
+                placeName: memory.placeName
+            )
+        }
+        WidgetSnapshotStore.write(WidgetSnapshot(
+            items: Array(items),
+            totalCount: memories.count,
+            updatedAt: Date()
+        ))
+        WidgetCenter.shared.reloadTimelines(ofKind: "LuminaVaultWidgets")
+    }
+
     func delete(_ memory: MemoryDTO) async {
         do {
             try await client.delete(id: memory.id)
@@ -126,6 +152,7 @@ final class MemoryBrowserViewModel {
             if let spotlight {
                 Task { await spotlight.remove(memoryIDs: [memory.id]) }
             }
+            publishWidgetSnapshot()
         } catch {
             actionError = "Couldn't delete that memory."
         }

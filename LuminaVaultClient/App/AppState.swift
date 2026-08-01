@@ -5,6 +5,7 @@ import LuminaVaultShared
 import PostHog
 import SwiftData
 import SwiftUI
+import WidgetKit
 
 @Observable
 @MainActor
@@ -458,6 +459,11 @@ final class AppState {
         // this user's note titles searchable after sign-out would expose them
         // to whoever signs in next.
         Task { await spotlightIndexer.removeAll() }
+        // Same reasoning for the widget: its snapshot lives in the shared App
+        // Group container and renders on the home screen, so leaving it would
+        // show one user's note titles to whoever signs in next.
+        WidgetSnapshotStore.clear()
+        WidgetCenter.shared.reloadTimelines(ofKind: "LuminaVaultWidgets")
         sharedSessionKeychain.clear()
         keychain.clearAll()
         currentUserId = nil

@@ -11,6 +11,9 @@
 		36898169B542419BA32DA510 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = F8D79674B58849A9A00C4538 /* Sentry-Dynamic */; };
 		4DF5595360F1E690E952EEC5 /* SharedShareQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC806D8A50D60DFFD23095C1 /* SharedShareQueue.swift */; };
 		597D439B97706F0F59CC1976 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = D7B92A4C1DB72A55FF1DE968 /* RevenueCatUI */; };
+		603DC5B1301E09CF00EE0BC4 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 603DC5B0301E09CF00EE0BC4 /* WidgetKit.framework */; };
+		603DC5B3301E09CF00EE0BC4 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 603DC5B2301E09CF00EE0BC4 /* SwiftUI.framework */; };
+		603DC5C2301E09D100EE0BC4 /* LuminaVaultWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 603DC5AE301E09CF00EE0BC4 /* LuminaVaultWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		605690302FBF20FF0059C355 /* LuminaVaultShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 605690262FBF20FE0059C355 /* LuminaVaultShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		605871F82FBCCE1E0077984D /* (null) in Frameworks */ = {isa = PBXBuildFile; };
 		605871F92FBCCE1E0077984D /* (null) in Frameworks */ = {isa = PBXBuildFile; };
@@ -27,6 +30,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		603DC5C0301E09D100EE0BC4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6088C4EB2FAE1184006F894F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 603DC5AD301E09CF00EE0BC4;
+			remoteInfo = LuminaVaultWidgetsExtension;
+		};
 		6056902E2FBF20FF0059C355 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 6088C4EB2FAE1184006F894F /* Project object */;
@@ -58,6 +68,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				605690302FBF20FF0059C355 /* LuminaVaultShareExtension.appex in Embed Foundation Extensions */,
+				603DC5C2301E09D100EE0BC4 /* LuminaVaultWidgetsExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -66,6 +77,10 @@
 
 /* Begin PBXFileReference section */
 		28D751509558FA472F19A1E9 /* SharedAppGroup.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SharedAppGroup.swift; path = LuminaVaultClient/Services/AppGroup/SharedAppGroup.swift; sourceTree = "<group>"; };
+		603DC5AE301E09CF00EE0BC4 /* LuminaVaultWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LuminaVaultWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		603DC5B0301E09CF00EE0BC4 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		603DC5B2301E09CF00EE0BC4 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		603DC5C8301E0B3500EE0BC4 /* LuminaVaultWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LuminaVaultWidgetsExtension.entitlements; sourceTree = "<group>"; };
 		605690262FBF20FE0059C355 /* LuminaVaultShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LuminaVaultShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		6088C4F32FAE1184006F894F /* LuminaVaultClient.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LuminaVaultClient.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6088C5002FAE1186006F894F /* LuminaVaultClientTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LuminaVaultClientTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -90,6 +105,21 @@
 			);
 			target = 605690252FBF20FE0059C355 /* LuminaVaultShareExtension */;
 		};
+		603DC5C7301E09D100EE0BC4 /* Exceptions for "LuminaVaultWidgets" folder in "LuminaVaultWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 603DC5AD301E09CF00EE0BC4 /* LuminaVaultWidgetsExtension */;
+		};
+		60WID39EXC2026080101AB /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Services/AppGroup/SharedAppGroup.swift,
+				Services/AppGroup/WidgetSnapshotStore.swift,
+			);
+			target = 603DC5AD301E09CF00EE0BC4 /* LuminaVaultWidgetsExtension */;
+		};
 		605690352FBF20FF0059C355 /* Exceptions for "LuminaVaultShareExtension" folder in "LuminaVaultShareExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -110,6 +140,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		603DC5B4301E09CF00EE0BC4 /* LuminaVaultWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				603DC5C7301E09D100EE0BC4 /* Exceptions for "LuminaVaultWidgets" folder in "LuminaVaultWidgetsExtension" target */,
+			);
+			path = LuminaVaultWidgets;
+			sourceTree = "<group>";
+		};
 		605690272FBF20FE0059C355 /* LuminaVaultShareExtension */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -123,6 +161,7 @@
 			exceptions = (
 				60HER39EXC2026051901AB /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultClient" target */,
 				5269C20E41A0D2C9D8A9B4E6 /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultShareExtension" target */,
+				60WID39EXC2026080101AB /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultWidgetsExtension" target */,
 			);
 			path = LuminaVaultClient;
 			sourceTree = "<group>";
@@ -140,6 +179,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		603DC5AB301E09CF00EE0BC4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				603DC5B3301E09CF00EE0BC4 /* SwiftUI.framework in Frameworks */,
+				603DC5B1301E09CF00EE0BC4 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		605690232FBF20FE0059C355 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -184,13 +232,25 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		603DC5AF301E09CF00EE0BC4 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				603DC5B0301E09CF00EE0BC4 /* WidgetKit.framework */,
+				603DC5B2301E09CF00EE0BC4 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		6088C4EA2FAE1184006F894F = {
 			isa = PBXGroup;
 			children = (
+				603DC5C8301E0B3500EE0BC4 /* LuminaVaultWidgetsExtension.entitlements */,
 				6088C4F52FAE1184006F894F /* LuminaVaultClient */,
 				6088C5032FAE1186006F894F /* LuminaVaultClientTests */,
 				6088C50D2FAE1186006F894F /* LuminaVaultClientUITests */,
 				605690272FBF20FE0059C355 /* LuminaVaultShareExtension */,
+				603DC5B4301E09CF00EE0BC4 /* LuminaVaultWidgets */,
+				603DC5AF301E09CF00EE0BC4 /* Frameworks */,
 				6088C4F42FAE1184006F894F /* Products */,
 				28D751509558FA472F19A1E9 /* SharedAppGroup.swift */,
 				7E92BAF538ED1E2FDADCFEDF /* PendingShare.swift */,
@@ -208,6 +268,7 @@
 				6088C5002FAE1186006F894F /* LuminaVaultClientTests.xctest */,
 				6088C50A2FAE1186006F894F /* LuminaVaultClientUITests.xctest */,
 				605690262FBF20FE0059C355 /* LuminaVaultShareExtension.appex */,
+				603DC5AE301E09CF00EE0BC4 /* LuminaVaultWidgetsExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -215,6 +276,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		603DC5AD301E09CF00EE0BC4 /* LuminaVaultWidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 603DC5C6301E09D100EE0BC4 /* Build configuration list for PBXNativeTarget "LuminaVaultWidgetsExtension" */;
+			buildPhases = (
+				603DC5AA301E09CF00EE0BC4 /* Sources */,
+				603DC5AB301E09CF00EE0BC4 /* Frameworks */,
+				603DC5AC301E09CF00EE0BC4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				603DC5B4301E09CF00EE0BC4 /* LuminaVaultWidgets */,
+			);
+			name = LuminaVaultWidgetsExtension;
+			packageProductDependencies = (
+			);
+			productName = LuminaVaultWidgetsExtension;
+			productReference = 603DC5AE301E09CF00EE0BC4 /* LuminaVaultWidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		605690252FBF20FE0059C355 /* LuminaVaultShareExtension */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 605690312FBF20FF0059C355 /* Build configuration list for PBXNativeTarget "LuminaVaultShareExtension" */;
@@ -249,6 +332,7 @@
 			);
 			dependencies = (
 				6056902F2FBF20FF0059C355 /* PBXTargetDependency */,
+				603DC5C1301E09D100EE0BC4 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				6088C4F52FAE1184006F894F /* LuminaVaultClient */,
@@ -325,6 +409,9 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
+					603DC5AD301E09CF00EE0BC4 = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
 					605690252FBF20FE0059C355 = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
@@ -371,11 +458,19 @@
 				6088C4FF2FAE1186006F894F /* LuminaVaultClientTests */,
 				6088C5092FAE1186006F894F /* LuminaVaultClientUITests */,
 				605690252FBF20FE0059C355 /* LuminaVaultShareExtension */,
+				603DC5AD301E09CF00EE0BC4 /* LuminaVaultWidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		603DC5AC301E09CF00EE0BC4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		605690242FBF20FE0059C355 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -426,6 +521,13 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		603DC5AA301E09CF00EE0BC4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		605690222FBF20FE0059C355 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -460,6 +562,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		603DC5C1301E09D100EE0BC4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 603DC5AD301E09CF00EE0BC4 /* LuminaVaultWidgetsExtension */;
+			targetProxy = 603DC5C0301E09D100EE0BC4 /* PBXContainerItemProxy */;
+		};
 		6056902F2FBF20FF0059C355 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 605690252FBF20FE0059C355 /* LuminaVaultShareExtension */;
@@ -478,6 +585,102 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		603DC5C3301E09D100EE0BC4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = LuminaVaultWidgetsExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 84X9WYBF36;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LuminaVaultWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LuminaVaultWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lumina.fernando.test.LuminaVaultWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		603DC5C4301E09D100EE0BC4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = LuminaVaultWidgetsExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 84X9WYBF36;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LuminaVaultWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LuminaVaultWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lumina.fernando.LuminaVaultWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		603DC5C5301E09D100EE0BC4 /* Beta */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = LuminaVaultWidgetsExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 84X9WYBF36;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LuminaVaultWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LuminaVaultWidgets;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lumina.fernando.beta.LuminaVaultWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Beta;
+		};
 		605690322FBF20FF0059C355 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1019,6 +1222,16 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		603DC5C6301E09D100EE0BC4 /* Build configuration list for PBXNativeTarget "LuminaVaultWidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				603DC5C3301E09D100EE0BC4 /* Debug */,
+				603DC5C4301E09D100EE0BC4 /* Release */,
+				603DC5C5301E09D100EE0BC4 /* Beta */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		605690312FBF20FF0059C355 /* Build configuration list for PBXNativeTarget "LuminaVaultShareExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
