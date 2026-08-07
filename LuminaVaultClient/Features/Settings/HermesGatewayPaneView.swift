@@ -74,13 +74,21 @@ struct HermesGatewayPaneView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("LuminaVault's server connects to your Hermes on your behalf, so it must be reachable from the **public internet**. Local/LAN, localhost and private IPs are always rejected.")
                     Divider()
+                    Text("**What to point at**")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Hermes must be running with `API_SERVER_ENABLED=true` on port `8642`. That's the OpenAI-compatible API — not the dashboard on `9119`, which is what Hermes Desktop connects to. Your token is the Hermes `API_SERVER_KEY`.")
+                    Divider()
                     Text("**Public HTTPS URL** (recommended)")
                         .font(.subheadline.weight(.semibold))
                     Text("Put Hermes behind TLS on a domain you control, e.g. `https://hermes.yourdomain.com` (Caddy/Nginx/Traefik reverse proxy).")
                     Divider()
                     Text("**Cloudflare Tunnel**")
                         .font(.subheadline.weight(.semibold))
-                    Text("No port-forwarding and works behind CGNAT. Run `cloudflared tunnel` on the VPS and paste the resulting `https://…` hostname.")
+                    Text("No port-forwarding and works behind CGNAT. Run `cloudflared tunnel` on the VPS pointing at `http://127.0.0.1:8642`, then paste the resulting `https://…` hostname.")
+                    Divider()
+                    Text("**Tailscale won't work**")
+                        .font(.subheadline.weight(.semibold))
+                    Text("A `100.x` address or `*.ts.net` name is only reachable from inside your tailnet, and LuminaVault's server isn't a member of it. Use one of the options above instead.")
                     Divider()
                     Text("**Public IP / http:// (advanced)**")
                         .font(.subheadline.weight(.semibold))
@@ -149,14 +157,14 @@ struct HermesGatewayPaneView: View {
         }
 
         Section {
-            TextField("https://hermes.example.com", text: $viewModel.baseUrlInput)
+            TextField("https://hermes.yourdomain.com", text: $viewModel.baseUrlInput)
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
         } header: {
             Text("Hermes URL")
         } footer: {
-            Text("Must be reachable from the public internet. https:// with a domain is strongly recommended; http:// and raw IPs are allowed but insecure (see warning below). Private/LAN addresses are rejected.")
+            Text("Point this at your Hermes **api_server** (port 8642) — not the dashboard on port 9119 that Hermes Desktop uses. Must be reachable from the public internet; https:// with a domain is strongly recommended. Private/LAN and tailnet addresses are rejected.")
         }
 
         if let warning = viewModel.transportWarning {
@@ -215,7 +223,7 @@ struct HermesGatewayPaneView: View {
             return "Choose this if your Hermes is open / unauthenticated."
         case .bearer:
             let rotate = prefilledHasAuthHeader ? " Leave blank to keep the existing token." : ""
-            return "Sent as an Authorization: Bearer header.\(rotate) Credentials are never returned in plaintext after save."
+            return "This is your Hermes API_SERVER_KEY, sent as an Authorization: Bearer header.\(rotate) Credentials are never returned in plaintext after save."
         case .basic:
             return "For a password-protected Hermes (HTTP Basic auth). Combined into an Authorization header. Use https:// so the credentials aren't sent in plaintext."
         }

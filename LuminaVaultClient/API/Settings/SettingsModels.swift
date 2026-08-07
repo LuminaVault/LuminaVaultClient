@@ -29,23 +29,39 @@ extension LuminaVaultShared.HermesConfigTestResponse: @retroactive Equatable {
     }
 }
 
-/// Classified verify-failure body the server returns inside an `error`
-/// envelope (`{ "error": "timeout|http_4xx|http_5xx|tls_error" }`). The
-/// banner copy on iOS forks on this value.
+/// Classified verify-failure code the server returns in a Hummingbird error
+/// envelope (`{ "error": { "message": "http_4xx" } }`). Every probe failure
+/// comes back as HTTP 502 regardless of what went wrong, so the status code
+/// carries no information — this value does. Mirrors
+/// `HermesConfigController.TestError` on the server.
 enum HermesVerifyFailureReason: String, Sendable {
     case timeout
     case http4xx = "http_4xx"
     case http5xx = "http_5xx"
     case tlsError = "tls_error"
+    case ssrfRejected = "ssrf_rejected"
+    case decryptFailed = "decrypt_failed"
+    case unreachable
     case unknown
 
     var displayMessage: String {
         switch self {
-        case .timeout: "Gateway took too long to respond. Check the URL and your network."
-        case .http4xx: "Gateway rejected the request. Your auth token may be wrong."
-        case .http5xx: "Gateway reported an internal error. Try again or check the gateway logs."
-        case .tlsError: "TLS / certificate error. Make sure the URL uses a valid HTTPS endpoint."
-        case .unknown: "Couldn't verify the gateway. Double-check the URL and auth header."
+        case .timeout:
+            "Hermes took too long to respond. Check that it's running and reachable from the internet."
+        case .http4xx:
+            "Hermes rejected the request. Check the URL points at the API server (port 8642, not the dashboard on 9119) and that the token matches API_SERVER_KEY."
+        case .http5xx:
+            "Hermes reported an internal error. Try again or check its logs."
+        case .tlsError:
+            "TLS / certificate error. Make sure the URL uses a valid HTTPS endpoint — self-signed certificates aren't accepted."
+        case .ssrfRejected:
+            "That address isn't allowed. It must be a public HTTPS hostname — private, loopback and link-local addresses are blocked."
+        case .decryptFailed:
+            "Stored credentials couldn't be read. Re-enter your token and save again."
+        case .unreachable:
+            "Couldn't reach Hermes. If it's on a tailnet or private network, expose it with a Cloudflare Tunnel or a public HTTPS hostname."
+        case .unknown:
+            "Couldn't verify Hermes. Double-check the URL and auth header."
         }
     }
 }

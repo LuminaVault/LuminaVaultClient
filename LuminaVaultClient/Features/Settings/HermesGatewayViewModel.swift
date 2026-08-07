@@ -259,6 +259,17 @@ final class HermesGatewayViewModel {
         guard let url = URL(string: trimmed), let host = url.host, !host.isEmpty else {
             return nil
         }
+        // Ordered by how badly each one blocks the connection. A tailnet
+        // address can never work, so it outranks the transport warnings.
+        if Self.isTailnetHost(host) {
+            return "That looks like a Tailscale address. LuminaVault's server isn't on your "
+                + "tailnet, so it can't reach it. Expose Hermes with a Cloudflare Tunnel or a "
+                + "public HTTPS hostname instead."
+        }
+        if url.port == Self.hermesDashboardPort {
+            return "Port \(Self.hermesDashboardPort) is the Hermes dashboard, which Hermes "
+                + "Desktop uses. LuminaVault needs the API server on port \(Self.hermesAPIServerPort)."
+        }
         if url.scheme?.lowercased() == "http" {
             return "No TLS — your auth token and traffic are sent in plaintext over http://. "
                 + "Use https:// with a domain whenever possible."
@@ -270,8 +281,31 @@ final class HermesGatewayViewModel {
         return nil
     }
 
+    /// The Hermes OpenAI-compatible `api_server` port — what LuminaVault talks to.
+    static let hermesAPIServerPort = 8642
+    /// The Hermes web dashboard port — what Hermes Desktop talks to. Pointing
+    /// LuminaVault here always fails: `/v1/models` 302s to a login page and the
+    /// server's probe client refuses to follow redirects.
+    static let hermesDashboardPort = 9119
+
     /// Detects a bare IPv4/IPv6 literal host (no domain). IPv6 hosts from
     /// `URL.host` may arrive bracket-stripped; a `:` is a sufficient tell.
+    /// Tailscale addresses, mirroring `SSRFGuard.isTailscale()` on the server:
+    /// IPv4 CGNAT 100.64.0.0/10 and the fixed IPv6 ULA prefix
+    /// `fd7a:115c:a1e0::/48`. MagicDNS names are matched by suffix — the client
+    /// can't resolve them, and `.ts.net` is how users write them in practice.
+    private static func isTailnetHost(_ host: String) -> Bool {
+        let lower = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+        if lower == "ts.net" || lower.hasSuffix(".ts.net") { return true }
+        if lower.hasPrefix("fd7a:115c:a1e0:") { return true }
+        let parts = lower.split(separator: ".")
+        guard parts.count == 4,
+              let first = Int(parts[0]), let second = Int(parts[1]),
+              parts.allSatisfy({ Int($0).map { (0 ... 255).contains($0) } ?? false })
+        else { return false }
+        return first == 100 && (64 ... 127).contains(second)
+    }
+
     private static func isBareIP(_ host: String) -> Bool {
         if host.contains(":") { return true }
         let parts = host.split(separator: ".")
@@ -287,14 +321,18 @@ final class HermesGatewayViewModel {
         return .configured(baseUrl: config.baseUrl, hasAuthHeader: config.hasAuthHeader, status: status)
     }
 
-    /// Maps `APIError.httpError` 4xx/5xx into the classified banner the
-    /// server documents (`timeout / http_4xx / http_5xx / tls_error`).
-    /// Network-layer failures (no response) map to `.timeout` for the UX
-    /// copy — the failure mode the user can act on is the same.
+    /// Maps a verify failure onto the classified banner.
+    ///
+    /// The server answers **502 for every probe failure** and puts the real
+    /// reason in the body (`{"error":{"message":"http_4xx"}}`), so classifying
+    /// on the status code alone reports "internal error" for what is usually a
+    /// wrong URL or token. Read the body first and only fall back to the
+    /// status when it carries no code we recognise.
     private static func classifyVerifyError(_ error: any Error) -> HermesVerifyFailureReason {
         if let apiError = error as? APIError {
             switch apiError {
-            case .httpError(let code, _):
+            case .httpError(let code, let data):
+                if let reason = verifyReason(fromBody: data) { return reason }
                 if (400 ..< 500).contains(code) { return .http4xx }
                 if (500 ..< 600).contains(code) { return .http5xx }
                 return .unknown
@@ -305,6 +343,25 @@ final class HermesGatewayViewModel {
             }
         }
         return .unknown
+    }
+
+    /// Pulls the failure code out of the error envelope. Tolerates both the
+    /// nested Hummingbird shape and a bare `{"error":"code"}`.
+    private static func verifyReason(fromBody data: Data) -> HermesVerifyFailureReason? {
+        guard !data.isEmpty,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+
+        let code: String? = if let nested = json["error"] as? [String: Any] {
+            nested["message"] as? String
+        } else if let flat = json["error"] as? String {
+            flat
+        } else {
+            json["message"] as? String
+        }
+
+        guard let code else { return nil }
+        return HermesVerifyFailureReason(rawValue: code.trimmingCharacters(in: .whitespaces))
     }
 
     private func errorMessage(_ error: any Error) -> String {

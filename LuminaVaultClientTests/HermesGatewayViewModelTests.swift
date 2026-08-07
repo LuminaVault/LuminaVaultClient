@@ -214,6 +214,68 @@ final class HermesGatewayViewModelTests: XCTestCase {
         XCTAssertTrue(mockClient.calls.isEmpty)
     }
 
+    // MARK: - verify-failure classification
+
+    /// The server answers 502 for every probe failure and puts the real reason
+    /// in the body, so classifying on the status alone reported "internal
+    /// error" for what is almost always a wrong URL or token.
+    func testVerifyFailureReadsCodeFromBodyNotStatus() async {
+        sut.state = .configured(baseUrl: "https://hermes.example.com", hasAuthHeader: true, status: .verified(at: .now))
+        let body = Data(#"{"error":{"message":"http_4xx"}}"#.utf8)
+        mockClient.testResult = .failure(APIError.httpError(statusCode: 502, data: body))
+
+        await sut.testAgain()
+
+        XCTAssertEqual(sut.verifyError, .http4xx)
+    }
+
+    func testVerifyFailureMapsUnreachable() async {
+        sut.state = .configured(baseUrl: "https://hermes.example.com", hasAuthHeader: true, status: .verified(at: .now))
+        let body = Data(#"{"error":{"message":"unreachable"}}"#.utf8)
+        mockClient.testResult = .failure(APIError.httpError(statusCode: 502, data: body))
+
+        await sut.testAgain()
+
+        XCTAssertEqual(sut.verifyError, .unreachable)
+    }
+
+    func testVerifyFailureFallsBackToStatusForUnknownBody() async {
+        sut.state = .configured(baseUrl: "https://hermes.example.com", hasAuthHeader: true, status: .verified(at: .now))
+        let body = Data(#"{"error":{"message":"something_else"}}"#.utf8)
+        mockClient.testResult = .failure(APIError.httpError(statusCode: 502, data: body))
+
+        await sut.testAgain()
+
+        XCTAssertEqual(sut.verifyError, .http5xx)
+    }
+
+    // MARK: - transport warnings
+
+    func testTailnetURLSurfacesWarning() {
+        sut.baseUrlInput = "http://100.105.117.67:8642"
+        XCTAssertEqual(sut.transportWarning?.contains("Tailscale"), true)
+    }
+
+    func testMagicDNSNameSurfacesWarning() {
+        sut.baseUrlInput = "http://hermes-vps-2.tail562587.ts.net:8642"
+        XCTAssertEqual(sut.transportWarning?.contains("Tailscale"), true)
+    }
+
+    func testDashboardPortSurfacesWarning() {
+        sut.baseUrlInput = "https://hermes.example.com:9119"
+        XCTAssertEqual(sut.transportWarning?.contains("8642"), true)
+    }
+
+    func testPublicHTTPSURLHasNoWarning() {
+        sut.baseUrlInput = "https://hermes.example.com"
+        XCTAssertNil(sut.transportWarning)
+    }
+
+    func testPublicAddressStartingWith100IsNotTreatedAsTailnet() {
+        sut.baseUrlInput = "https://100.63.0.1:8642"
+        XCTAssertEqual(sut.transportWarning?.contains("Tailscale"), false)
+    }
+
     // MARK: - disconnect()
 
     func testDisconnectSuccessGoesToEmpty() async {
