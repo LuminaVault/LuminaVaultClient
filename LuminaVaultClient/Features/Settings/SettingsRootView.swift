@@ -44,6 +44,10 @@ struct SettingsRootView: View {
                         // feature-catalog of advanced setup sits underneath.
                         // ─────────────────────────────────────────────────────
 
+                        LVSectionCard("Setup with Lumina") {
+                            SetupWithLuminaSection(onSend: {})
+                        }
+
                         LVSectionCard("Connections") {
                             LVSettingsRow(
                                 "Connections",

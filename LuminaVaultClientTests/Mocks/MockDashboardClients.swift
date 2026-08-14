@@ -77,6 +77,21 @@ final class MockHealthClient: HealthClientProtocol, @unchecked Sendable {
     }
 }
 
+final class MockHomeSummaryClient: HomeSummaryClientProtocol, @unchecked Sendable {
+    var result: Result<HomeSummaryResponse, Error> = .success(
+        HomeSummaryResponse(
+            skillsCount: 0, jobsCount: 0, remindersCount: 0,
+            todosCount: 0, projectsCount: 0, insightsCount: 0
+        )
+    )
+    private(set) var lastPeriod: DashboardPeriod?
+
+    func summary(period: DashboardPeriod) async throws -> HomeSummaryResponse {
+        lastPeriod = period
+        return try result.get()
+    }
+}
+
 extension DashboardStatsResponse {
     static let empty = DashboardStatsResponse(memoriesToday: 0, memoriesTotal: 0, lastCompileAt: nil)
 

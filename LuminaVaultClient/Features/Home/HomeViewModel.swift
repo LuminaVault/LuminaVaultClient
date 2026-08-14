@@ -38,6 +38,7 @@ final class HomeViewModel {
     var overview: CardState<AnalyticsOverviewResponse> = .loading
     var retrievalHealth: CardState<RetrievalHealthResponse> = .loading
     var isOnline: Bool = true
+    var period: DashboardPeriod = .today
 
     // Inherited from the existing kb-compile flow (HER-36 / HER-39). The
     // dashboard's "Trigger Compile" big-button delegates here so the
@@ -135,10 +136,17 @@ final class HomeViewModel {
         }
     }
 
+    func setPeriod(_ period: DashboardPeriod) async {
+        guard self.period != period else { return }
+        self.period = period
+        home = .loading
+        await loadHome()
+    }
+
     private func loadHome() async {
         guard let homeClient else { return }
         do {
-            home = .loaded(try await homeClient.summary())
+            home = .loaded(try await homeClient.summary(period: period))
         } catch {
             home = .failed(message: friendlyMessage(error))
         }

@@ -100,6 +100,24 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertEqual(insightsClient.lastLimit, 3)
     }
 
+    func testSetPeriodReloadsHome() async {
+        let homeClient = MockHomeSummaryClient()
+        sut = HomeViewModel(
+            statsClient: statsClient,
+            profileClient: profileClient,
+            tasksClient: tasksClient,
+            insightsClient: insightsClient,
+            healthClient: healthClient,
+            compileViewModel: compileVM,
+            displayName: "Fernando",
+            homeClient: homeClient
+        )
+        await sut.setPeriod(.week)
+        XCTAssertEqual(sut.period, .week)
+        XCTAssertEqual(homeClient.lastPeriod, .week)
+        if case .loaded = sut.home {} else { XCTFail("home should be loaded") }
+    }
+
     func testTriggerCompileDelegatesAndReloadsStats() async {
         compileClient.compileResult = .success(.init(memoriesIngested: 3, memoriesUpdated: 0, durationMs: 100, runId: UUID()))
         statsClient.result = .success(.stub(today: 1))

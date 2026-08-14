@@ -24,6 +24,8 @@ final class AppState {
     /// Cross-surface handoff from a memory detail into a newly-created routed
     /// conversation on the Think tab.
     var pendingChatConversationID: UUID?
+    /// Settings → Think handoff: seed the composer, do not auto-send.
+    var pendingChatPrefill: String?
     /// HER-238: timestamp of the most recent successful `/v1/auth/me` fetch.
     /// `nil` means we've never refreshed since sign-in. Used by
     /// `refreshCurrentUserIfNeeded(authClient:now:)` to debounce.
@@ -359,6 +361,10 @@ final class AppState {
 
     func openChat(conversationID: UUID) {
         pendingChatConversationID = conversationID
+    }
+
+    func openChat(prefill: String) {
+        pendingChatPrefill = prefill
     }
 
     /// HER-107 — non-streaming chat client (BYO-Hermes-aware

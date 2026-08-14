@@ -171,6 +171,10 @@ struct MainTabView: View {
             guard conversationID != nil else { return }
             selection = Self.tabIds.think
         }
+        .onChange(of: appState.pendingChatPrefill) { _, prefill in
+            guard prefill != nil else { return }
+            selection = Self.tabIds.think
+        }
         .onChange(of: notificationRouter.pendingDeepLink) { _, deepLink in
             if case .workflow = deepLink {
                 selection = Self.studioTabID

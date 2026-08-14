@@ -57,8 +57,12 @@ struct ThinkWithLuminaView: View {
         .onChange(of: appState.pendingChatConversationID) { _, conversationID in
             openPendingConversation(conversationID)
         }
+        .onChange(of: appState.pendingChatPrefill) { _, prefill in
+            applyPendingPrefill(prefill)
+        }
         .onAppear {
             openPendingConversation(appState.pendingChatConversationID)
+            applyPendingPrefill(appState.pendingChatPrefill)
         }
     }
 
@@ -140,6 +144,13 @@ struct ThinkWithLuminaView: View {
         guard let id else { return }
         openConversation(id)
         appState.pendingChatConversationID = nil
+    }
+
+    private func applyPendingPrefill(_ text: String?) {
+        guard let text, !text.isEmpty else { return }
+        newConversation()
+        chatVM.composer = text
+        appState.pendingChatPrefill = nil
     }
 
     private func newConversation() {

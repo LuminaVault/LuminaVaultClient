@@ -8,13 +8,14 @@ import Foundation
 import LuminaVaultShared
 
 protocol HomeSummaryClientProtocol: Sendable {
-    func summary() async throws -> HomeSummaryResponse
+    func summary(period: DashboardPeriod) async throws -> HomeSummaryResponse
 }
 
 enum HomeSummaryEndpoints {
     struct Get: Endpoint {
         typealias Response = HomeSummaryResponse
-        var path: String { "/v1/dashboard/home" }
+        let period: DashboardPeriod
+        var path: String { "/v1/dashboard/home?period=\(period.rawValue)" }
         var method: HTTPMethod { .get }
     }
 }
@@ -23,7 +24,7 @@ final class HomeSummaryHTTPClient: HomeSummaryClientProtocol {
     private let client: BaseHTTPClient
     init(client: BaseHTTPClient) { self.client = client }
 
-    func summary() async throws -> HomeSummaryResponse {
-        try await client.execute(HomeSummaryEndpoints.Get())
+    func summary(period: DashboardPeriod = .today) async throws -> HomeSummaryResponse {
+        try await client.execute(HomeSummaryEndpoints.Get(period: period))
     }
 }

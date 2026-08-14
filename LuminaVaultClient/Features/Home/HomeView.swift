@@ -65,24 +65,44 @@ struct HomeView: View {
                             compactHero
                         }
 
+                        PeriodChipBar(period: vm.period) { next in
+                            Task { await vm.setPeriod(next) }
+                        }
+
+                        PeriodKpiRow(
+                            stats: home?.periodStats,
+                            doneDestination: todayDestination,
+                            capturesDestination: todayDestination,
+                            skillsDestination: skillsDestination,
+                            tokensDestination: analyticsDestination
+                        )
+
                         brainPreviewSection
 
                         powerStrip
 
                         if horizontalSizeClass == .regular {
                             HStack(alignment: .top, spacing: 16) {
-                                TrendSparklineView(daily: dailyTrend, isLoading: isOverviewLoading)
-                                RetrievalHealthTile(health: vm.retrievalHealth.value, isLoading: isRetrievalLoading)
+                                HomeActivityChartCard(series: home?.periodSeries ?? [], period: vm.period)
+                                HomeMixDonutCard(mix: home?.periodMix)
                             }
                             HStack(alignment: .top, spacing: 16) {
                                 activeJobsSection
-                                skillsSection
+                                cronSection
                             }
-                        } else {
-                            TrendSparklineView(daily: dailyTrend, isLoading: isOverviewLoading)
+                            HStack(alignment: .top, spacing: 16) {
+                                skillsSection
+                                toolsSection
+                            }
                             RetrievalHealthTile(health: vm.retrievalHealth.value, isLoading: isRetrievalLoading)
+                        } else {
+                            HomeActivityChartCard(series: home?.periodSeries ?? [], period: vm.period)
+                            HomeMixDonutCard(mix: home?.periodMix)
                             activeJobsSection
+                            cronSection
                             skillsSection
+                            toolsSection
+                            RetrievalHealthTile(health: vm.retrievalHealth.value, isLoading: isRetrievalLoading)
                         }
 
                         ActivityFeedView(
@@ -235,6 +255,46 @@ struct HomeView: View {
         }
     }
 
+    private var cronSection: some View {
+        Group {
+            if let jobsDestination {
+                NavigationLink { jobsDestination() } label: {
+                    CronsPreviewPanel(
+                        jobs: home?.cronJobs ?? [],
+                        count: home?.cronJobsCount ?? home?.cronJobs.count ?? 0,
+                        isLoading: isHomeLoading
+                    )
+                }
+            } else {
+                CronsPreviewPanel(
+                    jobs: home?.cronJobs ?? [],
+                    count: home?.cronJobsCount ?? home?.cronJobs.count ?? 0,
+                    isLoading: isHomeLoading
+                )
+            }
+        }
+    }
+
+    private var toolsSection: some View {
+        Group {
+            if let skillsDestination {
+                NavigationLink { skillsDestination() } label: {
+                    ToolsPreviewPanel(
+                        tools: home?.tools ?? [],
+                        count: home?.toolsCount ?? home?.tools.count ?? 0,
+                        isLoading: isHomeLoading
+                    )
+                }
+            } else {
+                ToolsPreviewPanel(
+                    tools: home?.tools ?? [],
+                    count: home?.toolsCount ?? home?.tools.count ?? 0,
+                    isLoading: isHomeLoading
+                )
+            }
+        }
+    }
+
     private var skillsSection: some View {
         Group {
             if let skillsDestination {
@@ -318,15 +378,6 @@ struct HomeView: View {
     private var tokenTotal: Int? {
         guard let usage = vm.usage.value else { return nil }
         return usage.llmTokensIn + usage.llmTokensOut
-    }
-
-    private var dailyTrend: [AnalyticsDailyPointDTO] {
-        vm.overview.value?.daily ?? []
-    }
-
-    private var isOverviewLoading: Bool {
-        if case .loading = vm.overview { return true }
-        return false
     }
 
     private var isRetrievalLoading: Bool {
