@@ -25,7 +25,7 @@ enum SetupPrompts {
     static func prompt(for preset: SetupPreset, custom: String = "") -> String {
         switch preset {
         case .claude:
-            """
+            return """
             \(preamble)
 
             Connect Claude Code so I can use it from this vault.
@@ -35,7 +35,7 @@ enum SetupPrompts {
             4. Tell me what I can ask you to do next.
             """
         case .codex:
-            """
+            return """
             \(preamble)
 
             Connect Codex / the OpenAI coding agent so I can use it from this vault.
@@ -45,7 +45,7 @@ enum SetupPrompts {
             4. Tell me what I can ask you to do next.
             """
         case .hermes:
-            """
+            return """
             \(preamble)
 
             Connect or verify Hermes for this account.
@@ -57,7 +57,7 @@ enum SetupPrompts {
         case .anything:
             let request = custom.trimmingCharacters(in: .whitespacesAndNewlines)
             let body = request.isEmpty ? "the integration I describe next" : request
-            """
+            return """
             \(preamble)
 
             \(body)
