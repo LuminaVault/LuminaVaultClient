@@ -193,6 +193,12 @@ struct SettingsRootView: View {
                                 HermesGatewayPaneView(client: settingsClient)
                             }
                             LVSettingsDivider()
+                            LVSettingsRow("Agent connections", icon: .keyFill) {
+                                AgentConnectionsView(
+                                    client: AgentConnectionsHTTPClient(client: appState.makeHTTPClient())
+                                )
+                            }
+                            LVSettingsDivider()
                             // Nous Subscription Integration — connect a personal
                             // Nous Portal subscription (OAuth device-code) so
                             // Hermes runs on the user's own credits.
