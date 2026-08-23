@@ -18,7 +18,8 @@ struct MicHoldButton: View {
             .foregroundStyle(voice.isRecording ? palette.accent : palette.glowPrimary)
             .scaleEffect(voice.isRecording ? 1.1 : 1.0)
             .animation(.easeInOut(duration: 0.18), value: voice.isRecording)
-            .contentShape(Rectangle())
+            .frame(minWidth: LVSize.tapTarget, minHeight: LVSize.tapTarget)
+            .contentShape(.rect)
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { _ in

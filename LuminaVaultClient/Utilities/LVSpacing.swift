@@ -45,6 +45,10 @@ enum LVSize {
     /// 56pt — secondary surface height (large CTA, search bar).
     public static let largeControlHeight: CGFloat = 56
 
+    /// 44pt — HIG minimum comfortable hit region. Grow the *frame* of an
+    /// icon-only control to this; never the glyph, which keeps its own size.
+    public static let tapTarget: CGFloat = 44
+
     /// 22pt — tab-bar glyph size (`LVTabBar`).
     public static let tabBarGlyph: CGFloat = 22
 

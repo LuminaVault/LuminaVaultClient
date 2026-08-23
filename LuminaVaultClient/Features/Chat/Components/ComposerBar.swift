@@ -121,6 +121,8 @@ struct ComposerBar: View {
         } label: {
             LVIconView(.plusCircleFill, size: 26, tint: palette.glowPrimary)
                 .shadow(color: palette.glowPrimary.opacity(0.6), radius: 8)
+                .frame(minWidth: LVSize.tapTarget, minHeight: LVSize.tapTarget)
+                .contentShape(.rect)
         }
         .lvGlowPress()
         .disabled(voice.isRecording)
@@ -183,6 +185,8 @@ struct ComposerBar: View {
         Button(action: onCancel) {
             LVIconView(.stopCircleFill, size: 26, tint: palette.accent)
                 .shadow(color: palette.accent.opacity(0.6), radius: 8)
+                .frame(minWidth: LVSize.tapTarget, minHeight: LVSize.tapTarget)
+                .contentShape(.rect)
         }
         .lvPulse(active: true)
         .accessibilityLabel("Stop")
@@ -192,6 +196,8 @@ struct ComposerBar: View {
         Button(action: onSend) {
             LVIconView(.arrowUpCircleFill, size: 30, tint: palette.accent)
                 .shadow(color: palette.accent.opacity(canSend ? 0.8 : 0), radius: 10)
+                .frame(minWidth: LVSize.tapTarget, minHeight: LVSize.tapTarget)
+                .contentShape(.rect)
         }
         .lvGlowPress()
         .disabled(!canSend)

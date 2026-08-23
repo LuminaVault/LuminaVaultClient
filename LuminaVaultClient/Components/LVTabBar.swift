@@ -134,8 +134,10 @@ struct LVTabBar: View {
             .padding(.top, showsCenterCapture ? 22 : 0)
 
             if showsCenterCapture {
-                CaptureFAB(style: .floating)
-                    .scaleEffect(0.72 * (1 - 0.12 * minimizeProgress))
+                // The shrink rides inside the FAB's own label so the 44pt hit
+                // region survives it — an outer `scaleEffect` took the target
+                // down to ~35pt while minimized.
+                CaptureFAB(style: .floating, visualScale: 0.72 * (1 - 0.12 * minimizeProgress))
                     .offset(y: -6 + 4 * minimizeProgress)
                     .accessibilityLabel("New capture")
             }

@@ -28,8 +28,15 @@ struct CaptureFAB: View {
 
     var style: Style = .floating
 
-    init(style: Style = .floating) {
+    /// Visual shrink applied to the disc *inside* the button label. Hosts used
+    /// to wrap the whole `CaptureFAB` in `.scaleEffect`, which shrank the hit
+    /// region along with the artwork — the tab-bar FAB bottomed out around
+    /// 35pt. Scaling here keeps the tappable frame at its unscaled size.
+    var visualScale: CGFloat = 1
+
+    init(style: Style = .floating, visualScale: CGFloat = 1) {
         self.style = style
+        self.visualScale = visualScale
     }
 
     private var diameter: CGFloat {
@@ -46,6 +53,11 @@ struct CaptureFAB: View {
             showingSheet = true
         } label: {
             label
+                // `scaleEffect` leaves layout size untouched, so the label keeps
+                // reporting `diameter` and the hit region never drops below it.
+                .scaleEffect(visualScale)
+                .frame(minWidth: LVSize.tapTarget, minHeight: LVSize.tapTarget)
+                .contentShape(.rect)
         }
         .accessibilityLabel("New capture")
         .sheet(isPresented: $showingSheet) {
