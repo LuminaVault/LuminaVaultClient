@@ -64,14 +64,20 @@ struct SwipeCardsView: View {
             Spacer()
             if isTop {
                 HStack(spacing: 36) {
-                    swipeHint(systemImage: "xmark", label: "Skip", tint: .red)
-                    swipeHint(systemImage: "checkmark", label: "True", tint: .green)
+                    swipeButton(icon: .xmark, label: "Skip", tint: .red) {
+                        finish(cardID: card.id, agreed: false)
+                    }
+                    swipeButton(icon: .checkmark, label: "True", tint: .green) {
+                        finish(cardID: card.id, agreed: true)
+                    }
                 }
             }
         }
         // Back cards render as a blank card edge — hide text so it can't
         // bleed through the near-transparent front-card surface.
         .opacity(isTop ? 1 : 0)
+        // …and keep them out of the VoiceOver rotor, which ignores opacity.
+        .accessibilityHidden(!isTop)
         .padding(20)
         .frame(maxWidth: .infinity, minHeight: 360)
         .background(
@@ -85,16 +91,28 @@ struct SwipeCardsView: View {
         .shadow(color: .black.opacity(0.15), radius: 14, y: 4)
     }
 
-    private func swipeHint(systemImage: String, label: String, tint: Color) -> some View {
-        VStack(spacing: 4) {
-            // HER-291: kept as Image — runtime symbol name
-            Image(systemName: systemImage)
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(tint)
-            Text(label)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
+    /// The two hints used to be inert decoration, which left the swipe the
+    /// only way to answer — unusable under VoiceOver, and awkward for anyone
+    /// who reads the hint as a button. They are real controls now; the drag
+    /// still works and both paths land in `finish(cardID:agreed:)`.
+    private func swipeButton(
+        icon: LVIcon,
+        label: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: LVSpacing.xs) {
+                LVIconView(icon, size: 16, tint: tint, weight: .bold)
+                Text(label)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(minWidth: LVSize.tapTarget, minHeight: LVSize.tapTarget)
+            .contentShape(.rect)
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     private var completion: some View {

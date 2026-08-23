@@ -20,7 +20,7 @@ struct AskLuminaInputView: View {
                 .onSubmit(onSubmit)
                 .disabled(isBusy)
             Button(action: onSubmit) {
-                LVIconView(.arrowUpCircleFill, size: 26, tint: submitColor)
+                LVIconView(.arrowUpCircleFill, size: 26, tint: submitColor, label: "Ask")
             }
             .disabled(isBusy || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }

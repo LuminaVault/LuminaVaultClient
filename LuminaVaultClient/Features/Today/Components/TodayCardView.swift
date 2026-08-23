@@ -30,7 +30,7 @@ struct TodayCardView: View {
                         .foregroundStyle(tint)
                     Spacer()
                     Button(action: onShare) {
-                        LVIconView(.squareAndArrowUp, size: 14, tint: palette.textSecondary)
+                        LVIconView(.squareAndArrowUp, size: 14, tint: palette.textSecondary, label: "Share")
                     }
                     .buttonStyle(.plain)
                 }

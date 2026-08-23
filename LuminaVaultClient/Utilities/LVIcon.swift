@@ -96,6 +96,7 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
     case docText
     case paperclip
     case eye
+    case eyeSlash
     case folder
     case folderFill
     case quoteOpening
@@ -212,6 +213,7 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
         case .docText:                          return "doc.text"
         case .paperclip:                        return "paperclip"
         case .eye:                              return "eye"
+        case .eyeSlash:                         return "eye.slash"
         case .folder:                           return "folder"
         case .folderFill:                       return "folder.fill"
         case .quoteOpening:                     return "quote.opening"

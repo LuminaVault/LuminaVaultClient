@@ -161,7 +161,7 @@ struct ChatView: View {
                 Button {
                     viewModel.reset()
                 } label: {
-                    LVIconView(.trash, size: 14, tint: palette.textSecondary)
+                    LVIconView(.trash, size: 14, tint: palette.textSecondary, label: "Clear conversation")
                 }
                 .lvGlowPress()
             }

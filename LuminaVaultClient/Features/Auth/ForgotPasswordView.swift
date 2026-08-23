@@ -48,7 +48,7 @@ private struct LVBackButton: View {
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         Button { dismiss() } label: {
-            LVIconView(.chevronLeft, size: 14, tint: palette.primary.opacity(0.8), weight: .semibold)
+            LVIconView(.chevronLeft, size: 14, tint: palette.primary.opacity(0.8), weight: .semibold, label: "Back")
                 .frame(width: 32, height: 32)
                 .background(Color.lvGlass)
                 .clipShape(RoundedRectangle(cornerRadius: 10))

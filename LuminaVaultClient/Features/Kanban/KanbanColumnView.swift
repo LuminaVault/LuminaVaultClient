@@ -54,7 +54,7 @@ struct KanbanColumnView: View {
                     let t = newCardTitle.trimmingCharacters(in: .whitespaces)
                     guard !t.isEmpty else { return }
                     onAddCard(t); newCardTitle = ""
-                } label: { Image(systemName: "plus.circle.fill") }
+                } label: { LVIconView(.plusCircleFill, size: 22, label: "Add card") }
             }
         }
         .padding(12)

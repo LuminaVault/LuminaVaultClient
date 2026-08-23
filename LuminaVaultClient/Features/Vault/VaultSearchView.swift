@@ -47,7 +47,7 @@ struct VaultSearchView: View {
                 Button {
                     vm.clear()
                 } label: {
-                    LVIconView(.xmarkCircleFill, tint: Color.lvTextMuted)
+                    LVIconView(.xmarkCircleFill, tint: Color.lvTextMuted, label: "Clear search")
                 }
             }
         }

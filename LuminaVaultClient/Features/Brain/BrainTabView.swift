@@ -78,7 +78,7 @@ struct BrainTabView: View {
                             reloadTask?.cancel()
                             Task { await loadGraph() }
                         } label: {
-                            LVIconView(.arrowClockwise)
+                            LVIconView(.arrowClockwise, label: "Reload graph")
                         }
                         .disabled(isLoading)
                     }

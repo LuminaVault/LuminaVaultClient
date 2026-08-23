@@ -58,7 +58,7 @@ struct TodayOutputDetailView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button { showingShare = true } label: {
-                        LVIconView(.squareAndArrowUp)
+                        LVIconView(.squareAndArrowUp, label: "Share")
                     }
                 }
             }

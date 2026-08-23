@@ -75,8 +75,7 @@ struct HealthDashboardSection: View {
                 Button {
                     Task { await viewModel.refresh() }
                 } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.caption)
+                    LVIconView(.arrowClockwise, size: 12, label: "Refresh health")
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
