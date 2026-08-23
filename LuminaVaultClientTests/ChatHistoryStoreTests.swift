@@ -132,4 +132,72 @@ final class ChatHistoryStoreTests: XCTestCase {
         let mostRecent = try await store.loadMostRecent()
         XCTAssertNil(mostRecent)
     }
+
+    // MARK: - lastReadMessageID (scroll restore)
+
+    func testLastReadMessageIDRoundTrips() async throws {
+        let store = makeStore()
+        let id = UUID()
+        let anchor = userMessage("second")
+        var snapshot = snap(id: id, messages: [userMessage("first"), anchor])
+        snapshot.lastReadMessageID = anchor.id
+        try await store.save(snapshot)
+
+        let loaded = try await store.load(conversationID: id)
+        XCTAssertEqual(loaded?.lastReadMessageID, anchor.id)
+    }
+
+    /// `lastReadMessageID` was added after the store shipped. Snapshots
+    /// written before it must still decode — to `nil`, which restores to the
+    /// bottom exactly as the old build did.
+    func testSnapshotWithoutLastReadMessageIDDecodesToNil() throws {
+        let id = UUID()
+        let messageID = UUID()
+        let json = """
+        {
+          "conversations": [
+            {
+              "id": "\(id.uuidString)",
+              "transport": "memory_grounded",
+              "updatedAt": "2026-01-01T00:00:00Z",
+              "messages": [
+                {
+                  "id": "\(messageID.uuidString)",
+                  "role": "user",
+                  "content": "legacy turn",
+                  "sources": [],
+                  "imageURLs": [],
+                  "renderedMarkdown": "legacy turn"
+                }
+              ]
+            }
+          ]
+        }
+        """
+        let url = tempDir.appendingPathComponent(ChatHistoryStore.fileName)
+        try Data(json.utf8).write(to: url)
+
+        // Decode through the same path the store uses.
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        struct Container: Decodable { let conversations: [ChatHistoryStore.Snapshot] }
+        let decoded = try decoder.decode(Container.self, from: Data(json.utf8))
+
+        XCTAssertEqual(decoded.conversations.count, 1)
+        XCTAssertNil(decoded.conversations[0].lastReadMessageID)
+        XCTAssertEqual(decoded.conversations[0].messages.map(\.content), ["legacy turn"])
+    }
+
+    func testLegacySnapshotOnDiskLoadsThroughTheStore() async throws {
+        let id = UUID()
+        let json = """
+        {"conversations":[{"id":"\(id.uuidString)","transport":"fresh",\
+        "updatedAt":"2026-01-01T00:00:00Z","messages":[]}]}
+        """
+        try Data(json.utf8).write(to: tempDir.appendingPathComponent(ChatHistoryStore.fileName))
+
+        let loaded = try await makeStore().load(conversationID: id)
+        XCTAssertNotNil(loaded, "a pre-lastReadMessageID file must not be treated as corrupt")
+        XCTAssertNil(loaded?.lastReadMessageID)
+    }
 }

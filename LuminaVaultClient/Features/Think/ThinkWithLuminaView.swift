@@ -89,8 +89,7 @@ struct ThinkWithLuminaView: View {
                 emptySupporting: "Ask anything. Lumina pulls from your vault and recent learnings.",
                 vaultClient: vaultClient,
                 memoryClient: memoryClient,
-                vaultUploadClient: vaultUploadClient,
-                bottomPadding: 90
+                vaultUploadClient: vaultUploadClient
             )
         }
         .lvBackground()

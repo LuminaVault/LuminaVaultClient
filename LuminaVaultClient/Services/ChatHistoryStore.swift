@@ -38,6 +38,25 @@ actor ChatHistoryStore {
         let transport: ChatViewModel.Transport
         var messages: [ChatViewModel.Message]
         var updatedAt: Date
+        /// Where the transcript was parked when the user last left. Optional so
+        /// snapshots written before this field decode to `nil` (the synthesized
+        /// `Decodable` uses `decodeIfPresent` for optionals) and simply restore
+        /// to the bottom, which is the old behaviour.
+        var lastReadMessageID: UUID?
+
+        init(
+            id: UUID,
+            transport: ChatViewModel.Transport,
+            messages: [ChatViewModel.Message],
+            updatedAt: Date,
+            lastReadMessageID: UUID? = nil
+        ) {
+            self.id = id
+            self.transport = transport
+            self.messages = messages
+            self.updatedAt = updatedAt
+            self.lastReadMessageID = lastReadMessageID
+        }
     }
 
     nonisolated private struct Container: Codable, Sendable {

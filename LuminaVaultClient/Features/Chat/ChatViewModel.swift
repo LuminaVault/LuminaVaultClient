@@ -194,6 +194,19 @@ final class ChatViewModel {
     /// behavior testable.
     private(set) var sendHapticTrigger = 0
     private(set) var completionHapticTrigger = 0
+    /// Bumped on every accepted `send()`, unlike `sendHapticTrigger` which is
+    /// gated on `hapticsEnabled`. The transcript keys its "always scroll to my
+    /// own turn" exception off this, so the behaviour doesn't quietly change
+    /// when the user turns haptics off.
+    private(set) var sentTurnTrigger = 0
+    /// Last message the transcript had scrolled to. Persisted in the snapshot
+    /// so reopening a thread lands where the user left it rather than at the
+    /// bottom of a conversation they were reading the middle of.
+    ///
+    /// `@ObservationIgnored`: the transcript writes this on every scroll
+    /// settle, and nothing renders from it — observing it would invalidate a
+    /// body per scroll event for no reason.
+    @ObservationIgnored var lastReadMessageID: UUID?
     /// HER-107 — transient banner after `saveAsMemory(...)`. Auto-clears
     /// after ~2s so the chat surface doesn't grow stale toasts.
     var savedMemoryToast: String?
@@ -262,7 +275,6 @@ final class ChatViewModel {
     private var mascotDecayTask: Task<Void, Never>?
     private var toastDecayTask: Task<Void, Never>?
     private var persistTask: Task<Void, Never>?
-    private var hasRestored = false
 
     init(
         conversationsClient: any ConversationsClientProtocol,
@@ -356,6 +368,7 @@ final class ChatViewModel {
         if hapticsEnabled {
             sendHapticTrigger += 1
         }
+        sentTurnTrigger += 1
         composer = ""
         stagedReferences = []
 
@@ -933,27 +946,41 @@ final class ChatViewModel {
         schedulePersist()
     }
 
-    /// HER-107 — restore the most-recent conversation snapshot from
-    /// disk. Idempotent; safe to call from `.task { … }` on every
-    /// appear. Skips when no snapshot exists or the store is wired off.
-    func restore() async {
-        guard !hasRestored, let store = historyStore else { hasRestored = true; return }
-        hasRestored = true
+    /// Adopt a locally cached conversation snapshot.
+    ///
+    /// Pass an `id` to restore that specific thread, or `nil` for the
+    /// most-recently-updated one. Returns whether a snapshot was adopted, so
+    /// callers can fall through to their own empty state.
+    ///
+    /// Never clobbers a live conversation — if the VM already holds turns, the
+    /// call is a no-op. That makes it safe from any lifecycle hook.
+    @discardableResult
+    func restore(conversationID id: UUID? = nil) async -> Bool {
+        guard let store = historyStore else { return false }
+        guard messages.isEmpty, conversationID == nil else { return false }
+        let snapshot: ChatHistoryStore.Snapshot?
         do {
-            guard let snapshot = try await store.loadMostRecent() else { return }
-            // Don't clobber an in-flight conversation if the view re-appears.
-            guard messages.isEmpty, conversationID == nil else { return }
-            conversationID = snapshot.id
-            messages = snapshot.messages
-            transport = snapshot.transport
+            if let id {
+                snapshot = try await store.load(conversationID: id)
+            } else {
+                snapshot = try await store.loadMostRecent()
+            }
         } catch {
-            // Non-fatal — the user gets a fresh chat instead of a crash.
+            // Non-fatal — the caller falls back to a fresh chat.
+            return false
         }
+        guard let snapshot else { return false }
+        conversationID = snapshot.id
+        messages = snapshot.messages
+        transport = snapshot.transport
+        lastReadMessageID = snapshot.lastReadMessageID
+        return true
     }
 
     /// Loads a persisted server conversation selected from the Chats inbox.
-    /// This intentionally bypasses the local snapshot restore path so the inbox
-    /// remains the source of truth when the user chooses an older thread.
+    /// The server is the source of truth; the local snapshot is consulted only
+    /// to recover fields the wire DTO cannot carry, and as an offline fallback
+    /// when the fetch fails outright.
     func loadConversation(id: UUID) async {
         guard !isStreaming, phase != .starting else { return }
         phase = .starting
@@ -965,27 +992,109 @@ final class ChatViewModel {
         pendingSources = []
         jobProposal = nil
         reminderProposal = nil
-        hasRestored = true
 
         do {
             let detail = try await conversationsClient.get(id)
             conversationID = detail.conversation.id
+
+            // The wire DTO carries neither the retrieval hits nor the model
+            // that produced each turn (`ConversationMessageDTO` has only
+            // `sourceMemoryIDs` + `parallelExecutionID`). This used to drop
+            // every one of those fields on the floor, so a thread reopened
+            // from the inbox lost its citation chips, its model badge, and the
+            // link into its multi-model comparison. Two recoveries:
+            //   1. `parallelExecutionID` comes straight off the DTO.
+            //   2. Everything the wire cannot express is merged back from the
+            //      local snapshot for the same conversation, matched on
+            //      message id — so a thread this device produced keeps its
+            //      badge and chips. A thread first seen on another device
+            //      still has no badge; that needs a server-side field and is
+            //      not something to fake client-side.
+            let cached = try? await historyStore?.load(conversationID: id)
+            let cachedByID = Dictionary(
+                (cached?.messages ?? []).map { ($0.id, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
             messages = detail.messages.map { message in
-                Message(
+                let local = cachedByID[message.id]
+                return Message(
                     id: message.id,
                     role: message.role,
                     content: message.content,
-                    sources: []
+                    sources: local?.sources ?? [],
+                    parallelExecutionID: message.parallelExecutionID,
+                    modelLabel: local?.modelLabel
                 )
             }
+            lastReadMessageID = cached?.lastReadMessageID
             transport = .memoryGrounded
             phase = .idle
             schedulePersist()
+            // Chips the local cache could not supply are hydrated from the
+            // memory store after the transcript is on screen, so first paint
+            // is never blocked on N memory reads.
+            await hydrateSources(from: detail.messages)
         } catch is CancellationError {
             phase = .idle
         } catch {
-            failSend(with: error)
+            // Offline / server error: the thread may still be in the local
+            // snapshot, which is the whole reason it is written. Showing the
+            // cached turns beats showing an error over an empty transcript.
+            if await restore(conversationID: id) {
+                phase = .idle
+            } else {
+                failSend(with: error)
+            }
         }
+    }
+
+    /// Fills in citation chips for turns the local snapshot could not cover,
+    /// by reading each cited memory once. Ids are de-duplicated across the
+    /// whole thread and fetched concurrently, so a 50-turn conversation costs
+    /// one round of requests bounded by the number of *distinct* memories, not
+    /// by the number of turns. Failures are silent — a missing chip is a
+    /// cosmetic loss, not a reason to fail opening the thread.
+    private func hydrateSources(from wire: [ConversationMessageDTO]) async {
+        let alreadyHydrated = Set(messages.filter { !$0.sources.isEmpty }.map(\.id))
+        let needed = wire.filter { !$0.sourceMemoryIDs.isEmpty && !alreadyHydrated.contains($0.id) }
+        guard !needed.isEmpty else { return }
+
+        let ids = Set(needed.flatMap(\.sourceMemoryIDs))
+        let client = memoryClient
+        let fetched: [UUID: MemoryDTO] = await withTaskGroup(of: (UUID, MemoryDTO?).self) { group in
+            for id in ids {
+                group.addTask { (id, try? await client.get(id: id)) }
+            }
+            var result: [UUID: MemoryDTO] = [:]
+            for await (id, memory) in group {
+                if let memory { result[id] = memory }
+            }
+            return result
+        }
+        guard !fetched.isEmpty else { return }
+
+        let hitsByMessage: [UUID: [QueryHitDTO]] = needed.reduce(into: [:]) { acc, message in
+            let hits = message.sourceMemoryIDs.compactMap { memoryID -> QueryHitDTO? in
+                guard let memory = fetched[memoryID] else { return nil }
+                // `distance` is a retrieval-time score the transcript endpoint
+                // does not persist; the chips only render `content`.
+                return QueryHitDTO(
+                    id: memory.id,
+                    content: memory.content,
+                    distance: 0,
+                    createdAt: memory.createdAt
+                )
+            }
+            if !hits.isEmpty { acc[message.id] = hits }
+        }
+        guard !hitsByMessage.isEmpty else { return }
+
+        for index in messages.indices {
+            if let hits = hitsByMessage[messages[index].id] {
+                messages[index].sources = hits
+            }
+        }
+        schedulePersist()
     }
 
     /// Debounce-persist current chat state. Called after every turn
@@ -1009,7 +1118,8 @@ final class ChatViewModel {
             id: id,
             transport: transport,
             messages: messages,
-            updatedAt: Date()
+            updatedAt: Date(),
+            lastReadMessageID: lastReadMessageID
         )
     }
 
@@ -1183,6 +1293,7 @@ final class ChatViewModel {
         routeUsage = nil
         parallelExecution = nil
         stagedReferences = []
+        lastReadMessageID = nil
         phase = .idle
         mascotState = .idle
         if let store = historyStore, let oldID {

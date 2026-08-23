@@ -37,7 +37,6 @@ struct ChatView: View {
     /// extracted into the turn and uploaded to the vault (persisted +
     /// indexed for grounding). Optional so previews / dev menus can omit.
     var vaultUploadClient: (any VaultUploadClientProtocol)?
-    var bottomPadding: CGFloat = 0
 
     @FocusState private var composerFocused: Bool
     /// Transient banner for a failed file extraction (unsupported type,
@@ -52,41 +51,84 @@ struct ChatView: View {
     @State private var linkText = ""
     @State private var comparisonPresentation: ParallelComparisonPresentation?
     @State private var showWorkflowPicker = false
-    /// Throttles auto-scroll during token streaming so the list doesn't jitter.
-    @State private var lastAutoScrollTime: Date = .distantPast
-    // `AnyHashable`: message rows anchor on `Message.id` (UUID) while the
-    // streaming row anchors on the `pendingAnchor` String constant.
-    @State private var pendingScrollAnchor: AnyHashable?
-    @State private var scrollThrottleTask: Task<Void, Never>?
+
+    // MARK: Scroll state
+    //
+    // The transcript is a plain bottom-anchored `ScrollView`. There is no
+    // throttle, no `ScrollViewReader`, and no per-token scroll work: iOS 18's
+    // `.defaultScrollAnchor(.bottom)` keeps the growing streaming row in view
+    // while the user is at the bottom, and leaves them alone when they are
+    // not. `scrolledID` exists only for the two deliberate jumps — sending
+    // your own turn, and tapping the jump-to-latest pill.
+
+    /// `AnyHashable`: finalized rows are keyed by `Message.id` (UUID) while the
+    /// streaming row is keyed by the `pendingAnchor` string.
+    @State private var scrolledID: AnyHashable?
+    /// Within `pinnedTolerance` of the bottom. Drives autoscroll-on-new-turn
+    /// and the visibility of the jump-to-latest pill.
+    @State private var isPinnedToBottom = true
+    /// Turns that landed while the user was reading further up.
+    @State private var unreadCount = 0
+
+    /// How far from the bottom still counts as "at the bottom". Wide enough
+    /// that a single line of streamed growth can't flip the state.
+    private static let pinnedTolerance: CGFloat = 40
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ZStack {
-                ChatCosmicBackground()
+        ZStack {
+            ChatCosmicBackground()
 
-                ScrollView {
-                    VStack(spacing: LVSpacing.lg) {
-                        if viewModel.messages.isEmpty && !viewModel.isStreaming {
-                            emptyState
-                        } else {
-                            conversation
-                        }
+            ScrollView {
+                VStack(spacing: LVSpacing.lg) {
+                    if viewModel.messages.isEmpty && !viewModel.isStreaming {
+                        emptyState
+                    } else {
+                        conversation
                     }
-                    .padding(.top, LVSpacing.base)
-                    // Clearance so content never hides under the composer.
-                    .padding(.bottom, LVSpacing.hero)
                 }
-                .lvTabBarMinimizeOnScroll()
-                .onChange(of: viewModel.displayedAssistant) { _, _ in
-                    scheduleAutoScroll(to: Self.pendingAnchor, proxy: proxy)
-                }
-                .onChange(of: viewModel.messages.count) { _, _ in
-                    guard let last = viewModel.messages.last?.id else { return }
-                    scrollToImmediately(last, proxy: proxy)
+                .padding(.top, LVSpacing.base)
+            }
+            // Lands at the newest turn on first paint — including a thread
+            // opened from the inbox, which used to render at the top and then
+            // jump. Also keeps the bottom in view as the streaming row grows,
+            // but only while the user is already there.
+            .defaultScrollAnchor(.bottom)
+            .scrollPosition(id: $scrolledID, anchor: .bottom)
+            // The composer already rides a `.safeAreaInset`, and MainTabView
+            // already pads for the floating tab bar. This is the only extra
+            // clearance the content needs.
+            .contentMargins(.bottom, LVSpacing.sm, for: .scrollContent)
+            .scrollDismissesKeyboard(.interactively)
+            .lvTabBarMinimizeOnScroll()
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                let bottomEdge = geometry.contentOffset.y + geometry.containerSize.height
+                let contentEnd = geometry.contentSize.height + geometry.contentInsets.bottom
+                return bottomEdge >= contentEnd - Self.pinnedTolerance
+            } action: { _, pinned in
+                isPinnedToBottom = pinned
+                if pinned { unreadCount = 0 }
+            }
+            .onChange(of: viewModel.messages.count) { _, _ in
+                guard let last = viewModel.messages.last?.id else { return }
+                if isPinnedToBottom {
+                    scrollToLatest(last)
+                } else {
+                    unreadCount += 1
                 }
             }
-            // HER-255 — header hoisted to MainTabView (app-wide base header).
+            // Sending is the one case that always wins: your own turn should
+            // never land off-screen, however far up you had scrolled.
+            .onChange(of: viewModel.sentTurnTrigger) { _, _ in
+                guard let last = viewModel.messages.last?.id else { return }
+                scrollToLatest(last)
+            }
+            .overlay(alignment: .bottomTrailing) { jumpToLatestPill }
+            // Without an animation in scope the pill's `.transition` never
+            // runs and it would pop in and out. `snap` because the pill is a
+            // direct consequence of the drag that just unpinned the list.
+            .lvAnimation(LVMotion.snap, value: showsJumpToLatestPill)
         }
+        // HER-255 — header hoisted to MainTabView (app-wide base header).
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomBar
         }
@@ -99,12 +141,54 @@ struct ChatView: View {
         }
         .sensoryFeedback(.impact(weight: .light), trigger: viewModel.sendHapticTrigger)
         .sensoryFeedback(.success, trigger: viewModel.completionHapticTrigger)
-        .onDisappear {
-            scrollThrottleTask?.cancel()
+        .onChange(of: scrolledID) { _, id in
+            // Remember where the user parked so reopening the thread lands
+            // there. Nothing renders from this, so it costs no invalidation.
+            viewModel.lastReadMessageID = id as? UUID
         }
         .sheet(item: $comparisonPresentation) { _ in
             ParallelComparisonView(viewModel: viewModel)
         }
+    }
+
+    /// Visible only when the user has scrolled away from the newest turn *and*
+    /// something down there wants attention. Enters and exits along the same
+    /// path, so it reads as one object arriving and leaving rather than two
+    /// unrelated effects.
+    private var showsJumpToLatestPill: Bool {
+        !isPinnedToBottom && (viewModel.isStreaming || unreadCount > 0)
+    }
+
+    @ViewBuilder
+    private var jumpToLatestPill: some View {
+        if showsJumpToLatestPill {
+            Button {
+                guard let last = viewModel.messages.last?.id else { return }
+                scrollToLatest(last)
+            } label: {
+                LVIconView(
+                    .chevronDown,
+                    size: 16,
+                    tint: palette.textPrimary,
+                    weight: .semibold,
+                    label: unreadCount > 0 ? "Jump to latest, \(unreadCount) new" : "Jump to latest"
+                )
+                .frame(width: LVSize.tapTarget, height: LVSize.tapTarget)
+                .lvGlassCard(cornerRadius: LVRadius.pill, intensity: LVGlow.subtle)
+                .contentShape(.circle)
+            }
+            .buttonStyle(.plain)
+            .padding(.trailing, LVSpacing.lg)
+            .padding(.bottom, LVSpacing.md)
+            .transition(.scale(scale: 0.7).combined(with: .opacity))
+        }
+    }
+
+    /// The only programmatic scroll left. Streaming does not call it — a
+    /// bottom-anchored scroll view already follows the growing row.
+    private func scrollToLatest(_ id: UUID) {
+        unreadCount = 0
+        scrolledID = viewModel.isStreaming ? Self.pendingAnchor : AnyHashable(id)
     }
 
     // MARK: - Empty state ("Input Hub")
@@ -212,6 +296,7 @@ struct ChatView: View {
                 )
             }
         }
+        .scrollTargetLayout()
         .padding(.horizontal, LVSpacing.lg)
     }
 
@@ -337,48 +422,7 @@ struct ChatView: View {
                 }
             }
         }
-        .padding(.bottom, bottomPadding)
         .background(.clear)
-    }
-
-    // MARK: - Auto-scroll (throttled during streaming)
-
-    private static let autoScrollThrottle: TimeInterval = 0.18
-
-    private func scrollToImmediately(_ id: AnyHashable, proxy: ScrollViewProxy) {
-        scrollThrottleTask?.cancel()
-        scrollThrottleTask = nil
-        pendingScrollAnchor = nil
-        lastAutoScrollTime = Date()
-        withAnimation(.easeOut(duration: 0.15)) {
-            proxy.scrollTo(id, anchor: .bottom)
-        }
-    }
-
-    private func scheduleAutoScroll(to id: AnyHashable, proxy: ScrollViewProxy) {
-        pendingScrollAnchor = id
-        let now = Date()
-        if now.timeIntervalSince(lastAutoScrollTime) >= Self.autoScrollThrottle {
-            performPendingScroll(proxy: proxy)
-            return
-        }
-        scrollThrottleTask?.cancel()
-        scrollThrottleTask = Task {
-            try? await Task.sleep(for: .milliseconds(180))
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                performPendingScroll(proxy: proxy)
-            }
-        }
-    }
-
-    private func performPendingScroll(proxy: ScrollViewProxy) {
-        guard let id = pendingScrollAnchor else { return }
-        lastAutoScrollTime = Date()
-        pendingScrollAnchor = nil
-        withAnimation(.easeOut(duration: 0.12)) {
-            proxy.scrollTo(id, anchor: .bottom)
-        }
     }
 
     /// "Do both": extract the file's text into the turn (immediate use)
