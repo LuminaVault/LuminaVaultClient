@@ -32,8 +32,14 @@ final class LVThemeManager {
         let savedAppearance = UserDefaults.standard.string(forKey: Self.appearanceKey) ?? ""
         appearance = LVAppearance(rawValue: savedAppearance) ?? .system
 
+        // First launch defaults to the branded cinematic theme, not `.system`.
+        // `.system` renders flat platform chrome and switches off the entire
+        // `lvBackground` aurora/starfield backdrop, which made the shipped
+        // design system invisible until the user visited the theme picker.
+        // An explicit "System" choice still round-trips — it persists the
+        // `"system"` raw value, which decodes here ahead of the fallback.
         let savedTheme = UserDefaults.standard.string(forKey: Self.themeKey) ?? ""
-        theme = LVTheme(rawValue: savedTheme) ?? .system
+        theme = LVTheme(rawValue: savedTheme) ?? .cyanGold
     }
 
     /// Resolve the active palette given the current system color scheme.

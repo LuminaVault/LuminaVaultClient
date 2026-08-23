@@ -14,23 +14,12 @@ struct SettingsRootView: View {
 
     var body: some View {
         NavigationStack {
+            // No local backdrop: `.lvBackground()` below owns the base fill and
+            // the aurora washes. This ZStack used to open with an opaque
+            // `Color.black` plus two hand-rolled radial gradients duplicating
+            // that modifier — which occluded `lvBackground` entirely and left
+            // Light mode as dark text on black.
             ZStack(alignment: .top) {
-                Color.black.ignoresSafeArea()
-
-                RadialGradient(
-                    colors: [palette.glowPrimary.opacity(0.15), .clear],
-                    center: .topTrailing,
-                    startRadius: 0,
-                    endRadius: 600
-                ).ignoresSafeArea()
-
-                RadialGradient(
-                    colors: [palette.accent.opacity(0.1), .clear],
-                    center: .bottomLeading,
-                    startRadius: 0,
-                    endRadius: 500
-                ).ignoresSafeArea()
-
                 ScrollView {
                     VStack(spacing: LVSpacing.xl) {
                         SettingsHeroBand()
