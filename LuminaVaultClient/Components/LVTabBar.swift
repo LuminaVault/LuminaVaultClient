@@ -52,6 +52,7 @@ struct LVTabItem: Identifiable, Equatable {
 
 struct LVTabBar: View {
     @Environment(\.lvPalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(LVTabBarMinimizeState.self) private var minimize
 
     let primaryItems: [LVTabItem]
@@ -144,7 +145,7 @@ struct LVTabBar: View {
         }
         .padding(.horizontal, LVSpacing.lg)
         .padding(.bottom, LVSpacing.xs)
-        .animation(LVTabBarMinimizeState.spring, value: minimizeProgress)
+        .lvAnimation(LVMotion.snap, value: minimizeProgress)
         // Fixed clearance — do not GeometryReader-publish during minimize
         // animation (that rewrote safeAreaPadding every frame and killed scroll).
         .background {
@@ -194,8 +195,8 @@ struct LVTabBar: View {
     }
 
     private func selectWithAnimation(_ id: String) {
-        minimize.expand()
-        withAnimation(LVTabBarMinimizeState.spring) {
+        minimize.expand(reduceMotion: reduceMotion)
+        withAnimation(LVMotion.reduced(LVMotion.snap, reduceMotion)) {
             selection = id
         }
     }
@@ -232,6 +233,7 @@ private struct LVTabBarMoreButton: View {
     let underlineNamespace: Namespace.ID
 
     @Environment(LVTabBarMinimizeState.self) private var minimize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // HER-bugfix — plain Button + confirmationDialog (not Menu) so
     // matchedGeometryEffect stays in one hosting controller.
@@ -239,7 +241,7 @@ private struct LVTabBarMoreButton: View {
 
     var body: some View {
         Button {
-            minimize.expand()
+            minimize.expand(reduceMotion: reduceMotion)
             showOverflow = true
         } label: {
             LVTabBarItemContent(
@@ -253,7 +255,7 @@ private struct LVTabBarMoreButton: View {
         .confirmationDialog("More", isPresented: $showOverflow, titleVisibility: .visible) {
             ForEach(overflowItems) { overflowItem in
                 Button(overflowItem.label) {
-                    withAnimation(LVTabBarMinimizeState.spring) {
+                    withAnimation(LVMotion.reduced(LVMotion.snap, reduceMotion)) {
                         selection = overflowItem.id
                     }
                 }

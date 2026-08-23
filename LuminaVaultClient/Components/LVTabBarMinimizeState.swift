@@ -13,8 +13,10 @@ final class LVTabBarMinimizeState {
 
     private var lastOffsetY: CGFloat?
 
-    /// Shared spring with the active-pill morph (~0.28 response).
-    static let spring = Animation.spring(response: 0.28, dampingFraction: 0.78)
+    /// Shared spring with the active-pill morph. This value is the one
+    /// `LVMotion.snap` was derived from; the alias stays so existing call
+    /// sites keep reading in tab-bar terms.
+    static let spring = LVMotion.snap
 
     /// Drive minimize from a vertical scroll offset (contentOffset.y).
     func noteScroll(offsetY: CGFloat) {
@@ -35,9 +37,13 @@ final class LVTabBarMinimizeState {
         progress = next
     }
 
-    func expand() {
+    /// Collapse back to fully expanded.
+    ///
+    /// `isReduced` is the caller's `\.accessibilityReduceMotion`; the state
+    /// object has no environment of its own, so the view hands it in.
+    func expand(reduceMotion isReduced: Bool = false) {
         guard progress > 0.001 else { return }
-        withAnimation(Self.spring) {
+        withAnimation(LVMotion.reduced(Self.spring, isReduced)) {
             progress = 0
         }
     }
