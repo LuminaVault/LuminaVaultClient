@@ -477,7 +477,9 @@ struct LuminaVaultClientApp: App {
                 guard !biometricChecked else { return }
                 biometricChecked = true
                 await runBiometricUnlock()
-                try? await Task.sleep(for: .seconds(2.0))
+                // Dismiss as soon as the unlock check resolves. There used to
+                // be a flat 2s `Task.sleep` here; it gated on nothing and just
+                // held a finished app behind the splash.
                 withAnimation { showSplash = false }
             }
         }
