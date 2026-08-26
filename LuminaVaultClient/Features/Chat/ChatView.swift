@@ -276,12 +276,15 @@ struct ChatView: View {
             }
 
             if viewModel.isStreaming || !viewModel.pendingAssistant.isEmpty {
-                PendingAssistantRow(
-                    text: viewModel.displayedAssistant,
-                    sources: viewModel.pendingSources,
-                    isStreaming: viewModel.isStreaming,
-                    autoExpandThinking: viewModel.autoExpandThinking,
-                    mascotState: viewModel.mascotState
+                // The view model goes in whole and the streaming text is read
+                // inside `StreamingAssistantRow`'s own body. Reading
+                // `displayedAssistant` out here registered the dependency in
+                // *this* body, so all ten subviews of `bottomBar` were
+                // invalidated 62 times a second while an answer streamed.
+                StreamingAssistantRow(
+                    viewModel: viewModel,
+                    vaultClient: vaultClient,
+                    memoryClient: memoryClient
                 )
                 .id(Self.pendingAnchor)
             }
@@ -369,23 +372,17 @@ struct ChatView: View {
                 VoiceErrorToast(text: attachmentError)
             }
 
-            ComposerBar(
-                text: $viewModel.composer,
-                canSend: viewModel.canSend,
-                isStreaming: viewModel.isStreaming,
-                sendOnReturn: viewModel.sendOnReturn,
-                referenceNames: viewModel.stagedReferences.map(\.name),
-                voice: viewModel.voice,
+            // The composer's own scope. `ChatView`'s body passes object
+            // references only and never reads the draft text, so a keystroke
+            // re-renders this subview and nothing else on the screen.
+            ChatComposerSection(
+                composer: viewModel.composerModel,
+                viewModel: viewModel,
                 onSend: {
                     composerFocused = false
                     viewModel.send()
                 },
-                onCancel: viewModel.cancel,
                 onAttach: handleAttach,
-                onRemoveReference: { index in
-                    guard viewModel.stagedReferences.indices.contains(index) else { return }
-                    viewModel.removeReference(viewModel.stagedReferences[index])
-                },
                 onPickNote: { showNotePicker = true },
                 onPickPhoto: { showPhotoPicker = true },
                 onAddLink: { linkText = ""; showLinkPrompt = true },
@@ -734,23 +731,72 @@ private struct MessageRow: View {
     }
 }
 
-private struct PendingAssistantRow: View {
+/// Wraps `ComposerBar` so the draft text is read here rather than in
+/// `ChatView`'s body.
+///
+/// `canSend` is deliberately recomposed from `composer.hasContent` and
+/// `viewModel.canAcceptSend` instead of read off the view model: the view
+/// model's own `canSend` reads the draft, and reading it upstream would put
+/// the keystroke dependency straight back into `ChatView`.
+private struct ChatComposerSection: View {
+    @Bindable var composer: ChatComposerModel
+    let viewModel: ChatViewModel
+    let onSend: () -> Void
+    let onAttach: (URL) -> Void
+    let onPickNote: () -> Void
+    let onPickPhoto: () -> Void
+    let onAddLink: () -> Void
+    let onRunWorkflow: () -> Void
+
+    var body: some View {
+        ComposerBar(
+            text: $composer.text,
+            canSend: composer.hasContent && viewModel.canAcceptSend,
+            isStreaming: viewModel.isStreaming,
+            sendOnReturn: viewModel.sendOnReturn,
+            referenceNames: composer.stagedReferences.map(\.name),
+            voice: viewModel.voice,
+            onSend: onSend,
+            onCancel: viewModel.cancel,
+            onAttach: onAttach,
+            onRemoveReference: { index in
+                // Read inside the closure, not the body, so this stays out of
+                // the view's observation scope.
+                guard composer.stagedReferences.indices.contains(index) else { return }
+                viewModel.removeReference(composer.stagedReferences[index])
+            },
+            onPickNote: onPickNote,
+            onPickPhoto: onPickPhoto,
+            onAddLink: onAddLink,
+            onRunWorkflow: onRunWorkflow
+        )
+    }
+}
+
+/// The in-flight assistant turn.
+///
+/// Takes the view model rather than a snapshot of its text, and reads
+/// `displayedAssistant` / `streamingMarkdown` inside this body. That keeps the
+/// 62Hz typewriter invalidation contained to this one row: `ChatView`'s body
+/// never touches the streaming text, so nothing else in the screen redraws
+/// while an answer arrives.
+private struct StreamingAssistantRow: View {
     @Environment(\.lvPalette) private var palette
-    let text: String
-    let sources: [QueryHitDTO]
-    let isStreaming: Bool
-    let autoExpandThinking: Bool
-    let mascotState: HermieMascotState
+    let viewModel: ChatViewModel
+    let vaultClient: (any VaultClientProtocol)?
+    let memoryClient: (any MemoryClientProtocol)?
+
+    private var isStreaming: Bool { viewModel.isStreaming }
 
     var body: some View {
         HStack(alignment: .top, spacing: LVSpacing.sm) {
-            AssistantAvatar(state: mascotState)
+            AssistantAvatar(state: viewModel.mascotState)
                 .padding(.top, LVSpacing.xs)
             VStack(alignment: .leading, spacing: LVSpacing.xs) {
-                if text.isEmpty && isStreaming {
+                if viewModel.displayedAssistant.isEmpty && isStreaming {
                     HStack(spacing: LVSpacing.sm) {
                         TypingIndicator()
-                        if autoExpandThinking {
+                        if viewModel.autoExpandThinking {
                             Text("Preparing a response…")
                                 .lvFont(.callout)
                                 .foregroundStyle(palette.textSecondary)
@@ -758,18 +804,10 @@ private struct PendingAssistantRow: View {
                         }
                     }
                 } else {
-                    HStack(alignment: .firstTextBaseline, spacing: LVSpacing.xs) {
-                        Text(text)
-                            .lvFont(.body)
-                            .foregroundStyle(palette.textPrimary)
-                            .multilineTextAlignment(.leading)
-                        if isStreaming {
-                            StreamingCaret()
-                        }
-                    }
+                    body(for: viewModel.streamingMarkdown)
                 }
-                if !sources.isEmpty {
-                    SourceChipRow(sources: sources)
+                if !viewModel.pendingSources.isEmpty {
+                    SourceChipRow(sources: viewModel.pendingSources)
                 }
             }
             .padding(.horizontal, LVSpacing.base)
@@ -779,6 +817,72 @@ private struct PendingAssistantRow: View {
                          intensity: isStreaming ? LVGlow.focused : LVGlow.subtle)
             .lvPulse(active: isStreaming)
             Spacer(minLength: LVSpacing.hero)
+        }
+    }
+
+    /// Two stacked layers: finished blocks already rendered as markdown, and
+    /// the block still being written as plain text behind the caret. A block
+    /// promotes from the second layer to the first the moment its boundary
+    /// arrives, so the answer stops reformatting wholesale when streaming ends.
+    @ViewBuilder
+    private func body(for buffer: StreamingMarkdownBuffer) -> some View {
+        VStack(alignment: .leading, spacing: LVSpacing.xs) {
+            if !buffer.committed.isEmpty {
+                CommittedStreamingMarkdown(
+                    markdown: buffer.committed,
+                    renderedMarkdown: viewModel.streamingCommittedMarkdown,
+                    vaultClient: vaultClient,
+                    memoryClient: memoryClient
+                )
+            }
+            if !buffer.tail.isEmpty || isStreaming {
+                HStack(alignment: .firstTextBaseline, spacing: LVSpacing.xs) {
+                    if !buffer.tail.isEmpty {
+                        Text(buffer.tail)
+                            .lvFont(.body)
+                            .foregroundStyle(palette.textPrimary)
+                            .multilineTextAlignment(.leading)
+                    }
+                    if isStreaming {
+                        StreamingCaret()
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// The settled prefix of a streaming answer.
+///
+/// Split out so SwiftUI can skip it entirely between block boundaries: the
+/// view's stored properties are all `Equatable`, so an unchanged `markdown`
+/// string means an unchanged view value and no body evaluation — which is what
+/// keeps MarkdownUI off the hot path during streaming.
+private struct CommittedStreamingMarkdown: View, Equatable {
+    @Environment(\.lvPalette) private var palette
+    let markdown: String
+    let renderedMarkdown: String
+    let vaultClient: (any VaultClientProtocol)?
+    let memoryClient: (any MemoryClientProtocol)?
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.markdown == rhs.markdown && lhs.renderedMarkdown == rhs.renderedMarkdown
+    }
+
+    var body: some View {
+        if let vaultClient, let memoryClient {
+            WikilinkMarkdownView(
+                markdown: markdown,
+                renderedMarkdown: renderedMarkdown,
+                vaultClient: vaultClient,
+                memoryClient: memoryClient
+            )
+            .foregroundStyle(palette.textPrimary)
+        } else {
+            Text(markdown)
+                .lvFont(.body)
+                .foregroundStyle(palette.textPrimary)
+                .multilineTextAlignment(.leading)
         }
     }
 }

@@ -152,6 +152,14 @@ final class ChatViewModel {
     /// provider (e.g. managed-brain Gemini) delivers the whole reply in one
     /// `.summary` event. Rendered by `PendingAssistantRow`.
     var displayedAssistant: String = ""
+    /// `displayedAssistant` split into a committed markdown prefix and the
+    /// block still being written. Tracks the *revealed* text, not the
+    /// authoritative buffer, so it stays in step with what the user can see.
+    private(set) var streamingMarkdown = StreamingMarkdownBuffer()
+    /// `streamingMarkdown.committed` with wikilinks already rewritten. Cached
+    /// per block boundary — single-digit recomputes per answer, rather than
+    /// once per 62Hz reveal tick.
+    private(set) var streamingCommittedMarkdown: String = ""
     var pendingSources: [QueryHitDTO] = []
     /// One-shot banner emitted by a `.fallback` SSE event (e.g. xAI
     /// credit exhaustion → fallback model). Cleared on next `send()`.
@@ -164,7 +172,21 @@ final class ChatViewModel {
     var multiModelEnabled = false
     var multiModelStrategy: ParallelStrategyDTO = .auto
     var parallelExecution: ParallelChatExecution?
-    var composer: String = ""
+
+    /// The draft message and its staged references, on their own observable
+    /// object so a keystroke cannot dirty the object that owns `messages`.
+    /// `let`, so this reference never changes and the parent's observation
+    /// never fires for it — only `ChatComposerModel`'s own observers do.
+    let composerModel = ChatComposerModel()
+
+    /// Forwards to ``composerModel``. Computed, so reading it registers a
+    /// dependency on the composer's observation scope rather than this
+    /// object's — which is the entire point of the split.
+    var composer: String {
+        get { composerModel.text }
+        set { composerModel.text = newValue }
+    }
+
     /// HER-107 — drives `HermieMascotView`. Transitions: idle → thinking
     /// (on send / streaming) → happy (on .done) → idle (after ~1.5s).
     var mascotState: HermieMascotState = .idle
@@ -229,7 +251,11 @@ final class ChatViewModel {
     /// Phase 2 — multiple context references ride into the next `send()`.
     /// Each is a file, vault note, photo, or link whose extracted text is
     /// inlined into the turn (no server attachment contract exists).
-    var stagedReferences: [StagedAttachment] = []
+    /// Forwards to ``composerModel`` for the same reason ``composer`` does.
+    var stagedReferences: [StagedAttachment] {
+        get { composerModel.stagedReferences }
+        set { composerModel.stagedReferences = newValue }
+    }
 
     struct StagedAttachment: Equatable, Sendable, Identifiable {
         let id = UUID()
@@ -272,6 +298,12 @@ final class ChatViewModel {
     /// Drives the `displayedAssistant` typewriter reveal. Self-clears when it
     /// catches up so it never idle-spins.
     private var typewriterTask: Task<Void, Never>?
+    /// End of the revealed prefix inside `pendingAssistant`, carried forward
+    /// across ticks so the reveal never re-walks the string from `startIndex`.
+    /// `nil` means "start from the beginning"; it is reset by
+    /// `clearPendingAssistant()` / `replacePendingAssistant(_:)`, the only two
+    /// paths that replace the buffer rather than append to it.
+    @ObservationIgnored private var revealCursor: String.Index?
     private var mascotDecayTask: Task<Void, Never>?
     private var toastDecayTask: Task<Void, Never>?
     private var persistTask: Task<Void, Never>?
@@ -326,10 +358,13 @@ final class ChatViewModel {
     }
 
     var canSend: Bool {
-        let hasText = !composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        return (hasText || !stagedReferences.isEmpty)
-            && !isStreaming
-            && phase != .starting
+        composerModel.hasContent && canAcceptSend
+    }
+
+    /// The half of `canSend` that does not depend on the draft. Views that
+    /// must not re-render on every keystroke read this instead.
+    var canAcceptSend: Bool {
+        !isStreaming && phase != .starting
     }
 
     /// Stage a client-extracted reference (file / vault note / link). Its
@@ -719,8 +754,7 @@ final class ChatViewModel {
             do {
                 await localMemorySync?.synchronize()
                 phase = .streaming
-                pendingAssistant = ""
-                displayedAssistant = ""
+                clearPendingAssistant()
                 pendingSources = []
                 var prompt: [ChatMessage]
                 if hybridProfile == .private || !syncLocalConversations {
@@ -803,8 +837,7 @@ final class ChatViewModel {
         do {
             let id = try await ensureConversation()
             phase = .streaming
-            pendingAssistant = ""
-            displayedAssistant = ""
+            clearPendingAssistant()
             pendingSources = []
 
             let stream = conversationsClient.streamReply(
@@ -832,7 +865,7 @@ final class ChatViewModel {
                     // summary (no per-token deltas) — the typewriter reveals
                     // it progressively instead of popping it in at once.
                     if !final.isEmpty {
-                        pendingAssistant = final
+                        replacePendingAssistant(with: final)
                         startTypewriter()
                     }
                 case let .fallback(notice):
@@ -902,8 +935,7 @@ final class ChatViewModel {
             conversationID = UUID()
         }
         phase = .streaming
-        pendingAssistant = ""
-        displayedAssistant = ""
+        clearPendingAssistant()
         pendingSources = []
         let history = messages.map { msg in
             ChatMessage(role: msg.role.rawValue, content: msg.content)
@@ -918,7 +950,7 @@ final class ChatViewModel {
             let response = try await chatClient.complete(request)
             // Reveal the one-shot reply through the same typewriter so ☁️ mode
             // feels consistent with the SSE path, then finalize.
-            pendingAssistant = response.message.content
+            replacePendingAssistant(with: response.message.content)
             startTypewriter()
             await drainTypewriter()
             finalizeAssistantTurn()
@@ -987,8 +1019,7 @@ final class ChatViewModel {
         fallbackNotice = nil
         routingEvent = nil
         routeUsage = nil
-        pendingAssistant = ""
-        displayedAssistant = ""
+        clearPendingAssistant()
         pendingSources = []
         jobProposal = nil
         reminderProposal = nil
@@ -1131,8 +1162,7 @@ final class ChatViewModel {
         guard !isStreaming, phase != .starting else { return }
         guard let idx = messages.firstIndex(where: { $0.id == message.id }) else { return }
         messages.removeSubrange(idx...)
-        pendingAssistant = ""
-        displayedAssistant = ""
+        clearPendingAssistant()
         schedulePersist()
     }
 
@@ -1196,19 +1226,32 @@ final class ChatViewModel {
     /// timer. Bounded drain: each tick reveals a fraction of the remaining
     /// gap, so any answer (incl. a one-shot Gemini dump) finishes in ~1s
     /// while the tail still feels typed. Self-clears when caught up.
+    ///
+    /// Each tick costs O(revealed this tick), not O(text so far). The old
+    /// version recomputed the reveal position with
+    /// `index(startIndex, offsetBy: displayedAssistant.count)` — a walk from
+    /// the beginning of the string, 62 times a second. On a 4,000-character
+    /// answer that is roughly a quarter of a million grapheme steps per second
+    /// at the tail, all of it on the main actor, and it got worse the longer
+    /// the answer ran. `revealCursor` carries the position forward instead.
     private func pumpTypewriter() async {
         while !Task.isCancelled {
-            let gap = pendingAssistant.count - displayedAssistant.count
+            let cursor = revealCursor ?? pendingAssistant.startIndex
+            let gap = pendingAssistant.distance(from: cursor, to: pendingAssistant.endIndex)
             if gap <= 0 {
                 break
             }
             let stride = max(1, gap / 8)
             // `displayedAssistant` is always a prefix of `pendingAssistant`,
-            // so extend it by slicing the next `stride` chars from the
-            // authoritative buffer at the current offset.
-            let lower = pendingAssistant.index(pendingAssistant.startIndex, offsetBy: displayedAssistant.count)
-            let upper = pendingAssistant.index(lower, offsetBy: stride)
-            displayedAssistant.append(contentsOf: pendingAssistant[lower ..< upper])
+            // and `revealCursor` marks where that prefix ends, so the next
+            // slice is `stride` characters forward from the cursor. Appending
+            // tokens to `pendingAssistant` never moves the prefix the cursor
+            // points into, which is why it stays valid across `.token` events.
+            let next = pendingAssistant.index(cursor, offsetBy: stride)
+            let revealed = pendingAssistant[cursor ..< next]
+            displayedAssistant.append(contentsOf: revealed)
+            revealCursor = next
+            appendToStreamingMarkdown(String(revealed))
             try? await Task.sleep(for: .milliseconds(16))
         }
         typewriterTask = nil
@@ -1220,7 +1263,7 @@ final class ChatViewModel {
         await typewriterTask?.value
         // Guard against an interleaved write landing after the loop exited.
         if displayedAssistant.count < pendingAssistant.count {
-            displayedAssistant = pendingAssistant
+            revealAllNow()
         }
     }
 
@@ -1229,7 +1272,52 @@ final class ChatViewModel {
     private func drainTypewriterNow() {
         typewriterTask?.cancel()
         typewriterTask = nil
+        revealAllNow()
+    }
+
+    private func revealAllNow() {
+        let cursor = revealCursor ?? pendingAssistant.startIndex
+        let remainder = pendingAssistant[cursor...]
         displayedAssistant = pendingAssistant
+        revealCursor = pendingAssistant.endIndex
+        if !remainder.isEmpty {
+            appendToStreamingMarkdown(String(remainder))
+        }
+    }
+
+    /// Extend the block-boundary buffer and re-render the wikilink pass only
+    /// when a new boundary actually landed. Between boundaries this is a plain
+    /// character append and nothing downstream re-parses.
+    private func appendToStreamingMarkdown(_ delta: String) {
+        let committedBefore = streamingMarkdown.committed.count
+        streamingMarkdown.append(delta)
+        guard streamingMarkdown.committed.count != committedBefore else { return }
+        streamingCommittedMarkdown = WikilinkParser.markdownByRenderingLinks(
+            in: streamingMarkdown.committed
+        )
+    }
+
+    /// Clear both buffers and the reveal cursor together. Every wholesale
+    /// write to `pendingAssistant` goes through this or
+    /// ``replacePendingAssistant(with:)`` so the cursor can never be left
+    /// pointing into a string that no longer has that prefix.
+    private func clearPendingAssistant() {
+        pendingAssistant = ""
+        displayedAssistant = ""
+        revealCursor = nil
+        streamingMarkdown.reset()
+        streamingCommittedMarkdown = ""
+    }
+
+    /// Replace the authoritative buffer and re-reveal it from the start. Used
+    /// by the `.summary` event, where the server's final text supersedes the
+    /// concatenated tokens.
+    private func replacePendingAssistant(with text: String) {
+        pendingAssistant = text
+        displayedAssistant = ""
+        revealCursor = nil
+        streamingMarkdown.reset()
+        streamingCommittedMarkdown = ""
     }
 
     private func finalizeAssistantTurn(playsCompletionHaptic: Bool = true) {
@@ -1242,8 +1330,7 @@ final class ChatViewModel {
         )
         messages.append(assistant)
         let spokenBody = pendingAssistant
-        pendingAssistant = ""
-        displayedAssistant = ""
+        clearPendingAssistant()
         pendingSources = []
         schedulePersist()
         // HER-153 — speak reply iff the user's prompt was voice. Typed
@@ -1285,8 +1372,7 @@ final class ChatViewModel {
         let oldID = conversationID
         conversationID = nil
         messages = []
-        pendingAssistant = ""
-        displayedAssistant = ""
+        clearPendingAssistant()
         pendingSources = []
         fallbackNotice = nil
         routingEvent = nil
