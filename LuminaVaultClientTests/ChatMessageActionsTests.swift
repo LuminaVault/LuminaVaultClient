@@ -3,10 +3,9 @@
 // Regenerate and edit-and-resend both trim the transcript, so the thing worth
 // pinning down is exactly *how much* they trim and when. Getting either wrong
 // destroys turns the user still wanted.
+@testable import LuminaVaultClient
 import LuminaVaultShared
 import XCTest
-
-@testable import LuminaVaultClient
 
 @MainActor
 final class ChatMessageActionsTests: XCTestCase {
@@ -211,14 +210,33 @@ private final class RecordingConversationsClient: ConversationsClientProtocol, @
 }
 
 private struct RecordingChatClient: ChatClientProtocol {
-    func complete(_: ChatRequest) async throws -> ChatResponse { throw APIError.unauthorized }
+    func complete(_: ChatRequest) async throws -> ChatResponse {
+        throw APIError.unauthorized
+    }
 }
 
 private struct RefusingMemoryClient: MemoryClientProtocol {
-    func upsert(_: MemoryUpsertRequest) async throws -> MemoryUpsertResponse { throw APIError.unauthorized }
-    func get(id _: UUID) async throws -> MemoryDTO { throw APIError.unauthorized }
-    func patch(id _: UUID, _: MemoryPatchRequest) async throws -> MemoryDTO { throw APIError.unauthorized }
-    func list(limit _: Int, offset _: Int) async throws -> MemoryListResponse { throw APIError.unauthorized }
-    func search(_: MemorySearchRequest) async throws -> MemorySearchResponse { throw APIError.unauthorized }
-    func delete(id _: UUID) async throws { throw APIError.unauthorized }
+    func upsert(_: MemoryUpsertRequest) async throws -> MemoryUpsertResponse {
+        throw APIError.unauthorized
+    }
+
+    func get(id _: UUID) async throws -> MemoryDTO {
+        throw APIError.unauthorized
+    }
+
+    func patch(id _: UUID, _: MemoryPatchRequest) async throws -> MemoryDTO {
+        throw APIError.unauthorized
+    }
+
+    func list(limit _: Int, offset _: Int) async throws -> MemoryListResponse {
+        throw APIError.unauthorized
+    }
+
+    func search(_: MemorySearchRequest) async throws -> MemorySearchResponse {
+        throw APIError.unauthorized
+    }
+
+    func delete(id _: UUID) async throws {
+        throw APIError.unauthorized
+    }
 }

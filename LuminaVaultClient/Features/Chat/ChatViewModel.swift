@@ -248,6 +248,7 @@ final class ChatViewModel {
         }
         return toast
     }
+
     /// Lumina Jobs P3 — when the last user message reads as a recurring-job
     /// request, the server classifier returns a proposal and the chat shows a
     /// "Create Job" card. Cleared on confirm/dismiss/next send.
@@ -1114,8 +1115,10 @@ final class ChatViewModel {
                 group.addTask { (id, try? await client.get(id: id)) }
             }
             var result: [UUID: MemoryDTO] = [:]
-            for await (id, memory) in group {
-                if let memory { result[id] = memory }
+            for await(id, memory) in group {
+                if let memory {
+                    result[id] = memory
+                }
             }
             return result
         }
@@ -1133,7 +1136,9 @@ final class ChatViewModel {
                     createdAt: memory.createdAt
                 )
             }
-            if !hits.isEmpty { acc[message.id] = hits }
+            if !hits.isEmpty {
+                acc[message.id] = hits
+            }
         }
         guard !hitsByMessage.isEmpty else { return }
 

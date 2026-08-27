@@ -50,6 +50,7 @@ struct ChatView: View {
     @State private var showWorkflowPicker = false
 
     // MARK: Scroll state
+
     //
     // The transcript is a plain bottom-anchored `ScrollView`. There is no
     // throttle, no `ScrollViewReader`, and no per-token scroll work: iOS 18's
@@ -103,7 +104,9 @@ struct ChatView: View {
                 return bottomEdge >= contentEnd - Self.pinnedTolerance
             } action: { _, pinned in
                 isPinnedToBottom = pinned
-                if pinned { unreadCount = 0 }
+                if pinned {
+                    unreadCount = 0
+                }
             }
             .onChange(of: viewModel.messages.count) { _, _ in
                 guard let last = viewModel.messages.last?.id else { return }
@@ -587,7 +590,9 @@ struct ChatView: View {
         await Task.detached(priority: .userInitiated) {
             let scoped = url.startAccessingSecurityScopedResource()
             defer {
-                if scoped { url.stopAccessingSecurityScopedResource() }
+                if scoped {
+                    url.stopAccessingSecurityScopedResource()
+                }
             }
             return try? Data(contentsOf: url)
         }.value
@@ -788,7 +793,9 @@ private struct StreamingAssistantRow: View {
     let vaultClient: (any VaultClientProtocol)?
     let memoryClient: (any MemoryClientProtocol)?
 
-    private var isStreaming: Bool { viewModel.isStreaming }
+    private var isStreaming: Bool {
+        viewModel.isStreaming
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: LVSpacing.sm) {
@@ -825,7 +832,6 @@ private struct StreamingAssistantRow: View {
     /// the block still being written as plain text behind the caret. A block
     /// promotes from the second layer to the first the moment its boundary
     /// arrives, so the answer stops reformatting wholesale when streaming ends.
-    @ViewBuilder
     private func body(for buffer: StreamingMarkdownBuffer) -> some View {
         VStack(alignment: .leading, spacing: LVSpacing.xs) {
             if !buffer.committed.isEmpty {

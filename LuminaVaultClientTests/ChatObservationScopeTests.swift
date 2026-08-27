@@ -14,10 +14,9 @@
 // tests assert the same property directly against the Observation runtime:
 // tracking the transcript's properties must not fire when only streaming text
 // or only the draft changes.
+@testable import LuminaVaultClient
 import Observation
 import XCTest
-
-@testable import LuminaVaultClient
 
 @MainActor
 final class ChatObservationScopeTests: XCTestCase {
@@ -177,14 +176,33 @@ private struct InertConversationsClient: ConversationsClientProtocol {
 }
 
 private struct InertChatClient: ChatClientProtocol {
-    func complete(_: ChatRequest) async throws -> ChatResponse { throw APIError.unauthorized }
+    func complete(_: ChatRequest) async throws -> ChatResponse {
+        throw APIError.unauthorized
+    }
 }
 
 private struct InertMemoryClient: MemoryClientProtocol {
-    func upsert(_: MemoryUpsertRequest) async throws -> MemoryUpsertResponse { throw APIError.unauthorized }
-    func get(id _: UUID) async throws -> MemoryDTO { throw APIError.unauthorized }
-    func patch(id _: UUID, _: MemoryPatchRequest) async throws -> MemoryDTO { throw APIError.unauthorized }
-    func list(limit _: Int, offset _: Int) async throws -> MemoryListResponse { throw APIError.unauthorized }
-    func search(_: MemorySearchRequest) async throws -> MemorySearchResponse { throw APIError.unauthorized }
-    func delete(id _: UUID) async throws { throw APIError.unauthorized }
+    func upsert(_: MemoryUpsertRequest) async throws -> MemoryUpsertResponse {
+        throw APIError.unauthorized
+    }
+
+    func get(id _: UUID) async throws -> MemoryDTO {
+        throw APIError.unauthorized
+    }
+
+    func patch(id _: UUID, _: MemoryPatchRequest) async throws -> MemoryDTO {
+        throw APIError.unauthorized
+    }
+
+    func list(limit _: Int, offset _: Int) async throws -> MemoryListResponse {
+        throw APIError.unauthorized
+    }
+
+    func search(_: MemorySearchRequest) async throws -> MemorySearchResponse {
+        throw APIError.unauthorized
+    }
+
+    func delete(id _: UUID) async throws {
+        throw APIError.unauthorized
+    }
 }

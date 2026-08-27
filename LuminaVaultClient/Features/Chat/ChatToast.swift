@@ -23,7 +23,9 @@ struct ChatToast: Equatable, Identifiable, Sendable {
     /// Derived rather than a fresh `UUID`, so re-deriving the same notice
     /// (`activeToast` recomputes on every read) keeps one stable identity and
     /// the transition doesn't restart.
-    var id: String { "\(kind)-\(text)" }
+    var id: String {
+        "\(kind)-\(text)"
+    }
 
     var icon: LVIcon {
         switch kind {

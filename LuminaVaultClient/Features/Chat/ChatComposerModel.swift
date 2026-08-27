@@ -29,7 +29,9 @@ final class ChatComposerModel {
     /// so backing out costs nothing.
     var editingMessageID: UUID?
 
-    var isEditing: Bool { editingMessageID != nil }
+    var isEditing: Bool {
+        editingMessageID != nil
+    }
 
     /// True when there is something worth sending, ignoring stream state.
     var hasContent: Bool {

@@ -52,7 +52,9 @@ struct StreamingMarkdownBuffer: Equatable {
     private var tableStart: Int?
 
     /// The whole answer seen so far.
-    var text: String { committed + tail }
+    var text: String {
+        committed + tail
+    }
 
     // MARK: - Mutation
 
@@ -121,7 +123,9 @@ struct StreamingMarkdownBuffer: Equatable {
         }
 
         if Self.isTableRow(trimmed) {
-            if tableStart == nil { tableStart = lineStart }
+            if tableStart == nil {
+                tableStart = lineStart
+            }
             return
         }
         closeTableGroup(endingAt: lineStart)

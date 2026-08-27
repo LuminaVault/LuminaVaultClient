@@ -96,8 +96,12 @@ struct ChatStatusStrip: View {
     }
 
     private var summaryIcon: LVIcon {
-        if viewModel.fallbackNotice != nil { return .exclamationmarkTriangleFill }
-        if viewModel.parallelExecution != nil { return .sparkles }
+        if viewModel.fallbackNotice != nil {
+            return .exclamationmarkTriangleFill
+        }
+        if viewModel.parallelExecution != nil {
+            return .sparkles
+        }
         return .arrowTriangle2Circlepath
     }
 

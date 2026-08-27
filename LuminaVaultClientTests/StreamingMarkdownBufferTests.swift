@@ -4,8 +4,8 @@
 // exactly the text that was fed in, and `committed` never contains a block
 // whose shape a later token could still change. If either breaks, the chat
 // answer either loses characters or reflows when streaming stops.
-import XCTest
 @testable import LuminaVaultClient
+import XCTest
 
 final class StreamingMarkdownBufferTests: XCTestCase {
     /// Feeds `text` one character at a time, the worst case for the scanner.

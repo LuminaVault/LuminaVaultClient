@@ -13,11 +13,10 @@
 //
 // plus the offline fallback, where a failed fetch falls back to the cached
 // snapshot instead of erroring over an empty transcript.
+@testable import LuminaVaultClient
 import LuminaVaultShared
 import os
 import XCTest
-
-@testable import LuminaVaultClient
 
 @MainActor
 final class ChatViewModelLoadConversationTests: XCTestCase {
@@ -304,12 +303,14 @@ private final class StubConversationsClient: ConversationsClientProtocol, @unche
 
 private final class StubMemoryClient: MemoryClientProtocol, Sendable {
     private let memories: [UUID: MemoryDTO]
-    // Reads are issued concurrently from a `TaskGroup`, so the call counter has
-    // to be safe off the main actor. `OSAllocatedUnfairLock.withLock` is the
-    // async-safe form; `NSLock.lock()` is unavailable from an async context.
+    /// Reads are issued concurrently from a `TaskGroup`, so the call counter has
+    /// to be safe off the main actor. `OSAllocatedUnfairLock.withLock` is the
+    /// async-safe form; `NSLock.lock()` is unavailable from an async context.
     private let calls = OSAllocatedUnfairLock(initialState: 0)
 
-    var getCallCount: Int { calls.withLock { $0 } }
+    var getCallCount: Int {
+        calls.withLock { $0 }
+    }
 
     init(memories: [UUID: MemoryDTO]) {
         self.memories = memories
@@ -321,22 +322,55 @@ private final class StubMemoryClient: MemoryClientProtocol, Sendable {
         return memory
     }
 
-    func upsert(_: MemoryUpsertRequest) async throws -> MemoryUpsertResponse { throw APIError.unauthorized }
-    func patch(id _: UUID, _: MemoryPatchRequest) async throws -> MemoryDTO { throw APIError.unauthorized }
-    func list(limit _: Int, offset _: Int) async throws -> MemoryListResponse { throw APIError.unauthorized }
-    func search(_: MemorySearchRequest) async throws -> MemorySearchResponse { throw APIError.unauthorized }
-    func delete(id _: UUID) async throws { throw APIError.unauthorized }
+    func upsert(_: MemoryUpsertRequest) async throws -> MemoryUpsertResponse {
+        throw APIError.unauthorized
+    }
+
+    func patch(id _: UUID, _: MemoryPatchRequest) async throws -> MemoryDTO {
+        throw APIError.unauthorized
+    }
+
+    func list(limit _: Int, offset _: Int) async throws -> MemoryListResponse {
+        throw APIError.unauthorized
+    }
+
+    func search(_: MemorySearchRequest) async throws -> MemorySearchResponse {
+        throw APIError.unauthorized
+    }
+
+    func delete(id _: UUID) async throws {
+        throw APIError.unauthorized
+    }
 }
 
 private final class FailingMemoryClient: MemoryClientProtocol, @unchecked Sendable {
-    func upsert(_: MemoryUpsertRequest) async throws -> MemoryUpsertResponse { throw APIError.unauthorized }
-    func get(id _: UUID) async throws -> MemoryDTO { throw APIError.unauthorized }
-    func patch(id _: UUID, _: MemoryPatchRequest) async throws -> MemoryDTO { throw APIError.unauthorized }
-    func list(limit _: Int, offset _: Int) async throws -> MemoryListResponse { throw APIError.unauthorized }
-    func search(_: MemorySearchRequest) async throws -> MemorySearchResponse { throw APIError.unauthorized }
-    func delete(id _: UUID) async throws { throw APIError.unauthorized }
+    func upsert(_: MemoryUpsertRequest) async throws -> MemoryUpsertResponse {
+        throw APIError.unauthorized
+    }
+
+    func get(id _: UUID) async throws -> MemoryDTO {
+        throw APIError.unauthorized
+    }
+
+    func patch(id _: UUID, _: MemoryPatchRequest) async throws -> MemoryDTO {
+        throw APIError.unauthorized
+    }
+
+    func list(limit _: Int, offset _: Int) async throws -> MemoryListResponse {
+        throw APIError.unauthorized
+    }
+
+    func search(_: MemorySearchRequest) async throws -> MemorySearchResponse {
+        throw APIError.unauthorized
+    }
+
+    func delete(id _: UUID) async throws {
+        throw APIError.unauthorized
+    }
 }
 
 private struct FailingChatClient: ChatClientProtocol {
-    func complete(_: ChatRequest) async throws -> ChatResponse { throw APIError.unauthorized }
+    func complete(_: ChatRequest) async throws -> ChatResponse {
+        throw APIError.unauthorized
+    }
 }
