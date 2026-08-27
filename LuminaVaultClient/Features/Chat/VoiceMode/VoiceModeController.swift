@@ -6,7 +6,6 @@
 // `errorMessage`; ChatViewModel observes `onFinalTranscript` to feed
 // transcripts into the send pipeline.
 import Foundation
-import UIKit
 
 @Observable
 @MainActor
@@ -25,6 +24,12 @@ final class VoiceModeController {
     /// enabled (so first-press triggers the prompt) but `isEnabled` is
     /// false the moment the prompt is denied.
     private(set) var hasPermission: Bool = false
+    /// Bumped when recording starts. Observed through `.sensoryFeedback` in
+    /// `MicHoldButton` rather than fired here as a raw
+    /// `UIImpactFeedbackGenerator`, which bypassed the `hapticsEnabled`
+    /// preference entirely — this was the one control in the app that
+    /// vibrated even with haptics turned off.
+    private(set) var recordingStartTrigger = 0
 
     private let recognizer: any SpeechRecognizing
     private let synthesizer: any SpeechSynthesizing
@@ -71,7 +76,7 @@ final class VoiceModeController {
             let stream = try recognizer.start()
             state = .recording
             liveTranscript = ""
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            recordingStartTrigger += 1
             recognitionTask = Task { [weak self] in
                 await self?.consume(stream: stream)
             }

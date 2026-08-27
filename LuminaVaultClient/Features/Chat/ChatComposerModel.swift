@@ -24,6 +24,13 @@ final class ChatComposerModel {
     /// contract on the server, so the text is inlined into the turn.
     var stagedReferences: [ChatViewModel.StagedAttachment] = []
 
+    /// The user turn being edited, if any. Set by `beginEdit(_:)`; the
+    /// transcript is only trimmed back to it when the edit is actually sent,
+    /// so backing out costs nothing.
+    var editingMessageID: UUID?
+
+    var isEditing: Bool { editingMessageID != nil }
+
     /// True when there is something worth sending, ignoring stream state.
     var hasContent: Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -34,5 +41,6 @@ final class ChatComposerModel {
     func clear() {
         text = ""
         stagedReferences = []
+        editingMessageID = nil
     }
 }

@@ -4,6 +4,7 @@ import SwiftUI
 struct LVButton: View {
 
     @Environment(\.lvPalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let title: String
     private let isLoading: Bool
@@ -59,10 +60,15 @@ struct LVButton: View {
         }
         .buttonStyle(.plain)
         .disabled(isLoading)
+        // The shimmer was an unconditional `repeatForever` sweep across the
+        // app's primary CTA. Reduce Motion parks it at its resting phase.
+        .lvRepeatingAnimation(
+            .linear(duration: 2.6).repeatForever(autoreverses: false),
+            value: shimmerPhase
+        )
         .onAppear {
-            withAnimation(.linear(duration: 2.6).repeatForever(autoreverses: false)) {
-                shimmerPhase = 1
-            }
+            guard !reduceMotion else { return }
+            shimmerPhase = 1
         }
     }
 }

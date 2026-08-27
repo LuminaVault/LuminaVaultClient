@@ -149,6 +149,12 @@ struct ChatView: View {
         }
         .sensoryFeedback(.impact(weight: .light), trigger: viewModel.sendHapticTrigger)
         .sensoryFeedback(.success, trigger: viewModel.completionHapticTrigger)
+        // Entering an edit should put the cursor where the user is about to
+        // type, not leave them hunting for the composer.
+        .onChange(of: viewModel.composerModel.editingMessageID) { _, editing in
+            guard editing != nil else { return }
+            composerFocused = true
+        }
         .onChange(of: scrolledID) { _, id in
             // Remember where the user parked so reopening the thread lands
             // there. Nothing renders from this, so it costs no invalidation.
@@ -279,11 +285,35 @@ struct ChatView: View {
                             Label("Save as memory", systemImage: "brain.head.profile")
                         }
                     }
+                    if message.role == .user {
+                        Button {
+                            viewModel.beginEdit(message)
+                        } label: {
+                            Label("Edit and resend", systemImage: "pencil")
+                        }
+                        .disabled(!viewModel.canAcceptSend)
+                    }
                     Button(role: .destructive) {
                         viewModel.rewind(to: message)
                     } label: {
                         Label("Rewind to here", systemImage: "arrow.uturn.backward")
                     }
+                }
+
+                // Always-visible actions on the newest assistant turn only.
+                // Hover doesn't exist on touch and copy/regenerate are the
+                // common path, so they get a permanent row; the context menu
+                // above stays the secondary route for older turns.
+                if isLastAssistantTurn(message) {
+                    MessageActionRow(
+                        message: message,
+                        isBusy: !viewModel.canAcceptSend,
+                        onRegenerate: { viewModel.regenerate(message) },
+                        onEdit: precedingUserTurn(before: message).map { userTurn in
+                            { viewModel.beginEdit(userTurn) }
+                        }
+                    )
+                    .padding(.leading, LVSpacing.hero)
                 }
 
                 // Proposal cards sit in the transcript, under the turn that
@@ -326,6 +356,20 @@ struct ChatView: View {
         // error row's `.transition`s run — they were declared with no
         // animation anywhere in scope, so they popped in with zero motion.
         .lvAnimation(LVMotion.standard, value: transcriptChromeIdentity)
+    }
+
+    /// The newest assistant turn, and only when nothing is in flight — a
+    /// streaming answer already owns the stop button, so an action row under
+    /// the previous turn would compete with it.
+    private func isLastAssistantTurn(_ message: ChatViewModel.Message) -> Bool {
+        guard message.role == .assistant, !viewModel.isStreaming else { return false }
+        return viewModel.messages.last(where: { $0.role == .assistant })?.id == message.id
+    }
+
+    /// The prompt that produced `message` — what edit-and-resend reopens.
+    private func precedingUserTurn(before message: ChatViewModel.Message) -> ChatViewModel.Message? {
+        guard let index = viewModel.messages.firstIndex(where: { $0.id == message.id }) else { return nil }
+        return viewModel.messages[..<index].last(where: { $0.role == .user })
     }
 
     /// Proposal cards belonging to `anchor`. Passing `nil` renders any card
@@ -398,6 +442,10 @@ struct ChatView: View {
             ChatComposerSection(
                 composer: viewModel.composerModel,
                 viewModel: viewModel,
+                // Focus is plumbed down to the `TextField` itself. It used to
+                // be attached here, to the whole composite view, which is not
+                // a focusable input — so setting it never opened the keyboard.
+                isFocused: $composerFocused,
                 onSend: {
                     composerFocused = false
                     viewModel.send()
@@ -408,7 +456,6 @@ struct ChatView: View {
                 onAddLink: { linkText = ""; showLinkPrompt = true },
                 onRunWorkflow: { showWorkflowPicker = true }
             )
-            .focused($composerFocused)
             .sheet(isPresented: $showNotePicker) {
                 if let vaultClient {
                     NavigationStack {
@@ -515,16 +562,13 @@ struct ChatView: View {
 
     private func uploadToVault(_ url: URL) {
         guard let vaultUploadClient else { return }
-        let scoped = url.startAccessingSecurityScopedResource()
-        let data = try? Data(contentsOf: url)
-        if scoped {
-            url.stopAccessingSecurityScopedResource()
-        }
-        guard let data else { return }
-
         let name = url.lastPathComponent
         let contentType = Self.uploadContentType(for: url.pathExtension.lowercased())
         Task {
+            // The read used to run inline on the main actor, so picking a
+            // large PDF blocked the UI for the whole of `Data(contentsOf:)`.
+            // It happens off-actor now; only the upload call comes back.
+            guard let data = await Self.readSecurityScoped(url) else { return }
             // Best-effort: a vault allowlist rejection (e.g. .txt) leaves
             // the staged text intact, so the turn still carries the file.
             _ = try? await vaultUploadClient.uploadAsset(
@@ -534,6 +578,19 @@ struct ChatView: View {
                 spaceID: nil
             )
         }
+    }
+
+    /// Reads a security-scoped URL off the main actor. The scope is claimed
+    /// and released around the read on whichever executor runs it, which is
+    /// what `startAccessingSecurityScopedResource` requires.
+    private static func readSecurityScoped(_ url: URL) async -> Data? {
+        await Task.detached(priority: .userInitiated) {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer {
+                if scoped { url.stopAccessingSecurityScopedResource() }
+            }
+            return try? Data(contentsOf: url)
+        }.value
     }
 
     private static func uploadContentType(for ext: String) -> String {
@@ -682,6 +739,7 @@ private struct MessageRow: View {
 private struct ChatComposerSection: View {
     @Bindable var composer: ChatComposerModel
     let viewModel: ChatViewModel
+    @FocusState.Binding var isFocused: Bool
     let onSend: () -> Void
     let onAttach: (URL) -> Void
     let onPickNote: () -> Void
@@ -697,6 +755,9 @@ private struct ChatComposerSection: View {
             sendOnReturn: viewModel.sendOnReturn,
             referenceNames: composer.stagedReferences.map(\.name),
             voice: viewModel.voice,
+            isFocused: $isFocused,
+            editingLabel: composer.isEditing ? "Editing" : nil,
+            onCancelEdit: { viewModel.cancelEdit() },
             onSend: onSend,
             onCancel: viewModel.cancel,
             onAttach: onAttach,
@@ -874,17 +935,25 @@ private struct TypingIndicator: View {
 
 private struct StreamingCaret: View {
     @Environment(\.lvPalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var visible = true
+
     var body: some View {
         Rectangle()
             .fill(palette.glowPrimary)
             .frame(width: 2, height: 14)
             .shadow(color: palette.glowPrimary.opacity(0.8), radius: 4)
             .opacity(visible ? 1 : 0)
+            // The blink was an unconditional `repeatForever` — a permanent
+            // oscillation with no Reduce Motion guard, sitting in the user's
+            // reading line. With the setting on, the caret is simply steady.
+            .lvRepeatingAnimation(
+                .easeInOut(duration: 0.6).repeatForever(autoreverses: true),
+                value: visible
+            )
             .onAppear {
-                withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
-                    visible = false
-                }
+                guard !reduceMotion else { return }
+                visible = false
             }
     }
 }

@@ -21,6 +21,15 @@ struct ComposerBar: View {
     /// above the field.
     let referenceNames: [String]
     @Bindable var voice: VoiceModeController
+    /// Bound to the host's `@FocusState`. Applied to the `TextField` itself —
+    /// the host used to attach `.focused()` to the whole `ComposerBar`, which
+    /// targets the composite view rather than the field, so programmatic
+    /// focus never actually landed in the text input.
+    @FocusState.Binding var isFocused: Bool
+    /// Non-nil while a previously sent turn is being edited. Shows an
+    /// "Editing" chip; tapping it abandons the edit.
+    var editingLabel: String?
+    var onCancelEdit: (() -> Void)?
     let onSend: () -> Void
     let onCancel: () -> Void
     /// Called with a picked file URL (security-scoped). The host extracts
@@ -48,9 +57,20 @@ struct ComposerBar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: LVSpacing.sm) {
-            if !referenceNames.isEmpty {
+            if editingLabel != nil || !referenceNames.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: LVSpacing.xs) {
+                        if let editingLabel, let onCancelEdit {
+                            // Reuses the staged-reference chip styling — same
+                            // shape, same remove affordance, so the edit reads
+                            // as one more thing attached to the next send.
+                            ChatAttachmentChip(
+                                name: editingLabel,
+                                icon: .pencil,
+                                removeLabel: "Cancel edit",
+                                onRemove: onCancelEdit
+                            )
+                        }
                         ForEach(Array(referenceNames.enumerated()), id: \.offset) { index, name in
                             ChatAttachmentChip(name: name, onRemove: { onRemoveReference(index) })
                         }
@@ -141,6 +161,7 @@ struct ComposerBar: View {
             TextField("Ask Hermie anything…", text: $text, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1 ... 6)
+                .focused($isFocused)
                 .lvFont(.body)
                 .foregroundStyle(palette.textPrimary)
                 .tint(palette.glowPrimary)
@@ -166,6 +187,9 @@ struct ComposerBar: View {
             }
         }
         .lvAnimation(LVMotion.quick, value: voice.isRecording)
+        // The field grows a line at a time between 1 and 6; without this it
+        // snapped to the new height with no motion at all.
+        .lvAnimation(LVMotion.snap, value: text)
     }
 
     /// Hardware-keyboard behavior mirrors desktop chat apps. Return follows

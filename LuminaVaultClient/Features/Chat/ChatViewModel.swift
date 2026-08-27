@@ -418,12 +418,21 @@ final class ChatViewModel {
         let trimmed = composer.trimmingCharacters(in: .whitespacesAndNewlines)
         let references = stagedReferences
         guard !trimmed.isEmpty || !references.isEmpty, !isStreaming, phase != .starting else { return }
+
+        // Edit-and-resend: the transcript is trimmed back to the turn being
+        // edited only now, at send time, so abandoning an edit leaves the
+        // conversation intact.
+        if let editingID = composerModel.editingMessageID,
+           let index = messages.firstIndex(where: { $0.id == editingID })
+        {
+            trim(from: index)
+        }
+
         if hapticsEnabled {
             sendHapticTrigger += 1
         }
         sentTurnTrigger += 1
-        composer = ""
-        stagedReferences = []
+        composerModel.clear()
 
         // The bubble shows just the user's text (+ compact reference markers);
         // the wire content carries the full extracted references so the model
@@ -1167,11 +1176,73 @@ final class ChatViewModel {
     /// form of "rollback" — Hermes-native checkpoints aren't exposed to the
     /// routed chat path, but LuminaVault owns the conversation history.
     func rewind(to message: Message) {
-        guard !isStreaming, phase != .starting else { return }
-        guard let idx = messages.firstIndex(where: { $0.id == message.id }) else { return }
-        messages.removeSubrange(idx...)
+        guard canAcceptSend else { return }
+        guard let index = messages.firstIndex(where: { $0.id == message.id }) else { return }
+        trim(from: index)
+    }
+
+    /// Drop `messages[index...]` and clear any in-flight assistant state.
+    ///
+    /// Shared by `rewind(to:)`, `regenerate(_:)` and the edit-and-resend path
+    /// so all three destructive routes behave identically — including the
+    /// `schedulePersist()` that stops a trimmed turn reappearing on relaunch.
+    ///
+    /// Known accepted risk: a crash inside the 250ms persist debounce can
+    /// resurrect the trimmed turns. That is pre-existing behaviour of the
+    /// debounce, not new to these actions.
+    private func trim(from index: Int) {
+        guard messages.indices.contains(index) else { return }
+        messages.removeSubrange(index...)
         clearPendingAssistant()
+        pendingSources = []
+        // The proposals and routing readout describe turns that no longer
+        // exist. Leaving them up would attribute them to the wrong message.
+        jobProposal = nil
+        jobProposalAnchorID = nil
+        reminderProposal = nil
+        reminderProposalAnchorID = nil
+        routingEvent = nil
+        routeUsage = nil
+        parallelExecution = nil
         schedulePersist()
+    }
+
+    /// Re-ask the question that produced `message`.
+    ///
+    /// Trims from the assistant turn and re-sends the user content directly
+    /// above it, so the model answers the same prompt with fresh sampling.
+    /// Deliberately unavailable while streaming — the stop button already
+    /// covers that intent, and offering both races `finalizeAssistantTurn`.
+    func regenerate(_ message: Message) {
+        guard canAcceptSend else { return }
+        guard message.role == .assistant else { return }
+        guard let index = messages.firstIndex(where: { $0.id == message.id }) else { return }
+        // The prompt is the nearest user turn above this answer.
+        guard let userIndex = messages[..<index].lastIndex(where: { $0.role == .user }) else { return }
+
+        let prompt = messages[userIndex].content
+        trim(from: userIndex)
+        composerModel.text = prompt
+        send()
+    }
+
+    /// Load a user turn back into the composer for editing.
+    ///
+    /// Nothing is destroyed here — the transcript is only trimmed when the
+    /// edited turn is actually sent, so backing out of an edit leaves the
+    /// conversation exactly as it was.
+    func beginEdit(_ message: Message) {
+        guard canAcceptSend else { return }
+        guard message.role == .user else { return }
+        guard messages.contains(where: { $0.id == message.id }) else { return }
+        composerModel.text = message.content
+        composerModel.editingMessageID = message.id
+    }
+
+    /// Abandon an in-progress edit, leaving the transcript untouched.
+    func cancelEdit() {
+        composerModel.editingMessageID = nil
+        composerModel.text = ""
     }
 
     /// HER-107 — long-press save assistant turn as a Memory row.

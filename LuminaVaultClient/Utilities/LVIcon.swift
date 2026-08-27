@@ -76,6 +76,7 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
     case arrowTriangle2Circlepath
     case arrowUpCircleFill
     case arrowUpRightSquare
+    case pencil
     case plus
     case plusCircleFill
     case squareAndArrowUp
@@ -87,6 +88,7 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
     case bubbleLeftAndBubbleRight
     case bubbleLeftAndBubbleRightFill
     case bubbleLeftAndTextBubbleRight
+    case micCircleFill
     case micFill
     case waveform
 
@@ -196,6 +198,7 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
         case .arrowTriangle2Circlepath:         return "arrow.triangle.2.circlepath"
         case .arrowUpCircleFill:                return "arrow.up.circle.fill"
         case .arrowUpRightSquare:               return "arrow.up.right.square"
+        case .pencil:                           return "pencil"
         case .plus:                             return "plus"
         case .plusCircleFill:                   return "plus.circle.fill"
         case .squareAndArrowUp:                 return "square.and.arrow.up"
@@ -206,6 +209,7 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
         case .bubbleLeftAndBubbleRight:         return "bubble.left.and.bubble.right"
         case .bubbleLeftAndBubbleRightFill:     return "bubble.left.and.bubble.right.fill"
         case .bubbleLeftAndTextBubbleRight:     return "bubble.left.and.text.bubble.right"
+        case .micCircleFill:                    return "mic.circle.fill"
         case .micFill:                          return "mic.fill"
         case .waveform:                         return "waveform"
 

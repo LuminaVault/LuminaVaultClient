@@ -39,13 +39,16 @@ private struct LVPulseModifier: ViewModifier {
 
 private struct LVGlowPressModifier: ViewModifier {
     @Environment(\.lvPalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @GestureState private var isPressed = false
 
     func body(content: Content) -> some View {
         content
-            .scaleEffect(isPressed ? 0.97 : 1)
+            // Under Reduce Motion the press keeps its glow but drops the
+            // scale — the feedback survives, the movement doesn't.
+            .scaleEffect(isPressed && !reduceMotion ? 0.97 : 1)
             .shadow(color: palette.glowPrimary.opacity(isPressed ? 0.6 : 0), radius: 16)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
+            .lvAnimation(LVMotion.snap, value: isPressed)
             .simultaneousGesture(
                 DragGesture(minimumDistance: 0)
                     .updating($isPressed) { _, state, _ in state = true }
