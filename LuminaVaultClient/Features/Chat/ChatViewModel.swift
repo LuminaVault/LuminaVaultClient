@@ -229,21 +229,39 @@ final class ChatViewModel {
     /// settle, and nothing renders from it — observing it would invalidate a
     /// body per scroll event for no reason.
     @ObservationIgnored var lastReadMessageID: UUID?
-    /// HER-107 — transient banner after `saveAsMemory(...)`. Auto-clears
-    /// after ~2s so the chat surface doesn't grow stale toasts.
-    var savedMemoryToast: String?
+    /// The one transient-notice slot for the whole chat surface.
+    ///
+    /// There used to be five separate `String?` properties — save-to-memory,
+    /// job created, reminder set, voice error, attachment error — each with
+    /// its own decay task, each stacked as another conditional row above the
+    /// composer, and each shoving the composer down while the user was typing.
+    /// One slot means a later notice replaces an earlier one instead of
+    /// queueing below it, and the surface can overlay rather than push.
+    private(set) var toast: ChatToast?
+
+    /// Voice errors keep their own decay on `VoiceModeController`, so they are
+    /// merged in here rather than copied into the slot — copying would leave
+    /// two timers racing to clear the same message.
+    var activeToast: ChatToast? {
+        if let voiceError = voice.errorMessage {
+            return ChatToast(kind: .warning, text: voiceError)
+        }
+        return toast
+    }
     /// Lumina Jobs P3 — when the last user message reads as a recurring-job
     /// request, the server classifier returns a proposal and the chat shows a
     /// "Create Job" card. Cleared on confirm/dismiss/next send.
     var jobProposal: JobProposalDTO?
-    /// Transient confirmation after a job is created (auto-clears ~2.5s).
-    var jobToast: String?
     /// HER-55 — when the last user message reads as a "remind me…" request,
     /// the server classifier returns a proposal and the chat shows a
     /// "Set a reminder?" card. Cleared on confirm/dismiss/next send.
     var reminderProposal: ReminderProposalDTO?
-    /// Transient confirmation after a reminder is created (auto-clears ~2.5s).
-    var reminderToast: String?
+    /// Turn each proposal card is pinned beneath. Proposal cards live *in* the
+    /// transcript now, after the turn that produced them, rather than stacking
+    /// above the composer where they pushed it around mid-typing. `nil` while
+    /// the transcript is empty, in which case the card renders at the end.
+    private(set) var jobProposalAnchorID: UUID?
+    private(set) var reminderProposalAnchorID: UUID?
     /// Client-extracted file staged for the next send. There is no
     /// per-message attachment contract on the server, so the extracted
     /// text is prepended into the outgoing message `content` (see
@@ -428,6 +446,7 @@ final class ChatViewModel {
         // Jobs P3 — classify the turn for recurring-job intent in the
         // background; never blocks the chat stream.
         jobProposal = nil
+        jobProposalAnchorID = nil
         let allowsCloudSideEffects = !(transport == .hybrid && hybridProfile == .private)
         if allowsCloudSideEffects, jobsClient != nil, !trimmed.isEmpty {
             let probe = trimmed
@@ -437,6 +456,7 @@ final class ChatViewModel {
         // HER-55 — classify the turn for reminder intent in the background;
         // never blocks the chat stream.
         reminderProposal = nil
+        reminderProposalAnchorID = nil
         if allowsCloudSideEffects, remindersClient != nil, !trimmed.isEmpty {
             let probe = trimmed
             Task { [weak self] in await self?.detectReminder(probe) }
@@ -454,6 +474,7 @@ final class ChatViewModel {
         guard let jobsClient else { return }
         guard let proposal = try? await jobsClient.detect(text: text), proposal.isJob else { return }
         jobProposal = proposal
+        jobProposalAnchorID = messages.last?.id
     }
 
     /// Create the proposed job, then clear the card and show a toast.
@@ -469,30 +490,21 @@ final class ChatViewModel {
             spaceId: nil
         )
         jobProposal = nil
+        jobProposalAnchorID = nil
         Task { [weak self] in
             guard let self else { return }
             if (try? await jobsClient.create(request)) != nil {
-                self.jobToast = "Job created — find it in the Jobs tab."
-                self.scheduleJobToastDecay()
+                self.showToast(.success, "Job created — find it in the Jobs tab.")
             }
         }
     }
 
     func dismissJob() {
         jobProposal = nil
-    }
-
-    private func scheduleJobToastDecay() {
-        toastDecayTask?.cancel()
-        toastDecayTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(2.5))
-            self?.jobToast = nil
-        }
+        jobProposalAnchorID = nil
     }
 
     // MARK: - Reminders (HER-55)
-
-    private var reminderToastDecayTask: Task<Void, Never>?
 
     private func detectReminder(_ text: String) async {
         guard let remindersClient else { return }
@@ -500,6 +512,7 @@ final class ChatViewModel {
               proposal.isReminder, proposal.fireAt != nil
         else { return }
         reminderProposal = proposal
+        reminderProposalAnchorID = messages.last?.id
     }
 
     /// Create the proposed reminder, then clear the card and show a toast.
@@ -514,25 +527,18 @@ final class ChatViewModel {
             recurrenceCron: proposal.recurrenceCron
         )
         reminderProposal = nil
+        reminderProposalAnchorID = nil
         Task { [weak self] in
             guard let self else { return }
             if (try? await remindersClient.create(request)) != nil {
-                self.reminderToast = "Reminder set — find it in the Reminders tab."
-                self.scheduleReminderToastDecay()
+                self.showToast(.success, "Reminder set — find it in the Reminders tab.")
             }
         }
     }
 
     func dismissReminder() {
         reminderProposal = nil
-    }
-
-    private func scheduleReminderToastDecay() {
-        reminderToastDecayTask?.cancel()
-        reminderToastDecayTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(2.5))
-            self?.reminderToast = nil
-        }
+        reminderProposalAnchorID = nil
     }
 
     /// User-visible bubble text: their typed message, with a compact
@@ -1022,7 +1028,9 @@ final class ChatViewModel {
         clearPendingAssistant()
         pendingSources = []
         jobProposal = nil
+        jobProposalAnchorID = nil
         reminderProposal = nil
+        reminderProposalAnchorID = nil
 
         do {
             let detail = try await conversationsClient.get(id)
@@ -1177,20 +1185,24 @@ final class ChatViewModel {
                 _ = try await self.memoryClient.upsert(
                     MemoryUpsertRequest(content: message.content)
                 )
-                await MainActor.run { self.showSavedToast("Saved to memory") }
+                await MainActor.run { self.showToast(.success, "Saved to memory") }
             } catch {
                 let msg = (error as? APIError)?.errorDescription ?? error.localizedDescription
-                await MainActor.run { self.showSavedToast("Save failed: \(msg)") }
+                await MainActor.run { self.showToast(.warning, "Save failed: \(msg)") }
             }
         }
     }
 
-    private func showSavedToast(_ text: String) {
-        savedMemoryToast = text
+    /// Post the chat surface's one transient notice, replacing whatever was
+    /// there. A single decay task means notices can't leave a stale bar behind
+    /// when they overlap.
+    func showToast(_ kind: ChatToast.Kind, _ text: String) {
+        toast = ChatToast(kind: kind, text: text)
         toastDecayTask?.cancel()
         toastDecayTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(2))
-            await MainActor.run { self?.savedMemoryToast = nil }
+            try? await Task.sleep(for: .seconds(2.5))
+            guard !Task.isCancelled else { return }
+            self?.toast = nil
         }
     }
 

@@ -119,10 +119,22 @@ struct ThinkWithLuminaView: View {
 
             Spacer()
 
+            // HER-299 Stage 6 — the multi-model control moved here from the
+            // stack of bars above the composer. It is a per-conversation mode,
+            // not per-turn status, so the top bar is where it belongs and it
+            // stops competing with the composer for vertical space.
+            MultiModelModeControl(
+                isEnabled: $chatVM.multiModelEnabled,
+                strategy: $chatVM.multiModelStrategy,
+                isStreaming: chatVM.isStreaming
+            )
+
             Button {
                 newConversation()
             } label: {
                 LVIconView(.plusCircleFill, size: 22, tint: palette.glowPrimary)
+                    .frame(minWidth: LVSize.tapTarget, minHeight: LVSize.tapTarget)
+                    .contentShape(.rect)
             }
             .accessibilityLabel("New chat")
             .buttonStyle(.plain)

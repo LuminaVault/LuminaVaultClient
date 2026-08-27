@@ -79,7 +79,13 @@ struct ComposerBar: View {
         .lvInnerGlow(cornerRadius: LVRadius.card, intensity: LVGlow.card)
         .padding(.horizontal, LVSpacing.lg)
         .padding(.vertical, LVSpacing.sm)
-        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: canSend)
+        // Two values, because two different things animate here. `canSend`
+        // drives the send button's enabled treatment; `isStreaming` drives the
+        // mic/send ⇄ stop swap at `:68`. Only `canSend` was watched, so the
+        // send button's `.transition` never ran on the swap it was written for
+        // — the control just popped between states.
+        .lvAnimation(LVMotion.standardSpring, value: canSend)
+        .lvAnimation(LVMotion.snap, value: isStreaming)
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: allowedContentTypes,
@@ -159,7 +165,7 @@ struct ComposerBar: View {
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.18), value: voice.isRecording)
+        .lvAnimation(LVMotion.quick, value: voice.isRecording)
     }
 
     /// Hardware-keyboard behavior mirrors desktop chat apps. Return follows

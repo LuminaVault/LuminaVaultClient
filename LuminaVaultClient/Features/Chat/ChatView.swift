@@ -39,9 +39,6 @@ struct ChatView: View {
     var vaultUploadClient: (any VaultUploadClientProtocol)?
 
     @FocusState private var composerFocused: Bool
-    /// Transient banner for a failed file extraction (unsupported type,
-    /// unreadable, empty). Auto-clears after a few seconds.
-    @State private var attachmentError: String?
     /// Presents the vault-note `@`-reference picker.
     @State private var showNotePicker = false
     /// Photo picker + add-link prompt state.
@@ -122,6 +119,17 @@ struct ChatView: View {
                 guard let last = viewModel.messages.last?.id else { return }
                 scrollToLatest(last)
             }
+            // Toasts overlay the transcript instead of occupying rows above
+            // the composer. Appearing no longer shifts anything the user is
+            // touching.
+            .overlay(alignment: .top) {
+                if let toast = viewModel.activeToast {
+                    ChatToastView(toast: toast)
+                        .padding(.top, LVSpacing.sm)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .lvAnimation(LVMotion.standard, value: viewModel.activeToast)
             .overlay(alignment: .bottomTrailing) { jumpToLatestPill }
             // Without an animation in scope the pill's `.transition` never
             // runs and it would pop in and out. `snap` because the pill is a
@@ -239,7 +247,11 @@ struct ChatView: View {
     // MARK: - Active conversation
 
     private var conversation: some View {
-        LazyVStack(alignment: .leading, spacing: LVSpacing.base) {
+        // `xl` between turns, `md` within one — the whitespace rhythm is what
+        // separates turns now that the assistant side has no card. Spacing
+        // survives at every content length; a card visibly fails around a wide
+        // table.
+        LazyVStack(alignment: .leading, spacing: LVSpacing.xl) {
             HStack {
                 Spacer()
                 Button {
@@ -273,6 +285,11 @@ struct ChatView: View {
                         Label("Rewind to here", systemImage: "arrow.uturn.backward")
                     }
                 }
+
+                // Proposal cards sit in the transcript, under the turn that
+                // produced them, instead of stacking above the composer where
+                // they shoved it down mid-typing.
+                proposalCards(anchoredTo: message.id)
             }
 
             if viewModel.isStreaming || !viewModel.pendingAssistant.isEmpty {
@@ -289,6 +306,10 @@ struct ChatView: View {
                 .id(Self.pendingAnchor)
             }
 
+            // A proposal that arrived before any turn existed, or whose anchor
+            // has since been trimmed, still has to render somewhere.
+            proposalCards(anchoredTo: nil)
+
             if case let .failed(message) = viewModel.phase {
                 ErrorRow(
                     message: message,
@@ -301,76 +322,75 @@ struct ChatView: View {
         }
         .scrollTargetLayout()
         .padding(.horizontal, LVSpacing.lg)
+        // The single animation that finally makes the proposal cards' and the
+        // error row's `.transition`s run — they were declared with no
+        // animation anywhere in scope, so they popped in with zero motion.
+        .lvAnimation(LVMotion.standard, value: transcriptChromeIdentity)
+    }
+
+    /// Proposal cards belonging to `anchor`. Passing `nil` renders any card
+    /// whose anchor is missing from the transcript, so a card can never be
+    /// orphaned by a rewind.
+    @ViewBuilder
+    private func proposalCards(anchoredTo anchor: UUID?) -> some View {
+        if let proposal = viewModel.jobProposal, matchesAnchor(viewModel.jobProposalAnchorID, anchor) {
+            JobProposalCard(
+                proposal: proposal,
+                onCreate: viewModel.confirmJob,
+                onDismiss: viewModel.dismissJob
+            )
+            .id("lv.chat.job-proposal")
+            .transition(.scale(scale: 0.96).combined(with: .opacity))
+        }
+        if let proposal = viewModel.reminderProposal,
+           matchesAnchor(viewModel.reminderProposalAnchorID, anchor)
+        {
+            ReminderProposalCard(
+                proposal: proposal,
+                onCreate: viewModel.confirmReminder,
+                onDismiss: viewModel.dismissReminder
+            )
+            .id("lv.chat.reminder-proposal")
+            .transition(.scale(scale: 0.96).combined(with: .opacity))
+        }
+    }
+
+    /// True when the card belongs at this position: either the ids match, or
+    /// we're at the fallback slot and the anchor no longer exists.
+    private func matchesAnchor(_ proposalAnchor: UUID?, _ position: UUID?) -> Bool {
+        if let position {
+            return proposalAnchor == position
+        }
+        guard let proposalAnchor else { return true }
+        return !viewModel.messages.contains { $0.id == proposalAnchor }
+    }
+
+    /// Everything in the transcript that appears and disappears, folded into
+    /// one comparable value so a single animation covers all of it.
+    private var transcriptChromeIdentity: String {
+        [
+            viewModel.jobProposal == nil ? "-" : "job",
+            viewModel.reminderProposal == nil ? "-" : "reminder",
+            viewModel.phase == .idle ? "-" : "busy",
+        ].joined(separator: "|")
     }
 
     // MARK: - Bottom bar (toasts + composer)
 
+    /// Ten stacked conditionals became two: a status strip and the composer.
+    ///
+    /// The six toasts now share one slot and overlay the transcript; the two
+    /// proposal cards moved into the transcript itself; the mode control moved
+    /// to the top bar. What is left never pushes the composer around while the
+    /// user is typing.
     private var bottomBar: some View {
         VStack(spacing: 0) {
-            if let toast = viewModel.savedMemoryToast {
-                SavedToast(text: toast)
-            }
-            if let toast = viewModel.jobToast {
-                SavedToast(text: toast)
-            }
-            if let toast = viewModel.reminderToast {
-                SavedToast(text: toast)
-            }
-            // Jobs P3 — recurring-job proposal surfaced from the last turn.
-            if let proposal = viewModel.jobProposal {
-                JobProposalCard(
-                    proposal: proposal,
-                    onCreate: viewModel.confirmJob,
-                    onDismiss: viewModel.dismissJob
-                )
-                .padding(.horizontal, LVSpacing.base)
-                .padding(.bottom, LVSpacing.sm)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-            // HER-55 — reminder proposal surfaced from the last turn.
-            if let proposal = viewModel.reminderProposal {
-                ReminderProposalCard(
-                    proposal: proposal,
-                    onCreate: viewModel.confirmReminder,
-                    onDismiss: viewModel.dismissReminder
-                )
-                .padding(.horizontal, LVSpacing.base)
-                .padding(.bottom, LVSpacing.sm)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-            if let notice = viewModel.fallbackNotice {
-                FallbackBanner(notice: notice)
-            }
-            MultiModelModeControl(
-                isEnabled: $viewModel.multiModelEnabled,
-                strategy: $viewModel.multiModelStrategy,
-                isStreaming: viewModel.isStreaming
-            )
-            .padding(.horizontal, LVSpacing.base)
-            .padding(.bottom, LVSpacing.xs)
-            if let execution = viewModel.parallelExecution {
-                ParallelProgressButton(execution: execution) {
+            ChatStatusStrip(
+                viewModel: viewModel,
+                onOpenComparison: { execution in
                     comparisonPresentation = .init(id: execution.id)
                 }
-                .padding(.horizontal, LVSpacing.base)
-                .padding(.bottom, LVSpacing.xs)
-            }
-            if let routing = viewModel.routingEvent {
-                CerberusUsageIndicator(
-                    routing: routing,
-                    usage: viewModel.routeUsage,
-                    canEscalate: viewModel.canEscalateToStrongerModel,
-                    onEscalate: { viewModel.escalateToStrongerModel() }
-                )
-                .padding(.horizontal, LVSpacing.base)
-                .padding(.bottom, LVSpacing.xs)
-            }
-            if let voiceError = viewModel.voice.errorMessage {
-                VoiceErrorToast(text: voiceError)
-            }
-            if let attachmentError {
-                VoiceErrorToast(text: attachmentError)
-            }
+            )
 
             // The composer's own scope. `ChatView`'s body passes object
             // references only and never reads the draft text, so a keystroke
@@ -524,102 +544,13 @@ struct ChatView: View {
         }
     }
 
+    /// Attachment failures share the chat's one transient-notice slot rather
+    /// than carrying their own view state and decay timer.
     private func showAttachmentError(_ message: String) {
-        attachmentError = message
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(3.5))
-            attachmentError = nil
-        }
+        viewModel.showToast(.warning, message)
     }
 
     private static let pendingAnchor = "lv.chat.pending"
-}
-
-private struct CerberusUsageIndicator: View {
-    @Environment(\.lvPalette) private var palette
-    let routing: RouterRoutingEventDTO
-    let usage: RouterUsageDTO?
-    var canEscalate: Bool = false
-    var onEscalate: (() -> Void)?
-
-    private var routeLabel: String {
-        // Managed tenants get a scrubbed event: no routes, generic label.
-        // Never reconstruct provider/model identity client-side.
-        if let displayLabel = routing.displayLabel, routing.activeRoutes.isEmpty {
-            return displayLabel
-        }
-        if routing.strategy == .ensemble {
-            return "\(routing.activeRoutes.count) models"
-        }
-        guard let route = routing.activeRoutes.first else { return "Selecting model" }
-        return "\(route.provider.rawValue) · \(route.model)"
-    }
-
-    private var headline: String {
-        if routing.profileName == "BYO Hermes" {
-            return "Routing managed by your Hermes"
-        }
-        return "Auto · \(routing.taskType.rawValue.capitalized) · \(routing.profileName)"
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: LVSpacing.xs) {
-            HStack(spacing: LVSpacing.sm) {
-                Image(systemName: routing.strategy == .ensemble
-                    ? "point.3.connected.trianglepath.dotted"
-                    : "arrow.triangle.branch")
-                    .foregroundStyle(palette.accent)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(headline)
-                        .lvFont(.microTag)
-                        .foregroundStyle(palette.textSecondary)
-                    Text(routeLabel)
-                        .lvFont(.footnote)
-                        .foregroundStyle(palette.textPrimary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 0)
-                if let usage {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("\(usage.tokensIn + usage.tokensOut) tokens")
-                        Text((Double(usage.estimatedCostUsdMicros) / 1_000_000).formatted(.currency(code: "USD")))
-                    }
-                    .lvFont(.microTag)
-                    .foregroundStyle(palette.textSecondary)
-                } else {
-                    ProgressView()
-                        .controlSize(.small)
-                        .accessibilityLabel("Cerberus is routing")
-                }
-            }
-            if canEscalate, let onEscalate {
-                Button(action: onEscalate) {
-                    Label("Use stronger model", systemImage: "bolt.fill")
-                        .lvFont(.microTag)
-                }
-                .buttonStyle(.borderless)
-                .foregroundStyle(palette.accent)
-                .accessibilityHint("Retry the last turn with a higher-capability model")
-            }
-        }
-        .padding(LVSpacing.sm)
-        .background(palette.surface.opacity(0.92), in: RoundedRectangle(cornerRadius: LVRadius.md))
-        .overlay {
-            RoundedRectangle(cornerRadius: LVRadius.md)
-                .stroke(palette.accent.opacity(0.35), lineWidth: 1)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilitySummary)
-    }
-
-    private var accessibilitySummary: String {
-        var value = "\(headline), route \(routeLabel)."
-        if let usage {
-            value += " \(usage.tokensIn + usage.tokensOut) tokens, \(usage.latencyMs) milliseconds."
-        }
-        return value
-    }
 }
 
 // MARK: - Bubbles
@@ -640,20 +571,25 @@ private struct MessageRow: View {
                 Spacer(minLength: LVSpacing.hero)
                 bubble
             } else {
+                // Fixed leading gutter. The avatar and the copy share a column
+                // baseline, which is what carries the turn boundary now that
+                // the glass card is gone.
                 AssistantAvatar(state: mascotState)
                     .padding(.top, LVSpacing.xs)
-                VStack(alignment: .leading, spacing: LVSpacing.xs) {
+                VStack(alignment: .leading, spacing: LVSpacing.md) {
                     bubble
                     // Cerberus transparency — which model produced this turn.
                     if let model = message.modelLabel {
                         Text(model)
                             .font(.caption2)
                             .foregroundStyle(palette.textSecondary.opacity(0.7))
-                            .padding(.leading, LVSpacing.xs)
                             .accessibilityLabel("Answered by \(model)")
                     }
                 }
-                Spacer(minLength: LVSpacing.hero)
+                // No trailing `Spacer(minLength: .hero)` on the assistant side:
+                // it capped the column at ~48pt short of the screen, so
+                // `MarkdownTheme`'s code blocks and tables rendered narrower
+                // than the width they were designed for.
             }
         }
     }
@@ -685,8 +621,10 @@ private struct MessageRow: View {
                 SourceChipRow(sources: message.sources)
             }
         }
-        .padding(.horizontal, LVSpacing.base)
-        .padding(.vertical, LVSpacing.md)
+        // Only the user side pays for bubble padding. The assistant column is
+        // the page, so insetting it would just narrow the content.
+        .padding(.horizontal, message.role == .user ? LVSpacing.base : 0)
+        .padding(.vertical, message.role == .user ? LVSpacing.md : 0)
 
         if message.role == .user {
             content
@@ -700,9 +638,12 @@ private struct MessageRow: View {
                 }
                 .shadow(color: palette.glowPrimary.opacity(0.25), radius: 10)
         } else {
+            // Assistant turns are full-width and bubble-free. The asymmetry is
+            // the pattern: the user's words are a quoted object, the
+            // assistant's are the page. Glass + avatar + spacing was three
+            // separation signals where one suffices, and the card was the one
+            // that broke around a wide table.
             content
-                .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.card)
-                .lvInnerGlow(cornerRadius: LVRadius.card, intensity: LVGlow.subtle)
         }
     }
 
@@ -792,7 +733,7 @@ private struct StreamingAssistantRow: View {
         HStack(alignment: .top, spacing: LVSpacing.sm) {
             AssistantAvatar(state: viewModel.mascotState)
                 .padding(.top, LVSpacing.xs)
-            VStack(alignment: .leading, spacing: LVSpacing.xs) {
+            VStack(alignment: .leading, spacing: LVSpacing.md) {
                 if viewModel.displayedAssistant.isEmpty && isStreaming {
                     HStack(spacing: LVSpacing.sm) {
                         TypingIndicator()
@@ -810,13 +751,12 @@ private struct StreamingAssistantRow: View {
                     SourceChipRow(sources: viewModel.pendingSources)
                 }
             }
-            .padding(.horizontal, LVSpacing.base)
-            .padding(.vertical, LVSpacing.md)
-            .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.card)
-            .lvInnerGlow(cornerRadius: LVRadius.card,
-                         intensity: isStreaming ? LVGlow.focused : LVGlow.subtle)
-            .lvPulse(active: isStreaming)
-            Spacer(minLength: LVSpacing.hero)
+            // Bubble-free and full-width, matching the finalized assistant
+            // turn — the streaming row used to carry glass that vanished the
+            // instant the turn finalized, which read as a layout jump.
+            // Drives the typing-indicator → first-token swap, whose
+            // `.transition(.opacity)` had no animation anywhere in scope.
+            .lvAnimation(LVMotion.standard, value: viewModel.displayedAssistant.isEmpty)
         }
     }
 
@@ -975,61 +915,7 @@ private struct SourceChipRow: View {
     }
 }
 
-// MARK: - Banners + errors
-
-private struct SavedToast: View {
-    let text: String
-    var body: some View {
-        HStack(spacing: 8) {
-            LVIconView(.checkmarkCircleFill, size: 17, tint: .green)
-            Text(text)
-                .font(.footnote)
-                .foregroundStyle(.primary)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(Color(.secondarySystemBackground))
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-    }
-}
-
-private struct FallbackBanner: View {
-    let notice: ProviderFallbackNoticeDTO
-    var body: some View {
-        Text(notice.userMessage)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(Color(.secondarySystemBackground))
-    }
-}
-
-/// HER-153 — transient banner above the composer surfacing voice mode
-/// failures (mic denied, no speech detected, recognizer unavailable) and
-/// file-attachment failures. Auto-decays via its source state.
-private struct VoiceErrorToast: View {
-    @Environment(\.lvPalette) private var palette
-    let text: String
-    var body: some View {
-        HStack(spacing: 8) {
-            LVIconView(.exclamationmarkTriangleFill, size: 14, tint: .orange)
-            Text(text)
-                .font(.footnote)
-                .foregroundStyle(.primary)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(palette.surface)
-        .clipShape(.rect(cornerRadius: 10))
-        .padding(.horizontal, 20)
-        .padding(.bottom, 8)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-    }
-}
+// MARK: - Errors
 
 private struct ErrorRow: View {
     @Environment(\.lvPalette) private var palette

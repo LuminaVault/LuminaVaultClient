@@ -51,6 +51,7 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
     case chevronDown
     case chevronLeft
     case chevronRight
+    case chevronUp
     case chevronUpChevronDown
     case ellipsis
     case xmark
@@ -172,6 +173,7 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
         case .chevronDown:                      return "chevron.down"
         case .chevronLeft:                      return "chevron.left"
         case .chevronRight:                     return "chevron.right"
+        case .chevronUp:                        return "chevron.up"
         case .chevronUpChevronDown:             return "chevron.up.chevron.down"
         case .ellipsis:                         return "ellipsis"
         case .xmark:                            return "xmark"
