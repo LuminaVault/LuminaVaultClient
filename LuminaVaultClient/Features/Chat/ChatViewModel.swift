@@ -138,7 +138,19 @@ final class ChatViewModel {
 
     // MARK: - Observable state
 
-    var phase: Phase = .idle
+    var phase: Phase = .idle {
+        didSet { refreshPendingTurnFlag() }
+    }
+
+    /// Whether the transcript should show a pending assistant row.
+    ///
+    /// Derived from `phase` + `pendingAssistant`, but stored and only written
+    /// when the answer actually changes. `ChatView`'s body reads *this*, not
+    /// `pendingAssistant` — Observation notifies on every write, so reading
+    /// the buffer directly re-invalidated the whole screen on every arriving
+    /// SSE token, which is the same defect the typewriter fix addressed one
+    /// layer down.
+    private(set) var hasPendingTurn = false
     /// Recovery CTAs from structured API errors (e.g. BYOK missing keys).
     var recoveryActions: [ChatRecoveryAction] = []
     var onOpenIntelligenceSettings: (() -> Void)?
@@ -808,7 +820,7 @@ final class ChatViewModel {
                     ? "Private · \(localExecutor.displayName) · \(localExecutor.modelID)"
                     : "Local · \(localExecutor.displayName) · \(localExecutor.modelID)"
                 for try await delta in localExecutor.stream(messages: prompt) {
-                    pendingAssistant.append(delta)
+                    appendPendingAssistant(delta)
                     startTypewriter()
                 }
                 await drainTypewriter()
@@ -873,7 +885,7 @@ final class ChatViewModel {
                 case let .source(hit):
                     pendingSources.append(hit)
                 case let .token(delta):
-                    pendingAssistant.append(delta)
+                    appendPendingAssistant(delta)
                     startTypewriter()
                 case let .summary(final):
                     // Server-provided final summary overrides the
@@ -1385,6 +1397,22 @@ final class ChatViewModel {
         )
     }
 
+    /// Extend the authoritative buffer. Goes through here rather than
+    /// mutating `pendingAssistant` inline so `hasPendingTurn` cannot drift.
+    private func appendPendingAssistant(_ delta: String) {
+        pendingAssistant.append(delta)
+        refreshPendingTurnFlag()
+    }
+
+    /// Recompute the derived flag, writing only on a real change so observers
+    /// are not notified once per token.
+    private func refreshPendingTurnFlag() {
+        let next = isStreaming || !pendingAssistant.isEmpty
+        if hasPendingTurn != next {
+            hasPendingTurn = next
+        }
+    }
+
     /// Clear both buffers and the reveal cursor together. Every wholesale
     /// write to `pendingAssistant` goes through this or
     /// ``replacePendingAssistant(with:)`` so the cursor can never be left
@@ -1395,6 +1423,7 @@ final class ChatViewModel {
         revealCursor = nil
         streamingMarkdown.reset()
         streamingCommittedMarkdown = ""
+        refreshPendingTurnFlag()
     }
 
     /// Replace the authoritative buffer and re-reveal it from the start. Used
@@ -1406,6 +1435,7 @@ final class ChatViewModel {
         revealCursor = nil
         streamingMarkdown.reset()
         streamingCommittedMarkdown = ""
+        refreshPendingTurnFlag()
     }
 
     private func finalizeAssistantTurn(playsCompletionHaptic: Bool = true) {

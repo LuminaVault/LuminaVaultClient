@@ -325,7 +325,7 @@ struct ChatView: View {
                 proposalCards(anchoredTo: message.id)
             }
 
-            if viewModel.isStreaming || !viewModel.pendingAssistant.isEmpty {
+            if viewModel.hasPendingTurn {
                 // The view model goes in whole and the streaming text is read
                 // inside `StreamingAssistantRow`'s own body. Reading
                 // `displayedAssistant` out here registered the dependency in

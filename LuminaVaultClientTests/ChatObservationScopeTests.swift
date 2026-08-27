@@ -59,6 +59,36 @@ final class ChatObservationScopeTests: XCTestCase {
         XCTAssertFalse(fired, "a typewriter tick must not invalidate the transcript's scope")
     }
 
+    /// `pendingAssistant` is appended on every arriving SSE token, so reading
+    /// it from `ChatView`'s body re-invalidated the whole screen per token —
+    /// the same defect as the 62Hz `displayedAssistant` read, one layer down.
+    /// The transcript reads the derived `hasPendingTurn` flag instead, which
+    /// is only written when the answer starts or ends.
+    func testArrivingTokensDoNotInvalidateTheTranscriptScope() {
+        let vm = makeViewModel()
+        vm.phase = .streaming
+
+        let fired = didNotify {
+            _ = vm.messages.count
+            _ = vm.hasPendingTurn
+        } mutate: {
+            vm.pendingAssistant += "another token"
+        }
+
+        XCTAssertFalse(fired, "an arriving token must not invalidate the transcript's scope")
+    }
+
+    func testHasPendingTurnTracksTheStreamLifecycle() {
+        let vm = makeViewModel()
+        XCTAssertFalse(vm.hasPendingTurn)
+
+        vm.phase = .streaming
+        XCTAssertTrue(vm.hasPendingTurn, "a started stream owns a pending row before any token lands")
+
+        vm.phase = .idle
+        XCTAssertFalse(vm.hasPendingTurn)
+    }
+
     func testStreamingTextDoesInvalidateAScopeThatReadsIt() {
         let vm = makeViewModel()
 
