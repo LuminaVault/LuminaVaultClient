@@ -101,7 +101,13 @@ struct LVTabBar: View {
         return LVTabItem(id: "lv.tab.more", label: "More", icon: .ellipsis)
     }
 
-    private var minimizeProgress: CGFloat { minimize.progress }
+    /// The interpolation factor the capsule's geometry is expressed in.
+    ///
+    /// `LVTabBarMinimizeState` is a two-state model, so this is only ever 0 or
+    /// 1 — the in-between values are produced by the spring on
+    /// `.lvAnimation(_:value:)` below, not by the scroll. That is the point:
+    /// the spring is re-targeted twice per gesture instead of once per frame.
+    private var minimizeProgress: CGFloat { minimize.isMinimized ? 1 : 0 }
 
     /// Vertical / horizontal inset of the capsule — tightens as we minimize.
     private var capsulePaddingH: CGFloat {

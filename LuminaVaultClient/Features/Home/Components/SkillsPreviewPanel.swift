@@ -38,8 +38,12 @@ struct SkillsPreviewPanel: View {
                     .foregroundStyle(palette.textSecondary)
                     .padding(.vertical, LVSpacing.sm)
             } else {
-                FlowLayout(spacing: 8) {
-                    ForEach(skills, id: \.self) { name in
+                FlowLayout(spacing: LVSpacing.sm) {
+                    // Positional identity, not `id: \.self`. These are server
+                    // strings: two skills sharing a name (or a name being
+                    // edited) gave `ForEach` duplicate ids, which is undefined
+                    // behaviour, and any rename re-created every chip after it.
+                    ForEach(Array(skills.enumerated()), id: \.offset) { _, name in
                         Text(name)
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(palette.textPrimary)

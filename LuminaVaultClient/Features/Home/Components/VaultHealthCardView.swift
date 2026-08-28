@@ -49,10 +49,17 @@ struct VaultHealthCardView: View {
         }
     }
 
-    private static func relativeCompile(_ date: Date?) -> String {
-        guard let date else { return "never" }
+    /// Hoisted out of ``relativeCompile(_:)``, which allocated and configured a
+    /// fresh `RelativeDateTimeFormatter` on every call — i.e. on every body
+    /// evaluation of this card. Same shape as `SessionsListView`'s formatter.
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+        return formatter
+    }()
+
+    private static func relativeCompile(_ date: Date?) -> String {
+        guard let date else { return "never" }
+        return relativeFormatter.localizedString(for: date, relativeTo: Date())
     }
 }

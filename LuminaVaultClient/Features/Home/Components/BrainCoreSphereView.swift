@@ -13,9 +13,20 @@ struct BrainCoreSphereView: View {
 
     var size: CGFloat = 180
 
+    /// Whether the sphere is currently on screen inside its scroll view.
+    ///
+    /// The tab gate alone is not enough: this canvas lives inside Home's
+    /// scroll, so on the Home tab it kept redrawing at 12fps long after the
+    /// user had scrolled it away — continuous invalidation behind content that
+    /// no longer showed it. Defaults to `true` so that in any host without a
+    /// scroll view — previews, or a future non-scrolling placement — behaviour
+    /// is unchanged.
+    @State private var isOnScreen = true
+
     private var isLive: Bool {
         !reduceMotion
             && scenePhase == .active
+            && isOnScreen
             && (activeTab.isEmpty || activeTab == "home")
     }
 
@@ -94,6 +105,9 @@ struct BrainCoreSphereView: View {
             }
         }
         .frame(width: size, height: size)
+        .onScrollVisibilityChange(threshold: 0.05) { isVisible in
+            isOnScreen = isVisible
+        }
         .accessibilityLabel("Brain core preview")
     }
 }

@@ -27,23 +27,27 @@ struct PowerProgressStrip: View {
                 }
             }
 
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(palette.textSecondary.opacity(0.15))
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [palette.glowPrimary, palette.accent],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: max(8, geo.size.width * fraction))
-                        .shadow(color: palette.glowPrimary.opacity(0.5), radius: 6)
-                }
-            }
-            .frame(height: 10)
+            // One shape, no `GeometryReader`. The bar used to read its own
+            // width to size a second Capsule on top of a track Capsule, which
+            // put a geometry round-trip inside Home's scroll for what is a
+            // purely proportional fill. Hard gradient stops at `fraction`
+            // paint the same two-tone bar without ever needing the width.
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: palette.glowPrimary, location: 0),
+                            .init(color: palette.accent, location: fraction),
+                            .init(color: trackColor, location: fraction),
+                            .init(color: trackColor, location: 1),
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                // Scaled by fill so an empty bar does not glow.
+                .shadow(color: palette.glowPrimary.opacity(0.5 * Double(fraction)), radius: 6)
+                .frame(height: 10)
 
             if let powerXP {
                 Text("\(powerXP.formatted()) XP")
@@ -56,6 +60,8 @@ struct PowerProgressStrip: View {
         .lvGlassCard(cornerRadius: LVRadius.card, intensity: 0.65)
         .redacted(reason: isLoading ? .placeholder : [])
     }
+
+    private var trackColor: Color { palette.textSecondary.opacity(0.15) }
 
     private var fraction: CGFloat {
         guard let powerLevel, let powerXP, powerLevel >= 1 else { return 0 }
