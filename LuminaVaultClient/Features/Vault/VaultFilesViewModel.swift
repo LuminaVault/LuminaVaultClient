@@ -12,7 +12,32 @@ final class VaultFilesViewModel {
     private let vaultClient: VaultClientProtocol
     private let spaceSlug: String
 
-    var files: [VaultFileDTO] = []
+    /// Segmented filter for the list. UI-only, but it lives here because
+    /// `displayedFiles` derives from it and must be recomputed on change,
+    /// not on every body pass.
+    enum NoteFilter: String, CaseIterable {
+        case all = "All"
+        case notes = "Notes"
+        case todos = "Todos"
+    }
+
+    var files: [VaultFileDTO] = [] {
+        didSet { rebuildDisplayedFiles() }
+    }
+
+    var filter: NoteFilter = .all {
+        didSet {
+            guard oldValue != filter else { return }
+            rebuildDisplayedFiles()
+        }
+    }
+
+    /// `files` after the filter and, for Todos, the due-date sort. Maintained
+    /// on mutation. It used to be a computed property on the view consumed
+    /// directly by `ForEach`, so the whole paginated list was re-filtered and
+    /// re-sorted on every body pass — including every scroll frame.
+    private(set) var displayedFiles: [VaultFileDTO] = []
+
     var isLoading = false
     var isLoadingMore = false
     var error: String?
@@ -21,6 +46,28 @@ final class VaultFilesViewModel {
     init(vaultClient: VaultClientProtocol, spaceSlug: String) {
         self.vaultClient = vaultClient
         self.spaceSlug = spaceSlug
+    }
+
+    /// Applies the segmented filter and, for the Todos view, sorts open items
+    /// by soonest due (undated last) and sinks completed ones to the bottom.
+    private func rebuildDisplayedFiles() {
+        switch filter {
+        case .all:
+            displayedFiles = files
+        case .notes:
+            displayedFiles = files.filter { $0.metadata?.isTodo != true }
+        case .todos:
+            displayedFiles = files
+                .filter { $0.metadata?.isTodo == true }
+                .sorted { lhs, rhs in
+                    let lhsDone = lhs.metadata?.done == true
+                    let rhsDone = rhs.metadata?.done == true
+                    if lhsDone != rhsDone { return !lhsDone } // open before done
+                    let lhsDue = lhs.metadata?.dueAt ?? .distantFuture
+                    let rhsDue = rhs.metadata?.dueAt ?? .distantFuture
+                    return lhsDue < rhsDue
+                }
+        }
     }
 
     func load() async {
