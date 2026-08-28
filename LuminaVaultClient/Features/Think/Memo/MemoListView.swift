@@ -11,7 +11,10 @@ struct MemoListView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 12) {
+            // Lazy: `MemoClient.list()` returns every memo the user has ever
+            // saved, with no server-side cap, and this is the only surface
+            // that shows them.
+            LazyVStack(spacing: 12) {
                 switch vm.phase {
                 case .loading:
                     ProgressView()
