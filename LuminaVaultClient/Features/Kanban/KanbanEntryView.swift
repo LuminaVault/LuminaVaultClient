@@ -9,6 +9,8 @@ import SwiftUI
 import LuminaVaultShared
 
 struct KanbanEntryView: View {
+    @Environment(\.lvPalette) private var palette
+
     let client: any KanbanClientProtocol
 
     @State private var boardID: UUID?
@@ -18,25 +20,50 @@ struct KanbanEntryView: View {
     var body: some View {
         Group {
             if let boardID {
+                // The board owns its own `.lvBackground()`.
                 KanbanBoardView(boardID: boardID, client: client)
-            } else if isLoading {
-                ProgressView("Loading board…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.black.opacity(0.92).ignoresSafeArea())
             } else {
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
-                        .foregroundStyle(.yellow)
-                    Text(errorMessage ?? "No board found.")
-                        .foregroundStyle(.secondary)
-                    Button("Retry") { Task { await loadBoard() } }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black.opacity(0.92).ignoresSafeArea())
+                // Both pre-board states used to paint `Color.black.opacity(0.92)`
+                // over the safe area. That is not a background, it is a black
+                // scrim: in Light mode it turned the screen near-black under
+                // dark body text, and in Dark mode it occluded the themed
+                // backdrop every other screen shows. `.lvBackground()` is the
+                // one owner of the base fill and aurora — the same correction
+                // Stage 1 made on Home and Settings in 735b5d4.
+                placeholder.lvBackground()
             }
         }
         .task { await loadBoard() }
+    }
+
+    /// Loading and failure share one frame so the backdrop is applied once.
+    @ViewBuilder private var placeholder: some View {
+        if isLoading {
+            ProgressView("Loading board…")
+                .tint(palette.primary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            VStack(spacing: LVSpacing.base) {
+                // `.yellow` is a fixed sRGB yellow, not a system semantic
+                // colour — on the Light backdrop it all but vanished. The
+                // palette's `accent` is the warning/highlight signal and has
+                // a darkened Light variant in all three branded themes.
+                LVIconView(
+                    .exclamationmarkTriangle,
+                    size: LVSize.rowGlyph,
+                    tint: palette.accent,
+                    weight: .semibold
+                )
+                Text(errorMessage ?? "No board found.")
+                    .font(LVTypography.callout.font)
+                    .foregroundStyle(palette.textSecondary)
+                    .multilineTextAlignment(.center)
+                Button("Retry") { Task { await loadBoard() } }
+                    .tint(palette.primary)
+            }
+            .padding(.horizontal, LVSpacing.xl)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
     }
 
     private func loadBoard() async {

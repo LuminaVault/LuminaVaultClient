@@ -2,6 +2,8 @@ import SwiftUI
 import LuminaVaultShared
 
 struct KanbanBoardView: View {
+    @Environment(\.lvPalette) private var palette
+
     @State private var viewModel: KanbanBoardViewModel
     @State private var detailCard: CardDTO?
 
@@ -11,7 +13,7 @@ struct KanbanBoardView: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(alignment: .top, spacing: 14) {
+            LazyHStack(alignment: .top, spacing: LVSpacing.base) {
                 if let board = viewModel.board {
                     ForEach(board.columns) { column in
                         KanbanColumnView(
@@ -39,10 +41,13 @@ struct KanbanBoardView: View {
                         )
                     }
                     Button { Task { await viewModel.addColumn(title: "New Column") } } label: {
-                        Label("Add column", systemImage: "plus").padding()
+                        Label("Add column", systemImage: "plus")
+                            .font(LVTypography.fieldLabel.font)
+                            .foregroundStyle(palette.primary)
+                            .padding(LVSpacing.base)
                     }
                 } else if viewModel.isLoading {
-                    ProgressView()
+                    ProgressView().tint(palette.primary)
                 }
             }
             .padding(.vertical)
@@ -57,7 +62,11 @@ struct KanbanBoardView: View {
         // Horizontal inset lives here rather than in the stack's padding, so
         // the first column snaps flush instead of resting 16pt off.
         .contentMargins(.horizontal, LVSpacing.base, for: .scrollContent)
-        .background(Color.black.opacity(0.92).ignoresSafeArea())
+        // Was `Color.black.opacity(0.92)`, which is a black scrim rather than
+        // a background: Light mode rendered dark text on near-black, and Dark
+        // mode lost the themed backdrop. `.lvBackground()` owns both, exactly
+        // as on the other ~80 screens.
+        .lvBackground()
         .navigationTitle(viewModel.board?.title ?? "Board")
         .task { await viewModel.load(); viewModel.startPolling() }
         .onDisappear { viewModel.stopPolling() }

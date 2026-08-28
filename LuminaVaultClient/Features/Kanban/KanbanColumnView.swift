@@ -2,6 +2,8 @@ import SwiftUI
 import LuminaVaultShared
 
 struct KanbanColumnView: View {
+    @Environment(\.lvPalette) private var palette
+
     let column: ColumnDTO
     /// Every other column on the board, for the card context menu's
     /// "Move to" submenu.
@@ -20,11 +22,15 @@ struct KanbanColumnView: View {
     @State private var dropCount = 0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(column.title.uppercased())
-                .font(.caption.weight(.bold)).foregroundStyle(.cyan)
+        VStack(alignment: .leading, spacing: LVSpacing.md) {
+            // Was `.foregroundStyle(.cyan)` — a fixed sRGB cyan that ignored
+            // both the Light palette and the three non-cyan themes. The
+            // uppercase column name is exactly the eyebrow `LVKickerLabel`
+            // exists for, so it inherits `palette.primary` and the shared
+            // kicker type/kerning instead of a second hand-rolled one.
+            LVKickerLabel(column.title)
             ScrollView {
-                LazyVStack(spacing: 10) {
+                LazyVStack(spacing: LVSpacing.md) {
                     ForEach(column.cards) { card in
                         KanbanCardView(card: card)
                             .onTapGesture { onOpenCard(card) }
@@ -62,25 +68,51 @@ struct KanbanColumnView: View {
             } isTargeted: { targeted in
                 isDropTargeted = targeted
             }
-            HStack {
-                TextField("New card", text: $newCardTitle).textFieldStyle(.roundedBorder)
-                Button {
-                    let t = newCardTitle.trimmingCharacters(in: .whitespaces)
-                    guard !t.isEmpty else { return }
-                    onAddCard(t); newCardTitle = ""
-                } label: { LVIconView(.plusCircleFill, size: 22, label: "Add card") }
+            HStack(spacing: LVSpacing.sm) {
+                // `LVTextField`, not `.textFieldStyle(.roundedBorder)`. The
+                // system style paints an opaque field: white in Light, *black*
+                // in Dark — which on the glass column read as a hard black slab
+                // with grey-on-black placeholder text. `LVTextField` is the
+                // app's own field: `Color.lvGlass` fill, `palette.surfaceStroke`
+                // edge, `palette.glowPrimary` focus ring, all adaptive.
+                LVTextField(placeholder: "New card", text: $newCardTitle)
+                    .submitLabel(.done)
+                    .onSubmit(addCard)
+                Button(action: addCard) {
+                    LVIconView(.plusCircleFill, size: LVSize.tabBarGlyph, tint: palette.primary, label: "Add card")
+                }
+                .disabled(trimmedNewCardTitle.isEmpty)
             }
         }
-        .padding(12)
-        .frame(width: 300)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
-        // C5 — highlight with cyan border while a card is dragged over.
+        .padding(LVSpacing.md)
+        .frame(width: Self.columnWidth)
+        // `lvGlassCard` is the app's card surface: material + `palette.surface`
+        // fill + `palette.surfaceStroke` edge, all of which have a Light
+        // variant. A bare `.ultraThinMaterial` had no fill and no edge, so in
+        // Light mode the column dissolved into the page.
+        .lvGlassCard(cornerRadius: LVRadius.card, intensity: 0.5)
+        // C5 — highlight the drop target while a card is dragged over.
         .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .strokeBorder(isDropTargeted ? Color.cyan : Color.clear, lineWidth: 2)
+            RoundedRectangle(cornerRadius: LVRadius.card, style: .continuous)
+                .strokeBorder(isDropTargeted ? palette.primary : Color.clear, lineWidth: 2)
         )
         .lvAnimation(LVMotion.quick, value: isDropTargeted)
         // C5 — haptic feedback on successful drop.
         .sensoryFeedback(.impact, trigger: dropCount)
+    }
+
+    /// Board columns are a fixed width so `.scrollTargetBehavior(.viewAligned)`
+    /// on the board has a stable snap stride.
+    private static let columnWidth: CGFloat = 300
+
+    private var trimmedNewCardTitle: String {
+        newCardTitle.trimmingCharacters(in: .whitespaces)
+    }
+
+    private func addCard() {
+        let title = trimmedNewCardTitle
+        guard !title.isEmpty else { return }
+        onAddCard(title)
+        newCardTitle = ""
     }
 }
