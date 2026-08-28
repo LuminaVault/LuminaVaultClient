@@ -46,7 +46,7 @@ struct ProfileStatsHUDView: View {
                 )
                 .rotationEffect(.degrees(-90))
                 .shadow(color: palette.glowPrimary.opacity(0.7), radius: 8)
-                .animation(.easeOut(duration: 0.6), value: levelFraction)
+                .lvAnimation(LVMotion.deliberate, value: levelFraction)
 
             VStack(spacing: 2) {
                 Text(levelText)

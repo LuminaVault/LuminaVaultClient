@@ -44,8 +44,10 @@ private struct FlexibleToolChips: View {
     let tools: [String]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(tools, id: \.self) { name in
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
+            // Positional identity — see `SkillsPreviewPanel`. Tool names are
+            // server strings and are not guaranteed unique.
+            ForEach(Array(tools.enumerated()), id: \.offset) { _, name in
                 Text(name)
                     .font(.system(size: 12, weight: .semibold))
                     .padding(.horizontal, 10)
