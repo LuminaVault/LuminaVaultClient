@@ -126,9 +126,38 @@ final class CapturePhotosViewModel {
                 contentType: contentType,
                 fileExtension: ext,
                 caption: existingCaption,
+                thumbnail: await Self.makeThumbnail(from: data),
             ))
         }
         loadedItems = loaded
+    }
+
+    /// 64pt frame at 3× is 192px; 256 leaves headroom so a non-square photo
+    /// still fills the square frame without upscaling. `nonisolated` because
+    /// the decode below runs off the main actor.
+    private nonisolated static let thumbnailMaxPixelSize = 256
+
+    /// Decodes a downsampled thumbnail off the main actor, once per picked
+    /// photo. The view used to call `UIImage(data:)` inside its `ForEach`
+    /// body, which decoded the full-resolution asset — up to ten of them —
+    /// on every body pass, only to draw it into a 64×64 frame.
+    private static func makeThumbnail(from data: Data) async -> UIImage? {
+        await Task.detached(priority: .userInitiated) {
+            let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+            guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else {
+                return nil
+            }
+            let options = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: thumbnailMaxPixelSize,
+            ] as CFDictionary
+            guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options) else {
+                return nil
+            }
+            return UIImage(cgImage: cgImage)
+        }.value
     }
 
     /// Inspect `PhotosPickerItem.supportedContentTypes` to pick the MIME
@@ -151,6 +180,25 @@ struct LoadedItem: Identifiable, Equatable, Sendable {
     let contentType: String
     let fileExtension: String
     var caption: String
+    /// Downsampled preview, built once when the item is loaded. `data` stays
+    /// the untouched original — that is what gets uploaded.
+    var thumbnail: UIImage?
+
+    init(
+        id: UUID,
+        data: Data,
+        contentType: String,
+        fileExtension: String,
+        caption: String,
+        thumbnail: UIImage? = nil
+    ) {
+        self.id = id
+        self.data = data
+        self.contentType = contentType
+        self.fileExtension = fileExtension
+        self.caption = caption
+        self.thumbnail = thumbnail
+    }
 }
 
 /// Indirection so the VM can poke the drainer without holding a strong
