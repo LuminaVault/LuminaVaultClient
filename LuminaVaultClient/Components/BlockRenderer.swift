@@ -10,13 +10,114 @@ import Charts
 import LuminaVaultShared
 import SwiftUI
 
+// MARK: - Synthesized identity
+//
+// Every loop in this file used to be `ForEach(Array(x.enumerated()),
+// id: \.offset)`. Nothing in the payload carries an id: `LuminaBlock`,
+// `LuminaSeries`, `LuminaChartPoint`, `LuminaKeyValue`, table rows and table
+// cells are all plain values, and adding ids to them is a wire-schema change
+// this repo does not own — the DTOs live in `LuminaVaultShared` and mirror the
+// server's `openapi.yaml`.
+//
+// So identity is synthesized as **position + a hash of the content**:
+//
+//   * Position alone — the old scheme — is stable but says the wrong thing.
+//     A job re-runs, block 0 goes from a stat card to a chart, and SwiftUI is
+//     told it is the same row: it carries the previous view's state (an
+//     in-flight `AsyncImage` download, a `Chart`'s animation) into unrelated
+//     content.
+//   * Content alone is right about change but is not unique. Rendered
+//     documents repeat themselves constantly — "N/A" table cells, a flat
+//     series where every y is 0 — and duplicate ids inside one `ForEach` are
+//     undefined behaviour.
+//
+// The pair is always unique, because the position component alone already
+// separates every element, and it changes exactly when the content does. A
+// hash collision can therefore only produce spurious *continuity*; it can
+// never produce a duplicate id.
+//
+// What goes into the content half is chosen per loop, not mechanically:
+// where an element has a natural key it is used (`LuminaSeries.name` is the
+// legend key, `LuminaChartPoint.x` is the category), and the top-level block
+// hash deliberately covers what makes a block *a different thing* — its type,
+// its subject, the shape of its collections — rather than every field that
+// can change. A stat card whose value ticks from 41 to 42 is the same card
+// with new data and should keep its view; a paragraph that becomes a table
+// is not.
+
+/// Identity for a `ForEach` element that has none of its own. File-private
+/// on purpose: this is a local remedy for one id-less payload, not a token
+/// the rest of the app should reach for.
+private struct SynthesizedID: Hashable {
+    let position: Int
+    let content: Int
+}
+
+/// A payload element paired with its synthesized identity.
+private struct IdentifiedElement<Value>: Identifiable {
+    let id: SynthesizedID
+    let value: Value
+}
+
+private extension Array {
+    /// Pairs each element with `position + contentHash(element)`.
+    func identified(by contentHash: (Element) -> Int) -> [IdentifiedElement<Element>] {
+        enumerated().map { position, element in
+            IdentifiedElement(
+                id: SynthesizedID(position: position, content: contentHash(element)),
+                value: element
+            )
+        }
+    }
+}
+
+private extension Array where Element: Hashable {
+    /// Pairs each element with `position + element.hashValue`. For payloads
+    /// where the element *is* the content (a list item, a table cell, a whole
+    /// table row).
+    func identified() -> [IdentifiedElement<Element>] {
+        identified(by: \.hashValue)
+    }
+}
+
+/// Hash of the fields that decide *which* view a block is, and what it is
+/// about. Deliberately excludes `value` / `delta` / `trend` and the contents
+/// of the collections: those are the block's data, and data changing inside a
+/// block of unchanged shape is precisely when view continuity is wanted.
+private func blockContentHash(_ block: LuminaBlock) -> Int {
+    var hasher = Hasher()
+    hasher.combine(block.type)
+    hasher.combine(block.level)
+    hasher.combine(block.label)
+    hasher.combine(block.text)
+    hasher.combine(block.url)
+    hasher.combine(block.items?.count)
+    hasher.combine(block.columns)
+    hasher.combine(block.rows?.count)
+    hasher.combine(block.pairs?.count)
+    hasher.combine(block.series?.map(\.name))
+    return hasher.finalize()
+}
+
+private func keyValueContentHash(_ pair: LuminaKeyValue) -> Int {
+    var hasher = Hasher()
+    hasher.combine(pair.key)
+    hasher.combine(pair.value)
+    return hasher.finalize()
+}
+
+// MARK: - Renderer
+
 struct BlockRenderer: View {
     let blocks: [LuminaBlock]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                BlockView(block: block)
+        // Lazy so a long job result doesn't build every block up front. The
+        // host scroll view (`Features/Jobs/JobDetailView.swift`) is still an
+        // eager `VStack`, so this only defers the blocks, not its siblings.
+        LazyVStack(alignment: .leading, spacing: 14) {
+            ForEach(blocks.identified(by: blockContentHash)) { entry in
+                BlockView(block: entry.value)
             }
         }
     }
@@ -122,8 +223,9 @@ private struct BlockView: View {
     @ViewBuilder
     private var listView: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ForEach(Array((block.items ?? []).enumerated()), id: \.offset) { _, item in
-                listItemRow(item)
+            // The item string *is* the content, so it is the content hash.
+            ForEach((block.items ?? []).identified()) { entry in
+                listItemRow(entry.value)
             }
         }
     }
@@ -146,8 +248,8 @@ private struct BlockView: View {
     @ViewBuilder
     private var keyValueView: some View {
         VStack(spacing: 6) {
-            ForEach(Array((block.pairs ?? []).enumerated()), id: \.offset) { _, pair in
-                keyValueRow(pair)
+            ForEach((block.pairs ?? []).identified(by: keyValueContentHash)) { entry in
+                keyValueRow(entry.value)
             }
         }
     }
@@ -171,7 +273,7 @@ private struct BlockView: View {
     private var imageView: some View {
         if let urlString = block.url, let url = URL(string: urlString) {
             AsyncImage(url: url) { image in
-                image.resizable().aspectRatio(contentMode: .fit)
+                image.resizable().scaledToFit()
             } placeholder: {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(palette.surface.opacity(0.4))
@@ -213,6 +315,7 @@ private struct StatCardBlock: View {
                 Text(block.value ?? "—")
                     .font(.system(size: 28, weight: .black, design: .rounded))
                     .foregroundStyle(palette.textPrimary)
+                    .contentTransition(.numericText())
                 if let delta = block.delta {
                     Text(delta)
                         .font(.system(size: 13, weight: .bold))
@@ -224,6 +327,7 @@ private struct StatCardBlock: View {
         .padding(14)
         .background(RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous).fill(palette.surface.opacity(0.5)))
         .overlay(RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous).stroke(trendColor.opacity(0.3), lineWidth: 1))
+        .lvAnimation(LVMotion.standard, value: block.value)
     }
 
     private var trendColor: Color {
@@ -246,8 +350,11 @@ private struct ChartBlock: View {
     // Swift 6.2 type-checker ("unable to type-check in reasonable time").
     var body: some View {
         Chart {
-            ForEach(Array((block.series ?? []).enumerated()), id: \.offset) { _, series in
-                seriesMarks(series)
+            // A series' natural key is its legend name; a point's is its
+            // x category. Both are paired with position so repeated names or
+            // repeated categories still produce unique ids.
+            ForEach((block.series ?? []).identified(by: { $0.name.hashValue })) { entry in
+                seriesMarks(entry.value)
             }
         }
         .chartLegend(.visible)
@@ -258,11 +365,11 @@ private struct ChartBlock: View {
 
     @ChartContentBuilder
     private func seriesMarks(_ series: LuminaSeries) -> some ChartContent {
-        ForEach(Array(series.points.enumerated()), id: \.offset) { _, point in
+        ForEach(series.points.identified(by: { $0.x.hashValue })) { entry in
             if block.type == "barChart" {
-                barMark(point, seriesName: series.name)
+                barMark(entry.value, seriesName: series.name)
             } else {
-                lineMark(point, seriesName: series.name)
+                lineMark(entry.value, seriesName: series.name)
             }
         }
     }
@@ -293,8 +400,9 @@ private struct TableBlock: View {
                 row(columns, header: true)
                 Divider().overlay(palette.textSecondary.opacity(0.3))
             }
-            ForEach(Array(rows.enumerated()), id: \.offset) { _, r in
-                row(r, header: false)
+            // A row's content is the whole `[String]`; a cell's is its string.
+            ForEach(rows.identified()) { entry in
+                row(entry.value, header: false)
             }
         }
         .padding(10)
@@ -303,8 +411,8 @@ private struct TableBlock: View {
 
     private func row(_ cells: [String], header: Bool) -> some View {
         HStack(spacing: 8) {
-            ForEach(Array(cells.enumerated()), id: \.offset) { _, cell in
-                Text(cell)
+            ForEach(cells.identified()) { entry in
+                Text(entry.value)
                     .font(.system(size: 12, weight: header ? .bold : .regular))
                     .foregroundStyle(header ? palette.textPrimary : palette.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
