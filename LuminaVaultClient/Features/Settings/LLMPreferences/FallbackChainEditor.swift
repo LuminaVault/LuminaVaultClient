@@ -17,11 +17,7 @@ struct FallbackChainEditor: View {
         // uncommitted text in its `TextField` — across a reorder, committing
         // the edit onto whichever route landed at that index.
         ForEach(viewModel.fallbackChain) { step in
-            FallbackChainRow(
-                step: step,
-                onSelectProvider: { viewModel.updateFallback(id: step.id, provider: $0) },
-                onEditModel: { viewModel.updateFallback(id: step.id, model: $0) }
-            )
+            FallbackChainRow(viewModel: viewModel, step: step)
         }
         .onDelete { offsets in
             viewModel.removeFallback(at: offsets)
@@ -32,12 +28,12 @@ struct FallbackChainEditor: View {
     }
 }
 
-/// A single `(provider, model)` step. Both callbacks close over `step.id`, so
-/// even a view SwiftUI chose to reuse writes back to the route it is showing.
+/// A single `(provider, model)` step. Both bindings write through
+/// `step.id`, never through a row index, so even a view SwiftUI chose to
+/// reuse across a reorder writes back to the route it is actually showing.
 private struct FallbackChainRow: View {
+    @Bindable var viewModel: LLMPreferencesPaneViewModel
     let step: FallbackRouteUIModel
-    let onSelectProvider: (ProviderID) -> Void
-    let onEditModel: (String) -> Void
 
     var body: some View {
         HStack {
@@ -45,7 +41,7 @@ private struct FallbackChainRow: View {
             // "provider · model" and a visible label would repeat the header.
             Picker("Provider", selection: Binding(
                 get: { step.provider },
-                set: onSelectProvider
+                set: { viewModel.updateFallback(id: step.id, provider: $0) }
             )) {
                 ForEach(ProviderID.allCases, id: \.self) { provider in
                     Text(ProvidersPaneViewModel.displayName(for: provider)).tag(provider)
@@ -57,7 +53,7 @@ private struct FallbackChainRow: View {
 
             TextField("Model", text: Binding(
                 get: { step.model },
-                set: onEditModel
+                set: { viewModel.updateFallback(id: step.id, model: $0) }
             ))
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
