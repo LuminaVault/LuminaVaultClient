@@ -20,15 +20,11 @@ import XCTest
 
 @MainActor
 final class RedesignChromeSnapshotTests: XCTestCase {
-    // Quarantined 2026-07-18: reference images predate the iOS 26 / Xcode
-    // 26.4 SDK. The new render (fonts, SF Symbols, blur) shifts pixels
-    // beyond tolerance, so every case fails as environment drift, not a real
-    // layout regression. Skip until references are re-recorded on the current
-    // toolchain (tracked follow-up in the deployment-modernization notes).
-    override func setUpWithError() throws {
-        try XCTSkipIf(true, "snapshot references predate iOS 26 / Xcode 26.4 render — re-record")
-    }
-
+    // Un-quarantined 2026-08-28. The 2026-07-18 skip was waiting for the
+    // references to be re-recorded on the iOS 26 / Xcode 26.4 toolchain; they
+    // now have been. `snap` additionally pins `lvAmbientMotionEnabled`,
+    // which is what the animated hero components gate their `repeatForever`
+    // drift on, so consecutive renders agree.
     override func setUp() {
         super.setUp()
         UIView.setAnimationsEnabled(false)
@@ -41,7 +37,20 @@ final class RedesignChromeSnapshotTests: XCTestCase {
 
     private func snap(_ view: some View, _ name: String) {
         assertSnapshot(
-            of: view.preferredColorScheme(.dark),
+            // `lvAmbientMotionEnabled` freezes any `repeatForever` hero
+            // drift at frame zero — the components gate on it, and
+            // `disablesAnimations` alone does not reach an explicit
+            // `withAnimation` started from `onAppear`.
+            // `AppState` and `LVTabBarMinimizeState` are required, not
+            // decorative: `ChatView` reads the first and carries
+            // `.lvTabBarMinimizeOnScroll()`, which reads the second, and both
+            // trap when absent. `testThinkEmptyHero` crashed on the first
+            // render — hidden until now behind the suite's skip.
+            of: view
+                .environment(\.lvAmbientMotionEnabled, false)
+                .environment(AppState())
+                .environment(LVTabBarMinimizeState())
+                .preferredColorScheme(.dark),
             as: .image(
                 precision: 0.98,
                 perceptualPrecision: 0.96,

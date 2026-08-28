@@ -18,15 +18,11 @@ import XCTest
 
 @MainActor
 final class HomeViewSnapshotTests: XCTestCase {
-    // Quarantined 2026-07-18: reference images predate the iOS 26 / Xcode
-    // 26.4 SDK. The new render (fonts, SF Symbols, blur) shifts pixels
-    // beyond tolerance, so every case fails as environment drift, not a real
-    // layout regression. Skip until references are re-recorded on the current
-    // toolchain (tracked follow-up in the deployment-modernization notes).
-    override func setUpWithError() throws {
-        try XCTSkipIf(true, "snapshot references predate iOS 26 / Xcode 26.4 render — re-record")
-    }
-
+    // Un-quarantined 2026-08-28. The 2026-07-18 skip was waiting for the
+    // references to be re-recorded on the iOS 26 / Xcode 26.4 toolchain; they
+    // now have been. `makeView` additionally pins `lvAmbientMotionEnabled`,
+    // which is what the animated hero components gate their `repeatForever`
+    // drift on, so consecutive renders agree.
     override func setUp() {
         super.setUp()
         UIView.setAnimationsEnabled(false)
@@ -68,6 +64,17 @@ final class HomeViewSnapshotTests: XCTestCase {
     private func makeView(_ vm: HomeViewModel) -> some View {
         HomeView(vm: vm, onAskLumina: {}, sessionsDestination: { AnyView(EmptyView()) }, tasksDestination: { AnyView(EmptyView()) }, insightsDestination: { AnyView(EmptyView()) }, serverConnectionDestination: { AnyView(EmptyView()) })
             .transaction { $0.disablesAnimations = true }
+            // Freezes any `repeatForever` hero drift at frame zero — the
+            // components gate on this, and `disablesAnimations` alone does not
+            // reach an explicit `withAnimation` started from `onAppear`.
+            .environment(\.lvAmbientMotionEnabled, false)
+            // Required, not decorative: `HomeView`'s scroll carries
+            // `.lvTabBarMinimizeOnScroll()`, whose modifier reads
+            // `LVTabBarMinimizeState` from the environment and traps when it is
+            // absent. Un-quarantining the suite is what surfaced that — every
+            // case in here crashed on the first render, hidden until now
+            // behind the skip.
+            .environment(LVTabBarMinimizeState())
     }
 
     // MARK: - Populated

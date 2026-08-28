@@ -40,25 +40,26 @@ final class AuthLandingViewSnapshotTests: XCTestCase {
 
     // MARK: - Fixtures
 
+    // Un-quarantined 2026-08-28. The suite was skipped because
+    // `LVHaloBackdrop`'s dust drift and `LVLogoMark`'s breathing glow survived
+    // `disablesAnimations` — both are `repeatForever` animations started from
+    // `onAppear`, which that flag does not reach — so two consecutive captures
+    // caught them at different phases and a fresh recording failed against
+    // itself one run later.
+    //
+    // `\.lvAmbientMotionEnabled` is the static-phase seam the old note asked
+    // for. `accessibilityReduceMotion`, which both components already gate on,
+    // is get-only on `EnvironmentValues` and so cannot be set from a test.
     private func makeView() -> some View {
         let vm = AuthViewModel(authClient: PreviewAuthClient(), appState: AppState())
         return NavigationStack { AuthLandingView(vm: vm) }
             .transaction { $0.disablesAnimations = true }
+            .environment(\.lvAmbientMotionEnabled, false)
     }
-
-    // Quarantined: AuthLandingView now layers LVHaloBackdrop, whose dust-field
-    // drift is wall-clock-driven — `disablesAnimations` does not freeze it, so
-    // consecutive renders differ beyond any sane perceptual tolerance (a fresh
-    // recording fails against itself one run later). Re-enable once the halo
-    // exposes a static-phase seam for tests (follow-up tracked in the Phase 0
-    // deployment-modernization notes).
-    private static let quarantineReason =
-        "AuthLandingView halo drift is wall-clock-driven; snapshots are non-deterministic"
 
     // MARK: - Light
 
-    func testAuthLandingLightMode() throws {
-        try XCTSkipIf(true, Self.quarantineReason)
+    func testAuthLandingLightMode() {
         let view = makeView().preferredColorScheme(.light)
         assertSnapshot(
             of: view,
@@ -74,8 +75,7 @@ final class AuthLandingViewSnapshotTests: XCTestCase {
 
     // MARK: - Dark
 
-    func testAuthLandingDarkMode() throws {
-        try XCTSkipIf(true, Self.quarantineReason)
+    func testAuthLandingDarkMode() {
         let view = makeView().preferredColorScheme(.dark)
         assertSnapshot(
             of: view,
