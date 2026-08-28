@@ -54,7 +54,15 @@ jobs:
       BUILD_NUMBER: ${{ github.run_number }}
       CHANGELOG: ${{ github.event.inputs.changelog || format('{0} @ {1}', github.event.workflow_run.head_branch || github.ref_name, github.event.workflow_run.head_sha || github.sha) }}
       MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      # Must be an HTTPS URL in CI. The Matchfile default is the SSH remote,
+      # which works locally off your own key but has nothing to authenticate
+      # with on a runner, and org policy disables deploy keys — so match reads
+      # the certs repo over HTTPS with a PAT instead.
       MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+      # base64 of "x-access-token:<PAT>", PAT needs Contents:Read on
+      # LuminaVault/LuminaVaultIOSSecrets. Without this, match cannot clone the
+      # certs repo and the lane dies at signing.
+      MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
       APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
       APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
       APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY }}
