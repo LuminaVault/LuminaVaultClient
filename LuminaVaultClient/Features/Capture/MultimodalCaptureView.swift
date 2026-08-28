@@ -7,7 +7,9 @@ struct MultimodalCaptureView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: LVSpacing.base) {
+            // Lazy: `selectedFiles` and the batch rows below are both driven
+            // by however many files the user picked in the importer.
+            LazyVStack(alignment: .leading, spacing: LVSpacing.base) {
                 Button("Choose files", systemImage: "doc.badge.plus") { showingImporter = true }
                     .buttonStyle(.borderedProminent)
                     .accessibilityHint("Choose PDFs, images, audio, or video for Hermes to process")
@@ -47,7 +49,10 @@ struct MultimodalCaptureView: View {
                         .accessibilityLabel("Multimodal capture unavailable for connected Hermes")
                 }
                 if let batch = viewModel.latestBatch {
-                    VStack(alignment: .leading, spacing: LVSpacing.sm) {
+                    // Nested lazily too — this is the per-file status feed and
+                    // it mirrors the picked-file count. Keeping it as its own
+                    // stack preserves the tighter `sm` rhythm inside the group.
+                    LazyVStack(alignment: .leading, spacing: LVSpacing.sm) {
                         HStack {
                             Label("Saved to vault · \(batch.completed) of \(batch.total) processed", systemImage: "checkmark.circle")
                             Spacer()

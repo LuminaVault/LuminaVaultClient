@@ -3,8 +3,13 @@ import LuminaVaultShared
 
 struct KanbanColumnView: View {
     let column: ColumnDTO
+    /// Every other column on the board, for the card context menu's
+    /// "Move to" submenu.
+    let otherColumns: [ColumnDTO]
     let onAddCard: (String) -> Void
     let onOpenCard: (CardDTO) -> Void
+    /// Moves a card to another column without dragging.
+    let onMoveCard: (UUID, UUID) -> Void
     // C5 — called when a card UUID is dropped onto this column.
     let onDropCard: (UUID) -> Void
     @State private var newCardTitle = ""
@@ -23,14 +28,23 @@ struct KanbanColumnView: View {
                     ForEach(column.cards) { card in
                         KanbanCardView(card: card)
                             .onTapGesture { onOpenCard(card) }
-                            // C5 — context-menu "Move to" provides an accessible
-                            // alternative to drag; also used as the fallback on
-                            // devices/simulators where drag is awkward.
+                            // C5 — "Move to" is the non-drag path to the same
+                            // outcome as `.dropDestination`. It used to be an
+                            // *empty* `.contextMenu { }`, which still installed
+                            // a long-press recognizer competing with the card's
+                            // `.draggable` and presented nothing. Dragging is
+                            // also unavailable to VoiceOver users, so this is
+                            // the only route they have.
                             .contextMenu {
-                                // Populated by KanbanBoardView via the environment
-                                // is non-trivial; we surface the move action inline
-                                // here as a label-only placeholder — the board view
-                                // wires up the full context via onDropCard.
+                                if otherColumns.isEmpty {
+                                    Text("No other columns")
+                                } else {
+                                    ForEach(otherColumns) { target in
+                                        Button("Move to \(target.title)") {
+                                            onMoveCard(card.id, target.id)
+                                        }
+                                    }
+                                }
                             }
                     }
                 }
@@ -65,7 +79,7 @@ struct KanbanColumnView: View {
             RoundedRectangle(cornerRadius: 18)
                 .strokeBorder(isDropTargeted ? Color.cyan : Color.clear, lineWidth: 2)
         )
-        .animation(.easeInOut(duration: 0.15), value: isDropTargeted)
+        .lvAnimation(LVMotion.quick, value: isDropTargeted)
         // C5 — haptic feedback on successful drop.
         .sensoryFeedback(.impact, trigger: dropCount)
     }

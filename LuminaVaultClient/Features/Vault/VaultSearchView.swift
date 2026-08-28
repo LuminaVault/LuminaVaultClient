@@ -74,19 +74,25 @@ struct VaultSearchView: View {
             empty
         } else {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                // One `LazyVStack` with `Section`s rather than a `VStack` of
+                // nested `VStack`s: rows inside a section of a lazy stack are
+                // built on demand, whereas the previous per-section `VStack`
+                // built every hit up front.
+                LazyVStack(alignment: .leading, spacing: 8) {
                     if let summary = vm.memorySummary, !summary.isEmpty {
                         summaryCard(summary)
                     }
                     if !vm.memoryHits.isEmpty {
-                        section(title: "Memories") {
+                        Section {
                             ForEach(vm.memoryHits) { hit in
                                 memoryRow(hit)
                             }
+                        } header: {
+                            sectionHeader("Memories")
                         }
                     }
                     if !vm.fileHits.isEmpty {
-                        section(title: "Files") {
+                        Section {
                             ForEach(vm.fileHits) { file in
                                 NavigationLink {
                                     MarkdownReaderView(file: file, vaultClient: vaultClient, memoryClient: memoryClient)
@@ -95,6 +101,8 @@ struct VaultSearchView: View {
                                 }
                                 .buttonStyle(.plain)
                             }
+                        } header: {
+                            sectionHeader("Files")
                         }
                     }
                 }
@@ -125,15 +133,15 @@ struct VaultSearchView: View {
         )
     }
 
-    @ViewBuilder
-    private func section<Content: View>(title: String, @ViewBuilder _ rows: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased())
-                .font(.system(.caption2, weight: .bold))
-                .foregroundStyle(Color.lvTextMuted)
-                .padding(.bottom, 2)
-            rows()
-        }
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.system(.caption2, weight: .bold))
+            .foregroundStyle(Color.lvTextMuted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // Restores the 16pt gap between groups that the old nested
+            // `VStack(spacing: 16)` provided; the lazy stack itself now runs
+            // at the 8pt row rhythm.
+            .padding(.top, LVSpacing.sm)
     }
 
     private func memoryRow(_ hit: QueryHitDTO) -> some View {

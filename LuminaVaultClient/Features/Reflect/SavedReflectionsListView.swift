@@ -59,7 +59,18 @@ struct SavedReflectionsListView: View {
             LVIconView(.chevronRight, size: 12, tint: palette.textSecondary)
         }
         .padding(12)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        // Was `.ultraThinMaterial` per row: a separate blur pass for every
+        // row, stacked on the cinematic backdrop that `ReflectTabView`
+        // already paints. `Color.lvGlass` is the treatment the app's other
+        // scrolling rows use (see `VaultSearchView.fileRow`) and costs a fill.
+        .background(
+            RoundedRectangle(cornerRadius: LVRadius.md)
+                .fill(Color.lvGlass)
+                .overlay(
+                    RoundedRectangle(cornerRadius: LVRadius.md)
+                        .stroke(palette.surfaceStroke, lineWidth: 1)
+                )
+        )
     }
 
     private func displayTitle(for file: VaultFileDTO) -> String {
@@ -67,9 +78,17 @@ struct SavedReflectionsListView: View {
         return (base as NSString).deletingPathExtension
     }
 
-    private func relativeDate(_ date: Date) -> String {
+    /// Hoisted out of `relativeDate(_:)`, which `row(for:)` calls from inside
+    /// the `ForEach`: a `RelativeDateTimeFormatter` costs a locale + calendar
+    /// lookup to build, and one per row per body pass is pure waste. Same
+    /// shape as `Features/Sessions/SessionsListView.swift`.
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+        return formatter
+    }()
+
+    private func relativeDate(_ date: Date) -> String {
+        Self.relativeFormatter.localizedString(for: date, relativeTo: Date())
     }
 }

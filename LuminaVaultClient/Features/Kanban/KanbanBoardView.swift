@@ -11,13 +11,19 @@ struct KanbanBoardView: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 14) {
+            LazyHStack(alignment: .top, spacing: 14) {
                 if let board = viewModel.board {
                     ForEach(board.columns) { column in
                         KanbanColumnView(
                             column: column,
+                            // Sibling columns, so the card context menu can
+                            // offer a "Move to" that doesn't require dragging.
+                            otherColumns: board.columns.filter { $0.id != column.id },
                             onAddCard: { title in Task { await viewModel.addCard(columnID: column.id, title: title) } },
                             onOpenCard: { detailCard = $0 },
+                            onMoveCard: { cardID, targetColumn in
+                                Task { await viewModel.moveCard(cardID, toColumn: targetColumn, before: nil, after: nil) }
+                            },
                             // C5 — drop closure: append dragged card to this column
                             // (before = current last card so it goes to end, after = nil).
                             onDropCard: { cardID in
@@ -39,8 +45,18 @@ struct KanbanBoardView: View {
                     ProgressView()
                 }
             }
-            .padding()
+            .padding(.vertical)
+            .scrollTargetLayout()
         }
+        // Each column carries its own vertical `ScrollView`, a
+        // `.dropDestination` and a per-card `.contextMenu`, so the horizontal
+        // pan was competing with three recognizers on every drag. Snapping the
+        // board to column boundaries settles the horizontal axis quickly and
+        // stops it fighting the vertical one.
+        .scrollTargetBehavior(.viewAligned)
+        // Horizontal inset lives here rather than in the stack's padding, so
+        // the first column snaps flush instead of resting 16pt off.
+        .contentMargins(.horizontal, LVSpacing.base, for: .scrollContent)
         .background(Color.black.opacity(0.92).ignoresSafeArea())
         .navigationTitle(viewModel.board?.title ?? "Board")
         .task { await viewModel.load(); viewModel.startPolling() }

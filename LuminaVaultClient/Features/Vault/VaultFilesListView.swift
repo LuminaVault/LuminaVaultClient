@@ -18,29 +18,15 @@ struct VaultFilesListView: View {
     @State private var fileToDelete: VaultFileDTO?
     @State private var fileToRename: VaultFileDTO?
     @State private var renameInput: String = ""
-    @State private var filter: NoteFilter = .all
 
-    enum NoteFilter: String, CaseIterable { case all = "All", notes = "Notes", todos = "Todos" }
-
-    /// Applies the segmented filter and, for the Todos view, sorts open items
-    /// by soonest due (undated last) and sinks completed ones to the bottom.
-    private var displayedFiles: [VaultFileDTO] {
-        let isTodo: (VaultFileDTO) -> Bool = { $0.metadata?.isTodo == true }
-        switch filter {
-        case .all:
-            return vm.files
-        case .notes:
-            return vm.files.filter { !isTodo($0) }
-        case .todos:
-            return vm.files.filter(isTodo).sorted { a, b in
-                let ad = a.metadata?.done == true, bd = b.metadata?.done == true
-                if ad != bd { return !ad } // open before done
-                let au = a.metadata?.dueAt ?? .distantFuture
-                let bu = b.metadata?.dueAt ?? .distantFuture
-                return au < bu
-            }
-        }
-    }
+    /// Hoisted out of `byteCount(_:)`, which the row builder calls for every
+    /// row on every body pass. `ByteCountFormatter.string(fromByteCount:…)`
+    /// builds and discards a formatter on each call.
+    private static let byteFormatter: ByteCountFormatter = {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter
+    }()
 
     init(space: SpaceDTO, vaultClient: VaultClientProtocol, memoryClient: MemoryClientProtocol, uploadClient: any VaultUploadClientProtocol) {
         self.space = space
@@ -104,14 +90,14 @@ struct VaultFilesListView: View {
 
     private var list: some View {
         List {
-            Picker("Filter", selection: $filter) {
-                ForEach(NoteFilter.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            Picker("Filter", selection: $vm.filter) {
+                ForEach(VaultFilesViewModel.NoteFilter.allCases, id: \.self) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
 
-            ForEach(displayedFiles) { file in
+            ForEach(vm.displayedFiles) { file in
                 NavigationLink {
                     MarkdownReaderView(file: file, vaultClient: vaultClient, memoryClient: memoryClient, uploadClient: uploadClient)
                 } label: {
@@ -130,18 +116,36 @@ struct VaultFilesListView: View {
                     } label: { Label("Delete", systemImage: "trash") }
                 }
                 .listRowBackground(Color.clear)
-                .onAppear {
-                    if file.id == vm.files.last?.id {
-                        Task { await vm.loadMore() }
-                    }
-                }
             }
-            if vm.isLoadingMore {
+
+            if vm.displayedFiles.isEmpty {
+                Text(emptyFilterMessage)
+                    .lvFont(.footnote)
+                    .foregroundStyle(palette.textSecondary)
+                    .listRowBackground(Color.clear)
+            }
+
+            // Pagination sentinel. This used to hang off the last row's
+            // `.onAppear` compared against `vm.files.last` — which is the last
+            // *fetched* file, not the last *displayed* one, so under the Notes
+            // or Todos filter the trigger row was usually never rendered and
+            // pagination stopped silently. A footer row also keeps paging when
+            // the current filter matches nothing on the pages fetched so far.
+            if vm.nextCursor != nil {
                 HStack { Spacer(); ProgressView(); Spacer() }
                     .listRowBackground(Color.clear)
+                    .onAppear { Task { await vm.loadMore() } }
             }
         }
         .scrollContentBackground(.hidden)
+    }
+
+    private var emptyFilterMessage: String {
+        switch vm.filter {
+        case .all: return "No files in this space."
+        case .notes: return "No notes in this space."
+        case .todos: return "No todos in this space."
+        }
     }
 
     private func fileRow(_ file: VaultFileDTO) -> some View {
@@ -192,6 +196,6 @@ struct VaultFilesListView: View {
     }
 
     private func byteCount(_ bytes: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+        Self.byteFormatter.string(fromByteCount: bytes)
     }
 }

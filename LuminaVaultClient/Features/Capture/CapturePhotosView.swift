@@ -64,23 +64,14 @@ struct CapturePhotosView: View {
 
     private var capturesCard: some View {
         CaptureCard(eyebrowIcon: .docOnDoc, eyebrowTitle: "Captures") {
-            VStack(spacing: LVSpacing.md) {
+            LazyVStack(spacing: LVSpacing.md) {
                 ForEach($viewModel.loadedItems) { $item in
                     HStack(alignment: .top, spacing: LVSpacing.md) {
-                        if let uiImage = UIImage(data: item.data) {
-                            Image(uiImage: uiImage)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 64, height: 64)
-                                .clipShape(RoundedRectangle(cornerRadius: LVRadius.sm,
-                                                            style: .continuous))
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: LVRadius.sm,
-                                                     style: .continuous)
-                                        .stroke(palette.glowPrimary.opacity(0.35),
-                                                lineWidth: 1)
-                                }
-                        }
+                        // Pre-decoded at 256px by the view model. Building a
+                        // full-resolution `UIImage(data:)` here meant decoding
+                        // every picked photo on every body pass — including
+                        // every keystroke in the caption field below.
+                        thumbnail(item.thumbnail)
                         TextField(
                             "Add a caption (optional)",
                             text: $item.caption,
@@ -94,6 +85,29 @@ struct CapturePhotosView: View {
                 }
             }
         }
+    }
+
+    /// 64pt square preview. Decorative — the caption field beside it carries
+    /// the row's meaning, and there is no alt text for a picked photo.
+    @ViewBuilder
+    private func thumbnail(_ image: UIImage?) -> some View {
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                RoundedRectangle(cornerRadius: LVRadius.sm, style: .continuous)
+                    .fill(palette.surface)
+            }
+        }
+        .frame(width: 64, height: 64)
+        .clipShape(RoundedRectangle(cornerRadius: LVRadius.sm, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: LVRadius.sm, style: .continuous)
+                .stroke(palette.glowPrimary.opacity(0.35), lineWidth: 1)
+        }
+        .accessibilityHidden(true)
     }
 
     @ViewBuilder

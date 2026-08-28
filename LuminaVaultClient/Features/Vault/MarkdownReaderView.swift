@@ -147,7 +147,10 @@ struct MarkdownReaderView: View {
 
     @ViewBuilder
     private var metaBadges: some View {
-        let tags = file.metadata?.tags ?? []
+        // `ForEach(tags, id: \.self)` below needs unique elements; note
+        // frontmatter can repeat a tag, and rendering "#work #work" is a bug
+        // regardless of how it is keyed.
+        let tags = (file.metadata?.tags ?? []).lvUnique()
         if !tags.isEmpty || file.metadata?.dueAt != nil {
             HStack(spacing: 8) {
                 if let due = file.metadata?.dueAt {

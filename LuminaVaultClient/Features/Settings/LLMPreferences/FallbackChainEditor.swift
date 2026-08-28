@@ -1,0 +1,63 @@
+// LuminaVaultClient/LuminaVaultClient/Features/Settings/LLMPreferences/FallbackChainEditor.swift
+//
+// The reorderable fallback-chain rows for the Intelligence pane. Split out of
+// `LLMPreferencesPaneView` when the rows gained stable identity, so the row
+// view and its identity contract sit next to each other.
+
+import LuminaVaultShared
+import SwiftUI
+
+struct FallbackChainEditor: View {
+    @Bindable var viewModel: LLMPreferencesPaneViewModel
+
+    var body: some View {
+        // Identity is `FallbackRouteUIModel.id`, not the enumeration offset.
+        // Both `.onDelete` and `.onMove` live on this loop, so an
+        // offset-keyed identity would let SwiftUI reuse a row — and the
+        // uncommitted text in its `TextField` — across a reorder, committing
+        // the edit onto whichever route landed at that index.
+        ForEach(viewModel.fallbackChain) { step in
+            FallbackChainRow(viewModel: viewModel, step: step)
+        }
+        .onDelete { offsets in
+            viewModel.removeFallback(at: offsets)
+        }
+        .onMove { from, to in
+            viewModel.moveFallback(from: from, to: to)
+        }
+    }
+}
+
+/// A single `(provider, model)` step. Both bindings write through
+/// `step.id`, never through a row index, so even a view SwiftUI chose to
+/// reuse across a reorder writes back to the route it is actually showing.
+private struct FallbackChainRow: View {
+    @Bindable var viewModel: LLMPreferencesPaneViewModel
+    let step: FallbackRouteUIModel
+
+    var body: some View {
+        HStack {
+            // Labelled for VoiceOver, hidden visually — the row reads as
+            // "provider · model" and a visible label would repeat the header.
+            Picker("Provider", selection: Binding(
+                get: { step.provider },
+                set: { viewModel.updateFallback(id: step.id, provider: $0) }
+            )) {
+                ForEach(ProviderID.allCases, id: \.self) { provider in
+                    Text(ProvidersPaneViewModel.displayName(for: provider)).tag(provider)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .frame(maxWidth: 160)
+
+            TextField("Model", text: Binding(
+                get: { step.model },
+                set: { viewModel.updateFallback(id: step.id, model: $0) }
+            ))
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+            .accessibilityLabel("Fallback model")
+        }
+    }
+}
