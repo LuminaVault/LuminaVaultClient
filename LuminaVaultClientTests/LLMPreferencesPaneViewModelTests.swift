@@ -210,7 +210,7 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
         sut.mode = .byok
         sut.primaryProvider = .anthropic
         sut.primaryModel = "claude-3-5-sonnet-latest"
-        sut.fallbackChain = [ModelRouteDTO(provider: .openai, model: "gpt-4o")]
+        sut.fallbackChain = [FallbackRouteUIModel(provider: .openai, model: "gpt-4o")]
         sut.markDirty()
         await sut.save()
 

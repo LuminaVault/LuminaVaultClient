@@ -32,7 +32,9 @@ final class LLMPreferencesPaneViewModel {
     var mode: LLMBrainMode = .managed
     var primaryProvider: ProviderID = .anthropic
     var primaryModel: String = ""
-    var fallbackChain: [ModelRouteDTO] = []
+    /// Editable rows, not wire types. Each carries a stable id so the editor's
+    /// `ForEach` survives reorder and delete — see `FallbackRouteUIModel`.
+    var fallbackChain: [FallbackRouteUIModel] = []
     /// Provider routing constraints (BYOK only). Empty allowed = all allowed.
     /// A provider is never in both sets.
     var allowedProviders: Set<ProviderID> = []
@@ -231,7 +233,7 @@ final class LLMPreferencesPaneViewModel {
                     mode: .byok,
                     primaryProvider: primaryProvider,
                     primaryModel: primaryModel,
-                    fallbackChain: fallbackChain,
+                    fallbackChain: fallbackRoutes,
                     allowedProviders: Array(allowedProviders),
                     blockedProviders: Array(blockedProviders)
                 )
@@ -272,11 +274,18 @@ final class LLMPreferencesPaneViewModel {
         }
     }
 
+    /// The chain as the wire sees it: order is the array's order.
+    var fallbackRoutes: [ModelRouteDTO] {
+        fallbackChain.map(\.route)
+    }
+
     func addFallback() {
-        fallbackChain.append(ModelRouteDTO(provider: .openRouter, model: ""))
+        fallbackChain.append(FallbackRouteUIModel(provider: .openRouter, model: ""))
         markDirty()
     }
 
+    /// `offsets` come from `.onDelete`, which indexes the *rendered* order —
+    /// and the rendered order is `fallbackChain` itself.
     func removeFallback(at offsets: IndexSet) {
         fallbackChain.remove(atOffsets: offsets)
         markDirty()
@@ -287,13 +296,14 @@ final class LLMPreferencesPaneViewModel {
         markDirty()
     }
 
-    func updateFallback(at index: Int, provider: ProviderID? = nil, model: String? = nil) {
-        guard fallbackChain.indices.contains(index) else { return }
-        let current = fallbackChain[index]
-        fallbackChain[index] = ModelRouteDTO(
-            provider: provider ?? current.provider,
-            model: model ?? current.model
-        )
+    /// Edits a step **by identity**, never by index. A row's position changes
+    /// under a reorder or a delete while the view that owns the pending edit
+    /// does not, so an index-keyed write lands on whichever route slid into
+    /// that slot. Unknown ids are ignored — the row was deleted mid-edit.
+    func updateFallback(id: UUID, provider: ProviderID? = nil, model: String? = nil) {
+        guard let index = fallbackChain.firstIndex(where: { $0.id == id }) else { return }
+        if let provider { fallbackChain[index].provider = provider }
+        if let model { fallbackChain[index].model = model }
         markDirty()
     }
 
@@ -311,7 +321,7 @@ final class LLMPreferencesPaneViewModel {
             snapshot.mode == mode &&
                 snapshot.primaryProvider == primaryProvider &&
                 snapshot.primaryModel == primaryModel &&
-                snapshot.fallbackChain == fallbackChain &&
+                snapshot.fallbackChain == fallbackRoutes &&
                 Set(snapshot.allowedProviders) == allowedProviders &&
                 Set(snapshot.blockedProviders) == blockedProviders
         )
@@ -359,7 +369,10 @@ final class LLMPreferencesPaneViewModel {
         mode = response.mode
         primaryProvider = response.primaryProvider
         primaryModel = response.primaryModel
-        fallbackChain = response.fallbackChain
+        // A server snapshot replaces the chain wholesale, so rows are new
+        // rows and get new ids. Identity only has to survive the edits the
+        // user makes between two loads.
+        fallbackChain = FallbackRouteUIModel.rows(from: response.fallbackChain)
         allowedProviders = Set(response.allowedProviders)
         blockedProviders = Set(response.blockedProviders)
         // Catalog-backed providers should never sit on an empty model (the

@@ -78,6 +78,15 @@ struct LLMPreferencesPaneView: View {
         }
         .navigationTitle("Model Router")
         .navigationBarTitleDisplayMode(.inline)
+        // The fallback chain declares `.onMove`, which is only reachable in
+        // edit mode. Without this button the reorder affordance shipped but
+        // could never be invoked. Only offered when there is a BYOK chain to
+        // reorder — Managed mode doesn't consult the chain at all.
+        .toolbar {
+            if !isEditorDisabled, !viewModel.fallbackChain.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) { EditButton() }
+            }
+        }
         // Clear the app-wide floating LVTabBar so the Save section isn't
         // hidden under it (matches SettingsRootView's bottom clearance).
         .contentMargins(.bottom, LVSpacing.hero + LVSpacing.xxl, for: .scrollContent)
@@ -579,36 +588,5 @@ struct LLMPreferencesPaneView: View {
     }
 }
 
-struct FallbackChainEditor: View {
-    @Bindable var viewModel: LLMPreferencesPaneViewModel
-
-    var body: some View {
-        ForEach(Array(viewModel.fallbackChain.enumerated()), id: \.offset) { index, step in
-            HStack {
-                Picker("", selection: Binding(
-                    get: { step.provider },
-                    set: { viewModel.updateFallback(at: index, provider: $0) }
-                )) {
-                    ForEach(ProviderID.allCases, id: \.self) { provider in
-                        Text(ProvidersPaneViewModel.displayName(for: provider)).tag(provider)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(maxWidth: 160)
-
-                TextField("Model", text: Binding(
-                    get: { step.model },
-                    set: { viewModel.updateFallback(at: index, model: $0) }
-                ))
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-            }
-        }
-        .onDelete { offsets in
-            viewModel.removeFallback(at: offsets)
-        }
-        .onMove { from, to in
-            viewModel.moveFallback(from: from, to: to)
-        }
-    }
-}
+// `FallbackChainEditor` now lives in its own file, next to the identity
+// contract it depends on (`FallbackRouteUIModel`).
