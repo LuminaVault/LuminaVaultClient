@@ -64,7 +64,20 @@ struct HermesDiagnosticsView: View {
                 row("Provider", prefs.primaryProvider.diagnosticsLabel)
                 if !prefs.fallbackChain.isEmpty {
                     row("Fallbacks", "\(prefs.fallbackChain.count)")
-                    ForEach(prefs.fallbackChain, id: \.self) { route in
+                    // Positional identity, not `id: \.self`. The chain is an
+                    // ordered wire list that may legitimately name the same
+                    // (provider, model) twice, so self-identity mints
+                    // duplicate ids for exactly the steps that most need
+                    // telling apart — the same reasoning that gave the
+                    // *editor*'s rows a stable id in `FallbackRouteUIModel`.
+                    //
+                    // De-duplicating is wrong here specifically: this screen
+                    // reports what is configured, and dropping a repeated step
+                    // would both misreport it and disagree with the count row
+                    // directly above. Offset is safe because these rows are
+                    // read-only `Text` — no focus, no editing, and no
+                    // `.onMove`/`.onDelete` to reuse a row across a reorder.
+                    ForEach(Array(prefs.fallbackChain.enumerated()), id: \.offset) { _, route in
                         Text("↳ \(route.provider.diagnosticsLabel) · \(route.model)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -94,7 +107,10 @@ struct HermesDiagnosticsView: View {
     }
 
     @ViewBuilder private func providerStatus(_ p: ProviderCredentialDTO) -> some View {
-        if let failure = p.lastFailureAt, (p.verifiedAt == nil || failure > p.verifiedAt!) {
+        // A failure counts as current only when it is newer than the last
+        // successful verification. Written without a force unwrap so it also
+        // clears `force_unwrapping` / `control_statement`.
+        if let failure = p.lastFailureAt, failure > (p.verifiedAt ?? .distantPast) {
             Label(p.lastFailureCode ?? "Error", systemImage: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
                 .font(.caption)
@@ -146,7 +162,12 @@ struct HermesDiagnosticsView: View {
 
     @ViewBuilder private var errorsSection: some View {
         Section("Couldn't load") {
-            ForEach(viewModel.sectionErrors, id: \.self) { err in
+            // `id: \.self` needs unique strings. Each `load()` appends at most
+            // one line per distinctly-labelled source, but `load()` is reached
+            // from both `.task` and `.refreshable` and suspends four times, so
+            // two overlapping runs can append the same line twice. Rendering
+            // one failure twice is wrong however it is keyed.
+            ForEach(viewModel.sectionErrors.lvUnique(), id: \.self) { err in
                 Text(err).font(.caption).foregroundStyle(.secondary)
             }
         }

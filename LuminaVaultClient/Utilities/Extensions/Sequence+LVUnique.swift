@@ -22,3 +22,16 @@ extension Sequence where Element: Hashable {
         return filter { seen.insert($0).inserted }
     }
 }
+
+extension Sequence {
+    /// The elements in order, with later duplicates of `key` dropped.
+    ///
+    /// The same guarantee as ``lvUnique()`` for lists rendered with a
+    /// key-path identity — `ForEach(_, id: \.provider)` needs unique
+    /// providers just as `id: \.self` needs unique elements — where the
+    /// element itself is a `Codable` DTO that is not `Hashable`.
+    func lvUnique<Key: Hashable>(by key: (Element) -> Key) -> [Element] {
+        var seen = Set<Key>()
+        return filter { seen.insert(key($0)).inserted }
+    }
+}

@@ -41,7 +41,12 @@ final class ProvidersPaneViewModel {
         state = .loading
         do {
             let response = try await client.list()
-            rows = Dictionary(uniqueKeysWithValues: response.providers.map { ($0.provider, $0) })
+            // `Dictionary(uniqueKeysWithValues:)` traps on a duplicate key, so
+            // a response that named one provider twice crashed this pane
+            // rather than rendering it. Nothing in the contract forbids that.
+            // First occurrence wins, matching `lvUnique(by:)` — the same rule
+            // the diagnostics list applies to the same response.
+            rows = Dictionary(response.providers.map { ($0.provider, $0) }) { first, _ in first }
             state = .loaded
         } catch {
             state = .failed(Self.message(for: error))

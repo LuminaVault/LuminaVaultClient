@@ -55,8 +55,15 @@ final class HermesDiagnosticsViewModel {
 
     /// Configured providers that hold a credential — what the diagnostics
     /// list should actually show.
+    ///
+    /// De-duplicated by provider: the view renders these with
+    /// `ForEach(_, id: \.provider)`, and the response is a plain server list
+    /// with no uniqueness guarantee. One credential per provider is the
+    /// model the rest of the app assumes (`ProvidersPaneViewModel` keys its
+    /// rows by `ProviderID`), so a repeated provider is a bad response, not a
+    /// second row worth showing.
     var credentialedProviders: [ProviderCredentialDTO] {
-        providers.filter(\.hasCredential)
+        providers.filter(\.hasCredential).lvUnique(by: \.provider)
     }
 
     func load() async {
