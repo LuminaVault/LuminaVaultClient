@@ -35,81 +35,89 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             // No local backdrop: `.lvBackground()` below owns the base fill and
-            // the aurora washes. This ZStack used to open with an opaque
-            // `Color.black` plus two hand-rolled radial gradients duplicating
-            // that modifier — which occluded `lvBackground` entirely and left
-            // Light mode as dark text on black.
-            ZStack {
-                Color.clear
-                    .lvParticleBackground(intensity: .subtle)
-                    .frame(maxHeight: 420)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .allowsHitTesting(false)
+            // the aurora washes. This used to open with an opaque `Color.black`
+            // plus two hand-rolled radial gradients duplicating that modifier —
+            // which occluded `lvBackground` entirely and left Light mode as
+            // dark text on black.
+            //
+            // The `.lvParticleBackground(.subtle)` wash that sat behind the
+            // scroll is gone too. It composites with `.blendMode(.screen)`,
+            // which forces the entire layer off-screen every frame the scroll
+            // moves; `View+LVParticleBackground.swift`'s own header reserves it
+            // for hero surfaces and says to avoid it on dense scroll. This is
+            // the densest scroll in the app.
+            //
+            // `LazyVStack`, not `VStack`: the stack runs several screens tall
+            // and two of the cards below are Swift Charts. Eagerly, it built
+            // and laid out both charts, the activity feed and every preview
+            // panel before the first pixel appeared — and kept them alive
+            // whether or not the user ever scrolled that far.
+            ScrollView {
+                LazyVStack(spacing: LVSpacing.lg) {
+                    if horizontalSizeClass == .regular {
+                        wideHero
+                    } else {
+                        compactHero
+                    }
 
-                ScrollView {
-                    VStack(spacing: 20) {
-                        if horizontalSizeClass == .regular {
-                            wideHero
-                        } else {
-                            compactHero
-                        }
+                    PeriodChipBar(period: vm.period) { next in
+                        Task { await vm.setPeriod(next) }
+                    }
 
-                        PeriodChipBar(period: vm.period) { next in
-                            Task { await vm.setPeriod(next) }
-                        }
+                    PeriodKpiRow(
+                        stats: home?.periodStats,
+                        doneDestination: todayDestination,
+                        capturesDestination: todayDestination,
+                        skillsDestination: skillsDestination,
+                        tokensDestination: analyticsDestination
+                    )
 
-                        PeriodKpiRow(
-                            stats: home?.periodStats,
-                            doneDestination: todayDestination,
-                            capturesDestination: todayDestination,
-                            skillsDestination: skillsDestination,
-                            tokensDestination: analyticsDestination
-                        )
+                    brainPreviewSection
 
-                        brainPreviewSection
+                    powerStrip
 
-                        powerStrip
-
-                        if horizontalSizeClass == .regular {
-                            HStack(alignment: .top, spacing: 16) {
-                                HomeActivityChartCard(series: home?.periodSeries ?? [], period: vm.period)
-                                HomeMixDonutCard(mix: home?.periodMix)
-                            }
-                            HStack(alignment: .top, spacing: 16) {
-                                activeJobsSection
-                                cronSection
-                            }
-                            HStack(alignment: .top, spacing: 16) {
-                                skillsSection
-                                toolsSection
-                            }
-                            RetrievalHealthTile(health: vm.retrievalHealth.value, isLoading: isRetrievalLoading)
-                        } else {
+                    if horizontalSizeClass == .regular {
+                        HStack(alignment: .top, spacing: LVSpacing.base) {
                             HomeActivityChartCard(series: home?.periodSeries ?? [], period: vm.period)
                             HomeMixDonutCard(mix: home?.periodMix)
+                        }
+                        HStack(alignment: .top, spacing: LVSpacing.base) {
                             activeJobsSection
                             cronSection
+                        }
+                        HStack(alignment: .top, spacing: LVSpacing.base) {
                             skillsSection
                             toolsSection
-                            RetrievalHealthTile(health: vm.retrievalHealth.value, isLoading: isRetrievalLoading)
                         }
-
-                        ActivityFeedView(
-                            items: vm.activity.value ?? [],
-                            isLoading: isActivityLoading
-                        )
-
-                        syncAndLearnButton
-
-                        Spacer().frame(height: 120)
+                        RetrievalHealthTile(health: vm.retrievalHealth.value, isLoading: isRetrievalLoading)
+                    } else {
+                        HomeActivityChartCard(series: home?.periodSeries ?? [], period: vm.period)
+                        HomeMixDonutCard(mix: home?.periodMix)
+                        activeJobsSection
+                        cronSection
+                        skillsSection
+                        toolsSection
+                        RetrievalHealthTile(health: vm.retrievalHealth.value, isLoading: isRetrievalLoading)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 24)
+
+                    ActivityFeedView(
+                        items: vm.activity.value ?? [],
+                        isLoading: isActivityLoading
+                    )
+
+                    syncAndLearnButton
                 }
-                .lvTabBarMinimizeOnScroll()
-                .refreshable {
-                    await vm.refresh()
-                }
+                .padding(.horizontal, LVSpacing.lg)
+                .padding(.top, LVSpacing.xl)
+            }
+            // Replaces a `Spacer().frame(height: 120)` that rode inside the
+            // stack as a real row. Bottom clearance is scroll-content inset,
+            // not content — as an inset it also keeps the refresh control and
+            // scroll indicators correctly placed.
+            .contentMargins(.bottom, LVLayout.tabBarClearance, for: .scrollContent)
+            .lvTabBarMinimizeOnScroll()
+            .refreshable {
+                await vm.refresh()
             }
             .lvBackground()
             .onReceive(NotificationCenter.default.publisher(for: BackendModeStore.modeChangedNotification)) { _ in
