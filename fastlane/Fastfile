@@ -32,6 +32,7 @@ FLAVORS = {
     name: "beta",
     app_identifier: "com.lumina.fernando.beta",
     extension_identifier: "com.lumina.fernando.beta.LuminaVaultShareExtension",
+    widgets_identifier: "com.lumina.fernando.beta.LuminaVaultWidgets",
     scheme: "LuminaVaultClient-Beta",
     configuration: "Beta"
   },
@@ -39,14 +40,24 @@ FLAVORS = {
     name: "release",
     app_identifier: "com.lumina.fernando",
     extension_identifier: "com.lumina.fernando.LuminaVaultShareExtension",
+    widgets_identifier: "com.lumina.fernando.LuminaVaultWidgets",
     scheme: "LuminaVaultClient",
     configuration: "Release"
   }
 }.freeze
 
+# Every embedded target that gets signed needs its own profile, or the archive
+# fails on the one that is missing — the host app succeeding tells you nothing
+# about the extensions. LuminaVaultWidgetsExtension was absent from this list
+# and broke the first real CI archive with "No profiles for
+# 'com.lumina.fernando.beta.LuminaVaultWidgets' were found".
 def flavor_identifiers(flavor_key)
   flavor = FLAVORS.fetch(flavor_key)
-  [flavor[:app_identifier], flavor[:extension_identifier]]
+  [
+    flavor[:app_identifier],
+    flavor[:extension_identifier],
+    flavor[:widgets_identifier]
+  ].compact
 end
 
 def build_number

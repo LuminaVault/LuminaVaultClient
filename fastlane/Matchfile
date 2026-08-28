@@ -11,7 +11,8 @@ type("appstore") # appstore | adhoc | enterprise | development
 # Lanes pass explicit host + extension identifiers for beta/production.
 app_identifier([
   "com.lumina.fernando.beta",
-  "com.lumina.fernando.beta.LuminaVaultShareExtension"
+  "com.lumina.fernando.beta.LuminaVaultShareExtension",
+  "com.lumina.fernando.beta.LuminaVaultWidgets"
 ])
 
 # team_id is also set in Appfile; keep explicit for match CLI.
