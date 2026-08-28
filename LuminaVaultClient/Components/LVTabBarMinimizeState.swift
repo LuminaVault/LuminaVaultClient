@@ -86,14 +86,24 @@ final class LVTabBarMinimizeState {
 }
 
 private struct LVTabBarMinimizeOnScrollModifier: ViewModifier {
-    @Environment(LVTabBarMinimizeState.self) private var minimize
+    // Optional on purpose. The non-optional form *traps* when no
+    // `LVTabBarMinimizeState` is in the environment, and this is a decorative
+    // scroll behaviour attached to whole screens — `HomeView`, `ChatView`,
+    // `SpacesListView`, `ReflectTabView`. Today every route to those screens
+    // happens to pass through `MainTabView`, which injects the object, but
+    // nothing enforces that: presenting one of them from a sheet, a deep link
+    // or an extension would crash on the first scroll. Un-quarantining the
+    // snapshot suites is what surfaced this — `HomeViewSnapshotTests` and
+    // `RedesignChromeSnapshotTests.testThinkEmptyHero` trapped here on their
+    // first render. Absent state now means "there is no tab bar to minimize".
+    @Environment(LVTabBarMinimizeState.self) private var minimize: LVTabBarMinimizeState?
 
     func body(content: Content) -> some View {
         content
             .onScrollGeometryChange(for: CGFloat.self) { geometry in
                 geometry.contentOffset.y
             } action: { _, newOffset in
-                minimize.noteScroll(offsetY: newOffset)
+                minimize?.noteScroll(offsetY: newOffset)
             }
     }
 }

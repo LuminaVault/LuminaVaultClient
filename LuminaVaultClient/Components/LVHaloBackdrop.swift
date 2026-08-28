@@ -8,6 +8,7 @@ struct LVHaloBackdrop: View {
 
     @Environment(\.lvPalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.lvAmbientMotionEnabled) private var ambientMotionEnabled
 
     let focalSize: CGFloat
     var intensity: CGFloat = LVGlow.hero
@@ -44,7 +45,7 @@ struct LVHaloBackdrop: View {
             LVDustField(orbitRadius: focalSize * 0.95, phase: driftPhase, count: particleCount)
         }
         .onAppear {
-            guard !reduceMotion else { return }
+            guard !reduceMotion, ambientMotionEnabled else { return }
             withAnimation(.linear(duration: 18).repeatForever(autoreverses: false)) {
                 driftPhase = 1
             }

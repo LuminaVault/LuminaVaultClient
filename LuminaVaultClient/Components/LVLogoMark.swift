@@ -31,6 +31,7 @@ struct LVLogoMark: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.lvAmbientMotionEnabled) private var ambientMotionEnabled
 
     @State private var breathScale: CGFloat = 1.0
     @State private var glowOpacity: Double = 0.85
@@ -206,7 +207,7 @@ struct LVLogoMark: View {
     // MARK: - Animation
 
     private func startAnimations() {
-        guard animated, !reduceMotion else {
+        guard animated, !reduceMotion, ambientMotionEnabled else {
             breathScale = 1.0225
             glowOpacity = 0.975
             return
