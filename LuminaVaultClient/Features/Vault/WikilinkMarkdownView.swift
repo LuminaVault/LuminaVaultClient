@@ -228,7 +228,9 @@ private struct MemoryWikilinkSheet: View {
 
     private var tagList: some View {
         FlowLayout(spacing: 8) {
-            ForEach(memory.tags, id: \.self) { tag in
+            // De-duplicated: `id: \.self` needs unique elements, and a memory
+            // can carry the same tag twice.
+            ForEach(memory.tags.lvUnique(), id: \.self) { tag in
                 Text(tag)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(palette.primary)

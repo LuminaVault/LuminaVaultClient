@@ -26,11 +26,11 @@ struct MarketplacePluginDetailView: View {
                 LabeledContent("Runtime", value: viewModel.plugin.latestVersion.runtimeKind.rawValue.capitalized)
             }
 
-            if !viewModel.plugin.screenshots.isEmpty {
+            if !viewModel.screenshots.isEmpty {
                 Section("Preview") {
                     ScrollView(.horizontal) {
                         LazyHStack(spacing: 12) {
-                            ForEach(viewModel.plugin.screenshots, id: \.self) { screenshot in
+                            ForEach(viewModel.screenshots, id: \.self) { screenshot in
                                 AsyncImage(url: URL(string: screenshot)) { image in
                                     image.resizable().scaledToFill()
                                 } placeholder: {
@@ -51,7 +51,7 @@ struct MarketplacePluginDetailView: View {
                 Text(viewModel.plugin.description).foregroundStyle(.secondary)
             }
 
-            if !viewModel.plugin.latestVersion.permissions.isEmpty {
+            if !viewModel.requestedPermissions.isEmpty {
                 Section {
                     if viewModel.isUpgrade, !viewModel.addedPermissions.isEmpty {
                         Label(
@@ -61,7 +61,7 @@ struct MarketplacePluginDetailView: View {
                         .foregroundStyle(.orange)
                         .accessibilityHint("Review and approve each new permission before upgrading.")
                     }
-                    ForEach(viewModel.plugin.latestVersion.permissions, id: \.self) { permission in
+                    ForEach(viewModel.requestedPermissions, id: \.self) { permission in
                         Button {
                             viewModel.toggle(permission)
                         } label: {

@@ -34,6 +34,21 @@ final class MarketplacePluginDetailViewModel {
         selectedPermissions = Set(install?.grantedPermissions.filter(requested.contains) ?? [])
     }
 
+    /// Both lists are rendered with `ForEach(_, id: \.self)`, which needs
+    /// unique elements the manifest does not guarantee. Screenshots feed
+    /// `AsyncImage` in a carousel, so keeping the URL as the identity is what
+    /// preserves the download across reloads — the fix is uniqueness, not a
+    /// different key. A repeated permission would also render two checkmark
+    /// rows backed by the same `Set` member, which is nonsense on a screen
+    /// whose whole job is per-permission consent.
+    var screenshots: [String] {
+        plugin.screenshots.lvUnique()
+    }
+
+    var requestedPermissions: [PluginPermission] {
+        plugin.latestVersion.permissions.lvUnique()
+    }
+
     var hasAllPermissions: Bool {
         Set(plugin.latestVersion.permissions) == selectedPermissions
     }
