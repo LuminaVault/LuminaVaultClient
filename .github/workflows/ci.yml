@@ -85,30 +85,51 @@ jobs:
       - name: Resolve Swift packages
         run: xcodebuild -project LuminaVaultClient.xcodeproj -resolvePackageDependencies
 
-      # Pinned destination: "OS=latest" resolves to the newest installed
-      # runtime for the selected Xcode — and it fails LOUDLY if the device or
-      # runtime is missing instead of the old dynamic-discovery guard that
-      # exit-1'd on runner image drift.
+      # "OS=latest" on the destination below resolves to the newest installed
+      # runtime for the selected Xcode. That axis is safe to leave floating:
+      # the 34 baselines that already agreed across iOS 26.4 and 26.5 show the
+      # rasterizer is stable across point releases. The *device* is not safe
+      # to leave floating — see the pin on the test step.
       - name: List simulator runtimes (diagnostics only)
         run: xcrun simctl list runtimes
 
+      # The device is pinned, not discovered. Snapshot baselines are
+      # device-specific: `layout: .device(config: .iPhone13Pro)` fixes the
+      # canvas size, but the render still varies with the host simulator's
+      # device class. `RedesignChromeSnapshotTests.testThinkEmptyHero` is the
+      # proof — on iPhone 17 Pro Max it fails with *identical* numbers
+      # (0.96658325 / 0.7034375) on iOS 26.4 locally and iOS 26.5 on this
+      # runner, and passes on iPhone 16 Pro on both. The variable is the
+      # device; the runtime patch level is not.
+      #
+      # The previous step picked `sorted(pros)[-1]`, the newest Pro iPhone on
+      # the image. That silently re-pointed the reference device from
+      # iPhone 16 Pro to iPhone 17 Pro Max when macos-26 gained the newer
+      # preset, invalidating baselines nobody had touched. Pin the device the
+      # baselines are recorded against, and create it when the image does not
+      # preinstall it — macos-26 does drop presets the macos-15 image had,
+      # which is what the dynamic pick was originally working around.
+      #
+      # There is deliberately NO fallback to "some other iPhone". Running the
+      # snapshot suites on an unintended device produces confusing red rather
+      # than a clear failure, which is exactly the bug this replaces.
       - name: Run unit tests (Debug)
         run: |
           set -euo pipefail
-          # Resolve an available iPhone simulator instead of hardcoding a
-          # name. Device presets differ across runner images — macos-26
-          # dropped the "iPhone 16 Pro" preset the old macos-15 image had,
-          # so a fixed name exit-70s with "Unable to find a device". Pick the
-          # newest available iPhone (prefer a Pro model) from this image.
-          DEVICE=$(xcrun simctl list devices available --json | python3 -c '
+          DEVICE="iPhone 16 Pro"
+          DEVICE_TYPE="com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro"
+          if ! xcrun simctl list devices available | grep -qE "^ +${DEVICE} \("; then
+            echo "::notice::'${DEVICE}' is not preinstalled on this image — creating it"
+            RUNTIME=$(xcrun simctl list runtimes --json | python3 -c '
           import sys, json
-          devs = json.load(sys.stdin)["devices"]
-          iphones = [d["name"] for rt in devs for d in devs[rt] if d["name"].startswith("iPhone")]
-          pros = [n for n in iphones if "Pro" in n]
-          pick = sorted(pros or iphones)
-          print(pick[-1] if pick else "")')
-          if [ -z "$DEVICE" ]; then echo "::error::no iPhone simulator available on this runner"; exit 1; fi
-          echo "Using simulator: $DEVICE"
+          ios = [r["identifier"] for r in json.load(sys.stdin)["runtimes"]
+                 if r.get("isAvailable") and r["identifier"].startswith(
+                     "com.apple.CoreSimulator.SimRuntime.iOS-")]
+          print(sorted(ios)[-1] if ios else "")')
+            if [ -z "$RUNTIME" ]; then echo "::error::no available iOS runtime on this runner"; exit 1; fi
+            xcrun simctl create "$DEVICE" "$DEVICE_TYPE" "$RUNTIME"
+          fi
+          echo "Using simulator: $DEVICE (pinned — snapshot baselines are recorded on it)"
           xcodebuild test \
             -project LuminaVaultClient.xcodeproj \
             -scheme LuminaVaultClient \
