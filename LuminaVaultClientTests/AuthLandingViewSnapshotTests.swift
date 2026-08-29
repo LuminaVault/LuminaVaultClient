@@ -4,15 +4,21 @@
 //
 // Reference simulator: **iPhone 16 Pro** with iOS 18+ SDK. Run with a
 // different device class and references will not match — re-record only
-// when the design changes, not when CI switches simulators.
+// when the design changes, not when CI switches simulators. `ci.yml` pins
+// the same device for that reason.
 //
 // To record references: set `isRecording = true` on the suite once,
 // run the suite, commit the generated `__Snapshots__/` directory.
 //
-// `LVLogoMark(showSparkle: true)` contains a non-deterministic sparkle
-// animation, so snapshots use a loose perceptual precision rather than
-// strict pixel match — the goal is to catch layout regressions, not to
-// freeze every frame of the mascot.
+// `LVLogoMark(showSparkle: true)` embeds a `SparkleField`, whose drift is
+// driven by absolute wall-clock. It happens to be inert here already —
+// `scenePhase` is not `.active` under the test host — but that is an
+// accident of the harness, not a guarantee, so `SparkleField` now also gates
+// on `\.lvAmbientMotionEnabled` (which these fixtures set) alongside the halo
+// and the breathing glow. Re-recording produces byte-identical PNGs.
+//
+// The loose precision below therefore absorbs rasterization noise only. It is
+// deliberately not wide enough to hide a row appearing or disappearing.
 
 import SnapshotTesting
 import SwiftUI
@@ -50,9 +56,20 @@ final class AuthLandingViewSnapshotTests: XCTestCase {
     // `\.lvAmbientMotionEnabled` is the static-phase seam the old note asked
     // for. `accessibilityReduceMotion`, which both components already gate on,
     // is get-only on `EnvironmentValues` and so cannot be set from a test.
+    //
+    // The provider list is pinned rather than inherited. `AuthProviderOption
+    // .configured` — the production default — drops the Google and X rows
+    // unless the build carries their client IDs, and those arrive from a
+    // gitignored xcconfig. A developer machine holding real secrets rendered
+    // five rows while CI, which materializes the `.sample` placeholders,
+    // rendered four; the whole stack below the missing row shifted up and
+    // 8.75% of the frame disagreed. That is a difference in *what was
+    // rendered*, not in how it rasterized, so no precision tolerance is the
+    // right answer for it. `allCases` is the superset, so these images assert
+    // every row's layout and render identically on every machine.
     private func makeView() -> some View {
         let vm = AuthViewModel(authClient: PreviewAuthClient(), appState: AppState())
-        return NavigationStack { AuthLandingView(vm: vm) }
+        return NavigationStack { AuthLandingView(vm: vm, visibleProviders: AuthProviderOption.allCases) }
             .transaction { $0.disablesAnimations = true }
             .environment(\.lvAmbientMotionEnabled, false)
     }

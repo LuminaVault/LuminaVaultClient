@@ -48,6 +48,26 @@ enum AuthProviderOption: String, CaseIterable, Identifiable, Sendable {
         case .phone, .email, .passkey: return nil
         }
     }
+
+    /// The rows this *build* can offer. Mirrors `SSORow`: Google and X appear
+    /// only when their client IDs are configured. Phone + email + passkey are
+    /// always available; Apple is always shown because §4.8 mandates SIWA
+    /// presence whenever any third party identity option is offered.
+    ///
+    /// This reads `Config`, which reads `Info.plist`, which is substituted
+    /// from a gitignored xcconfig — so the result differs between a developer
+    /// machine holding real secrets and CI, which materializes the `.sample`
+    /// placeholders and therefore resolves both IDs to nil. Anything that
+    /// needs a stable row set (snapshot tests) must pass its own list to
+    /// `AuthLandingView` rather than inherit this one.
+    static var configured: [AuthProviderOption] {
+        var providers: [AuthProviderOption] = [.apple]
+        if Config.googleClientID != nil { providers.append(.google) }
+        if Config.xClientID != nil { providers.append(.x) }
+        providers.append(.passkey)
+        providers.append(contentsOf: [.phone, .email])
+        return providers
+    }
 }
 
 struct AuthLandingView: View {
@@ -55,24 +75,18 @@ struct AuthLandingView: View {
     @Environment(\.lvPalette) private var palette
 
     @Bindable var vm: AuthViewModel
+    /// Rows to offer. Defaults to whatever this build has client IDs for, so
+    /// production behaviour is unchanged. It is a parameter rather than a
+    /// computed property because the default is build-configuration
+    /// dependent — see `AuthProviderOption.configured` — and a snapshot test
+    /// asserting a layout must pin the row set instead of inheriting the
+    /// ambient one.
+    var visibleProviders: [AuthProviderOption] = AuthProviderOption.configured
     @AppStorage("lv.auth.preferredProvider") private var preferredRaw: String = ""
     @State private var showingPasskeySheet = false
 
     private var preferred: AuthProviderOption? {
         AuthProviderOption(rawValue: preferredRaw)
-    }
-
-    private var visibleProviders: [AuthProviderOption] {
-        // Mirror SSORow: only show Google / X when their client IDs are
-        // configured. Phone + email + passkey are always available; Apple is
-        // always shown because §4.8 mandates SIWA presence whenever any
-        // third party identity option is offered.
-        var providers: [AuthProviderOption] = [.apple]
-        if Config.googleClientID != nil { providers.append(.google) }
-        if Config.xClientID != nil { providers.append(.x) }
-        providers.append(.passkey)
-        providers.append(contentsOf: [.phone, .email])
-        return providers
     }
 
     var body: some View {
