@@ -1,7 +1,13 @@
+// LuminaVaultClient/LuminaVaultClient/Features/Home/Components/ToolsPreviewPanel.swift
+
 import SwiftUI
 
 struct ToolsPreviewPanel: View {
     @Environment(\.lvPalette) private var palette
+
+    /// See `SkillsPreviewPanel` — a preview shows a glance, the header count
+    /// and the overflow chip carry the total.
+    private static let previewLimit = 3
 
     let tools: [String]
     let count: Int
@@ -30,32 +36,54 @@ struct ToolsPreviewPanel: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(palette.textSecondary)
             } else {
-                FlexibleToolChips(tools: tools)
+                // `LVFlowLayout`, not a `VStack`. The private helper this
+                // replaced was named `FlexibleToolChips` but stacked
+                // vertically, so every chip got its own row.
+                LVFlowLayout(spacing: LVSpacing.sm) {
+                    // Positional identity — see `SkillsPreviewPanel`. Tool
+                    // names are server strings and are not guaranteed unique.
+                    ForEach(Array(visibleTools.enumerated()), id: \.offset) { _, name in
+                        chip(name, muted: false)
+                    }
+                    if overflow > 0 {
+                        chip("+\(overflow) more", muted: true)
+                    }
+                }
             }
         }
-        .padding(16)
+        .padding(LVSpacing.base)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18))
+        .lvGlassCard(cornerRadius: LVRadius.card, intensity: 0.65)
     }
-}
 
-private struct FlexibleToolChips: View {
-    @Environment(\.lvPalette) private var palette
-    let tools: [String]
+    private func chip(_ text: String, muted: Bool) -> some View {
+        Text(text)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(muted ? palette.textSecondary : palette.glowPrimary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule().fill(
+                    muted
+                        ? palette.textSecondary.opacity(0.08)
+                        : palette.glowPrimary.opacity(0.12)
+                )
+            )
+            .overlay(
+                Capsule().stroke(
+                    muted
+                        ? palette.textSecondary.opacity(0.25)
+                        : palette.glowPrimary.opacity(0.3),
+                    lineWidth: 1
+                )
+            )
+    }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: LVSpacing.sm) {
-            // Positional identity — see `SkillsPreviewPanel`. Tool names are
-            // server strings and are not guaranteed unique.
-            ForEach(Array(tools.enumerated()), id: \.offset) { _, name in
-                Text(name)
-                    .font(.system(size: 12, weight: .semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(palette.glowPrimary.opacity(0.12), in: Capsule())
-                    .overlay(Capsule().stroke(palette.glowPrimary.opacity(0.3), lineWidth: 1))
-                    .foregroundStyle(palette.glowPrimary)
-            }
-        }
+    private var visibleTools: [String] {
+        Array(tools.prefix(Self.previewLimit))
+    }
+
+    private var overflow: Int {
+        max(0, max(count, tools.count) - visibleTools.count)
     }
 }

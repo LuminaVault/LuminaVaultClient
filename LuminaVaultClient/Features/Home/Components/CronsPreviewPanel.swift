@@ -1,8 +1,14 @@
+// LuminaVaultClient/LuminaVaultClient/Features/Home/Components/CronsPreviewPanel.swift
+
 import LuminaVaultShared
 import SwiftUI
 
 struct CronsPreviewPanel: View {
     @Environment(\.lvPalette) private var palette
+
+    /// See `SkillsPreviewPanel` — a preview shows a glance, the header count
+    /// and the overflow row carry the total.
+    private static let previewLimit = 3
 
     let jobs: [DashboardCronJobDTO]
     let count: Int
@@ -23,14 +29,15 @@ struct CronsPreviewPanel: View {
 
             if isLoading {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.white.opacity(0.06))
+                    .fill(palette.surface.opacity(0.5))
                     .frame(height: 36)
+                    .redacted(reason: .placeholder)
             } else if jobs.isEmpty {
                 Text("No scheduled jobs yet.")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(palette.textSecondary)
             } else {
-                ForEach(jobs) { job in
+                ForEach(visibleJobs) { job in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(job.name ?? job.id)
                             .font(.system(size: 14, weight: .semibold))
@@ -41,10 +48,23 @@ struct CronsPreviewPanel: View {
                             .foregroundStyle(palette.textSecondary)
                     }
                 }
+                if overflow > 0 {
+                    Text("+\(overflow) more")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(palette.textSecondary)
+                }
             }
         }
-        .padding(16)
+        .padding(LVSpacing.base)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18))
+        .lvGlassCard(cornerRadius: LVRadius.card, intensity: 0.65)
+    }
+
+    private var visibleJobs: [DashboardCronJobDTO] {
+        Array(jobs.prefix(Self.previewLimit))
+    }
+
+    private var overflow: Int {
+        max(0, max(count, jobs.count) - visibleJobs.count)
     }
 }

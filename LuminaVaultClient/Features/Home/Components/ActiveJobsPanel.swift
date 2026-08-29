@@ -6,6 +6,10 @@ import SwiftUI
 struct ActiveJobsPanel: View {
     @Environment(\.lvPalette) private var palette
 
+    /// See `SkillsPreviewPanel` — a preview shows a glance. The overflow row
+    /// carries the rest; "See all" is the way into the full list.
+    private static let previewLimit = 3
+
     let jobs: [TaskDTO]
     let isLoading: Bool
     var onSeeAll: (() -> Void)?
@@ -35,7 +39,7 @@ struct ActiveJobsPanel: View {
                     .foregroundStyle(palette.textSecondary)
                     .padding(.vertical, LVSpacing.sm)
             } else {
-                ForEach(jobs) { job in
+                ForEach(visibleJobs) { job in
                     HStack(alignment: .top, spacing: LVSpacing.sm) {
                         Circle()
                             .fill(stateColor(job.state))
@@ -54,11 +58,25 @@ struct ActiveJobsPanel: View {
                     }
                     .padding(.vertical, 4)
                 }
+                if overflow > 0 {
+                    Text("+\(overflow) more")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(palette.textSecondary)
+                        .padding(.vertical, 4)
+                }
             }
         }
         .padding(LVSpacing.base)
         .frame(maxWidth: .infinity, alignment: .leading)
         .lvGlassCard(cornerRadius: LVRadius.card, intensity: 0.65)
+    }
+
+    private var visibleJobs: [TaskDTO] {
+        Array(jobs.prefix(Self.previewLimit))
+    }
+
+    private var overflow: Int {
+        max(0, jobs.count - visibleJobs.count)
     }
 
     private var rowSkeleton: some View {

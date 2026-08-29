@@ -5,6 +5,11 @@ import SwiftUI
 struct SkillsPreviewPanel: View {
     @Environment(\.lvPalette) private var palette
 
+    /// A preview panel shows a glance, not an inventory. The server returns
+    /// the full list; the header count and the overflow chip carry "how many",
+    /// so the body only ever renders this many.
+    private static let previewLimit = 3
+
     let skills: [String]
     let skillsCount: Int?
     let isLoading: Bool
@@ -38,23 +43,16 @@ struct SkillsPreviewPanel: View {
                     .foregroundStyle(palette.textSecondary)
                     .padding(.vertical, LVSpacing.sm)
             } else {
-                FlowLayout(spacing: LVSpacing.sm) {
+                LVFlowLayout(spacing: LVSpacing.sm) {
                     // Positional identity, not `id: \.self`. These are server
                     // strings: two skills sharing a name (or a name being
                     // edited) gave `ForEach` duplicate ids, which is undefined
                     // behaviour, and any rename re-created every chip after it.
-                    ForEach(Array(skills.enumerated()), id: \.offset) { _, name in
-                        Text(name)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(palette.textPrimary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule().fill(palette.glowPrimary.opacity(0.12))
-                            )
-                            .overlay(
-                                Capsule().stroke(palette.glowPrimary.opacity(0.35), lineWidth: 1)
-                            )
+                    ForEach(Array(visibleSkills.enumerated()), id: \.offset) { _, name in
+                        chip(name, muted: false)
+                    }
+                    if overflow > 0 {
+                        chip("+\(overflow) more", muted: true)
                     }
                 }
             }
@@ -63,47 +61,38 @@ struct SkillsPreviewPanel: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .lvGlassCard(cornerRadius: LVRadius.card, intensity: 0.65)
     }
-}
 
-// Minimal wrapping layout for skill chips without pulling a heavy dependency.
-private struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let maxWidth = proposal.width ?? .infinity
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-        var height: CGFloat = 0
-        for sub in subviews {
-            let size = sub.sizeThatFits(.unspecified)
-            if x + size.width > maxWidth, x > 0 {
-                x = 0
-                y += rowHeight + spacing
-                rowHeight = 0
-            }
-            rowHeight = max(rowHeight, size.height)
-            x += size.width + spacing
-            height = y + rowHeight
-        }
-        return CGSize(width: maxWidth.isFinite ? maxWidth : x, height: height)
+    private func chip(_ text: String, muted: Bool) -> some View {
+        Text(text)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(muted ? palette.textSecondary : palette.textPrimary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule().fill(
+                    muted
+                        ? palette.textSecondary.opacity(0.08)
+                        : palette.glowPrimary.opacity(0.12)
+                )
+            )
+            .overlay(
+                Capsule().stroke(
+                    muted
+                        ? palette.textSecondary.opacity(0.25)
+                        : palette.glowPrimary.opacity(0.35),
+                    lineWidth: 1
+                )
+            )
     }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var x = bounds.minX
-        var y = bounds.minY
-        var rowHeight: CGFloat = 0
-        for sub in subviews {
-            let size = sub.sizeThatFits(.unspecified)
-            if x + size.width > bounds.maxX, x > bounds.minX {
-                x = bounds.minX
-                y += rowHeight + spacing
-                rowHeight = 0
-            }
-            sub.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
-        }
+    private var visibleSkills: [String] {
+        Array(skills.prefix(Self.previewLimit))
+    }
+
+    /// Counts against the server total when it is known — the array can be a
+    /// truncated payload, in which case `skills.count` understates the overflow.
+    private var overflow: Int {
+        max(0, max(skillsCount ?? skills.count, skills.count) - visibleSkills.count)
     }
 }
 
