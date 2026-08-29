@@ -26,12 +26,23 @@ default_platform(:ios)
 # Build numbers: $BUILD_NUMBER (CI sets to github.run_number).
 
 PROJECT = "LuminaVaultClient.xcodeproj"
+TEAM_ID = "84X9WYBF36"
+
+# Xcode target name => which FLAVORS key holds its bundle identifier. Every
+# signable target needs its own match profile, because each has its own
+# bundle ID.
+SIGNABLE_TARGETS = {
+  "LuminaVaultClient" => :app_identifier,
+  "LuminaVaultShareExtension" => :extension_identifier,
+  "LuminaVaultWidgetsExtension" => :widgets_identifier
+}.freeze
 
 FLAVORS = {
   beta: {
     name: "beta",
     app_identifier: "com.lumina.fernando.beta",
     extension_identifier: "com.lumina.fernando.beta.LuminaVaultShareExtension",
+    widgets_identifier: "com.lumina.fernando.beta.LuminaVaultWidgets",
     scheme: "LuminaVaultClient-Beta",
     configuration: "Beta"
   },
@@ -39,14 +50,24 @@ FLAVORS = {
     name: "release",
     app_identifier: "com.lumina.fernando",
     extension_identifier: "com.lumina.fernando.LuminaVaultShareExtension",
+    widgets_identifier: "com.lumina.fernando.LuminaVaultWidgets",
     scheme: "LuminaVaultClient",
     configuration: "Release"
   }
 }.freeze
 
+# Every embedded target that gets signed needs its own profile, or the archive
+# fails on the one that is missing — the host app succeeding tells you nothing
+# about the extensions. LuminaVaultWidgetsExtension was absent from this list
+# and broke the first real CI archive with "No profiles for
+# 'com.lumina.fernando.beta.LuminaVaultWidgets' were found".
 def flavor_identifiers(flavor_key)
   flavor = FLAVORS.fetch(flavor_key)
-  [flavor[:app_identifier], flavor[:extension_identifier]]
+  [
+    flavor[:app_identifier],
+    flavor[:extension_identifier],
+    flavor[:widgets_identifier]
+  ].compact
 end
 
 def build_number
@@ -106,6 +127,39 @@ platform :ios do
     )
   end
 
+  # The project is CODE_SIGN_STYLE = Automatic in every configuration, Beta
+  # included, with no CODE_SIGN_IDENTITY and no PROVISIONING_PROFILE_SPECIFIER.
+  # That is fine locally, where Xcode has your Apple ID session. On a runner it
+  # means xcodebuild ignores the App Store profiles match just installed and
+  # tries to generate an "iOS App Development" profile of its own, which it
+  # cannot do without -allowProvisioningUpdates:
+  #
+  #   No profiles for 'com.lumina.fernando.beta' were found: Xcode couldn't
+  #   find any iOS App Development provisioning profiles matching ...
+  #   Automatic signing is disabled and unable to generate a profile.
+  #
+  # Every target reports it, so the failure looks like match never ran — it did;
+  # the project simply never consumed its output. Pin manual signing per target
+  # and per configuration, the way norviq-ios does.
+  private_lane :prepare_signing do |options|
+    flavor = FLAVORS.fetch(options.fetch(:flavor))
+
+    SIGNABLE_TARGETS.each do |target, identifier_key|
+      bundle_id = flavor[identifier_key]
+      next if bundle_id.nil?
+
+      update_code_signing_settings(
+        path: PROJECT,
+        use_automatic_signing: false,
+        team_id: TEAM_ID,
+        code_sign_identity: "Apple Distribution",
+        profile_name: "match AppStore #{bundle_id}",
+        targets: [target],
+        build_configurations: [flavor[:configuration]]
+      )
+    end
+  end
+
   private_lane :build_flavor do |options|
     flavor = FLAVORS.fetch(options.fetch(:flavor))
 
@@ -144,6 +198,7 @@ platform :ios do
   lane :beta do
     UI.message("Shipping TestFlight identity: #{FLAVORS[:beta][:app_identifier]}")
     sign_for(flavor: :beta)
+    prepare_signing(flavor: :beta)
     build_flavor(flavor: :beta)
     upload_to_testflight(
       app_identifier: FLAVORS[:beta][:app_identifier],
@@ -163,6 +218,7 @@ platform :ios do
     )
 
     sign_for(flavor: :release)
+    prepare_signing(flavor: :release)
     build_flavor(flavor: :release)
     upload_to_app_store(
       app_identifier: FLAVORS[:release][:app_identifier],
@@ -178,6 +234,7 @@ platform :ios do
   desc "Build production IPA only (no upload) — useful before the ASC app exists"
   lane :build_release do
     sign_for(flavor: :release)
+    prepare_signing(flavor: :release)
     build_flavor(flavor: :release)
     UI.success("IPA at build/release/LuminaVault-release.ipa")
   end
