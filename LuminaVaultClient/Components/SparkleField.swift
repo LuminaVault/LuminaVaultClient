@@ -7,6 +7,7 @@ struct SparkleField: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.lvActiveTab) private var activeTab
+    @Environment(\.lvAmbientMotionEnabled) private var ambientMotionEnabled
 
     var density: Int = 8
     var seed: UInt64 = 0xC05_5_C0DE
@@ -23,8 +24,14 @@ struct SparkleField: View {
         colors ?? [palette.primary, palette.accent, Color.white]
     }
 
+    /// `TimelineView` below draws from `Date.timeIntervalSinceReferenceDate`,
+    /// i.e. absolute wall-clock — two captures a second apart place every
+    /// particle differently. That makes this the one remaining clock-driven
+    /// seam inside a snapshot-asserted view, so it gates on
+    /// `\.lvAmbientMotionEnabled` alongside the halo and logo-mark drift the
+    /// seam was introduced for. Production never sets it; this only ANDs in.
     private var isLive: Bool {
-        guard !reduceMotion, scenePhase == .active else { return false }
+        guard !reduceMotion, ambientMotionEnabled, scenePhase == .active else { return false }
         guard let activeWhenTab else { return true }
         if activeTab.isEmpty { return true }
         return activeTab == activeWhenTab
