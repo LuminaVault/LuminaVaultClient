@@ -85,11 +85,16 @@ jobs:
       - name: Resolve Swift packages
         run: xcodebuild -project LuminaVaultClient.xcodeproj -resolvePackageDependencies
 
-      # "OS=latest" on the destination below resolves to the newest installed
-      # runtime for the selected Xcode. That axis is safe to leave floating:
-      # the 34 baselines that already agreed across iOS 26.4 and 26.5 show the
-      # rasterizer is stable across point releases. The *device* is not safe
-      # to leave floating — see the pin on the test step.
+      # Both axes are pinned. "OS=latest" used to resolve to the newest
+      # installed runtime, on the theory that the rasterizer is stable across
+      # point releases. It is not: when this image gained iOS 26.5, `latest`
+      # moved off 26.4 and `RedesignChromeSnapshotTests.testThinkEmptyHero`
+      # started failing on `think-empty-dark` — reproducibly on CI, never
+      # locally on 26.4, with no code change behind it.
+      #
+      # A floating renderer version means CI goes red on Apple's release
+      # schedule instead of on our changes. Bumping OS_VERSION below is now a
+      # deliberate act, paired with re-recording whichever baselines move.
       - name: List simulator runtimes (diagnostics only)
         run: xcrun simctl list runtimes
 
@@ -118,23 +123,24 @@ jobs:
           set -euo pipefail
           DEVICE="iPhone 16 Pro"
           DEVICE_TYPE="com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro"
+          # Pinned, not floating — see the comment above the diagnostics step.
+          OS_VERSION="26.4"
+          RUNTIME_ID="com.apple.CoreSimulator.SimRuntime.iOS-26-4"
           if ! xcrun simctl list devices available | grep -qE "^ +${DEVICE} \("; then
             echo "::notice::'${DEVICE}' is not preinstalled on this image — creating it"
-            RUNTIME=$(xcrun simctl list runtimes --json | python3 -c '
-          import sys, json
-          ios = [r["identifier"] for r in json.load(sys.stdin)["runtimes"]
-                 if r.get("isAvailable") and r["identifier"].startswith(
-                     "com.apple.CoreSimulator.SimRuntime.iOS-")]
-          print(sorted(ios)[-1] if ios else "")')
-            if [ -z "$RUNTIME" ]; then echo "::error::no available iOS runtime on this runner"; exit 1; fi
-            xcrun simctl create "$DEVICE" "$DEVICE_TYPE" "$RUNTIME"
+            if ! xcrun simctl list runtimes | grep -q "$RUNTIME_ID"; then
+              echo "::error::iOS $OS_VERSION runtime is not on this runner — snapshot baselines are recorded against it"
+              xcrun simctl list runtimes
+              exit 1
+            fi
+            xcrun simctl create "$DEVICE" "$DEVICE_TYPE" "$RUNTIME_ID"
           fi
           echo "Using simulator: $DEVICE (pinned — snapshot baselines are recorded on it)"
           xcodebuild test \
             -project LuminaVaultClient.xcodeproj \
             -scheme LuminaVaultClient \
             -configuration Debug \
-            -destination "platform=iOS Simulator,name=$DEVICE,OS=latest" \
+            -destination "platform=iOS Simulator,name=$DEVICE,OS=$OS_VERSION" \
             -only-testing:LuminaVaultClientTests \
             -resultBundlePath TestResults.xcresult
 
