@@ -45,9 +45,15 @@ enum Config {
     /// expand to `""` for missing keys, and passing an empty key to
     /// `Purchases.configure` produces a runtime `Purchases.shared`
     /// `fatalError` on the next access.
+    ///
+    /// `REPLACE_WITH…` is rejected for the same reason. An unfilled sample
+    /// placeholder is non-empty, so it passed the check above and configured
+    /// the SDK with a junk key — which then failed the offering fetch and
+    /// crashed release builds inside RevenueCatUI's `DebugErrorView`. Beta
+    /// shipped that way (`Config.Beta.xcconfig`, build 85).
     static var revenueCatPublicKey: String? {
         let raw = envString("REVENUECAT_PUBLIC_KEY") ?? infoString("LV_RC_API_KEY")
-        guard let raw, !raw.isEmpty else { return nil }
+        guard let raw, !raw.isEmpty, !raw.hasPrefix("REPLACE_WITH") else { return nil }
         return raw
     }
 

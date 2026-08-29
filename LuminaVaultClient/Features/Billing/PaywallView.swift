@@ -52,28 +52,43 @@ struct PaywallView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.top, 24)
                     .padding(.bottom, 8)
-                RevenueCatUI.PaywallView()
-                    .onPurchaseCompleted { _ in
-                        // HER-211 — fire-and-forget server refresh so the
-                        // UI converges off the webhook-driven tier.
-                        // HER-298 — ~2 s delay lets the RC checkout sheet
-                        // unwind + the celebration mascot (HER-297) land,
-                        // then surface the review prompt at the moment
-                        // the user's just paid (highest 5-star yield).
-                        // HER-297 — celebrate immediately so the mascot
-                        // animates through the ~2 s unwind window before
-                        // the sheet dismisses.
-                        celebrating = true
-                        Task { @MainActor in
-                            await appState.billingService?.refreshFromServer()
-                            try? await Task.sleep(nanoseconds: 2_000_000_000)
-                            requestReview()
-                            dismiss()
+                // RevenueCatUI's `PaywallView` hard-crashes in release builds when
+                // the SDK is unusable. An unconfigured `Purchases` takes RevenueCatUI
+                // `PaywallView.swift:308`; a failed offering fetch takes `:265`. Both
+                // build RC's `DebugErrorView` with `releaseBehavior: .fatalError`, and
+                // that branch is a literal `fatalError()` under `#else` — so Debug
+                // renders an error view and only TestFlight/App Store builds die
+                // (EXC_BREAKPOINT).
+                //
+                // `AppState.onPaymentRequired` presents this sheet from the app root on
+                // any 402, so a single paid endpoint could take the whole app down.
+                // Gate on the same signal `PurchasesProxyFactory` already trusts.
+                if Purchases.isConfigured {
+                    RevenueCatUI.PaywallView()
+                        .onPurchaseCompleted { _ in
+                            // HER-211 — fire-and-forget server refresh so the
+                            // UI converges off the webhook-driven tier.
+                            // HER-298 — ~2 s delay lets the RC checkout sheet
+                            // unwind + the celebration mascot (HER-297) land,
+                            // then surface the review prompt at the moment
+                            // the user's just paid (highest 5-star yield).
+                            // HER-297 — celebrate immediately so the mascot
+                            // animates through the ~2 s unwind window before
+                            // the sheet dismisses.
+                            celebrating = true
+                            Task { @MainActor in
+                                await appState.billingService?.refreshFromServer()
+                                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                                requestReview()
+                                dismiss()
+                            }
                         }
-                    }
-                    .onRestoreCompleted { _ in
-                        Task { await appState.billingService?.refreshFromServer() }
-                    }
+                        .onRestoreCompleted { _ in
+                            Task { await appState.billingService?.refreshFromServer() }
+                        }
+                } else {
+                    billingUnavailable
+                }
             }
         }
         .presentationDragIndicator(.visible)
@@ -91,4 +106,27 @@ struct PaywallView: View {
         }
         return .idle
     }
+
+    /// Shown instead of RC's paywall when the SDK never configured — a
+    /// missing or placeholder `LV_RC_API_KEY`. Entitlements still come from
+    /// server-truth via `/v1/auth/me/billing`; the only thing unavailable is
+    /// starting a purchase from this build.
+    private var billingUnavailable: some View {
+        VStack(spacing: LVSpacing.base) {
+            Text("Subscriptions unavailable")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(palette.textPrimary)
+            Text("This build can't reach the store. Your existing plan is unaffected.")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(palette.textSecondary)
+                .multilineTextAlignment(.center)
+            Button("Close") { dismiss() }
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(palette.glowPrimary)
+                .padding(.top, LVSpacing.sm)
+        }
+        .padding(LVSpacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
 }
