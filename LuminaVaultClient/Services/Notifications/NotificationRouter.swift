@@ -13,6 +13,10 @@ enum APNSDeepLink: Sendable, Equatable {
     case think(systemMessage: String?)
     case ingestion(batchID: UUID, itemID: UUID?)
     case workflow(runID: UUID)
+    /// Hermes Companion Phase 1 — an `approval` or `runCompleted` push for
+    /// a run started from this app. Opens the run's detail screen, which is
+    /// where the live event trail and the approval prompt live.
+    case hermesRun(runID: UUID)
     case none
 }
 
@@ -63,6 +67,17 @@ final class NotificationRouter {
         case .chat:
             let message = userInfo["systemMessage"] as? String
             return .think(systemMessage: message)
+        case .approval, .runCompleted:
+            // `APNSHermesRunPushNotifier.basePayload` always carries `runID`
+            // (the LuminaVault row id, which is what every /v1/hermes/runs
+            // path takes). Without it there is nothing to open.
+            guard
+                let raw = userInfo["runID"] as? String,
+                let runID = UUID(uuidString: raw)
+            else {
+                return .none
+            }
+            return .hermesRun(runID: runID)
         }
     }
 }
