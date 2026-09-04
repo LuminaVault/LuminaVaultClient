@@ -46,6 +46,10 @@ struct ComposerBar: View {
     /// Opens the workflow picker. Nil hides the action in hosts that do not
     /// have an authenticated workflow client (previews and dev surfaces).
     var onRunWorkflow: (() -> Void)?
+    /// Hermes Companion Phase 1 — hands the draft to the user's own Hermes as
+    /// an agent run instead of asking a model about it. Nil in hosts without
+    /// an authenticated runs client (previews and dev surfaces).
+    var onRunAsAgent: (() -> Void)?
 
     @State private var showImporter = false
 
@@ -142,6 +146,11 @@ struct ComposerBar: View {
             if let onRunWorkflow {
                 Button(action: onRunWorkflow) {
                     Label("Run a workflow", systemImage: "point.3.connected.trianglepath.dotted")
+                }
+            }
+            if let onRunAsAgent {
+                Button(action: onRunAsAgent) {
+                    Label("Run as agent", systemImage: "bolt.horizontal.circle")
                 }
             }
         } label: {

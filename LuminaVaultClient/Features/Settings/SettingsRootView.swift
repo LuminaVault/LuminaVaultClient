@@ -220,6 +220,15 @@ struct SettingsRootView: View {
                         }
 
                         LVSectionCard("Automation & Alerts") {
+                            // Phase 1 — runs started with "Run as agent", plus
+                            // any still waiting on a tool-call approval.
+                            LVSettingsRow("Agent Runs", icon: .boltHorizontal) {
+                                HermesRunsListView(
+                                    vm: HermesRunsListViewModel(client: hermesRunsClient),
+                                    client: hermesRunsClient
+                                )
+                            }
+                            LVSettingsDivider()
                             LVSettingsRow("Skills", icon: .sparkles) {
                                 SkillsHubView(
                                     vm: SkillsHubViewModel(client: skillsClient),
@@ -283,6 +292,11 @@ struct SettingsRootView: View {
 
     private var apnsPrefsClient: any APNSPrefsClientProtocol {
         APNSPrefsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    /// Phase 1 — `/v1/hermes/runs`.
+    private var hermesRunsClient: any HermesRunsClientProtocol {
+        HermesRunsHTTPClient(client: appState.makeHTTPClient())
     }
 
     /// HER-330 — owner-only Hermes self-update client.

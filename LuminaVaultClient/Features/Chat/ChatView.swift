@@ -48,6 +48,9 @@ struct ChatView: View {
     @State private var linkText = ""
     @State private var comparisonPresentation: ParallelComparisonPresentation?
     @State private var showWorkflowPicker = false
+    /// Hermes Companion Phase 1 — non-nil while the "Run as agent" sheet is
+    /// up. Carries the draft so the sheet opens with the words already typed.
+    @State private var agentRunDraft: AgentRunDraft?
 
     // MARK: Scroll state
 
@@ -457,7 +460,8 @@ struct ChatView: View {
                 onPickNote: { showNotePicker = true },
                 onPickPhoto: { showPhotoPicker = true },
                 onAddLink: { linkText = ""; showLinkPrompt = true },
-                onRunWorkflow: { showWorkflowPicker = true }
+                onRunWorkflow: { showWorkflowPicker = true },
+                onRunAsAgent: { draft in agentRunDraft = AgentRunDraft(prompt: draft) }
             )
             .sheet(isPresented: $showNotePicker) {
                 if let vaultClient {
@@ -485,6 +489,19 @@ struct ChatView: View {
                     ChatWorkflowPicker(
                         client: WorkflowsHTTPClient(client: appState.makeHTTPClient()),
                         conversationID: viewModel.conversationID
+                    )
+                }
+            }
+            .sheet(item: $agentRunDraft) { draft in
+                let runsClient = HermesRunsHTTPClient(client: appState.makeHTTPClient())
+                NavigationStack {
+                    HermesRunStartView(
+                        vm: HermesRunStartViewModel(
+                            client: runsClient,
+                            prompt: draft.prompt,
+                            conversationID: viewModel.conversationID
+                        ),
+                        client: runsClient
                     )
                 }
             }
@@ -751,6 +768,9 @@ private struct ChatComposerSection: View {
     let onPickPhoto: () -> Void
     let onAddLink: () -> Void
     let onRunWorkflow: () -> Void
+    /// Reads the draft here, not in `ChatView`'s body, for the same reason
+    /// `canSend` is recomposed here: the keystroke dependency stays local.
+    let onRunAsAgent: (String) -> Void
 
     var body: some View {
         ComposerBar(
@@ -775,7 +795,8 @@ private struct ChatComposerSection: View {
             onPickNote: onPickNote,
             onPickPhoto: onPickPhoto,
             onAddLink: onAddLink,
-            onRunWorkflow: onRunWorkflow
+            onRunWorkflow: onRunWorkflow,
+            onRunAsAgent: { onRunAsAgent(composer.text) }
         )
     }
 }

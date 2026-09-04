@@ -23,6 +23,10 @@ struct MainTabView: View {
     // HER-255 — QuickSettings now opens from the global header's mascot tap
     // (was owned by HomeView's per-screen header).
     @State private var showQuickSettings = false
+    /// Phase 1 — non-nil while an approval / run-completed push is being
+    /// shown. `.sheet(item:)` needs an `Identifiable`, and a bare `UUID?`
+    /// would re-present for the same run on every republished deep link.
+    @State private var pendingHermesRunID: HermesRunPresentation?
     @State private var tabBarHeight: CGFloat = LVTabBarHeightKey.defaultValue
     @State private var tabBarMinimize = LVTabBarMinimizeState()
     @Namespace private var tabUnderline
@@ -178,6 +182,22 @@ struct MainTabView: View {
         .onChange(of: notificationRouter.pendingDeepLink) { _, deepLink in
             if case .workflow = deepLink {
                 selection = Self.studioTabID
+            }
+            // Phase 1 — an approval or run-completed push. Presented as a
+            // sheet rather than a tab switch: the run is a modal errand, and
+            // a blocked approval should land on top of whatever the user was
+            // doing instead of rearranging their app.
+            if case .hermesRun(let runID) = deepLink {
+                pendingHermesRunID = HermesRunPresentation(id: runID)
+                notificationRouter.pendingDeepLink = .none
+            }
+        }
+        .sheet(item: $pendingHermesRunID) { presentation in
+            let runsClient = HermesRunsHTTPClient(client: appState.makeHTTPClient())
+            NavigationStack {
+                HermesRunDetailView(
+                    vm: HermesRunDetailViewModel(client: runsClient, runID: presentation.id)
+                )
             }
         }
         .sheet(isPresented: $showQuickSettings) {
