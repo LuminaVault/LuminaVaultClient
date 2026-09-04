@@ -109,7 +109,14 @@ final class HermesRunsViewSnapshotTests: XCTestCase {
                 // Freezes `repeatForever` hero drift at frame zero; the
                 // components gate on this and `disablesAnimations` alone does
                 // not reach an explicit `withAnimation` from `onAppear`.
-                .environment(\.lvAmbientMotionEnabled, false),
+                .environment(\.lvAmbientMotionEnabled, false)
+                // Absolute timestamps render through the environment's
+                // locale/calendar/time zone, so both are pinned: an
+                // unpinned baseline recorded here would not match a CI
+                // runner sitting in UTC.
+                .environment(\.locale, Locale(identifier: "en_US"))
+                .environment(\.calendar, Calendar(identifier: .gregorian))
+                .environment(\.timeZone, TimeZone(secondsFromGMT: 0) ?? .current),
             as: .image(
                 precision: 0.98,
                 perceptualPrecision: 0.96,

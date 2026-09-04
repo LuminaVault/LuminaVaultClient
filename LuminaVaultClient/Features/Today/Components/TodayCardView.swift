@@ -28,6 +28,12 @@ struct TodayCardView: View {
                         .font(.system(.caption2, weight: .heavy))
                         .tracking(0.8)
                         .foregroundStyle(tint)
+                    // Phase 2 — this row was produced by a cron job on the
+                    // user's own Hermes and collected here, not by a skill
+                    // LuminaVault ran. Worth marking: it is the difference
+                    // between "we did this" and "your machine did this", and
+                    // it tells the user where to go to change the schedule.
+                    if output.source == .hermes { hermesBadge }
                     Spacer()
                     Button(action: onShare) {
                         LVIconView(.squareAndArrowUp, size: 14, tint: palette.textSecondary, label: "Share")
@@ -54,6 +60,21 @@ struct TodayCardView: View {
         }
         .buttonStyle(.plain)
         .lvGlowPress()
+    }
+
+    private var hermesBadge: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "desktopcomputer")
+            Text("Your Hermes")
+        }
+        .font(.system(.caption2, weight: .semibold))
+        .foregroundStyle(palette.textSecondary)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(
+            Capsule().fill(palette.surface.opacity(0.6))
+        )
+        .accessibilityLabel("Ran on your own Hermes")
     }
 
     private var icon: String {

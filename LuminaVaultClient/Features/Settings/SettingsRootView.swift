@@ -212,6 +212,16 @@ struct SettingsRootView: View {
                                 HermesCronListView(client: HermesCronHTTPClient(client: appState.makeHTTPClient()))
                             }
                             LVSettingsDivider()
+                            // Phase 2 — full control of the cron jobs on the
+                            // user's own Hermes, plus the runs LuminaVault has
+                            // collected from them.
+                            LVSettingsRow("Hermes Jobs", icon: .clockBadgeCheckmark) {
+                                HermesMirrorJobsView(
+                                    vm: HermesMirrorJobsListViewModel(client: hermesMirrorJobsClient),
+                                    client: hermesMirrorJobsClient
+                                )
+                            }
+                            LVSettingsDivider()
                             // HER-241 — messaging gateways (Discord/Slack/…). A
                             // connection, so it lives here rather than System.
                             LVSettingsRow("Messaging Gateways", icon: .bubbleLeftAndBubbleRight) {
@@ -297,6 +307,11 @@ struct SettingsRootView: View {
     /// Phase 1 — `/v1/hermes/runs`.
     private var hermesRunsClient: any HermesRunsClientProtocol {
         HermesRunsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    /// Phase 2 — `/v1/hermes/mirror/jobs`.
+    private var hermesMirrorJobsClient: any HermesMirrorJobsClientProtocol {
+        HermesMirrorJobsHTTPClient(client: appState.makeHTTPClient())
     }
 
     /// HER-330 — owner-only Hermes self-update client.
