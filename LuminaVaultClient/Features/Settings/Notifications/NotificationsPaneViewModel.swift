@@ -20,6 +20,8 @@ final class NotificationsPaneViewModel {
     var chatEnabled: Bool = true
     var nudgeEnabled: Bool = true
     var digestEnabled: Bool = true
+    var approvalEnabled: Bool = true
+    var runCompletedEnabled: Bool = true
 
     private let client: APNSPrefsClientProtocol
 
@@ -31,25 +33,18 @@ final class NotificationsPaneViewModel {
         state = .loading
         do {
             let prefs = try await client.get()
-            chatEnabled = prefs.chatEnabled
-            nudgeEnabled = prefs.nudgeEnabled
-            digestEnabled = prefs.digestEnabled
+            apply(prefs)
             state = .loaded
         } catch {
             state = .failed(Self.message(for: error))
         }
     }
 
-    /// Phase 1 added `approval` and `runCompleted` to `APNSCategory`, and
-    /// server migration M119 added the columns that
-    /// `APNSNotificationService.isCategorySuppressed` already reads. What is
-    /// missing is the contract in between: `APNSCategoryPrefsResponse` and
-    /// `APNSCategoryPrefsPutRequest` (LuminaVaultShared) carry no field for
-    /// either category, so `GET/PUT /v1/me/apns-categories` can neither
-    /// report nor change them. Until that contract ships, the pane shows the
-    /// two Hermes-run categories as the always-on state the server actually
-    /// applies, rather than a switch that silently does nothing.
-    static let editableCategories: [APNSCategory] = [.digest, .nudge, .chat]
+    /// Every category the server can report and write. Phase 1's `approval`
+    /// and `runCompleted` joined the list once Shared 5.6.0 gave
+    /// `APNSCategoryPrefs{Response,PutRequest}` fields for the M119 columns
+    /// that `isCategorySuppressed` had been reading all along.
+    static let editableCategories: [APNSCategory] = [.digest, .nudge, .chat, .approval, .runCompleted]
 
     func isEditable(_ category: APNSCategory) -> Bool {
         Self.editableCategories.contains(category)
@@ -67,20 +62,31 @@ final class NotificationsPaneViewModel {
         case .digest:
             digestEnabled = value
             body = .init(digestEnabled: value)
-        case .approval, .runCompleted:
-            // Not writable over the current contract — see above. Returning
-            // rather than sending a body the server would ignore keeps the
-            // UI honest about what actually changed.
-            return
+        case .approval:
+            approvalEnabled = value
+            body = .init(approvalEnabled: value)
+        case .runCompleted:
+            runCompletedEnabled = value
+            body = .init(runCompletedEnabled: value)
         }
         do {
-            let prefs = try await client.put(body)
-            chatEnabled = prefs.chatEnabled
-            nudgeEnabled = prefs.nudgeEnabled
-            digestEnabled = prefs.digestEnabled
+            // The response is authoritative: the put is sparse, so this is
+            // also how the untouched categories stay in sync.
+            apply(try await client.put(body))
         } catch {
+            // The optimistic write above has to be rolled back or the switch
+            // shows a setting the server never accepted.
+            await load()
             state = .failed(Self.message(for: error))
         }
+    }
+
+    private func apply(_ prefs: APNSCategoryPrefsResponse) {
+        chatEnabled = prefs.chatEnabled
+        nudgeEnabled = prefs.nudgeEnabled
+        digestEnabled = prefs.digestEnabled
+        approvalEnabled = prefs.approvalEnabled
+        runCompletedEnabled = prefs.runCompletedEnabled
     }
 
     private static func message(for error: Error) -> String {

@@ -68,11 +68,9 @@ struct NotificationsPaneView: View {
             .foregroundStyle(palette.textSecondary)
     }
 
-    /// Phase 1 — the two Hermes-run push categories. Both are delivered
-    /// unconditionally today: the server honours per-tenant opt-out columns
-    /// (M119) but `/v1/me/apns-categories` exposes no field for them, so
-    /// these read as state rather than pretending to be switches. See
-    /// `NotificationsPaneViewModel.editableCategories`.
+    /// Phase 1's two Hermes-run categories. Both became real switches with
+    /// Shared 5.6.0, which gave `/v1/me/apns-categories` fields for the M119
+    /// columns the server was already honouring.
     private var hermesRunsSection: some View {
         VStack(alignment: .leading, spacing: LVSpacing.md) {
             Text("HERMES RUNS")
@@ -81,50 +79,30 @@ struct NotificationsPaneView: View {
                 .foregroundStyle(palette.textSecondary)
                 .padding(.top, LVSpacing.sm)
 
-            statusCard(
+            toggleCard(
                 title: "Approval requests",
                 subtitle: "Hermes asks before it runs a tool. Answer straight from the notification.",
-                icon: "hand.raised.fill"
+                isOn: Binding(
+                    get: { vm.approvalEnabled },
+                    set: { newValue in Task { await vm.toggle(.approval, value: newValue) } }
+                )
             )
-            statusCard(
+            toggleCard(
                 title: "Run results",
                 subtitle: "A run you started finished, failed or was stopped.",
-                icon: "checkmark.seal"
+                isOn: Binding(
+                    get: { vm.runCompletedEnabled },
+                    set: { newValue in Task { await vm.toggle(.runCompleted, value: newValue) } }
+                )
             )
 
-            Text("Always on. Turn them off for now in iOS Settings → Notifications → LuminaVault.")
+            // Turning approvals off does not abandon the run: it waits for an
+            // answer given in the app, so say that rather than let someone
+            // think a paused agent is a stuck one.
+            Text("With approvals off, a run that needs a decision waits for you in Agent Runs.")
                 .lvFont(.caption)
                 .foregroundStyle(Color.lvTextMuted)
         }
-    }
-
-    private func statusCard(title: String, subtitle: String, icon: String) -> some View {
-        HStack(alignment: .top, spacing: LVSpacing.md) {
-            Image(systemName: icon)
-                .lvFont(.bodyEmphasis)
-                .foregroundStyle(palette.glowPrimary)
-                .frame(width: 22)
-            VStack(alignment: .leading, spacing: LVSpacing.xs) {
-                Text(title)
-                    .lvFont(.bodyEmphasis)
-                    .foregroundStyle(palette.textPrimary)
-                Text(subtitle)
-                    .lvFont(.caption)
-                    .foregroundStyle(palette.textSecondary)
-            }
-            Spacer(minLength: LVSpacing.sm)
-            Text("On")
-                .lvFont(.microTag)
-                .foregroundStyle(palette.primary)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(palette.backgroundBase.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(palette.surfaceStroke, lineWidth: 1)
-        )
     }
 
     private func toggleCard(title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
