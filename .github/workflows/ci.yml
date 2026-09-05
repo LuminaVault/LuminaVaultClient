@@ -126,21 +126,34 @@ jobs:
           # Pinned, not floating — see the comment above the diagnostics step.
           OS_VERSION="26.4"
           RUNTIME_ID="com.apple.CoreSimulator.SimRuntime.iOS-26-4"
-          if ! xcrun simctl list devices available | grep -qE "^ +${DEVICE} \("; then
-            echo "::notice::'${DEVICE}' is not preinstalled on this image — creating it"
-            if ! xcrun simctl list runtimes | grep -q "$RUNTIME_ID"; then
-              echo "::error::iOS $OS_VERSION runtime is not on this runner — snapshot baselines are recorded against it"
-              xcrun simctl list runtimes
-              exit 1
-            fi
-            xcrun simctl create "$DEVICE" "$DEVICE_TYPE" "$RUNTIME_ID"
+          if ! xcrun simctl list runtimes | grep -q "$RUNTIME_ID"; then
+            echo "::error::iOS $OS_VERSION runtime is not on this runner — snapshot baselines are recorded against it"
+            xcrun simctl list runtimes
+            exit 1
           fi
-          echo "Using simulator: $DEVICE (pinned — snapshot baselines are recorded on it)"
+          # Ask for the device *on the pinned runtime*, then target its UDID.
+          #
+          # The previous check asked only whether some device named "$DEVICE"
+          # was available anywhere. The macos-26 image preinstalls an
+          # iPhone 16 Pro on the newest runtime it ships, so that check passed,
+          # nothing was created on $OS_VERSION, and the run died on
+          # `-destination ...,OS=$OS_VERSION` with "no available devices
+          # matched" — the runtime was there the whole time, on a device
+          # nobody had created.
+          UDID=$(xcrun simctl list devices available \
+            | awk -v hdr="-- iOS ${OS_VERSION} --" '$0==hdr{f=1;next} /^-- /{f=0} f' \
+            | grep -E "^ +${DEVICE} \(" | head -1 \
+            | sed -E 's/.*\(([0-9A-Fa-f-]{36})\).*/\1/')
+          if [ -z "$UDID" ]; then
+            echo "::notice::'${DEVICE}' does not exist on iOS ${OS_VERSION} — creating it"
+            UDID=$(xcrun simctl create "$DEVICE" "$DEVICE_TYPE" "$RUNTIME_ID")
+          fi
+          echo "Using simulator: $DEVICE on iOS $OS_VERSION ($UDID) — pinned, baselines are recorded on it"
           xcodebuild test \
             -project LuminaVaultClient.xcodeproj \
             -scheme LuminaVaultClient \
             -configuration Debug \
-            -destination "platform=iOS Simulator,name=$DEVICE,OS=$OS_VERSION" \
+            -destination "platform=iOS Simulator,id=$UDID" \
             -only-testing:LuminaVaultClientTests \
             -resultBundlePath TestResults.xcresult
 
