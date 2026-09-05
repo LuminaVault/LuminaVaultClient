@@ -55,6 +55,17 @@ struct TodayView: View {
                                 )
                                 .id(output.id)
                                 .padding(.horizontal, 20)
+                                .onAppear {
+                                    // Phase 2 — the feed now unions Hermes job
+                                    // runs, so a busy machine can push a
+                                    // week's history past one page. Reaching
+                                    // the last card pulls the page behind it.
+                                    guard output.id == vm.outputs.last?.id else { return }
+                                    Task { await vm.loadMore() }
+                                }
+                            }
+                            if vm.isLoadingMore {
+                                ProgressView().tint(palette.primary).padding()
                             }
                         }
                     }

@@ -50,6 +50,7 @@ struct NotificationsPaneView: View {
                                 set: { newValue in Task { await vm.toggle(.chat, value: newValue) } }
                             )
                         )
+                        hermesRunsSection
                     }
                 }
                 .padding(.horizontal, 20)
@@ -65,6 +66,43 @@ struct NotificationsPaneView: View {
         Text("Choose how Lumina reaches you. Disabling a category suppresses the push but the underlying skill still runs.")
             .font(.system(size: 13))
             .foregroundStyle(palette.textSecondary)
+    }
+
+    /// Phase 1's two Hermes-run categories. Both became real switches with
+    /// Shared 5.6.0, which gave `/v1/me/apns-categories` fields for the M119
+    /// columns the server was already honouring.
+    private var hermesRunsSection: some View {
+        VStack(alignment: .leading, spacing: LVSpacing.md) {
+            Text("HERMES RUNS")
+                .lvFont(.kicker)
+                .kerning(0.8)
+                .foregroundStyle(palette.textSecondary)
+                .padding(.top, LVSpacing.sm)
+
+            toggleCard(
+                title: "Approval requests",
+                subtitle: "Hermes asks before it runs a tool. Answer straight from the notification.",
+                isOn: Binding(
+                    get: { vm.approvalEnabled },
+                    set: { newValue in Task { await vm.toggle(.approval, value: newValue) } }
+                )
+            )
+            toggleCard(
+                title: "Run results",
+                subtitle: "A run you started finished, failed or was stopped.",
+                isOn: Binding(
+                    get: { vm.runCompletedEnabled },
+                    set: { newValue in Task { await vm.toggle(.runCompleted, value: newValue) } }
+                )
+            )
+
+            // Turning approvals off does not abandon the run: it waits for an
+            // answer given in the app, so say that rather than let someone
+            // think a paused agent is a stuck one.
+            Text("With approvals off, a run that needs a decision waits for you in Agent Runs.")
+                .lvFont(.caption)
+                .foregroundStyle(Color.lvTextMuted)
+        }
     }
 
     private func toggleCard(title: String, subtitle: String, isOn: Binding<Bool>) -> some View {

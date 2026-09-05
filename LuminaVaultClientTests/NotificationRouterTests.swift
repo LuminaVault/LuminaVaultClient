@@ -53,4 +53,46 @@ struct NotificationRouterTests {
             "runID": "not-a-uuid",
         ]) == .none)
     }
+
+    // MARK: - Hermes runs (Phase 1)
+
+    @Test
+    func `an approval push opens the run it is blocked on`() {
+        let runID = UUID()
+        let router = NotificationRouter()
+
+        let link = router.deepLink(from: [
+            "category": "approval",
+            "runID": runID.uuidString,
+            "hermesRunID": "run_ab12",
+            "status": "waiting_for_approval",
+            "choices": "once,session,deny",
+        ])
+
+        #expect(link == .hermesRun(runID: runID))
+    }
+
+    @Test
+    func `a run completed push opens the same run`() {
+        let runID = UUID()
+        let router = NotificationRouter()
+
+        let link = router.deepLink(from: [
+            "category": "runCompleted",
+            "runID": runID.uuidString,
+            "status": "completed",
+        ])
+
+        #expect(link == .hermesRun(runID: runID))
+    }
+
+    @Test
+    func `a hermes run push without a run id is ignored`() {
+        let router = NotificationRouter()
+
+        #expect(router.deepLink(from: [
+            "category": "approval",
+            "hermesRunID": "run_ab12",
+        ]) == .none)
+    }
 }
