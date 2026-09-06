@@ -140,10 +140,14 @@ jobs:
           # `-destination ...,OS=$OS_VERSION` with "no available devices
           # matched" — the runtime was there the whole time, on a device
           # nobody had created.
+          # `|| true` and a matching `sed -n` rather than `grep`: under
+          # `set -euo pipefail` a grep that matches nothing exits 1 and kills
+          # the step before the create-it branch below can run, which is
+          # exactly how this failed — 0.6s, no output, not even the echo.
           UDID=$(xcrun simctl list devices available \
             | awk -v hdr="-- iOS ${OS_VERSION} --" '$0==hdr{f=1;next} /^-- /{f=0} f' \
-            | grep -E "^ +${DEVICE} \(" | head -1 \
-            | sed -E 's/.*\(([0-9A-Fa-f-]{36})\).*/\1/')
+            | sed -nE "s/^ +${DEVICE} \(([0-9A-Fa-f-]{36})\).*/\1/p" \
+            | head -1 || true)
           if [ -z "$UDID" ]; then
             echo "::notice::'${DEVICE}' does not exist on iOS ${OS_VERSION} — creating it"
             UDID=$(xcrun simctl create "$DEVICE" "$DEVICE_TYPE" "$RUNTIME_ID")
