@@ -1,7 +1,7 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Home/Components/CommandCenterHeroView.swift
 //
-// Hybrid Command Center hero: neural brain sphere center + small Hermie,
-// active model name, and ONLINE status chip.
+// Command Center hero: neural brain sphere, active model name, and ONLINE
+// status chip. The sphere is the tap target for the Brain tab.
 
 import LuminaVaultShared
 import SwiftUI
@@ -24,19 +24,12 @@ struct CommandCenterHeroView: View {
                 .tracking(2.4)
                 .foregroundStyle(palette.textSecondary)
 
-            ZStack(alignment: .bottomTrailing) {
-                Button(action: onOpenBrain) {
-                    BrainCoreSphereView(size: 200)
-                        .shadow(color: palette.glowPrimary.opacity(0.45), radius: 24)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Opens your knowledge graph")
-
-                HermieMascotView(state: .idle, size: 72, fallbackImageName: "Lumina/Mascot/hermie-hero", hostTab: "home")
-                    .shadow(color: palette.glowPrimary.opacity(0.4), radius: 12)
-                    .offset(x: 8, y: 12)
-                    .accessibilityHidden(true)
+            Button(action: onOpenBrain) {
+                BrainCoreSphereView(size: 200)
+                    .shadow(color: palette.glowPrimary.opacity(0.45), radius: 24)
             }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens your knowledge graph")
             .frame(maxWidth: .infinity)
 
             VStack(spacing: 6) {

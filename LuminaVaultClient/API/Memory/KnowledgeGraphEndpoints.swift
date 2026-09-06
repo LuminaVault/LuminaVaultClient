@@ -13,6 +13,12 @@ enum KnowledgeGraphEndpoints {
         var method: HTTPMethod {
             .get
         }
+
+        // The Brain tab loads this on appear. A 402 here must not slide the
+        // app-root paywall over whatever the user was looking at — that is
+        // what made opening Brain "show an empty sheet". The view model
+        // renders the failure in its own error state instead.
+        var presentsPaywallOn402: Bool { false }
     }
 
     struct Reason: Endpoint {

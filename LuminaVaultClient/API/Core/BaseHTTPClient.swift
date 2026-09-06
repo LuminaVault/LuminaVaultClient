@@ -120,7 +120,12 @@ final class BaseHTTPClient: Sendable {
                 // HER-211 — fire the universal interceptor BEFORE throwing.
                 // AppState wires this to a root-level sheet; the throw
                 // keeps HER-188's reactive EntitlementGate handlers working.
-                await onPaymentRequired?(hints?.paywallID, hints?.requiredTier)
+                // Skipped for passive loads, which surface the 402 in their
+                // own error state rather than sliding a paywall over the
+                // screen the user was already looking at.
+                if endpoint.presentsPaywallOn402 {
+                    await onPaymentRequired?(hints?.paywallID, hints?.requiredTier)
+                }
                 throw APIError.paymentRequired(paywallID: hints?.paywallID, requiredTier: hints?.requiredTier)
             }
             if http.statusCode == 429 {
@@ -294,6 +299,28 @@ final class BaseHTTPClient: Sendable {
                     if let http = response as? HTTPURLResponse {
                         log.debug("← \(http.statusCode) \(endpoint.path) [stream]")
                         if http.statusCode == 401 { throw APIError.unauthorized }
+                        // Mirror the buffered path. This used to map only
+                        // 401, so a paywall or a daily cap on the
+                        // memory-grounded chat stream surfaced as
+                        // "Server error (402)." / "Server error (429)."
+                        // while the identical status on a normal request
+                        // read correctly.
+                        if http.statusCode == 402 {
+                            var trailing = Data()
+                            for try await byte in bytes { trailing.append(byte) }
+                            let hints = try? JSONDecoder.hvDefault.decode(PaymentRequiredBody.self, from: trailing)
+                            if endpoint.presentsPaywallOn402 {
+                                await onPaymentRequired?(hints?.paywallID, hints?.requiredTier)
+                            }
+                            throw APIError.paymentRequired(
+                                paywallID: hints?.paywallID,
+                                requiredTier: hints?.requiredTier
+                            )
+                        }
+                        if http.statusCode == 429 {
+                            let retryAfter = http.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
+                            throw APIError.rateLimited(retryAfter: retryAfter)
+                        }
                         guard (200..<300).contains(http.statusCode) else {
                             var trailing = Data()
                             for try await byte in bytes { trailing.append(byte) }

@@ -26,6 +26,16 @@ protocol Endpoint {
     /// owner-only system routes). Default empty. Applied after the standard
     /// Content-Type / Authorization headers so callers can't clobber auth.
     var additionalHeaders: [String: String] { get }
+    /// When false, a 402 still throws `APIError.paymentRequired` but does
+    /// not fire the app-root paywall interceptor.
+    ///
+    /// Default `true` preserves HER-211: a 402 on something the user
+    /// deliberately reached for should offer the upgrade. Passive screen
+    /// loads set this false — a background fetch that 402s used to slide a
+    /// paywall over whatever the user was doing, which is how the Brain tab
+    /// came to "open an empty sheet". Those callers surface the failure in
+    /// their own error state instead.
+    var presentsPaywallOn402: Bool { get }
 }
 
 extension Endpoint {
@@ -36,6 +46,7 @@ extension Endpoint {
     var skipsAuthRefresh: Bool { !requiresAuth }
     var idempotencyKey: UUID? { nil }
     var additionalHeaders: [String: String] { [:] }
+    var presentsPaywallOn402: Bool { true }
 }
 
 /// Type-erasing wrapper so a JSONEncoder can encode an `any Encodable`
