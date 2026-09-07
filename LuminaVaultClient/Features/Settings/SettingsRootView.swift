@@ -179,7 +179,10 @@ struct SettingsRootView: View {
                             // "Hermes Gateway" to disambiguate from the HER-241
                             // "Messaging Gateways" pane below.
                             LVSettingsRow("Hermes Server", icon: .network) {
-                                HermesGatewayPaneView(client: settingsClient)
+                                HermesGatewayPaneView(
+                                    client: settingsClient,
+                                    mirror: HermesMirrorHTTPClient(client: appState.makeHTTPClient())
+                                )
                             }
                             LVSettingsDivider()
                             LVSettingsRow("Agent connections", icon: .keyFill) {
@@ -424,7 +427,10 @@ struct SettingsRootView: View {
                 hybridClient: chatExperienceClient
             ))
         case .configureHermes?:
-            return AnyView(HermesGatewayPaneView(client: settingsClient))
+            return AnyView(HermesGatewayPaneView(
+                client: settingsClient,
+                mirror: HermesMirrorHTTPClient(client: appState.makeHTTPClient())
+            ))
         case .configureGateway?:
             return AnyView(HermesGatewaysPaneView(client: hermesGatewaysClient))
         case .connectAccount?:

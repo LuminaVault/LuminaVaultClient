@@ -33,6 +33,9 @@ protocol StreamingEndpoint: Sendable {
     var streamTimeout: TimeInterval { get }
     /// HER-330 — extra request headers (e.g. `X-Admin-Token`). Default empty.
     var additionalHeaders: [String: String] { get }
+    /// Mirrors `Endpoint.presentsPaywallOn402` — when false, a 402 throws
+    /// `APIError.paymentRequired` without firing the app-root paywall.
+    var presentsPaywallOn402: Bool { get }
 }
 
 extension StreamingEndpoint {
@@ -42,6 +45,7 @@ extension StreamingEndpoint {
     var encoder: JSONEncoder { JSONEncoder() }
     var streamTimeout: TimeInterval { 120 }
     var additionalHeaders: [String: String] { [:] }
+    var presentsPaywallOn402: Bool { true }
 }
 
 /// Pure SSE line-buffer state machine. Extracted so the wire parser can

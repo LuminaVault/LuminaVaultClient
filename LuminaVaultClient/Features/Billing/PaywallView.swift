@@ -40,6 +40,23 @@ struct PaywallView: View {
     /// purchases don't celebrate.
     @State private var celebrating = false
 
+    /// Whether RC has an offering we can actually render.
+    ///
+    /// `Purchases.isConfigured` only says the SDK booted — it says nothing
+    /// about there being a current offering with packages. With a configured
+    /// SDK and no offering, RevenueCatUI's `PaywallView` renders essentially
+    /// nothing, and because `AppState.onPaymentRequired` presents this sheet
+    /// from the app root, that reads as "the app slid up an empty sheet".
+    /// Checking first lets a missing offering fall back to `billingUnavailable`
+    /// like an unconfigured SDK already does.
+    private enum OfferingAvailability: Equatable {
+        case checking
+        case available
+        case unavailable
+    }
+
+    @State private var offering: OfferingAvailability = .checking
+
     init(paywallID: String? = nil) {
         self.paywallID = paywallID
     }
@@ -63,7 +80,11 @@ struct PaywallView: View {
                 // `AppState.onPaymentRequired` presents this sheet from the app root on
                 // any 402, so a single paid endpoint could take the whole app down.
                 // Gate on the same signal `PurchasesProxyFactory` already trusts.
-                if Purchases.isConfigured {
+                if !Purchases.isConfigured || offering == .unavailable {
+                    billingUnavailable
+                } else if offering == .checking {
+                    offeringLoading
+                } else {
                     RevenueCatUI.PaywallView()
                         .onPurchaseCompleted { _ in
                             // HER-211 — fire-and-forget server refresh so the
@@ -86,12 +107,41 @@ struct PaywallView: View {
                         .onRestoreCompleted { _ in
                             Task { await appState.billingService?.refreshFromServer() }
                         }
-                } else {
-                    billingUnavailable
                 }
             }
         }
         .presentationDragIndicator(.visible)
+        .task { await resolveOffering() }
+    }
+
+    /// Never leaves the sheet blank while the offering fetch is in flight.
+    private var offeringLoading: some View {
+        VStack(spacing: LVSpacing.base) {
+            ProgressView()
+                .tint(palette.glowPrimary)
+            Text("Loading plans…")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(palette.textSecondary)
+        }
+        .padding(LVSpacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// A configured SDK with no current offering (or none with packages) is
+    /// a store-side configuration gap, not a crash — degrade to the same
+    /// message an unconfigured build shows.
+    private func resolveOffering() async {
+        guard Purchases.isConfigured else {
+            offering = .unavailable
+            return
+        }
+        do {
+            let offerings = try await Purchases.shared.offerings()
+            let current = offerings.current ?? offerings.all[paywallID ?? ""]
+            offering = (current?.availablePackages.isEmpty == false) ? .available : .unavailable
+        } catch {
+            offering = .unavailable
+        }
     }
 
     /// Drives the mascot: `.thinking` while a purchase is in flight (RC
