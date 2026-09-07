@@ -10,10 +10,10 @@ Four products, two entitlements, one offering. Per `RCProduct.swift`:
 
 | Product ID | Price | Intro offer | Entitlement |
 | --- | --- | --- | --- |
-| `pro_monthly_9_99` | $9.99 / month | 7-day free trial, once per user | `pro` |
-| `pro_yearly_79_99` | $79.99 / year | — | `pro` |
-| `ultimate_monthly_19_99` | $19.99 / month | 7-day free trial, once per user | `ultimate` |
-| `ultimate_yearly_179_99` | $179.99 / year | — | `ultimate` |
+| `pro_monthly_14_99` | $14.99 / month | 7-day free trial, once per user | `pro` |
+| `pro_yearly_149_99` | $149.99 / year | — | `pro` |
+| `ultimate_monthly_29_99` | $29.99 / month | 7-day free trial, once per user | `ultimate` |
+| `ultimate_yearly_299_99` | $299.99 / year | — | `ultimate` |
 
 Offering id: `default`. Bundle id (Release): `com.lumina.fernando`.
 
@@ -42,11 +42,11 @@ RevenueCat → project → **Project settings** and **Offerings**.
 1. **Link the iOS app**: App settings → add iOS app with bundle id `com.lumina.fernando`. Paste the App Store Connect shared secret and the App Store Connect API key so RC can validate receipts and receive server notifications.
 2. **Import products**: Products tab → add all four App Store product IDs exactly as above.
 3. **Entitlements** (Entitlements tab) — IDs are **case-sensitive** and MUST equal the constants in `BillingService.swift`:
-   - `pro` → attach `pro_monthly_9_99` and `pro_yearly_79_99`
-   - `ultimate` → attach `ultimate_monthly_19_99` and `ultimate_yearly_179_99`
+   - `pro` → attach `pro_monthly_14_99` and `pro_yearly_149_99`
+   - `ultimate` → attach `ultimate_monthly_29_99` and `ultimate_yearly_299_99`
 4. **Offering** `default` (Offerings tab) — create one offering with id `default` containing four packages: monthly + yearly per tier, lowest tier first (presentation order matches `RCProduct.all`).
 5. **Server-to-server webhook**: Integrations → Webhooks →
-   - URL: `POST https://api.luminavault.com/v1/billing/webhooks/revenuecat`
+   - URL: `POST https://api.luminavault.fyi/v1/billing/revenuecat-webhook`
    - Authorization header bearer token must equal the server's `revenueCatWebhookSecret` (`LuminaVaultServer` `App+build.swift`), which is set in the Hetzner VPS `.env`. **If these don't match, the server rejects every webhook and tiers never update server-side.**
 
 ---
@@ -65,6 +65,6 @@ RevenueCat → project → **Project settings** and **Offerings**.
 
 Run the **Verification checklist** in [`Services/Billing/README.md`](../LuminaVaultClient/Services/Billing/README.md). Headline criteria:
 
-- A fresh sandbox purchase of `pro_monthly_9_99` on a real iPhone elevates `BillingService.currentTier` to `.pro` within 60 s (webhook lands, `GET /v1/auth/me/billing` echoes the new tier).
+- A fresh sandbox purchase of `pro_monthly_14_99` on a real iPhone elevates `BillingService.currentTier` to `.pro` within 60 s (webhook lands, `GET /v1/auth/me/billing` echoes the new tier).
 - `PaywallView` renders all four products with correctly localized 7-day-trial copy.
 - App Review screenshot passes HIG (Restore Purchases + Terms/Privacy visible).
