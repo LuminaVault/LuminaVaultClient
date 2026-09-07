@@ -100,7 +100,7 @@ Product IDs must match `RCProduct` constants verbatim — case-sensitive. See `R
 | Packages in `default`: monthly + yearly per tier (4 total) | TODO |
 | Entitlement `pro` mapped to `pro_monthly_14_99` + `pro_yearly_149_99` | TODO (entitlement ID must match `RCEntitlement.pro` in `BillingService.swift`) |
 | Entitlement `ultimate` mapped to `ultimate_monthly_29_99` + `ultimate_yearly_299_99` | TODO (must match `RCEntitlement.ultimate`) |
-| S2S webhook → `POST https://api.luminavault.com/v1/billing/webhooks/revenuecat` | TODO — auth via `revenueCatWebhookSecret` bearer (server: `App+build.swift`) |
+| S2S webhook → `POST https://api.luminavault.fyi/v1/billing/revenuecat-webhook` | auth via `Authorization: Bearer $REVENUECAT_WEBHOOK_SECRET` (server: `RevenueCatWebhookController.swift`) |
 | Server's `revenueCatWebhookSecret` env value matches the dashboard | TODO — set on Hetzner VPS `.env` |
 
 ### 3. Public SDK key (`appl_*`) wiring

@@ -91,10 +91,10 @@ Product IDs must match `Services/Billing/RCProduct.swift` **verbatim**.
 
 | Product ID | Reference name | Price | Intro offer | Entitlement |
 | --- | --- | --- | --- | --- |
-| `pro_monthly_9_99` | Pro Monthly | $9.99 / mo | 7-day free trial, once/user | `pro` |
-| `pro_yearly_79_99` | Pro Yearly | $79.99 / yr | — | `pro` |
-| `ultimate_monthly_19_99` | Ultimate Monthly | $19.99 / mo | 7-day free trial, once/user | `ultimate` |
-| `ultimate_yearly_179_99` | Ultimate Yearly | $179.99 / yr | — | `ultimate` |
+| `pro_monthly_14_99` | Pro Monthly | $14.99 / mo | 7-day free trial, once/user | `pro` |
+| `pro_yearly_149_99` | Pro Yearly | $149.99 / yr | — | `pro` |
+| `ultimate_monthly_29_99` | Ultimate Monthly | $29.99 / mo | 7-day free trial, once/user | `ultimate` |
+| `ultimate_yearly_299_99` | Ultimate Yearly | $299.99 / yr | — | `ultimate` |
 
 Each product needs a non-empty **localized display name + description** or it
 stays "Missing Metadata". Add the 7-day **Introductory Offer → Free trial** on

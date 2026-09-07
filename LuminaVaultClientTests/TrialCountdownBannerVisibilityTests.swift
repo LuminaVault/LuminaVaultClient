@@ -107,12 +107,15 @@ final class RCProductTests: XCTestCase {
     }
 
     func testProductIDsMatchSpec() {
-        // Finalized App Store pricing (commit 6093bd7 "set subscription
-        // pricing + App Store submission package"). These IDs must match the
-        // RevenueCat / App Store Connect product configuration.
-        XCTAssertEqual(RCProduct.proMonthly,      "pro_monthly_9_99")
-        XCTAssertEqual(RCProduct.proYearly,       "pro_yearly_79_99")
-        XCTAssertEqual(RCProduct.ultimateMonthly, "ultimate_monthly_19_99")
-        XCTAssertEqual(RCProduct.ultimateYearly,  "ultimate_yearly_179_99")
+        // These must match App Store Connect, the RevenueCat dashboard, and
+        // `SubscriptionCatalog` on the server — which now maps the reported
+        // product id to a tier by exact match and fails loudly on anything
+        // else. Four artifacts previously carried four different price lists;
+        // drift here is a silent entitlement bug, which is why this guard
+        // exists.
+        XCTAssertEqual(RCProduct.proMonthly,      "pro_monthly_14_99")
+        XCTAssertEqual(RCProduct.proYearly,       "pro_yearly_149_99")
+        XCTAssertEqual(RCProduct.ultimateMonthly, "ultimate_monthly_29_99")
+        XCTAssertEqual(RCProduct.ultimateYearly,  "ultimate_yearly_299_99")
     }
 }
