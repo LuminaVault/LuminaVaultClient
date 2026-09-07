@@ -73,6 +73,13 @@ enum HermesMirrorFailure: Equatable, Sendable {
     case upstream
     /// 502 — the BYO dashboard refused the credentials we hold.
     case dashboardUnauthorized
+    /// 502 — the dashboard offers no static-token path at all.
+    ///
+    /// Hermes only accepts a bearer on the dashboard when it is bound to
+    /// loopback; any other bind serves the cookie/OAuth gate instead. No token
+    /// the user can paste will work, so this is a bind-address problem, not a
+    /// credential one and not a version one.
+    case dashboardAuthModeUnsupported
     case badRequest
     case unauthorized
     case offline
@@ -101,7 +108,7 @@ enum HermesMirrorFailure: Equatable, Sendable {
         case "hermes_mirror_unsupported": return .unsupported
         case "hermes_mirror_not_found": return .notFound
         case "hermes_dashboard_unauthorized": return .dashboardUnauthorized
-        case "hermes_dashboard_auth_mode_unsupported": return .unsupported
+        case "hermes_dashboard_auth_mode_unsupported": return .dashboardAuthModeUnsupported
         // These two are 400s. Without naming them the `hermes_mirror_` prefix
         // below would swallow them as upstream failures and offer a retry
         // that cannot work.
@@ -136,6 +143,7 @@ enum HermesMirrorFailure: Equatable, Sendable {
         switch self {
         case .notConfigured: return "No Hermes is linked to this account yet."
         case .unsupported: return "Your Hermes is too old for this."
+        case .dashboardAuthModeUnsupported: return "Your Hermes dashboard is behind its sign-in page."
         case .notFound: return "That job no longer exists on your Hermes."
         case .upstream: return "Your Hermes couldn't be reached."
         case .dashboardUnauthorized: return "Your Hermes dashboard rejected the saved credentials."
@@ -150,6 +158,8 @@ enum HermesMirrorFailure: Equatable, Sendable {
         switch self {
         case .notConfigured: return "Link one in Settings → Hermes Gateway."
         case .unsupported: return "Update Hermes and try again."
+        case .dashboardAuthModeUnsupported:
+            return "Hermes only accepts a saved token when its dashboard listens on 127.0.0.1. Bind it there and publish it through your own TLS proxy. Skills, jobs and sessions still read fine over your gateway — only editing jobs from here needs the dashboard."
         case .dashboardUnauthorized: return "Re-enter the dashboard token in Settings → Hermes Gateway."
         case .upstream: return "Check that your Hermes is online."
         case .offline: return "Reconnect and try again."
@@ -159,7 +169,7 @@ enum HermesMirrorFailure: Equatable, Sendable {
 
     var isRetryable: Bool {
         switch self {
-        case .notConfigured, .unsupported, .notFound, .badRequest:
+        case .notConfigured, .unsupported, .notFound, .badRequest, .dashboardAuthModeUnsupported:
             return false
         case .upstream, .dashboardUnauthorized, .unauthorized, .offline, .unknown:
             return true

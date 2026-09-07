@@ -9,9 +9,13 @@ import SwiftUI
 struct HermesGatewayPaneView: View {
     @State private var viewModel: HermesGatewayViewModel
     @State private var showDisconnectConfirm = false
+    /// Optional so previews and the onboarding gate can omit it; when absent
+    /// the pane behaves exactly as before.
+    private let mirror: (any HermesMirrorClientProtocol)?
 
-    init(client: any SettingsClientProtocol) {
+    init(client: any SettingsClientProtocol, mirror: (any HermesMirrorClientProtocol)? = nil) {
         _viewModel = State(initialValue: HermesGatewayViewModel(client: client))
+        self.mirror = mirror
     }
 
     var body: some View {
@@ -23,6 +27,11 @@ struct HermesGatewayPaneView: View {
                 emptyStateSection
             case let .configured(baseUrl, hasAuthHeader, status):
                 configuredSection(baseUrl: baseUrl, hasAuthHeader: hasAuthHeader, status: status)
+                // Only meaningful once a Hermes is linked — and this is where
+                // "Connected" is claimed, so it is where the counts belong.
+                if let mirror {
+                    HermesMirrorCard(viewModel: HermesMirrorCardViewModel(client: mirror))
+                }
             case let .editing(prefilledBaseUrl, prefilledHasAuthHeader):
                 editingSection(prefilledBaseUrl: prefilledBaseUrl, prefilledHasAuthHeader: prefilledHasAuthHeader)
             }
