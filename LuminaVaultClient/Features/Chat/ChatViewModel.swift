@@ -37,6 +37,10 @@ final class ChatViewModel {
         /// turn (from the terminal routing/usage event). `nil` for user
         /// turns and turns that predate the field.
         var modelLabel: String?
+        /// How many tools the assistant invoked on this turn. Zero is a real
+        /// answer — it ran without tools — and nil means unknown, which is
+        /// what every turn recorded before the server persisted this says.
+        var toolCallCount: Int?
 
         init(
             id: UUID = UUID(),
@@ -46,7 +50,8 @@ final class ChatViewModel {
             parallelExecutionID: UUID? = nil,
             imageURLs: [URL]? = nil,
             renderedMarkdown: String? = nil,
-            modelLabel: String? = nil
+            modelLabel: String? = nil,
+            toolCallCount: Int? = nil
         ) {
             self.id = id
             self.role = role
@@ -56,10 +61,11 @@ final class ChatViewModel {
             self.imageURLs = imageURLs ?? Self.imageURLs(role: role, content: content)
             self.renderedMarkdown = renderedMarkdown ?? Self.renderedMarkdown(role: role, content: content)
             self.modelLabel = modelLabel
+            self.toolCallCount = toolCallCount
         }
 
         enum CodingKeys: String, CodingKey {
-            case id, role, content, sources, parallelExecutionID, imageURLs, renderedMarkdown, modelLabel
+            case id, role, content, sources, parallelExecutionID, imageURLs, renderedMarkdown, modelLabel, toolCallCount
         }
 
         init(from decoder: Decoder) throws {
@@ -74,6 +80,7 @@ final class ChatViewModel {
             renderedMarkdown = try container.decodeIfPresent(String.self, forKey: .renderedMarkdown)
                 ?? Self.renderedMarkdown(role: role, content: content)
             modelLabel = try container.decodeIfPresent(String.self, forKey: .modelLabel)
+            toolCallCount = try container.decodeIfPresent(Int.self, forKey: .toolCallCount)
         }
 
         func encode(to encoder: Encoder) throws {
@@ -86,6 +93,7 @@ final class ChatViewModel {
             try container.encode(imageURLs, forKey: .imageURLs)
             try container.encode(renderedMarkdown, forKey: .renderedMarkdown)
             try container.encodeIfPresent(modelLabel, forKey: .modelLabel)
+            try container.encodeIfPresent(toolCallCount, forKey: .toolCallCount)
         }
 
         private static func renderedMarkdown(role: ConversationMessageRole, content: String) -> String {
@@ -1065,12 +1073,12 @@ final class ChatViewModel {
             // from the inbox lost its citation chips, its model badge, and the
             // link into its multi-model comparison. Two recoveries:
             //   1. `parallelExecutionID` comes straight off the DTO.
-            //   2. Everything the wire cannot express is merged back from the
-            //      local snapshot for the same conversation, matched on
-            //      message id — so a thread this device produced keeps its
-            //      badge and chips. A thread first seen on another device
-            //      still has no badge; that needs a server-side field and is
-            //      not something to fake client-side.
+            //   2. The model and tool count now come off the wire
+            //      (`ConversationMessageDTO.model` / `.toolCallCount`), so a
+            //      thread first seen on another device keeps its badge. The
+            //      local snapshot is still merged for retrieval hits, which
+            //      the wire does not carry, and as the model fallback for
+            //      turns recorded before the server persisted one.
             let cached = try? await historyStore?.load(conversationID: id)
             let cachedByID = Dictionary(
                 (cached?.messages ?? []).map { ($0.id, $0) },
@@ -1084,7 +1092,12 @@ final class ChatViewModel {
                     content: message.content,
                     sources: local?.sources ?? [],
                     parallelExecutionID: message.parallelExecutionID,
-                    modelLabel: local?.modelLabel
+                    // The wire now carries the model, so a thread first seen
+                    // on another device keeps its badge. The local snapshot
+                    // stays as the fallback for turns recorded before the
+                    // server persisted this.
+                    modelLabel: message.model ?? local?.modelLabel,
+                    toolCallCount: message.toolCallCount
                 )
             }
             lastReadMessageID = cached?.lastReadMessageID

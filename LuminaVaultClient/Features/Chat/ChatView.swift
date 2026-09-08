@@ -657,13 +657,14 @@ private struct MessageRow: View {
                     .padding(.top, LVSpacing.xs)
                 VStack(alignment: .leading, spacing: LVSpacing.md) {
                     bubble
-                    // Cerberus transparency — which model produced this turn.
-                    if let model = message.modelLabel {
-                        Text(model)
-                            .font(.caption2)
-                            .foregroundStyle(palette.textSecondary.opacity(0.7))
-                            .accessibilityLabel("Answered by \(model)")
-                    }
+                    // Cerberus transparency — what this turn actually did.
+                    // The model alone said who answered; the tool count is
+                    // what distinguishes an agent that did work from a model
+                    // that only talked.
+                    TurnReceiptView(
+                        modelLabel: message.modelLabel,
+                        toolCallCount: message.toolCallCount
+                    )
                 }
                 // No trailing `Spacer(minLength: .hero)` on the assistant side:
                 // it capped the column at ~48pt short of the screen, so
