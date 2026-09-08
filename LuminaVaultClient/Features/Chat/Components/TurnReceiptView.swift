@@ -39,15 +39,25 @@ struct TurnReceiptView: View {
         }
     }
 
+    private var summary: String? {
+        Self.summary(modelLabel: modelLabel, toolCallCount: toolCallCount)
+    }
+
     /// `nil` when there is nothing truthful to say — no model and no tool
     /// information. An empty receipt is better than a misleading one.
-    private var summary: String? {
+    ///
+    /// Static so the call site can decide whether to place this view at all.
+    /// A view that renders nothing is not the same as an absent view: the
+    /// enclosing `VStack` has explicit spacing, and the previous code used an
+    /// `if` at the container level. Keeping that shape means a turn with no
+    /// badge lays out exactly as it did before.
+    static func summary(modelLabel: String?, toolCallCount: Int?) -> String? {
         var parts: [String] = []
         if let modelLabel, !modelLabel.isEmpty {
             parts.append(modelLabel)
         }
-        if let toolPhrase {
-            parts.append(toolPhrase)
+        if let phrase = toolPhrase(toolCallCount) {
+            parts.append(phrase)
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
@@ -55,7 +65,7 @@ struct TurnReceiptView: View {
     /// Only stated when tools actually ran. "0 tools" under every ordinary
     /// answer would be noise, and would read as a failure rather than as the
     /// normal case.
-    private var toolPhrase: String? {
+    static func toolPhrase(_ toolCallCount: Int?) -> String? {
         guard let toolCallCount, toolCallCount > 0 else { return nil }
         return toolCallCount == 1 ? "1 tool" : "\(toolCallCount) tools"
     }

@@ -661,10 +661,18 @@ private struct MessageRow: View {
                     // The model alone said who answered; the tool count is
                     // what distinguishes an agent that did work from a model
                     // that only talked.
-                    TurnReceiptView(
+                    // Gated here rather than inside the view: the VStack has
+                    // explicit spacing, so an always-present child that
+                    // happens to render nothing is not the same as no child.
+                    if TurnReceiptView.summary(
                         modelLabel: message.modelLabel,
                         toolCallCount: message.toolCallCount
-                    )
+                    ) != nil {
+                        TurnReceiptView(
+                            modelLabel: message.modelLabel,
+                            toolCallCount: message.toolCallCount
+                        )
+                    }
                 }
                 // No trailing `Spacer(minLength: .hero)` on the assistant side:
                 // it capped the column at ~48pt short of the screen, so
