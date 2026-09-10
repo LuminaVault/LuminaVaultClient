@@ -38,14 +38,12 @@ enum MemoryEndpoints {
             .post
         }
 
+        // Wire is camelCase: the server decodes `MemoryUpsertRequest` with its
+        // default decoder. A `.convertToSnakeCase` encoder here sent
+        // `accuracy_m` / `place_name`, which decoded as nil — every memory
+        // captured from iOS lost its location metadata.
         var body: (any Encodable)? {
             request
-        }
-
-        var encoder: JSONEncoder {
-            let e = JSONEncoder()
-            e.keyEncodingStrategy = .convertToSnakeCase
-            return e
         }
     }
 
