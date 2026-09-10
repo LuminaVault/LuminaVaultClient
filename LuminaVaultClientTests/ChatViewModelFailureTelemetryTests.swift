@@ -42,7 +42,7 @@ final class ChatViewModelFailureTelemetryTests: XCTestCase {
 
         vm.composer = "What patterns do I have in my Stocks space lately?"
         vm.send()
-        try await Task.sleep(for: .milliseconds(150))
+        await waitUntil("send to fail") { if case .failed = vm.phase { return true } else { return false } }
 
         XCTAssertEqual(
             vm.phase,
@@ -62,7 +62,7 @@ final class ChatViewModelFailureTelemetryTests: XCTestCase {
 
         vm.composer = "hello"
         vm.send()
-        try await Task.sleep(for: .milliseconds(150))
+        await waitUntil("send to fail") { if case .failed = vm.phase { return true } else { return false } }
 
         XCTAssertEqual(telemetry.events.count, 1)
         let event = try XCTUnwrap(telemetry.events.first)
@@ -87,7 +87,7 @@ final class ChatViewModelFailureTelemetryTests: XCTestCase {
 
         vm.composer = "hello"
         vm.send()
-        try await Task.sleep(for: .milliseconds(150))
+        await waitUntil("send to fail") { if case .failed = vm.phase { return true } else { return false } }
 
         XCTAssertEqual(vm.phase, .failed(message: "Add an API key to keep chatting."))
         XCTAssertEqual(vm.recoveryActions, [.addKey, .switchToManaged])
