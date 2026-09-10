@@ -54,6 +54,10 @@ public struct HermieMascotView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.lvActiveTab) private var activeTab
+    /// Snapshot suites set this false to hold one Rive frame. Without it the
+    /// state machine kept animating under test and `think-empty-dark`
+    /// captured a different frame on different CI runs.
+    @Environment(\.lvAmbientMotionEnabled) private var ambientMotionEnabled
 
     private static let riveFileName = "lumina_anims"
     private static let artboardName = "hermie"
@@ -81,11 +85,17 @@ public struct HermieMascotView: View {
     private var riveEligible: Bool { animated && size >= Self.animationSizeThreshold }
 
     private var shouldPlay: Bool {
-        guard !reduceMotion, scenePhase == .active else { return false }
-        guard let hostTab else { return true }
-        if activeTab.isEmpty { return true }
-        return activeTab == hostTab
+        HermieMascotPlayback.shouldPlay(
+            reduceMotion: reduceMotion,
+            ambientMotionEnabled: ambientMotionEnabled,
+            sceneActive: scenePhase == .active,
+            hostTab: hostTab,
+            activeTab: activeTab
+        )
     }
+
+    /// Motion the state machine itself may run, independent of visibility.
+    private var motionAllowed: Bool { !reduceMotion && ambientMotionEnabled }
 
     public var body: some View {
         Group {
@@ -133,15 +143,15 @@ public struct HermieMascotView: View {
     private func apply(state: HermieMascotState) {
         guard let viewModel else { return }
         viewModel.setInput(Self.stateInput, value: state.stateValue)
-        viewModel.setInput(Self.isPlayingInput, value: !reduceMotion)
-        if reduceMotion { viewModel.pause() }
+        viewModel.setInput(Self.isPlayingInput, value: motionAllowed)
+        if !motionAllowed { viewModel.pause() }
     }
 
     /// Pause the render loop whenever the view leaves the screen or the app
     /// leaves the foreground — offscreen Rive canvases must not burn CPU.
     private func setLive(_ live: Bool) {
         guard let viewModel else { return }
-        if live && !reduceMotion {
+        if live && motionAllowed {
             viewModel.play()
         } else {
             viewModel.pause()
