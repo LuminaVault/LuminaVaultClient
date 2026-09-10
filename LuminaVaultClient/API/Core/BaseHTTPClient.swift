@@ -25,6 +25,11 @@ final class BaseHTTPClient: Sendable {
         _ paywallID: String?,
         _ requiredTier: UserTier?
     ) async -> Void
+    /// Fired once per failed request — a non-2xx status or a 2xx whose body
+    /// did not decode — after the failure is logged and before it is
+    /// thrown. `AppState` wires this to a Sentry breadcrumb; the throw is
+    /// unchanged so call sites keep their existing handling.
+    typealias RequestFailureHandler = @Sendable (APIRequestFailure) async -> Void
 
     private let session: URLSession
     private var baseURL: URL { Config.apiBaseURL }
@@ -32,6 +37,7 @@ final class BaseHTTPClient: Sendable {
     private let refreshHandler: RefreshHandler?
     private let onAuthFailure: AuthFailureHandler?
     private let onPaymentRequired: PaymentRequiredHandler?
+    private let onRequestFailure: RequestFailureHandler?
     private let refreshCoordinator: TokenRefreshCoordinator?
     private let vaultProvider: VaultProvider
 
@@ -44,6 +50,7 @@ final class BaseHTTPClient: Sendable {
         refreshHandler: RefreshHandler? = nil,
         onAuthFailure: AuthFailureHandler? = nil,
         onPaymentRequired: PaymentRequiredHandler? = nil,
+        onRequestFailure: RequestFailureHandler? = nil,
         refreshCoordinator: TokenRefreshCoordinator? = nil
     ) {
         self.session = session
@@ -52,6 +59,7 @@ final class BaseHTTPClient: Sendable {
         self.refreshHandler = refreshHandler
         self.onAuthFailure = onAuthFailure
         self.onPaymentRequired = onPaymentRequired
+        self.onRequestFailure = onRequestFailure
         // HER-237: a refresh handler without a coordinator would stampede
         // the auth server on concurrent 401s. Always provide one when
         // refresh is wired; share it across clients to keep single-flight
@@ -59,6 +67,16 @@ final class BaseHTTPClient: Sendable {
         self.refreshCoordinator = refreshHandler != nil
             ? (refreshCoordinator ?? TokenRefreshCoordinator())
             : nil
+    }
+
+    /// The one place a failed request is recorded. `.error` so it survives
+    /// in the unified log (the request/response lines above are `.debug`
+    /// and are not persisted), then the app-level hook.
+    private func report(_ failure: APIRequestFailure) async {
+        log.error(
+            "✗ \(failure.method, privacy: .public) \(failure.path, privacy: .public) status=\(failure.statusCode ?? 0) kind=\(failure.kind.rawValue, privacy: .public) \(failure.detail, privacy: .public)"
+        )
+        await onRequestFailure?(failure)
     }
 
     func execute<E: Endpoint>(_ endpoint: E) async throws -> E.Response {
@@ -136,6 +154,12 @@ final class BaseHTTPClient: Sendable {
                 throw APIError.rateLimited(retryAfter: retryAfter)
             }
             guard (200..<300).contains(http.statusCode) else {
+                await report(.httpStatus(
+                    method: endpoint.method.rawValue,
+                    path: endpoint.path,
+                    statusCode: http.statusCode,
+                    data: data
+                ))
                 throw APIError.httpError(statusCode: http.statusCode, data: data)
             }
         }
@@ -145,7 +169,15 @@ final class BaseHTTPClient: Sendable {
         // instead of throwing "Unexpected end of file".
         let payload = data.isEmpty ? Data("{}".utf8) : data
         do { return try endpoint.decoder.decode(E.Response.self, from: payload) }
-        catch { throw APIError.decodingFailed(error) }
+        catch {
+            await report(.decoding(
+                method: endpoint.method.rawValue,
+                path: endpoint.path,
+                statusCode: (response as? HTTPURLResponse)?.statusCode,
+                error: error
+            ))
+            throw APIError.decodingFailed(error)
+        }
     }
 
     /// HER-34 — raw-body upload (HEIC/JPEG capture). Bypasses the
@@ -262,6 +294,7 @@ final class BaseHTTPClient: Sendable {
                 throw APIError.paymentRequired(paywallID: hints?.paywallID, requiredTier: hints?.requiredTier)
             }
             guard (200..<300).contains(http.statusCode) else {
+                await report(.httpStatus(method: method.rawValue, path: path, statusCode: http.statusCode, data: data))
                 throw APIError.httpError(statusCode: http.statusCode, data: data)
             }
             if let ct = http.value(forHTTPHeaderField: "Content-Type") {
@@ -286,7 +319,7 @@ final class BaseHTTPClient: Sendable {
     /// the consumer unchanged.
     func executeStream<E: StreamingEndpoint>(_ endpoint: E) -> AsyncThrowingStream<E.Event, any Error> {
         AsyncThrowingStream { continuation in
-            let task = Task { [session, baseURL, tokenProvider, vaultProvider] in
+            let task = Task { [self, session, baseURL, tokenProvider, vaultProvider] in
                 do {
                     let request = try await Self.buildStreamRequest(
                         endpoint: endpoint,
@@ -324,6 +357,12 @@ final class BaseHTTPClient: Sendable {
                         guard (200..<300).contains(http.statusCode) else {
                             var trailing = Data()
                             for try await byte in bytes { trailing.append(byte) }
+                            await report(.httpStatus(
+                                method: endpoint.method.rawValue,
+                                path: endpoint.path,
+                                statusCode: http.statusCode,
+                                data: trailing
+                            ))
                             throw APIError.httpError(statusCode: http.statusCode, data: trailing)
                         }
                     }
@@ -332,10 +371,18 @@ final class BaseHTTPClient: Sendable {
 
                     // Decode one frame and forward it. Wraps the decoder
                     // error so consumers see a typed `APIError`.
-                    func emit(_ data: Data) throws {
+                    func emit(_ data: Data) async throws {
                         let event: E.Event
                         do { event = try endpoint.decoder.decode(E.Event.self, from: data) }
-                        catch { throw APIError.decodingFailed(error) }
+                        catch {
+                            await report(.decoding(
+                                method: endpoint.method.rawValue,
+                                path: endpoint.path,
+                                statusCode: (response as? HTTPURLResponse)?.statusCode,
+                                error: error
+                            ))
+                            throw APIError.decodingFailed(error)
+                        }
                         continuation.yield(event)
                     }
 
@@ -350,7 +397,7 @@ final class BaseHTTPClient: Sendable {
                         for outcome in parser.feed(bytes: CollectionOfOne(byte)) {
                             switch outcome {
                             case .pending: continue
-                            case .event(let data): try emit(data)
+                            case .event(let data): try await emit(data)
                             case .done: continuation.finish(); return
                             }
                         }
@@ -359,7 +406,7 @@ final class BaseHTTPClient: Sendable {
                     for outcome in parser.finishBytes() {
                         switch outcome {
                         case .pending: continue
-                        case .event(let data): try emit(data)
+                        case .event(let data): try await emit(data)
                         case .done: continuation.finish(); return
                         }
                     }

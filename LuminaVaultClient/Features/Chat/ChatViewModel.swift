@@ -17,6 +17,9 @@
 //   3. `cancel()` tears down the live stream Task. UI keeps any partial
 //      text already streamed.
 import Foundation
+import OSLog
+
+private let log = Logger(subsystem: "com.luminavault", category: "chat")
 
 @Observable
 @MainActor
@@ -347,6 +350,10 @@ final class ChatViewModel {
     private var toastDecayTask: Task<Void, Never>?
     private var persistTask: Task<Void, Never>?
 
+    /// Where a failed send is recorded off-device. `LoggerTelemetry` by
+    /// default; the app injects `AnalyticsTelemetry` (PostHog + Sentry).
+    private let telemetry: any TelemetryProtocol
+
     init(
         conversationsClient: any ConversationsClientProtocol,
         chatClient: any ChatClientProtocol,
@@ -358,6 +365,7 @@ final class ChatViewModel {
         llmPreferencesClient: (any LLMPreferencesClientProtocol)? = nil,
         localExecutor: (any LocalChatExecuting)? = nil,
         localMemorySync: LocalMemorySyncService? = nil,
+        telemetry: any TelemetryProtocol = LoggerTelemetry(),
         cloudAvailable: @escaping @MainActor @Sendable () -> Bool = { true }
     ) {
         self.conversationsClient = conversationsClient
@@ -370,6 +378,7 @@ final class ChatViewModel {
         self.localExecutor = localExecutor
         self.localMemorySync = localMemorySync
         self.cloudAvailable = cloudAvailable
+        self.telemetry = telemetry
         self.voice = voice
         self.voice.onFinalTranscript = { [weak self] transcript in
             self?.sendVoiceTranscript(transcript)
@@ -695,6 +704,15 @@ final class ChatViewModel {
             return "Lumina took too long to respond. Tap Retry."
         }
         if let apiError = error as? APIError {
+            // A raw Hummingbird `HTTPError` carries a message but no `code`.
+            // Prefix the status so a screenshot of the banner says which
+            // layer refused, not just what it said. Coded envelopes
+            // (`byok_keys_required`, …) keep their own wording.
+            if let status = apiError.httpStatusCode,
+               let structured = apiError.structuredError,
+               structured.code.isEmpty {
+                return "Server rejected the request (\(status)): \(structured.message)"
+            }
             return apiError.userFacingMessage
         }
         return error.localizedDescription
@@ -708,6 +726,29 @@ final class ChatViewModel {
         }
         recoveryActions = (error as? APIError)?.chatRecoveryActions ?? []
         phase = .failed(message: friendlyError(error))
+        recordFailedSend(error)
+    }
+
+    /// Off-device record of a failed send. Properties are shape only — the
+    /// transport, the toggle state, the status and the server's message.
+    /// Never the user's text.
+    private func recordFailedSend(_ error: Error) {
+        let apiError = error as? APIError
+        var properties: [String: String] = [
+            "transport": transport.rawValue,
+            "multi_model": multiModelEnabled ? "true" : "false",
+            "error_kind": apiError?.telemetryKind ?? String(describing: type(of: error)),
+        ]
+        if let status = apiError?.httpStatusCode {
+            properties["status"] = String(status)
+        }
+        if let message = apiError?.structuredError?.message {
+            properties["server_message"] = String(message.prefix(APIRequestFailure.detailLimit))
+        }
+        log.error(
+            "send failed transport=\(self.transport.rawValue, privacy: .public) kind=\(properties["error_kind"] ?? "", privacy: .public) status=\(properties["status"] ?? "-", privacy: .public)"
+        )
+        telemetry.track("chat_send_failed", properties: properties)
     }
 
     func openIntelligenceSettings() {
@@ -753,6 +794,9 @@ final class ChatViewModel {
     }
 
     private func runSend(content: String) async {
+        log.info(
+            "send transport=\(self.transport.rawValue, privacy: .public) multiModel=\(self.multiModelEnabled) conversation=\(self.conversationID?.uuidString ?? "new", privacy: .public)"
+        )
         switch transport {
         case .memoryGrounded: await runMemoryGroundedSend(content: content)
         case .fresh: await runFreshSend(content: content)
