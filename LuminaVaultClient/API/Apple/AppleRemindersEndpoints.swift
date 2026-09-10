@@ -7,9 +7,10 @@
 // Uses the DEFAULT JSONEncoder (camelCase keys + `.deferredToDate` dates).
 // The server decodes `AppleRemindersSyncRequest` with Hummingbird's default
 // `JSONDecoder` — also camelCase + `.deferredToDate` — so the two are
-// symmetric. Do NOT swap in `.lvHealth`: its `.convertToSnakeCase` would
-// rename `externalID`→`external_id` etc. and the server-side fields would
-// decode nil (see memory: server_request_decoder_no_snakecase).
+// symmetric. Do NOT swap in `.lvHealth`: its `.iso8601` date strategy does
+// not match this route's `.deferredToDate` (and it used to snake-case keys,
+// which would have decoded `externalID` etc. as nil server-side — see
+// memory: server_request_decoder_no_snakecase).
 
 import Foundation
 import LuminaVaultShared

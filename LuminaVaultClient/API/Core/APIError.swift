@@ -40,7 +40,13 @@ enum APIError: Error, LocalizedError {
                 return structured.message
             }
             return "Server error (\(code))."
-        case .decodingFailed:          return "Unexpected server response."
+        case .decodingFailed(let underlying):
+            // Name the coding path: "missing `pinnedMemoryIDs`" is
+            // actionable, the bare sentence never was.
+            if let decoding = underlying as? DecodingError {
+                return "Unexpected server response (\(decoding.lvSummary))."
+            }
+            return "Unexpected server response."
         case .unauthorized:            return "Session expired. Please sign in again."
         case .paymentRequired(_, let tier):
             if let tier {
@@ -96,6 +102,30 @@ enum APIError: Error, LocalizedError {
         guard isTLSPinningFailure(error) else { return .networkFailure(error) }
         let host = (error as? URLError)?.failingURL?.host
         return .tlsPinningFailed(host: host)
+    }
+}
+
+extension APIError {
+    /// Stable snake_case label for analytics properties — never the
+    /// associated values, which may carry a body.
+    var telemetryKind: String {
+        switch self {
+        case .invalidURL:        return "invalid_url"
+        case .encodingFailed:    return "encoding_failed"
+        case .networkFailure:    return "network_failure"
+        case .httpError:         return "http_error"
+        case .decodingFailed:    return "decoding_failed"
+        case .unauthorized:      return "unauthorized"
+        case .paymentRequired:   return "payment_required"
+        case .rateLimited:       return "rate_limited"
+        case .tlsPinningFailed:  return "tls_pinning_failed"
+        }
+    }
+
+    /// The HTTP status behind a `.httpError`, nil for every other case.
+    var httpStatusCode: Int? {
+        if case .httpError(let status, _) = self { return status }
+        return nil
     }
 }
 

@@ -19,11 +19,13 @@ struct HealthIngestRequest: Codable, Sendable {
 }
 
 extension JSONEncoder {
-    /// Server expects ISO-8601 timestamps and snake_case keys.
+    /// Server expects ISO-8601 timestamps and camelCase keys: it decodes
+    /// `HealthIngestRequest` with Hummingbird's default decoder. This used to
+    /// set `.convertToSnakeCase`, which sent `recorded_at` and made every
+    /// `POST /v1/health` fail with 400 "Coding key `recordedAt` not found."
     static let lvHealth: JSONEncoder = {
         let e = JSONEncoder()
         e.dateEncodingStrategy = .iso8601
-        e.keyEncodingStrategy = .convertToSnakeCase
         return e
     }()
 }

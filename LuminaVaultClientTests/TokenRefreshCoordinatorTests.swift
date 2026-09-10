@@ -7,26 +7,27 @@ final class TokenRefreshCoordinatorTests: XCTestCase {
         let coordinator = TokenRefreshCoordinator()
         let counter = Counter()
 
-        async let a = coordinator.refresh {
+        // Three concurrent callers. Whichever one the scheduler lets in first
+        // performs the refresh; the other two must join it. The three
+        // operations are deliberately identical: an earlier version gave
+        // `b` and `c` sentinel tokens and asserted on `a`'s, which assumed
+        // `a` always wins the race — it does not on the CI runner, and the
+        // test failed while single-flight itself held.
+        @Sendable func refresh() async throws -> String {
             await counter.increment()
             try await Task.sleep(nanoseconds: 100_000_000) // 100ms
             return "tok-\(await counter.value)"
         }
-        async let b = coordinator.refresh {
-            await counter.increment()
-            return "should-not-run"
-        }
-        async let c = coordinator.refresh {
-            await counter.increment()
-            return "also-should-not-run"
-        }
+        async let a = coordinator.refresh(using: refresh)
+        async let b = coordinator.refresh(using: refresh)
+        async let c = coordinator.refresh(using: refresh)
 
         let (ra, rb, rc) = try await (a, b, c)
         let invocations = await counter.value
         XCTAssertEqual(invocations, 1, "Only one refresh operation should run for concurrent callers")
         XCTAssertEqual(ra, rb)
         XCTAssertEqual(rb, rc)
-        XCTAssertEqual(ra, "tok-1")
+        XCTAssertEqual(ra, "tok-1", "every caller receives the token from the single refresh that ran")
     }
 
     func testSequentialCallersAfterCompletionStartFreshRefresh() async throws {

@@ -81,11 +81,9 @@ enum VaultEndpoints {
         }
         var path: String { "/v1/vault/files/move" }
         var method: HTTPMethod { .post }
+        // Wire is camelCase: the server decodes `VaultMoveRequest{path,newPath}`
+        // with its default decoder. A `.convertToSnakeCase` encoder here sent
+        // `new_path` → 400 "Coding key `newPath` not found." on every move.
         var body: (any Encodable)? { VaultMoveRequest(path: from, newPath: to) }
-        var encoder: JSONEncoder {
-            let e = JSONEncoder()
-            e.keyEncodingStrategy = .convertToSnakeCase
-            return e
-        }
     }
 }

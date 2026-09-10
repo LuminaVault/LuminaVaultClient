@@ -11,15 +11,18 @@
 // gateway when a verified config exists (server-side, via
 // HermesLLMStreamService / RoutedHermesLLMService). Falls back to the
 // platform default model otherwise.
+//
+// Wire is camelCase. The server decodes request bodies with Hummingbird's
+// default decoder (no `convertFromSnakeCase`), so every endpoint here uses
+// the protocol-default `JSONEncoder()`. A `.convertToSnakeCase` encoder
+// used to live here: it sent `pinnedMemoryIDs` as `pinned_memory_i_ds`,
+// which the server answered with 400 "Coding key `pinnedMemoryIDs` not
+// found." on every new chat, and quietly dropped `multiModel` (sent as
+// `multi_model`) on the stream request. `ConversationsHTTPClientTests`
+// decodes each body with the server's decoder to keep it that way.
 import Foundation
 
 enum ConversationsEndpoints {
-    private static var snakeCaseEncoder: JSONEncoder {
-        let e = JSONEncoder()
-        e.keyEncodingStrategy = .convertToSnakeCase
-        return e
-    }
-
     struct Create: Endpoint {
         typealias Response = ConversationDTO
         let request: ConversationCreateRequest
@@ -33,10 +36,6 @@ enum ConversationsEndpoints {
 
         var body: (any Encodable)? {
             request
-        }
-
-        var encoder: JSONEncoder {
-            ConversationsEndpoints.snakeCaseEncoder
         }
     }
 
@@ -138,10 +137,6 @@ enum ConversationsEndpoints {
 
         var body: (any Encodable & Sendable)? {
             request
-        }
-
-        var encoder: JSONEncoder {
-            ConversationsEndpoints.snakeCaseEncoder
         }
     }
 }

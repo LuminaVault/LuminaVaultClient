@@ -343,6 +343,9 @@ final class AppState {
                     self?.pendingPaywallID = PaywallPresentation(id: paywallID ?? "default")
                 }
             },
+            onRequestFailure: { failure in
+                RequestFailureBreadcrumbs.record(failure)
+            },
             refreshCoordinator: coordinator
         )
     }

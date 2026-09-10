@@ -23,7 +23,7 @@ final class ChatViewModelTransportTests: XCTestCase {
 
         vm.composer = "hello"
         vm.send()
-        try await Task.sleep(for: .milliseconds(150))
+        await waitUntil("assistant reply to land") { vm.messages.last?.role == .assistant }
 
         XCTAssertEqual(conversations.createCallCount, 1, "memory mode lazy-creates a conversation")
         XCTAssertEqual(conversations.streamReplyCallCount, 1)
@@ -47,7 +47,7 @@ final class ChatViewModelTransportTests: XCTestCase {
 
         vm.composer = "hello"
         vm.send()
-        try await Task.sleep(for: .milliseconds(150))
+        await waitUntil("assistant reply to land") { vm.messages.last?.role == .assistant }
 
         XCTAssertEqual(chat.completeCallCount, 1)
         XCTAssertEqual(chat.lastRequest?.messages.last?.content, "hello")
@@ -87,7 +87,10 @@ final class ChatViewModelTransportTests: XCTestCase {
 
         vm.composer = "quiet send"
         vm.send()
-        try await Task.sleep(for: .milliseconds(150))
+        // Wait for the turn to complete so the completion trigger had its
+        // chance to fire — a negative assertion after a fixed sleep proves
+        // nothing on a slow runner.
+        await waitUntil("assistant reply to land") { vm.messages.last?.role == .assistant }
 
         XCTAssertEqual(vm.sendHapticTrigger, 0)
         XCTAssertEqual(vm.completionHapticTrigger, 0)
@@ -133,14 +136,10 @@ final class ChatViewModelTransportTests: XCTestCase {
         vm.multiModelStrategy = .debate
         vm.composer = "Compare this"
         vm.send()
-        // Poll for the finalized assistant turn rather than a fixed sleep:
         // `.done` awaits the typewriter reveal before `finalizeAssistantTurn`
         // appends the assistant message, so the id-carrying turn can land
-        // well after the parallel events are reduced. A fixed 150ms raced
-        // that reveal and flaked on `messages.last`.
-        for _ in 0 ..< 60 where vm.messages.last?.parallelExecutionID != executionID {
-            try await Task.sleep(for: .milliseconds(50))
-        }
+        // well after the parallel events are reduced.
+        await waitUntil("finalized assistant turn") { vm.messages.last?.parallelExecutionID == executionID }
 
         XCTAssertEqual(conversations.lastRequest?.multiModel?.enabled, true)
         XCTAssertEqual(conversations.lastRequest?.multiModel?.strategy, .debate)

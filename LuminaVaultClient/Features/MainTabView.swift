@@ -345,6 +345,7 @@ struct MainTabView: View {
             llmPreferencesClient: appState.makeLLMPreferencesClient(),
             localExecutor: executor,
             localMemorySync: localMemorySync,
+            telemetry: AnalyticsTelemetry(),
             cloudAvailable: { appState.networkMonitor.isConnected }
         )
         viewModel.onOpenIntelligenceSettings = {

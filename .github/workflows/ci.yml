@@ -179,3 +179,15 @@ jobs:
           name: coverage-json
           path: coverage.json
           if-no-files-found: ignore
+
+      # A snapshot mismatch is a picture; the log only says "does not match
+      # reference" and a precision number. The xcresult carries the failure
+      # attachments (reference, actual, diff), so keep it when tests fail.
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-xcresult
+          path: TestResults.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
