@@ -333,14 +333,22 @@ final class AppState {
             onAuthFailure: { [weak self] in
                 await self?.signOut()
             },
-            onPaymentRequired: { [weak self] paywallID, _ in
+            onPaymentRequired: { [weak self] paywallID, requiredTier in
                 // HER-211 — root-level paywall presentation. The server's
                 // hint (or "default") drives which RC offering renders;
                 // `LuminaVaultClientApp` binds a `.sheet(item:)` to
                 // `pendingPaywallID` so this hops onto the main actor
                 // and surfaces the sheet wherever the user is.
+                //
+                // `requiredTier` used to be dropped here. The server only
+                // started sending it alongside the free tier, and without it
+                // the sheet cannot say which plan the user would be buying —
+                // which is the whole reason the field was added.
                 await MainActor.run {
-                    self?.pendingPaywallID = PaywallPresentation(id: paywallID ?? "default")
+                    self?.pendingPaywallID = PaywallPresentation(
+                        id: paywallID ?? "default",
+                        requiredTier: requiredTier
+                    )
                 }
             },
             onRequestFailure: { failure in
