@@ -60,6 +60,10 @@ struct CaptureFAB: View {
                 .contentShape(.rect)
         }
         .accessibilityLabel("New capture")
+        // The coordinator is nil until `appState.vaultInitialized`, so early in
+        // a session this button opened a sheet with nothing usable in it.
+        // Disabling is the honest fix; the `else` arm below is the seatbelt.
+        .disabled(coordinator?.queue == nil || coordinator?.ingestionClient == nil)
         .sheet(isPresented: $showingSheet) {
             if let queue = coordinator?.queue, let ingestionClient = coordinator?.ingestionClient {
                 CaptureSheet(
@@ -89,8 +93,11 @@ struct CaptureFAB: View {
                     initialMode: requestedBatchID == nil ? .photo : .files
                 )
             } else {
-                Text("Capture is initializing…")
-                    .padding()
+                LVEmptyState(
+                    headline: "Capture isn't ready yet",
+                    supporting: "Your vault is still being prepared. This will open once it's ready.",
+                    primaryCTA: ("Close", { showingSheet = false })
+                )
             }
         }
         .task(id: notificationRouter.pendingDeepLink) {

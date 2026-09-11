@@ -5,6 +5,9 @@ struct StructuredAPIError: Equatable, Sendable {
     let code: String
     let message: String
     let cta: [String]
+    /// Seconds until the allowance resets, when the envelope says so.
+    /// `FreeLaneExhaustedError` is the only emitter today.
+    let retryAfterSeconds: Int?
 
     /// `message` is the only field required to be useful.
     ///
@@ -29,18 +32,27 @@ struct StructuredAPIError: Equatable, Sendable {
             return nil
         }
         let cta = error["cta"] as? [String] ?? []
-        return StructuredAPIError(code: error["code"] as? String ?? "", message: message, cta: cta)
+        return StructuredAPIError(
+            code: error["code"] as? String ?? "",
+            message: message,
+            cta: cta,
+            retryAfterSeconds: error["retryAfterSeconds"] as? Int
+        )
     }
 }
 
 enum ChatRecoveryAction: Equatable, Sendable {
     case addKey
     case switchToManaged
+    /// Opens the paywall — but only because the user tapped it. Chat no longer
+    /// presents that sheet on its own; see `ConversationsEndpoints`.
+    case upgrade
 
     init?(ctaToken: String) {
         switch ctaToken {
         case "add_key": self = .addKey
         case "switch_to_managed": self = .switchToManaged
+        case "upgrade": self = .upgrade
         default: return nil
         }
     }

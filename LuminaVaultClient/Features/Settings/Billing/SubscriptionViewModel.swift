@@ -49,7 +49,7 @@ final class SubscriptionViewModel {
     /// paid tier already have access; ultimate users have no upsell.
     var canUpgrade: Bool {
         switch currentTier {
-        case .trial, .lapsed, .archived: return true
+        case .free, .trial, .lapsed, .archived: return true
         case .pro:                       return true   // upsell to ultimate
         case .ultimate:                  return false
         }

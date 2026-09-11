@@ -40,35 +40,34 @@ struct PaywallView: View {
     /// purchases don't celebrate.
     @State private var celebrating = false
 
-    /// Whether RC has an offering we can actually render.
-    ///
-    /// `Purchases.isConfigured` only says the SDK booted — it says nothing
-    /// about there being a current offering with packages. With a configured
-    /// SDK and no offering, RevenueCatUI's `PaywallView` renders essentially
-    /// nothing, and because `AppState.onPaymentRequired` presents this sheet
-    /// from the app root, that reads as "the app slid up an empty sheet".
-    /// Checking first lets a missing offering fall back to `billingUnavailable`
-    /// like an unconfigured SDK already does.
-    private enum OfferingAvailability: Equatable {
-        case checking
-        case available
-        case unavailable
-    }
+    /// Why we can or can't show plans. See `PaywallOfferingState` — the three
+    /// failure causes are deliberately distinct, because only one of them is
+    /// worth offering a retry for and only one of them is a real problem.
+    @State private var offering: PaywallOfferingState = .checking
 
-    @State private var offering: OfferingAvailability = .checking
+    /// Injected so the three failure causes can be asserted in tests, and so a
+    /// preview doesn't emit events.
+    private let telemetry: any TelemetryProtocol
 
-    init(paywallID: String? = nil) {
+    init(paywallID: String? = nil, telemetry: any TelemetryProtocol = LoggerTelemetry()) {
         self.paywallID = paywallID
+        self.telemetry = telemetry
     }
 
     var body: some View {
         ZStack(alignment: .top) {
             palette.surface.ignoresSafeArea()
             VStack(spacing: 0) {
-                HermieMascotView(state: mascotState, size: 120)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 24)
-                    .padding(.bottom, 8)
+                // `LVEmptyState` draws its own, larger mascot inside a
+                // particle ring, so the chrome mascot is suppressed whenever a
+                // failure state renders — two mascots stacked reads worse than
+                // the blank screen this replaces.
+                if offering.showsStorePaywall || offering == .checking {
+                    HermieMascotView(state: mascotState, size: 120)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 24)
+                        .padding(.bottom, 8)
+                }
                 // RevenueCatUI's `PaywallView` hard-crashes in release builds when
                 // the SDK is unusable. An unconfigured `Purchases` takes RevenueCatUI
                 // `PaywallView.swift:308`; a failed offering fetch takes `:265`. Both
@@ -80,11 +79,16 @@ struct PaywallView: View {
                 // `AppState.onPaymentRequired` presents this sheet from the app root on
                 // any 402, so a single paid endpoint could take the whole app down.
                 // Gate on the same signal `PurchasesProxyFactory` already trusts.
-                if !Purchases.isConfigured || offering == .unavailable {
-                    billingUnavailable
-                } else if offering == .checking {
+                switch offering {
+                case .checking:
                     offeringLoading
-                } else {
+                case .notConfigured:
+                    storeUnavailable
+                case .fetchFailed(let reason):
+                    fetchFailed(reason)
+                case .empty:
+                    noPlansPublished
+                case .available:
                     RevenueCatUI.PaywallView()
                         .onPurchaseCompleted { _ in
                             // HER-211 — fire-and-forget server refresh so the
@@ -114,6 +118,46 @@ struct PaywallView: View {
         .task { await resolveOffering() }
     }
 
+    // MARK: - Failure states
+
+    /// The expected state on TestFlight: `Config.Beta.xcconfig` ships an empty
+    /// `LV_RC_API_KEY` on purpose, so `Purchases.configure` never runs. Nothing
+    /// is broken and nothing needs fixing in the RevenueCat dashboard — say so
+    /// plainly rather than implying a network problem.
+    private var storeUnavailable: some View {
+        LVEmptyState(
+            headline: "Purchases aren't available in this build",
+            supporting: "This build ships without a store key, so nothing can be bought here. "
+                + "Your plan, and everything you've already unlocked, are unaffected.",
+            primaryCTA: ("Got it", { dismiss() })
+        )
+    }
+
+    /// The only transient cause, and so the only one with a retry. Its absence
+    /// was the single biggest defect in the old screen: a user with a flaky
+    /// connection had no way forward but to close the sheet.
+    private func fetchFailed(_ reason: String) -> some View {
+        LVEmptyState(
+            headline: "Couldn't load plans",
+            supporting: reason,
+            primaryCTA: ("Try again", {
+                offering = .checking
+                Task { await resolveOffering() }
+            })
+        )
+    }
+
+    /// Configured, reachable, and still nothing to sell — an offering with no
+    /// packages, or none matching the server's `paywall_id`. Fixable only in
+    /// the RevenueCat dashboard, so pointedly *not* offering a retry.
+    private var noPlansPublished: some View {
+        LVEmptyState(
+            headline: "No plans available right now",
+            supporting: "Plans aren't published for this build yet. Please try again shortly.",
+            primaryCTA: ("Close", { dismiss() })
+        )
+    }
+
     /// Never leaves the sheet blank while the offering fetch is in flight.
     private var offeringLoading: some View {
         VStack(spacing: LVSpacing.base) {
@@ -127,21 +171,43 @@ struct PaywallView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// A configured SDK with no current offering (or none with packages) is
-    /// a store-side configuration gap, not a crash — degrade to the same
-    /// message an unconfigured build shows.
+    /// Classifies the fetch into one of the four terminal states. The error is
+    /// carried into `.fetchFailed` rather than swallowed, and every non-success
+    /// outcome is reported once — without that, the three causes are
+    /// indistinguishable in production, which is how a blank sheet went
+    /// unexplained.
     private func resolveOffering() async {
         guard Purchases.isConfigured else {
-            offering = .unavailable
+            offering = PaywallOfferingResolver.state(
+                isConfigured: false, fetchFailure: nil, availablePackageCount: nil
+            )
+            report(offering)
             return
         }
         do {
             let offerings = try await Purchases.shared.offerings()
             let current = offerings.current ?? offerings.all[paywallID ?? ""]
-            offering = (current?.availablePackages.isEmpty == false) ? .available : .unavailable
+            offering = PaywallOfferingResolver.state(
+                isConfigured: true,
+                fetchFailure: nil,
+                availablePackageCount: current?.availablePackages.count
+            )
         } catch {
-            offering = .unavailable
+            offering = PaywallOfferingResolver.state(
+                isConfigured: true,
+                fetchFailure: error.localizedDescription,
+                availablePackageCount: nil
+            )
         }
+        report(offering)
+    }
+
+    private func report(_ state: PaywallOfferingState) {
+        guard let reason = state.telemetryReason else { return }
+        telemetry.track(
+            "paywall_unavailable",
+            properties: ["reason": reason, "paywallId": paywallID ?? "default"]
+        )
     }
 
     /// Drives the mascot: `.thinking` while a purchase is in flight (RC
@@ -155,28 +221,6 @@ struct PaywallView: View {
             return .thinking
         }
         return .idle
-    }
-
-    /// Shown instead of RC's paywall when the SDK never configured — a
-    /// missing or placeholder `LV_RC_API_KEY`. Entitlements still come from
-    /// server-truth via `/v1/auth/me/billing`; the only thing unavailable is
-    /// starting a purchase from this build.
-    private var billingUnavailable: some View {
-        VStack(spacing: LVSpacing.base) {
-            Text("Subscriptions unavailable")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(palette.textPrimary)
-            Text("This build can't reach the store. Your existing plan is unaffected.")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(palette.textSecondary)
-                .multilineTextAlignment(.center)
-            Button("Close") { dismiss() }
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(palette.glowPrimary)
-                .padding(.top, LVSpacing.sm)
-        }
-        .padding(LVSpacing.xl)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
 }

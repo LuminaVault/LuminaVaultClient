@@ -153,6 +153,12 @@ final class BillingService {
 
     /// Server-truth wins. Sets every field from `MeBillingResponse` so any
     /// prior optimistic state is overwritten on the next refresh.
+    ///
+    /// `snapshot.tier` is already the *effective* tier — the server folds
+    /// `tier_override` in inside `meBillingHandler`. Do not re-resolve the
+    /// ladder here: two places deciding what a user's tier is, is how an
+    /// overridden account ended up sailing past every 402 while the app still
+    /// drew a paywall over it.
     private func applyServerTruth(_ snapshot: MeBillingResponse) {
         currentTier = snapshot.tier
         daysRemaining = snapshot.daysRemaining
@@ -164,7 +170,7 @@ final class BillingService {
     /// refresh. Only upgrades the tier when the RC entitlement implies a
     /// higher one — never downgrades from server-truth.
     private func applyOptimistic(_ snapshot: RCCustomerInfoSnapshot) {
-        let inferred = Self.inferredTier(from: snapshot)
+        let inferred = Self.inferredTier(from: snapshot, current: currentTier)
         if shouldUpgrade(from: currentTier, to: inferred) {
             currentTier = inferred
             // RC has no notion of trial state — leave inTrial / daysRemaining
@@ -174,16 +180,23 @@ final class BillingService {
     }
 
     /// Map RC active entitlement IDs to a `UserTier`. Ultimate beats pro;
-    /// anything else implies the previously-known tier (so we don't
-    /// downgrade in the brief reconciliation window).
-    static func inferredTier(from snapshot: RCCustomerInfoSnapshot) -> UserTier {
+    /// anything else implies the previously-known tier, so we don't downgrade
+    /// — or *upgrade* — in the brief reconciliation window.
+    ///
+    /// The fallback used to be a hardcoded `.trial`, which was harmless only
+    /// while `trial` was the lowest non-lapsed tier. With `free` ranking below
+    /// it, returning `.trial` for "no active entitlement" would make
+    /// `shouldUpgrade` promote every free user to trial on each reconciliation
+    /// — silently handing them workflows and the platform-funded routes until
+    /// the next server refresh took it back.
+    static func inferredTier(from snapshot: RCCustomerInfoSnapshot, current: UserTier) -> UserTier {
         if snapshot.activeEntitlementIDs.contains(RCEntitlement.ultimate) {
             return .ultimate
         }
         if snapshot.activeEntitlementIDs.contains(RCEntitlement.pro) {
             return .pro
         }
-        return .trial
+        return current
     }
 
     /// Returns true when `candidate` is strictly higher than `current`
@@ -201,13 +214,18 @@ final class BillingService {
         rank(current) >= rank(required)
     }
 
+    /// `free` sits above `lapsed` (it grants strictly more) and below `trial`
+    /// (which carries paid-model routing, workflows and a 5 GiB vault). Keeping
+    /// it below `trial` is what makes a trial → free transition read as the
+    /// demotion it is, rather than an upgrade.
     static func rank(_ tier: UserTier) -> Int {
         switch tier {
         case .archived: return -1
         case .lapsed:   return 0
-        case .trial:    return 1
-        case .pro:      return 2
-        case .ultimate: return 3
+        case .free:     return 1
+        case .trial:    return 2
+        case .pro:      return 3
+        case .ultimate: return 4
         }
     }
 

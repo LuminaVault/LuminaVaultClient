@@ -20,6 +20,13 @@ enum ChatEndpoints {
     }
 
     struct Completions: Endpoint {
+        // Chat never slides the app-root paywall over itself. The whole
+        // `/v1/conversations` group is gated on `.memoryQuery`, listing
+        // included, so a 402 anywhere here would throw a modal over the Chats
+        // tab. A chat failure belongs inline in the conversation, next to the
+        // turn that failed, with an explicit Upgrade button the user chooses
+        // to tap — see `ChatView.ErrorRow`.
+        var presentsPaywallOn402: Bool { false }
         typealias Response = ChatResponse
         let request: ChatRequest
         // `/v1/chat` registers only `GET /v1/chat/inbox`; the completions
