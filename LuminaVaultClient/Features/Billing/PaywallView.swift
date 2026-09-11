@@ -15,6 +15,7 @@
 // — these callbacks make the convergence explicit.
 
 import SwiftUI
+import LuminaVaultShared
 import StoreKit
 import RevenueCat
 import RevenueCatUI
@@ -49,9 +50,27 @@ struct PaywallView: View {
     /// preview doesn't emit events.
     private let telemetry: any TelemetryProtocol
 
-    init(paywallID: String? = nil, telemetry: any TelemetryProtocol = LoggerTelemetry()) {
+    /// What the user would be buying, when the server said so in the 402.
+    /// Only used to name the plan in the states where no store paywall can
+    /// render — otherwise RevenueCat's own paywall says it better.
+    let requiredTier: UserTier?
+
+    init(
+        paywallID: String? = nil,
+        requiredTier: UserTier? = nil,
+        telemetry: any TelemetryProtocol = LoggerTelemetry()
+    ) {
         self.paywallID = paywallID
+        self.requiredTier = requiredTier
         self.telemetry = telemetry
+    }
+
+    /// "the Pro plan" / "the Ultimate plan", or a neutral phrase when the
+    /// server sent no hint. Never "the Free plan": `minimumPurchasableTier`
+    /// only ever reports something buyable.
+    private var planPhrase: String {
+        guard let requiredTier else { return "A paid plan" }
+        return "The \(requiredTier.rawValue.capitalized) plan"
     }
 
     var body: some View {
@@ -127,8 +146,9 @@ struct PaywallView: View {
     private var storeUnavailable: some View {
         LVEmptyState(
             headline: "Purchases aren't available in this build",
-            supporting: "This build ships without a store key, so nothing can be bought here. "
-                + "Your plan, and everything you've already unlocked, are unaffected.",
+            supporting: "\(planPhrase) unlocks this, but this build ships without a store key, "
+                + "so nothing can be bought here. Your plan, and everything you've already "
+                + "unlocked, are unaffected.",
             primaryCTA: ("Got it", { dismiss() })
         )
     }
@@ -153,7 +173,8 @@ struct PaywallView: View {
     private var noPlansPublished: some View {
         LVEmptyState(
             headline: "No plans available right now",
-            supporting: "Plans aren't published for this build yet. Please try again shortly.",
+            supporting: "\(planPhrase) unlocks this, but it isn't published for this build yet. "
+                + "Please try again shortly.",
             primaryCTA: ("Close", { dismiss() })
         )
     }

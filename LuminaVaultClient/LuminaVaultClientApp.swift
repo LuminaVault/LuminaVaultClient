@@ -342,7 +342,7 @@ struct LuminaVaultClientApp: App {
                     set: { appState.pendingPaywallID = $0 }
                 )
             ) { presentation in
-                PaywallView(paywallID: presentation.id)
+                PaywallView(paywallID: presentation.id, requiredTier: presentation.requiredTier)
                     .environment(appState)
                     .environment(theme)
             }

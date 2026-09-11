@@ -61,6 +61,11 @@ extension EnvironmentValues {
 /// universal paywall sheet binds against it directly.
 struct PaywallPresentation: Identifiable, Equatable, Sendable {
     let id: String
+    /// The lowest tier the user could buy to clear the gate, as the server
+    /// reported it in the 402. `nil` when the server sent no hint — older
+    /// builds, or a 402 raised somewhere that does not go through
+    /// `EntitlementMiddleware`.
+    var requiredTier: UserTier?
 }
 
 private struct EntitlementGateModifier: ViewModifier {
