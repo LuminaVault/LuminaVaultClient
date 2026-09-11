@@ -244,10 +244,30 @@ final class BillingServiceTests: XCTestCase {
         let snap = RCCustomerInfoSnapshot.with(
             entitlements: [RCEntitlement.pro, RCEntitlement.ultimate]
         )
-        XCTAssertEqual(BillingService.inferredTier(from: snap), .ultimate)
+        XCTAssertEqual(BillingService.inferredTier(from: snap, current: .free), .ultimate)
     }
 
-    func testInferredTierTrialWhenNoActiveEntitlement() {
-        XCTAssertEqual(BillingService.inferredTier(from: .empty), .trial)
+    /// "No active entitlement" means "we learned nothing", not "trial". The
+    /// old hardcoded `.trial` fallback would, with `free` ranking below trial,
+    /// have let `applyOptimistic` promote every free user to trial on each
+    /// reconciliation pass.
+    func testInferredTierKeepsCurrentWhenNoActiveEntitlement() {
+        for tier in UserTier.allCases {
+            XCTAssertEqual(
+                BillingService.inferredTier(from: .empty, current: tier),
+                tier,
+                "\(tier) should be left alone when RC reports no entitlement"
+            )
+        }
+    }
+
+    /// The ladder must stay monotone, or a trial → free demotion reads as an
+    /// upgrade and `shouldUpgrade` refuses to apply server truth.
+    func testFreeRanksAboveLapsedAndBelowTrial() {
+        XCTAssertTrue(BillingService.rank(.free) > BillingService.rank(.lapsed))
+        XCTAssertTrue(BillingService.rank(.free) < BillingService.rank(.trial))
+        XCTAssertTrue(BillingService.meets(.free, requires: .lapsed))
+        XCTAssertFalse(BillingService.meets(.free, requires: .trial))
+        XCTAssertFalse(BillingService.meets(.free, requires: .pro))
     }
 }

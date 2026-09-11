@@ -199,6 +199,7 @@ struct SubscriptionView: View {
 
     private func tierIcon(_ tier: UserTier) -> String {
         switch tier {
+        case .free:     return "bubble.left.and.text.bubble.right"
         case .trial:    return "sparkle"
         case .pro:      return "star.fill"
         case .ultimate: return "crown.fill"
@@ -209,9 +210,12 @@ struct SubscriptionView: View {
 
     private func tierSubtitle(_ tier: UserTier) -> String {
         switch tier {
+        case .free:     return "Free plan — 20 messages a day"
         case .trial:    return "14-day free trial"
         case .pro:      return "All features unlocked"
         case .ultimate: return "All features + priority support"
+        // Only a *paid* subscription reaches `lapsed` now; an expired trial
+        // lands on `free`, so this copy is finally true of everyone who sees it.
         case .lapsed:   return "Subscription expired — renew to restore access"
         case .archived: return "Account archived"
         }
@@ -226,6 +230,7 @@ struct SubscriptionView: View {
 
     private func upgradeFooter(currentTier: UserTier) -> String {
         switch currentTier {
+        case .free:     return "Unlock the full brain, workflows, and unlimited messages."
         case .trial:    return "Try Pro free for 14 days. Cancel anytime."
         case .lapsed:   return "Restore full access by renewing your subscription."
         case .pro:      return "Unlock priority support and the Ultimate feature set."

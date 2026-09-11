@@ -162,8 +162,12 @@ final class ChatViewModel {
     /// SSE token, which is the same defect the typewriter fix addressed one
     /// layer down.
     private(set) var hasPendingTurn = false
-    /// Recovery CTAs from structured API errors (e.g. BYOK missing keys).
+    /// Recovery CTAs from structured API errors (e.g. BYOK missing keys,
+    /// or a free user's exhausted daily allowance).
     var recoveryActions: [ChatRecoveryAction] = []
+    /// Seconds until the allowance that failed this turn resets, when the
+    /// server said so. Only `free_lane_exhausted` carries it today.
+    var recoveryRetryAfterSeconds: Int?
     var onOpenIntelligenceSettings: (() -> Void)?
     var messages: [Message] = []
     /// Live token buffer for the in-flight assistant turn. Empty when no
@@ -473,6 +477,7 @@ final class ChatViewModel {
         lastSentContent = wireContent
         fallbackNotice = nil
         recoveryActions = []
+        recoveryRetryAfterSeconds = nil
         routingEvent = nil
         routeUsage = nil
         parallelExecution = nil
@@ -725,6 +730,7 @@ final class ChatViewModel {
             return
         }
         recoveryActions = (error as? APIError)?.chatRecoveryActions ?? []
+        recoveryRetryAfterSeconds = (error as? APIError)?.structuredError?.retryAfterSeconds
         phase = .failed(message: friendlyError(error))
         recordFailedSend(error)
     }
@@ -757,6 +763,7 @@ final class ChatViewModel {
 
     func switchToManagedBrain() {
         recoveryActions = []
+        recoveryRetryAfterSeconds = nil
         Task {
             do {
                 if let llmPreferencesClient {

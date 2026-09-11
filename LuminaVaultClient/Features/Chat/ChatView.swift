@@ -38,6 +38,16 @@ struct ChatView: View {
     /// indexed for grounding). Optional so previews / dev menus can omit.
     var vaultUploadClient: (any VaultUploadClientProtocol)?
 
+    /// The only path from a conversation to the paywall.
+    ///
+    /// Chat opts every one of its endpoints out of `presentsPaywallOn402`, so
+    /// a 402 or an exhausted free allowance renders inline next to the turn
+    /// that failed. The sheet appears when — and only when — the user taps
+    /// Upgrade on that row.
+    private func presentUpgrade() {
+        appState.pendingPaywallID = PaywallPresentation(id: "default")
+    }
+
     @FocusState private var composerFocused: Bool
     /// Presents the vault-note `@`-reference picker.
     @State private var showNotePicker = false
@@ -350,9 +360,11 @@ struct ChatView: View {
                 ErrorRow(
                     message: message,
                     recoveryActions: viewModel.recoveryActions,
+                    retryAfterSeconds: viewModel.recoveryRetryAfterSeconds,
                     onRetry: { viewModel.retryLast() },
                     onAddKey: { viewModel.openIntelligenceSettings() },
-                    onSwitchToManaged: { viewModel.switchToManagedBrain() }
+                    onSwitchToManaged: { viewModel.switchToManagedBrain() },
+                    onUpgrade: { presentUpgrade() }
                 )
             }
         }
@@ -457,7 +469,11 @@ struct ChatView: View {
                     viewModel.send()
                 },
                 onAttach: handleAttach,
-                onPickNote: { showNotePicker = true },
+                // `vaultClient` is optional so previews and dev menus can omit
+                // it; without this guard the "Reference a note" item opens a
+                // sheet whose entire body is inside `if let vaultClient`, i.e.
+                // a blank one.
+                onPickNote: vaultClient == nil ? nil : { showNotePicker = true },
                 onPickPhoto: { showPhotoPicker = true },
                 onAddLink: { linkText = ""; showLinkPrompt = true },
                 onRunWorkflow: { showWorkflowPicker = true },
@@ -468,6 +484,14 @@ struct ChatView: View {
                     NavigationStack {
                         VaultNotePickerView(vaultClient: vaultClient, onPick: handleNotePick)
                     }
+                } else {
+                    // Belt to the braces above: a `.sheet` body must never be
+                    // able to render nothing at all.
+                    LVEmptyState(
+                        headline: "Notes aren't available here",
+                        supporting: "This screen was opened without a vault connection.",
+                        primaryCTA: ("Close", { showNotePicker = false })
+                    )
                 }
             }
             .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images)
@@ -773,7 +797,9 @@ private struct ChatComposerSection: View {
     @FocusState.Binding var isFocused: Bool
     let onSend: () -> Void
     let onAttach: (URL) -> Void
-    let onPickNote: () -> Void
+    /// Optional so the "Reference a note" item disappears when there is no
+    /// vault connection behind it, rather than opening an empty sheet.
+    var onPickNote: (() -> Void)?
     let onPickPhoto: () -> Void
     let onAddLink: () -> Void
     let onRunWorkflow: () -> Void
@@ -1026,11 +1052,17 @@ private struct ErrorRow: View {
     @Environment(\.lvPalette) private var palette
     let message: String
     var recoveryActions: [ChatRecoveryAction] = []
+    /// Seconds until a free-lane allowance resets, when the server said so.
+    var retryAfterSeconds: Int?
     /// Re-sends the last user turn. Surfaced as a tappable "Retry" pill so
     /// a timed-out / failed reply is recoverable without retyping.
     var onRetry: (() -> Void)?
     var onAddKey: (() -> Void)?
     var onSwitchToManaged: (() -> Void)?
+    /// Opens the paywall. Chat no longer presents it on a 402 — this tap is
+    /// the only way the sheet reaches a conversation, which is the difference
+    /// between offering an upgrade and interrupting someone with one.
+    var onUpgrade: (() -> Void)?
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -1051,6 +1083,11 @@ private struct ErrorRow: View {
                     .lvGlowPress()
                 }
             }
+            if let resetCopy {
+                Text(resetCopy)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
             if !recoveryActions.isEmpty {
                 if recoveryActions.contains(.addKey) {
                     Text("OpenRouter is recommended — one key unlocks many models, best for Auto routing.")
@@ -1058,6 +1095,11 @@ private struct ErrorRow: View {
                         .foregroundStyle(.tertiary)
                 }
                 HStack(spacing: 8) {
+                    if recoveryActions.contains(.upgrade), let onUpgrade {
+                        Button("Upgrade", action: onUpgrade)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(palette.glowPrimary)
+                    }
                     if recoveryActions.contains(.addKey), let onAddKey {
                         Button("Add API key", action: onAddKey)
                             .font(.footnote.weight(.semibold))
@@ -1075,5 +1117,15 @@ private struct ErrorRow: View {
         .padding(.vertical, 8)
         .background(Color(.secondarySystemBackground))
         .clipShape(.rect(cornerRadius: 10))
+    }
+
+    /// "Resets in 3h" beats a bare "try again later" — it is the difference
+    /// between a wait the user can plan around and one they cannot.
+    private var resetCopy: String? {
+        guard let retryAfterSeconds, retryAfterSeconds > 0 else { return nil }
+        let hours = retryAfterSeconds / 3600
+        if hours >= 1 { return "Resets in \(hours)h." }
+        let minutes = max(1, retryAfterSeconds / 60)
+        return "Resets in \(minutes) min."
     }
 }

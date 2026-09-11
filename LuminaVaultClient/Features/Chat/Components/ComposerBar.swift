@@ -38,7 +38,9 @@ struct ComposerBar: View {
     /// Removes the staged reference at the given index.
     let onRemoveReference: (Int) -> Void
     /// Opens the vault-note `@`-reference picker on the host.
-    let onPickNote: () -> Void
+    /// Optional: hidden when the host has no vault connection, so the item
+    /// cannot open a sheet that would render nothing.
+    var onPickNote: (() -> Void)?
     /// Opens the photo picker on the host (image is uploaded to the vault).
     let onPickPhoto: () -> Void
     /// Opens the add-link prompt on the host.
@@ -128,10 +130,10 @@ struct ComposerBar: View {
             } label: {
                 Label("Attach a file", systemImage: "doc")
             }
-            Button {
-                onPickNote()
-            } label: {
-                Label("Reference a note", systemImage: "text.document")
+            if let onPickNote {
+                Button(action: onPickNote) {
+                    Label("Reference a note", systemImage: "text.document")
+                }
             }
             Button {
                 onPickPhoto()

@@ -150,6 +150,18 @@ final class BaseHTTPClient: Sendable {
                 // HER-194 — daily-cap / rate-limit surface. Parse the
                 // seconds form of `Retry-After`; ignore HTTP-date form
                 // (no current server endpoint emits it).
+                //
+                // A structured body wins. `FreeLaneExhaustedError` answers a
+                // free user's exhausted daily allowance with
+                // `{"error":{"code":"free_lane_exhausted","cta":["upgrade","add_key"]}}`
+                // and copy naming both ways out — and this branch used to
+                // discard the body unread, so the UI rendered the generic
+                // "You've hit today's limit. Try again later." and offered
+                // neither. A plain rate limit carries no envelope and still
+                // takes the old path.
+                if StructuredAPIError.parse(from: data) != nil {
+                    throw APIError.httpError(statusCode: 429, data: data)
+                }
                 let retryAfter = http.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
                 throw APIError.rateLimited(retryAfter: retryAfter)
             }
@@ -184,6 +196,11 @@ final class BaseHTTPClient: Sendable {
     /// Endpoint encoder pipeline because the request body is binary.
     /// Returns the raw response `Data` so the caller can decode the
     /// JSON envelope that the server emits.
+    /// - Parameter presentsPaywallOn402: mirrors `Endpoint.presentsPaywallOn402`.
+    ///   These byte paths take a raw path rather than an `Endpoint`, so the flag
+    ///   has to be passed explicitly — they were firing the app-root paywall
+    ///   unconditionally, which made the opt-out on the typed endpoints a
+    ///   half-truth for anything uploading or downloading bytes.
     func uploadBytes(
         path: String,
         method: HTTPMethod = .post,
@@ -191,7 +208,8 @@ final class BaseHTTPClient: Sendable {
         contentType: String,
         requiresAuth: Bool = true,
         idempotencyKey: UUID? = nil,
-        extraHeaders: [String: String] = [:]
+        extraHeaders: [String: String] = [:],
+        presentsPaywallOn402: Bool = true
     ) async throws -> Data {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw APIError.invalidURL
@@ -233,7 +251,9 @@ final class BaseHTTPClient: Sendable {
                 // HER-211 — fire the universal interceptor BEFORE throwing.
                 // AppState wires this to a root-level sheet; the throw
                 // keeps HER-188's reactive EntitlementGate handlers working.
-                await onPaymentRequired?(hints?.paywallID, hints?.requiredTier)
+                if presentsPaywallOn402 {
+                    await onPaymentRequired?(hints?.paywallID, hints?.requiredTier)
+                }
                 throw APIError.paymentRequired(paywallID: hints?.paywallID, requiredTier: hints?.requiredTier)
             }
             guard (200..<300).contains(http.statusCode) else {
@@ -247,16 +267,32 @@ final class BaseHTTPClient: Sendable {
     /// decoder pipeline because the response body is binary, not JSON.
     /// Returns the raw `Data` plus the response's `Content-Type` so the
     /// Markdown reader can short-circuit MIME sniffing.
-    func fetchBytes(path: String, method: HTTPMethod = .get, requiresAuth: Bool = true) async throws -> (Data, String) {
+    func fetchBytes(
+        path: String,
+        method: HTTPMethod = .get,
+        requiresAuth: Bool = true,
+        presentsPaywallOn402: Bool = true
+    ) async throws -> (Data, String) {
         do {
-            return try await fetchBytesOnce(path: path, method: method, requiresAuth: requiresAuth)
+            return try await fetchBytesOnce(
+                path: path, method: method, requiresAuth: requiresAuth,
+                presentsPaywallOn402: presentsPaywallOn402
+            )
         } catch APIError.unauthorized where requiresAuth && refreshHandler != nil {
             try await performRefreshOrSignOut()
-            return try await fetchBytesOnce(path: path, method: method, requiresAuth: requiresAuth)
+            return try await fetchBytesOnce(
+                path: path, method: method, requiresAuth: requiresAuth,
+                presentsPaywallOn402: presentsPaywallOn402
+            )
         }
     }
 
-    private func fetchBytesOnce(path: String, method: HTTPMethod, requiresAuth: Bool) async throws -> (Data, String) {
+    private func fetchBytesOnce(
+        path: String,
+        method: HTTPMethod,
+        requiresAuth: Bool,
+        presentsPaywallOn402: Bool
+    ) async throws -> (Data, String) {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw APIError.invalidURL
         }
@@ -290,7 +326,9 @@ final class BaseHTTPClient: Sendable {
                 // HER-211 — fire the universal interceptor BEFORE throwing.
                 // AppState wires this to a root-level sheet; the throw
                 // keeps HER-188's reactive EntitlementGate handlers working.
-                await onPaymentRequired?(hints?.paywallID, hints?.requiredTier)
+                if presentsPaywallOn402 {
+                    await onPaymentRequired?(hints?.paywallID, hints?.requiredTier)
+                }
                 throw APIError.paymentRequired(paywallID: hints?.paywallID, requiredTier: hints?.requiredTier)
             }
             guard (200..<300).contains(http.statusCode) else {
@@ -351,6 +389,16 @@ final class BaseHTTPClient: Sendable {
                             )
                         }
                         if http.statusCode == 429 {
+                            // Same as the buffered path: drain first, because
+                            // the free-lane envelope and its CTAs are in the
+                            // body. Chat streams, so without this the one
+                            // surface that most needs "Upgrade / add a key"
+                            // was the one guaranteed never to see it.
+                            var trailing = Data()
+                            for try await byte in bytes { trailing.append(byte) }
+                            if StructuredAPIError.parse(from: trailing) != nil {
+                                throw APIError.httpError(statusCode: 429, data: trailing)
+                            }
                             let retryAfter = http.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
                             throw APIError.rateLimited(retryAfter: retryAfter)
                         }

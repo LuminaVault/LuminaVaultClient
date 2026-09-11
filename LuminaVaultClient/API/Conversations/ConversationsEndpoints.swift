@@ -24,6 +24,13 @@ import Foundation
 
 enum ConversationsEndpoints {
     struct Create: Endpoint {
+        // Chat never slides the app-root paywall over itself. The whole
+        // `/v1/conversations` group is gated on `.memoryQuery`, listing
+        // included, so a 402 anywhere here would throw a modal over the Chats
+        // tab. A chat failure belongs inline in the conversation, next to the
+        // turn that failed, with an explicit Upgrade button the user chooses
+        // to tap — see `ChatView.ErrorRow`.
+        var presentsPaywallOn402: Bool { false }
         typealias Response = ConversationDTO
         let request: ConversationCreateRequest
         var path: String {
@@ -40,6 +47,13 @@ enum ConversationsEndpoints {
     }
 
     struct List: Endpoint {
+        // Chat never slides the app-root paywall over itself. The whole
+        // `/v1/conversations` group is gated on `.memoryQuery`, listing
+        // included, so a 402 anywhere here would throw a modal over the Chats
+        // tab. A chat failure belongs inline in the conversation, next to the
+        // turn that failed, with an explicit Upgrade button the user chooses
+        // to tap — see `ChatView.ErrorRow`.
+        var presentsPaywallOn402: Bool { false }
         typealias Response = ConversationListResponse
         var path: String {
             "/v1/conversations"
@@ -51,6 +65,13 @@ enum ConversationsEndpoints {
     }
 
     struct Get: Endpoint {
+        // Chat never slides the app-root paywall over itself. The whole
+        // `/v1/conversations` group is gated on `.memoryQuery`, listing
+        // included, so a 402 anywhere here would throw a modal over the Chats
+        // tab. A chat failure belongs inline in the conversation, next to the
+        // turn that failed, with an explicit Upgrade button the user chooses
+        // to tap — see `ChatView.ErrorRow`.
+        var presentsPaywallOn402: Bool { false }
         typealias Response = ConversationDetailResponse
         let id: UUID
         var path: String {
@@ -63,6 +84,13 @@ enum ConversationsEndpoints {
     }
 
     struct Delete: Endpoint {
+        // Chat never slides the app-root paywall over itself. The whole
+        // `/v1/conversations` group is gated on `.memoryQuery`, listing
+        // included, so a 402 anywhere here would throw a modal over the Chats
+        // tab. A chat failure belongs inline in the conversation, next to the
+        // turn that failed, with an explicit Upgrade button the user chooses
+        // to tap — see `ChatView.ErrorRow`.
+        var presentsPaywallOn402: Bool { false }
         typealias Response = EmptyResponse
         let id: UUID
         var path: String {
@@ -75,6 +103,13 @@ enum ConversationsEndpoints {
     }
 
     struct Prepare: Endpoint {
+        // Chat never slides the app-root paywall over itself. The whole
+        // `/v1/conversations` group is gated on `.memoryQuery`, listing
+        // included, so a 402 anywhere here would throw a modal over the Chats
+        // tab. A chat failure belongs inline in the conversation, next to the
+        // turn that failed, with an explicit Upgrade button the user chooses
+        // to tap — see `ChatView.ErrorRow`.
+        var presentsPaywallOn402: Bool { false }
         typealias Response = ConversationPrepareResponse
         let conversationID: UUID
         let request: ConversationPrepareRequest
@@ -92,6 +127,13 @@ enum ConversationsEndpoints {
     }
 
     struct Commit: Endpoint {
+        // Chat never slides the app-root paywall over itself. The whole
+        // `/v1/conversations` group is gated on `.memoryQuery`, listing
+        // included, so a 402 anywhere here would throw a modal over the Chats
+        // tab. A chat failure belongs inline in the conversation, next to the
+        // turn that failed, with an explicit Upgrade button the user chooses
+        // to tap — see `ChatView.ErrorRow`.
+        var presentsPaywallOn402: Bool { false }
         typealias Response = ConversationCommitResponse
         let conversationID: UUID
         let request: ConversationCommitRequest
@@ -109,6 +151,13 @@ enum ConversationsEndpoints {
     }
 
     struct CancelPreparedExecution: Endpoint {
+        // Chat never slides the app-root paywall over itself. The whole
+        // `/v1/conversations` group is gated on `.memoryQuery`, listing
+        // included, so a 402 anywhere here would throw a modal over the Chats
+        // tab. A chat failure belongs inline in the conversation, next to the
+        // turn that failed, with an explicit Upgrade button the user chooses
+        // to tap — see `ChatView.ErrorRow`.
+        var presentsPaywallOn402: Bool { false }
         typealias Response = EmptyResponse
         let conversationID: UUID
         let executionID: UUID
@@ -124,6 +173,13 @@ enum ConversationsEndpoints {
     /// SSE stream of `QueryStreamEvent`. Consume via
     /// `BaseHTTPClient.executeStreamWithRefresh`.
     struct StreamReply: StreamingEndpoint {
+        // Chat never slides the app-root paywall over itself. The whole
+        // `/v1/conversations` group is gated on `.memoryQuery`, listing
+        // included, so a 402 anywhere here would throw a modal over the Chats
+        // tab. A chat failure belongs inline in the conversation, next to the
+        // turn that failed, with an explicit Upgrade button the user chooses
+        // to tap — see `ChatView.ErrorRow`.
+        var presentsPaywallOn402: Bool { false }
         typealias Event = QueryStreamEvent
         let conversationID: UUID
         let request: MessageStreamRequest
