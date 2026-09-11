@@ -116,11 +116,22 @@ final class RedesignChromeSnapshotTests: XCTestCase {
 
     // HER-302 — Think empty hero (mascot + gradient title + composer)
     func testThinkEmptyHero() {
+        // The composer's mic button fades to 40% when the speech recognizer
+        // reports itself unavailable, and `SFSpeechRecognizer` availability
+        // on the CI simulator is not deterministic — the same commit passed
+        // and failed with the mic as the only difference (reference: white
+        // glyph; failure: dimmed). Pin it to "available", which is what the
+        // reference was recorded with.
+        let voice = VoiceModeController(
+            recognizer: StubSpeechRecognizer(available: true, authorized: true),
+            synthesizer: StubSpeechSynthesizer()
+        )
         let vm = ChatViewModel(
             conversationsClient: StubConversationsClient(),
             chatClient: StubChatClient(),
             memoryClient: StubMemoryClient(),
-            historyStore: nil
+            historyStore: nil,
+            voice: voice
         )
         let view = ChatView(
             viewModel: vm,
