@@ -145,24 +145,26 @@ enum AuthEndpoints {
 
     // MARK: - HER-216 WebAuthn / passkey
 
+    /// Enrolment is authenticated — the server binds the credential to the
+    /// bearer token's user, not to `username`. `requiresAuth` is left at the
+    /// protocol default of `true`; sending no token here gets a 401.
     struct WebAuthnRegisterBegin: Endpoint {
         typealias Response = WebAuthnBeginRegistrationResponse
         let username: String
         let displayName: String?
         var path: String { "/v1/auth/webauthn/register/begin" }
         var method: HTTPMethod { .post }
-        var requiresAuth: Bool { false }
         var body: (any Encodable)? {
             WebAuthnBeginRegistrationRequest(username: username, displayName: displayName)
         }
     }
 
+    /// See `WebAuthnRegisterBegin` — authenticated.
     struct WebAuthnRegisterFinish: Endpoint {
         typealias Response = WebAuthnFinishRegistrationResponse
         let request: WebAuthnFinishRegistrationRequest
         var path: String { "/v1/auth/webauthn/register/finish" }
         var method: HTTPMethod { .post }
-        var requiresAuth: Bool { false }
         var body: (any Encodable)? { request }
     }
 
