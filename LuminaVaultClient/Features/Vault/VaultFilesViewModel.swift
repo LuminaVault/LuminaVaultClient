@@ -10,7 +10,9 @@ import SwiftUI
 @MainActor
 final class VaultFilesViewModel {
     private let vaultClient: VaultClientProtocol
-    private let spaceSlug: String
+    /// `nil` lists every Space, which is what the capture home's recent feed
+    /// wants. `VaultClientProtocol.listFiles` already took an optional here.
+    private let spaceSlug: String?
 
     /// Segmented filter for the list. UI-only, but it lives here because
     /// `displayedFiles` derives from it and must be recomputed on change,
@@ -43,7 +45,7 @@ final class VaultFilesViewModel {
     var error: String?
     var nextCursor: Date?
 
-    init(vaultClient: VaultClientProtocol, spaceSlug: String) {
+    init(vaultClient: VaultClientProtocol, spaceSlug: String?) {
         self.vaultClient = vaultClient
         self.spaceSlug = spaceSlug
     }
