@@ -10,10 +10,25 @@ import SwiftData
 
 protocol CaptureQueueProtocol: Sendable {
     func enqueue(_ snapshot: CaptureSnapshot) async throws
+    /// Rows still awaiting a drain. Deliberately excludes `.failed`, so a
+    /// caller watching this alone cannot tell a drained row from a dead one —
+    /// see `failed()`.
     func pending() async throws -> [CaptureRowSnapshot]
+    /// Rows that exhausted `CaptureDrainer.maxAttempts` and stopped retrying.
+    /// They stay in the store; nothing deletes them but the user.
+    func failed() async throws -> [CaptureRowSnapshot]
+    /// Put a failed row back in the queue with its attempt count cleared.
+    func retry(id: UUID) async throws
     func delete(id: UUID) async throws
     func markFailure(id: UUID, error: String, flipToFailed: Bool) async throws
     func count() async throws -> Int
+}
+
+extension CaptureQueueProtocol {
+    // Defaults so the existing test fakes keep compiling; the real queue
+    // overrides both.
+    func failed() async throws -> [CaptureRowSnapshot] { [] }
+    func retry(id _: UUID) async throws {}
 }
 
 /// Inbound enqueue payload. Reference-types like SwiftData `@Model`
@@ -188,6 +203,9 @@ struct CaptureRowSnapshot: Sendable, Identifiable {
     let kind: PendingCaptureKind
     let urlString: String?
     let attempts: Int
+    /// Why the last attempt failed. Defaulted so existing constructions keep
+    /// compiling; only `failed()` has a reason worth showing.
+    var lastError: String? = nil
 }
 
 actor CaptureQueue: CaptureQueueProtocol {
@@ -237,25 +255,29 @@ actor CaptureQueue: CaptureQueueProtocol {
             predicate: #Predicate { $0.stateRaw == pendingRaw },
             sortBy: [SortDescriptor(\.createdAt)],
         )
-        let rows = try ctx.fetch(descriptor)
-        return rows.map { row in
-            CaptureRowSnapshot(
-                id: row.id,
-                createdAt: row.createdAt,
-                captionText: row.captionText,
-                imageData: row.imageData,
-                contentType: row.contentType,
-                fileExtension: row.fileExtension,
-                lat: row.lat,
-                lng: row.lng,
-                accuracyM: row.accuracyM,
-                placeName: row.placeName,
-                spaceID: row.spaceID,
-                kind: row.kind,
-                urlString: row.urlString,
-                attempts: row.attempts,
-            )
-        }
+        return try ctx.fetch(descriptor).map(Self.snapshot(of:))
+    }
+
+    /// `@Model` instances cannot cross an actor boundary, so every query hands
+    /// back value-typed snapshots. Shared by `pending()` and `failed()`.
+    private static func snapshot(of row: PendingCapture) -> CaptureRowSnapshot {
+        CaptureRowSnapshot(
+            id: row.id,
+            createdAt: row.createdAt,
+            captionText: row.captionText,
+            imageData: row.imageData,
+            contentType: row.contentType,
+            fileExtension: row.fileExtension,
+            lat: row.lat,
+            lng: row.lng,
+            accuracyM: row.accuracyM,
+            placeName: row.placeName,
+            spaceID: row.spaceID,
+            kind: row.kind,
+            urlString: row.urlString,
+            attempts: row.attempts,
+            lastError: row.lastError,
+        )
     }
 
     func delete(id: UUID) async throws {
@@ -267,6 +289,30 @@ actor CaptureQueue: CaptureQueueProtocol {
             ctx.delete(row)
             try ctx.save()
         }
+    }
+
+    func failed() async throws -> [CaptureRowSnapshot] {
+        let ctx = ModelContext(container)
+        let failedRaw = PendingCaptureState.failed.rawValue
+        let descriptor = FetchDescriptor<PendingCapture>(
+            predicate: #Predicate { $0.stateRaw == failedRaw },
+            sortBy: [SortDescriptor(\.createdAt)],
+        )
+        return try ctx.fetch(descriptor).map(Self.snapshot(of:))
+    }
+
+    func retry(id: UUID) async throws {
+        let ctx = ModelContext(container)
+        let descriptor = FetchDescriptor<PendingCapture>(
+            predicate: #Predicate { $0.id == id },
+        )
+        guard let row = try ctx.fetch(descriptor).first else { return }
+        // Attempts reset too: a retry the user asked for should get the full
+        // run of tries, not the one left over from the last failure.
+        row.attempts = 0
+        row.lastError = nil
+        row.stateRaw = PendingCaptureState.pending.rawValue
+        try ctx.save()
     }
 
     func markFailure(id: UUID, error: String, flipToFailed: Bool) async throws {

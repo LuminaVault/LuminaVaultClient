@@ -80,7 +80,9 @@ struct CaptureHomeView: View {
                         memoryClient: memoryClient,
                         isLoading: vm.files.isLoading,
                         hasMore: vm.files.nextCursor != nil,
-                        onLoadMore: { Task { await vm.files.loadMore() } }
+                        onLoadMore: { Task { await vm.files.loadMore() } },
+                        onRetry: { row in Task { await vm.retry(row) } },
+                        onDiscard: { row in Task { await vm.discard(row) } }
                     )
                 }
             }
