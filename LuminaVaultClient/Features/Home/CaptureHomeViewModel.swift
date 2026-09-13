@@ -18,9 +18,16 @@ struct PendingSaveUIModel: Identifiable, Equatable, Sendable {
     let kind: PendingCaptureKind
     /// What to show as the row's title until the real file exists.
     let displayText: String
-    /// Where the drainer will land this. See `predictedPath(for:spaceSlug:)`.
+    /// Where the drainer will land this. See `predictedPath(for:)`.
     let predictedPath: String
     let createdAt: Date
+    /// Set once the drainer has given up on this capture. The row stays on
+    /// screen when this is non-nil — it is the only remaining trace of what the
+    /// user captured, and for a voice note the audio is in the queue row and
+    /// nowhere else.
+    var failure: String?
+
+    var hasFailed: Bool { failure != nil }
 }
 
 @MainActor
@@ -45,7 +52,7 @@ final class CaptureHomeViewModel {
     var visiblePending: [PendingSaveUIModel] {
         let listed = Set(files.displayedFiles.map(\.path))
         return pending.filter { row in
-            row.predictedPath.isEmpty || !listed.contains(row.predictedPath)
+            row.hasFailed || row.predictedPath.isEmpty || !listed.contains(row.predictedPath)
         }
     }
 
@@ -206,7 +213,7 @@ final class CaptureHomeViewModel {
 
     func loadFeed() async {
         await files.load()
-        await dropDrainedRows()
+        await reconcileWithQueue()
     }
 
     /// Waits for the drainer to work through what was just enqueued, then
@@ -215,20 +222,72 @@ final class CaptureHomeViewModel {
     private func settlePending() async {
         for delay in [0.4, 1.0, 2.5] {
             try? await Task.sleep(for: .seconds(delay))
-            let cleared = await dropDrainedRows()
+            let cleared = await reconcileWithQueue()
             if cleared { await files.load() }
-            if pending.isEmpty { return }
+            if pending.allSatisfy(\.hasFailed) { return }
         }
     }
 
-    /// Drops pending rows whose queue entry is gone — which means the drainer
-    /// posted them. Returns whether anything was dropped.
+    /// Reconciles the on-screen rows with the queue.
+    ///
+    /// A row leaving `pending()` does **not** mean it was saved: `pending()`
+    /// filters on state, so a capture that exhausted its retries and flipped to
+    /// `.failed` leaves it too. Treating that as success is how a capture
+    /// disappears silently — the row vanishes and no file is ever written. So
+    /// failed rows are looked up explicitly and kept on screen.
+    ///
+    /// Returns whether anything reached a terminal state.
     @discardableResult
-    private func dropDrainedRows() async -> Bool {
-        guard let queue, let rows = try? await queue.pending() else { return false }
-        let stillQueued = Set(rows.map(\.id))
-        let before = pending.count
-        pending.removeAll { !stillQueued.contains($0.id) }
-        return pending.count != before
+    private func reconcileWithQueue() async -> Bool {
+        guard let queue else { return false }
+        guard let queued = try? await queue.pending() else { return false }
+        let failedRows = (try? await queue.failed()) ?? []
+
+        let stillQueued = Set(queued.map(\.id))
+        let failures = Dictionary(
+            failedRows.map { ($0.id, $0.lastError ?? "Couldn't save this.") },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        var settled = false
+        pending = pending.compactMap { row in
+            if stillQueued.contains(row.id) { return row }
+            if let reason = failures[row.id] {
+                settled = true
+                guard !row.hasFailed else { return row }
+                var marked = row
+                marked.failure = reason
+                return marked
+            }
+            // Gone from both: the drainer deleted it, which it only does after
+            // the capture is stored.
+            settled = true
+            return nil
+        }
+        return settled
+    }
+
+    /// Put a failed capture back in the queue. The audio or text is still in
+    /// the row, so this is a real retry rather than asking the user to redo it.
+    func retry(_ row: PendingSaveUIModel) async {
+        guard let queue else { return }
+        do {
+            try await queue.retry(id: row.id)
+            if let index = pending.firstIndex(where: { $0.id == row.id }) {
+                pending[index].failure = nil
+            }
+            await drainer.kick()
+            await settlePending()
+        } catch {
+            toast = .failed(error.localizedDescription)
+        }
+    }
+
+    /// Give up on a failed capture and delete it. Explicit, because this throws
+    /// away the only copy.
+    func discard(_ row: PendingSaveUIModel) async {
+        guard let queue else { return }
+        try? await queue.delete(id: row.id)
+        pending.removeAll { $0.id == row.id }
     }
 }

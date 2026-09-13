@@ -22,6 +22,8 @@ struct RecentSavesFeed: View {
     let isLoading: Bool
     let hasMore: Bool
     let onLoadMore: () -> Void
+    let onRetry: (PendingSaveUIModel) -> Void
+    let onDiscard: (PendingSaveUIModel) -> Void
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: LVSpacing.sm) {
@@ -74,24 +76,44 @@ struct RecentSavesFeed: View {
         .padding(.vertical, LVSpacing.lg)
     }
 
+    @ViewBuilder
     private func pendingRow(_ row: PendingSaveUIModel) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: LVSpacing.sm + 2) {
-            LVIconView(icon(for: row.kind), size: 14, tint: palette.textSecondary)
-            VStack(alignment: .leading, spacing: LVSpacing.xs) {
-                Text(row.displayText)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(palette.textPrimary)
-                    .lineLimit(1)
-                Text("Queued")
-                    .font(.system(size: 11))
-                    .foregroundStyle(palette.textSecondary)
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
+            HStack(alignment: .firstTextBaseline, spacing: LVSpacing.sm + 2) {
+                LVIconView(
+                    row.hasFailed ? .exclamationmarkTriangleFill : icon(for: row.kind),
+                    size: 14,
+                    tint: row.hasFailed ? palette.accent : palette.textSecondary
+                )
+                VStack(alignment: .leading, spacing: LVSpacing.xs) {
+                    Text(row.displayText)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(palette.textPrimary)
+                        .lineLimit(row.hasFailed ? 2 : 1)
+                    Text(row.failure ?? "Queued")
+                        .font(.system(size: 11))
+                        .foregroundStyle(row.hasFailed ? palette.accent : palette.textSecondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+
+            if row.hasFailed {
+                // The capture is still in the queue and this is the only copy —
+                // for a voice note the audio exists nowhere else — so discarding
+                // has to be a decision rather than something that just happens.
+                HStack(spacing: LVSpacing.md) {
+                    Button("Try again") { onRetry(row) }
+                    Button("Discard") { onDiscard(row) }
+                        .foregroundStyle(palette.textSecondary)
+                }
+                .lvFont(.caption)
+            }
         }
         .padding(.vertical, LVSpacing.xs)
-        .opacity(0.7)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(row.displayText), queued")
+        .opacity(row.hasFailed ? 1 : 0.7)
+        .accessibilityElement(children: row.hasFailed ? .contain : .combine)
+        .accessibilityLabel(row.hasFailed ? "" : "\(row.displayText), queued")
     }
 
     private func icon(for kind: PendingCaptureKind) -> LVIcon {

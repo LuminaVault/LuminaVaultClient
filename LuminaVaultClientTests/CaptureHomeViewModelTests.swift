@@ -136,6 +136,92 @@ final class CaptureHomeViewModelTests: XCTestCase {
         XCTAssertEqual(vm.text, "too early")
     }
 
+    // MARK: - Captures that fail
+
+    func testAFailedCaptureIsNotMistakenForASavedOne() async throws {
+        // The bug this guards: `pending()` filters on state, so a row that
+        // exhausted its retries leaves it exactly like a drained one does.
+        // Reading that as success removed the row and left no file anywhere —
+        // the capture vanished with no error.
+        let queue = HoldingCaptureQueue()
+        let vm = makeVM(queue: queue)
+        vm.text = "something I do not want to lose"
+        await vm.submit()
+
+        let row = try XCTUnwrap(vm.pending.first)
+        await queue.fail(id: row.id, reason: "The server said no.")
+        await vm.loadFeed()
+
+        let stillThere = try XCTUnwrap(vm.pending.first)
+        XCTAssertTrue(stillThere.hasFailed, "a failed capture must not disappear")
+        XCTAssertEqual(stillThere.failure, "The server said no.")
+        XCTAssertEqual(vm.visiblePending.count, 1, "and it must still be on screen")
+    }
+
+    func testAFailedRowStaysVisibleEvenOnceTheListingMovesOn() async throws {
+        // `visiblePending` hides rows the feed already lists. A failed row has
+        // no file to be listed, so that filter must not apply to it.
+        let vaultClient = MockVaultClient()
+        let queue = HoldingCaptureQueue()
+        let vm = makeVM(queue: queue, vaultClient: vaultClient)
+        vm.text = "a note"
+        await vm.submit()
+        let row = try XCTUnwrap(vm.pending.first)
+        await queue.fail(id: row.id, reason: "offline")
+
+        vaultClient.listFilesResult = .success(
+            VaultFileListResponse(
+                files: [
+                    VaultFileDTO(
+                        id: UUID(),
+                        path: row.predictedPath,
+                        contentType: "text/markdown",
+                        sizeBytes: 6,
+                        sha256: ""
+                    ),
+                ],
+                limit: 50,
+                nextBefore: nil
+            )
+        )
+        await vm.loadFeed()
+
+        XCTAssertEqual(vm.visiblePending.count, 1)
+    }
+
+    func testRetryPutsTheCaptureBackInTheQueue() async throws {
+        let queue = HoldingCaptureQueue()
+        let vm = makeVM(queue: queue)
+        vm.text = "worth another go"
+        await vm.submit()
+        let row = try XCTUnwrap(vm.pending.first)
+        await queue.fail(id: row.id, reason: "timed out")
+        await vm.loadFeed()
+
+        await vm.retry(try XCTUnwrap(vm.pending.first))
+
+        let queued = try await queue.pending()
+        XCTAssertEqual(queued.map(\.id), [row.id], "the original capture is retried, not re-typed")
+        let stillFailed = try await queue.failed()
+        XCTAssertTrue(stillFailed.isEmpty)
+    }
+
+    func testDiscardDeletesTheCapture() async throws {
+        let queue = HoldingCaptureQueue()
+        let vm = makeVM(queue: queue)
+        vm.text = "give up on this"
+        await vm.submit()
+        let row = try XCTUnwrap(vm.pending.first)
+        await queue.fail(id: row.id, reason: "nope")
+        await vm.loadFeed()
+
+        await vm.discard(try XCTUnwrap(vm.pending.first))
+
+        XCTAssertTrue(vm.pending.isEmpty)
+        let count = try await queue.count()
+        XCTAssertEqual(count, 0, "discard is the only thing that throws the capture away")
+    }
+
     // MARK: - Optimistic rows
 
     func testAPendingRowAppearsAndNamesWhatWasSaved() async throws {
@@ -225,6 +311,26 @@ private actor StubCaptureQueue: CaptureQueueProtocol {
 /// only thing the user has to look at.
 private actor HoldingCaptureQueue: CaptureQueueProtocol {
     private var rows: [CaptureRowSnapshot] = []
+    private var failedRows: [CaptureRowSnapshot] = []
+
+    /// Mirrors the real queue: a row that exhausts its retries moves out of
+    /// `pending()` and into `failed()`. That is exactly the transition the view
+    /// model used to read as a successful save.
+    func fail(id: UUID, reason: String) {
+        guard let index = rows.firstIndex(where: { $0.id == id }) else { return }
+        var row = rows.remove(at: index)
+        row.lastError = reason
+        failedRows.append(row)
+    }
+
+    func failed() async throws -> [CaptureRowSnapshot] { failedRows }
+
+    func retry(id: UUID) async throws {
+        guard let index = failedRows.firstIndex(where: { $0.id == id }) else { return }
+        var row = failedRows.remove(at: index)
+        row.lastError = nil
+        rows.append(row)
+    }
     func enqueue(_ snapshot: CaptureSnapshot) async throws {
         rows.append(
             CaptureRowSnapshot(
@@ -246,9 +352,12 @@ private actor HoldingCaptureQueue: CaptureQueueProtocol {
         )
     }
     func pending() async throws -> [CaptureRowSnapshot] { rows }
-    func delete(id _: UUID) async throws {}
+    func delete(id: UUID) async throws {
+        rows.removeAll { $0.id == id }
+        failedRows.removeAll { $0.id == id }
+    }
     func markFailure(id _: UUID, error _: String, flipToFailed _: Bool) async throws {}
-    func count() async throws -> Int { rows.count }
+    func count() async throws -> Int { rows.count + failedRows.count }
 }
 
 private actor ThrowingCaptureQueue: CaptureQueueProtocol {
