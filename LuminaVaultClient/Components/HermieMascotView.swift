@@ -170,13 +170,20 @@ public struct LuminaHeader: View {
     public var showCapture: Bool = true
     public var mascotState: HermieMascotState = .idle
     public var onMascotTap: (() -> Void)? = nil
+    /// Captures that gave up retrying. Rendered as a count on the capture
+    /// button, because a capture that failed silently is indistinguishable
+    /// from one that worked.
+    public var failedCaptureCount: Int = 0
+    public var onReviewCaptures: (() -> Void)? = nil
 
-    public init(title: String, showMascot: Bool = true, showCapture: Bool = true, mascotState: HermieMascotState = .idle, onMascotTap: (() -> Void)? = nil) {
+    public init(title: String, showMascot: Bool = true, showCapture: Bool = true, mascotState: HermieMascotState = .idle, onMascotTap: (() -> Void)? = nil, failedCaptureCount: Int = 0, onReviewCaptures: (() -> Void)? = nil) {
         self.title = title
         self.showMascot = showMascot
         self.showCapture = showCapture
         self.mascotState = mascotState
         self.onMascotTap = onMascotTap
+        self.failedCaptureCount = failedCaptureCount
+        self.onReviewCaptures = onReviewCaptures
     }
     
     public var body: some View {
@@ -197,6 +204,26 @@ public struct LuminaHeader: View {
 
             // HER-255 — compact capture "+" lives in the header now (was a
             // floating FAB over the tab bar). Sits left of the mascot avatar.
+            if failedCaptureCount > 0, let onReviewCaptures {
+                Button(action: onReviewCaptures) {
+                    HStack(spacing: LVSpacing.xs) {
+                        LVIconView(.exclamationmarkTriangleFill, size: 13, tint: palette.accent)
+                        Text("\(failedCaptureCount)")
+                            .lvFont(.caption)
+                            .foregroundStyle(palette.accent)
+                            .monospacedDigit()
+                    }
+                    .padding(.horizontal, LVSpacing.sm)
+                    .frame(minHeight: LVSize.tapTarget)
+                    .contentShape(.rect)
+                }
+                .accessibilityLabel(
+                    failedCaptureCount == 1
+                        ? "1 capture needs attention"
+                        : "\(failedCaptureCount) captures need attention"
+                )
+            }
+
             if showCapture {
                 CaptureFAB(style: .header)
             }

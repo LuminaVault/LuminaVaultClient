@@ -33,6 +33,9 @@ struct MainTabView: View {
     @AppStorage("lv.chat.hapticsEnabled") private var hapticsEnabled = true
     @State private var tabHapticTrigger = 0
     @Environment(\.captureCoordinator) private var captureCoordinator
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var captureFailures: CaptureFailuresStore?
+    @State private var showingCaptureReview = false
 
     private static let tabIds = (
         workspaces: "workspaces",
@@ -62,7 +65,9 @@ struct MainTabView: View {
                 LuminaHeader(
                     title: currentTitle,
                     mascotState: hermieState,
-                    onMascotTap: { showQuickSettings = true }
+                    onMascotTap: { showQuickSettings = true },
+                    failedCaptureCount: captureFailures?.count ?? 0,
+                    onReviewCaptures: { showingCaptureReview = true }
                 )
 
                 // HER-fix — overflow destinations (Settings / Visual Search)
@@ -211,6 +216,26 @@ struct MainTabView: View {
                 .presentationDragIndicator(.visible)
         }
         .sensoryFeedback(.selection, trigger: tabHapticTrigger)
+        .sheet(isPresented: $showingCaptureReview) {
+            if let captureFailures {
+                CaptureReviewSheet(store: captureFailures)
+            }
+        }
+        .task(id: captureCoordinator?.queue == nil) {
+            guard captureFailures == nil, captureCoordinator?.queue != nil else { return }
+            let store = CaptureFailuresStore(
+                queue: captureCoordinator?.queue,
+                drainer: captureCoordinator?.drainerHandle ?? .noop
+            )
+            captureFailures = store
+            await store.refresh()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // A capture can exhaust its retries while the app is backgrounded,
+            // so the count is stale by the time anyone looks at it.
+            guard phase == .active else { return }
+            Task { await captureFailures?.refresh() }
+        }
     }
 
     /// HER-255 — global header title per active tab.
