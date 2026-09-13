@@ -164,6 +164,37 @@ final class CaptureHomeViewModelTests: XCTestCase {
         XCTAssertEqual(row.predictedPath, "inbox/\(row.id.uuidString).md")
     }
 
+    func testAPendingRowIsHiddenOnceTheFeedIsShowingTheRealFile() async throws {
+        // The row is dropped when its queue entry goes, but the feed may have
+        // refetched first. Showing both for a moment reads as a duplicate save.
+        let vaultClient = MockVaultClient()
+        let vm = makeVM(queue: HoldingCaptureQueue(), vaultClient: vaultClient)
+        vm.text = "a note"
+        await vm.submit()
+
+        let row = try XCTUnwrap(vm.pending.first)
+        XCTAssertEqual(vm.visiblePending.count, 1, "not listed yet, so it must be visible")
+
+        vaultClient.listFilesResult = .success(
+            VaultFileListResponse(
+                files: [
+                    VaultFileDTO(
+                        id: UUID(),
+                        path: row.predictedPath,
+                        contentType: "text/markdown",
+                        sizeBytes: 6,
+                        sha256: ""
+                    ),
+                ],
+                limit: 50,
+                nextBefore: nil
+            )
+        )
+        await vm.files.load()
+
+        XCTAssertTrue(vm.visiblePending.isEmpty, "the real row supersedes the placeholder")
+    }
+
     func testAPendingRowClearsOnceTheQueueDrains() async {
         // The stub drops rows as soon as they are enqueued, which is what a
         // successful drain looks like from here.

@@ -38,6 +38,10 @@ struct CaptureHomeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: LVSpacing.lg) {
+                if let toast = vm.toast {
+                    statusBanner(toast)
+                }
+
                 HomeComposer(
                     text: $vm.text,
                     focused: $composerFocused,
@@ -45,8 +49,10 @@ struct CaptureHomeView: View {
                     detectedLink: vm.detectedLink,
                     canSave: vm.canSave,
                     isRecording: vm.isRecording,
+                    recordingElapsed: vm.recorder.elapsed,
                     onSubmit: { Task { await vm.submit() } },
                     onVoice: { Task { await vm.toggleRecording() } },
+                    onCancelRecording: { vm.cancelRecording() },
                     onPhotos: { present(.photo) },
                     onFiles: { present(.files) }
                 )
@@ -68,7 +74,7 @@ struct CaptureHomeView: View {
                     }
 
                     RecentSavesFeed(
-                        pending: vm.pending,
+                        pending: vm.visiblePending,
                         files: vm.files.displayedFiles,
                         vaultClient: vaultClient,
                         memoryClient: memoryClient,
@@ -86,6 +92,47 @@ struct CaptureHomeView: View {
         .refreshable { await vm.loadFeed() }
         .task { await vm.loadFeed() }
         .captureSheet(isPresented: $sheetPresented, initialMode: sheetMode)
+    }
+
+    @ViewBuilder
+    private func statusBanner(_ toast: CapturePhotosViewModel.ToastKind) -> some View {
+        let failed: Bool = if case .failed = toast { true } else { false }
+        HStack(spacing: LVSpacing.sm) {
+            LVIconView(
+                failed ? .exclamationmarkTriangleFill : .checkmarkCircleFill,
+                size: 16,
+                tint: failed ? palette.accent : palette.glowPrimary
+            )
+            Text(Self.message(for: toast))
+                .lvFont(.footnote)
+                .foregroundStyle(palette.textPrimary)
+            Spacer(minLength: 0)
+            Button("Dismiss") { vm.toast = nil }
+                .lvFont(.caption)
+                .foregroundStyle(palette.textSecondary)
+        }
+        .padding(.horizontal, LVSpacing.md)
+        .padding(.vertical, LVSpacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous)
+                .fill(palette.surface.opacity(0.6))
+        )
+        .accessibilityElement(children: .combine)
+        // A success clears itself; a failure stays until it is read, because it
+        // is the only sign the capture did not happen.
+        .task(id: Self.message(for: toast)) {
+            guard !failed else { return }
+            try? await Task.sleep(for: .seconds(3))
+            vm.toast = nil
+        }
+    }
+
+    private static func message(for toast: CapturePhotosViewModel.ToastKind) -> String {
+        switch toast {
+        case let .savedOnline(count): return count == 1 ? "Saved." : "Saved \(count) items."
+        case .queuedOffline: return "Saved to your vault."
+        case let .failed(reason): return reason
+        }
     }
 
     /// Photos and files already work well in the capture sheet — offline

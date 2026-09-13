@@ -35,6 +35,20 @@ final class CaptureHomeViewModel {
     /// Rows that are queued but not yet on the server, newest first.
     private(set) var pending: [PendingSaveUIModel] = []
 
+    /// `pending` minus anything the feed is already showing.
+    ///
+    /// A row is dropped when its queue entry goes, but the feed may well have
+    /// refetched first — and a capture appearing twice for a second reads as a
+    /// duplicate save. The predicted path makes that check exact: the snapshot
+    /// id is the basename the drainer uploads under, and the server keeps only
+    /// the basename.
+    var visiblePending: [PendingSaveUIModel] {
+        let listed = Set(files.displayedFiles.map(\.path))
+        return pending.filter { row in
+            row.predictedPath.isEmpty || !listed.contains(row.predictedPath)
+        }
+    }
+
     /// Recording state, so the composer can show a mic that is visibly live.
     let recorder = VoiceRecorder()
     var isRecording: Bool { recorder.isRecording }
@@ -59,6 +73,12 @@ final class CaptureHomeViewModel {
         self.queue = queue
         self.drainer = drainer
         self.files = VaultFilesViewModel(vaultClient: vaultClient, spaceSlug: nil)
+
+        // Reaching the two-minute cap finishes a note; it does not discard one.
+        recorder.onCapReached = { [weak self] audio in
+            guard let self else { return }
+            Task { await self.enqueueVoice(audio) }
+        }
     }
 
     // MARK: - What the composer understood

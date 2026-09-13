@@ -40,6 +40,13 @@ final class VoiceRecorder {
     private(set) var isRecording = false
     private(set) var elapsed: TimeInterval = 0
 
+    /// Called when the duration cap ends the recording on its own.
+    ///
+    /// Without this the audio is simply lost: `record(forDuration:)` stops the
+    /// hardware, the UI notices and flips back to idle, and the next tap starts
+    /// a fresh recording over the top of a file nobody saved.
+    var onCapReached: ((Data) -> Void)?
+
     private var recorder: AVAudioRecorder?
     private var fileURL: URL?
     private var ticker: Task<Void, Never>?
@@ -115,9 +122,13 @@ final class VoiceRecorder {
                 try? await Task.sleep(for: .milliseconds(200))
                 guard let self, self.isRecording else { return }
                 self.elapsed = self.recorder?.currentTime ?? self.elapsed
-                // `record(forDuration:)` stops the hardware at the cap, but the
-                // UI has to notice so the button does not stay on "recording".
-                if self.recorder?.isRecording == false { self.isRecording = false; return }
+                // `record(forDuration:)` stops the hardware at the cap. Collect
+                // what was recorded and hand it on — reaching the limit is a
+                // finished note, not a discarded one.
+                if self.recorder?.isRecording == false {
+                    if let audio = self.stop() { self.onCapReached?(audio) }
+                    return
+                }
             }
         }
     }

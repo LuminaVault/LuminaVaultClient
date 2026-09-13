@@ -19,8 +19,10 @@ struct HomeComposer: View {
     let detectedLink: URL?
     let canSave: Bool
     let isRecording: Bool
+    let recordingElapsed: TimeInterval
     let onSubmit: () -> Void
     let onVoice: () -> Void
+    let onCancelRecording: () -> Void
     let onPhotos: () -> Void
     let onFiles: () -> Void
 
@@ -34,7 +36,9 @@ struct HomeComposer: View {
                 .disabled(isSaving)
                 .accessibilityLabel("What do you want to remember?")
 
-            if let link = detectedLink {
+            if isRecording {
+                recordingChip
+            } else if let link = detectedLink {
                 linkChip(link)
             }
 
@@ -70,6 +74,38 @@ struct HomeComposer: View {
         .padding(.horizontal, LVSpacing.base - 2)
         .padding(.vertical, LVSpacing.md)
         .lvGlassCard(cornerRadius: LVRadius.card, intensity: 0.55)
+    }
+
+    /// While recording, the field is not the thing to look at — how long you
+    /// have been talking is, along with a way out that is not "save it anyway".
+    private var recordingChip: some View {
+        HStack(spacing: LVSpacing.sm) {
+            LVIconView(.micFill, size: 16, tint: palette.glowPrimary)
+            Text(Self.durationLabel(recordingElapsed))
+                .lvFont(.bodyEmphasis)
+                .foregroundStyle(palette.textPrimary)
+                .monospacedDigit()
+            Text("Recording")
+                .lvFont(.caption)
+                .foregroundStyle(palette.textSecondary)
+            Spacer(minLength: 0)
+            Button("Cancel", action: onCancelRecording)
+                .lvFont(.caption)
+                .foregroundStyle(palette.textSecondary)
+        }
+        .padding(.horizontal, LVSpacing.md)
+        .padding(.vertical, LVSpacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous)
+                .fill(palette.surface.opacity(0.5))
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Recording, \(Int(recordingElapsed)) seconds")
+    }
+
+    static func durationLabel(_ seconds: TimeInterval) -> String {
+        let whole = max(0, Int(seconds))
+        return String(format: "%d:%02d", whole / 60, whole % 60)
     }
 
     /// The page has not been fetched yet, so the host is the only honest thing
