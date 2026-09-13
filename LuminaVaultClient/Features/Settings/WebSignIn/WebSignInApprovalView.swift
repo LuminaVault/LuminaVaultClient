@@ -5,6 +5,13 @@
 // then receives a freshly minted token pair from the server.
 import SwiftUI
 
+/// A pairing carried in by a universal link, ready to present.
+struct PendingPairingApproval: Identifiable, Equatable, Sendable {
+    /// `Identifiable` for `.sheet(item:)`; the pairing id doubles as the id.
+    let id: String
+    let code: String
+}
+
 @MainActor
 @Observable
 final class WebSignInApprovalViewModel {
@@ -16,12 +23,21 @@ final class WebSignInApprovalViewModel {
         case failed(String)
     }
 
-    private(set) var phase: Phase = .scanning
+    private(set) var phase: Phase
 
     private let client: BaseHTTPClient
 
-    init(client: BaseHTTPClient) {
+    /// `prefilled` skips the scanner: a universal link opened from the camera
+    /// already carries the pairing, so re-scanning the code you just scanned
+    /// would be absurd. The confirm step still stands — the whole point is that
+    /// you check the code against the one on screen before approving.
+    init(client: BaseHTTPClient, prefilled: (id: String, code: String)? = nil) {
         self.client = client
+        if let prefilled {
+            phase = .confirm(pairingId: prefilled.id, code: prefilled.code)
+        } else {
+            phase = .scanning
+        }
     }
 
     func handleScan(_ raw: String) {
@@ -52,13 +68,37 @@ final class WebSignInApprovalViewModel {
         phase = .scanning
     }
 
-    /// Parse `luminavault://pair?id=<pairingId>&code=<code>`.
+    /// Hosts whose `/pair` links may drive an approval. A QR is attacker-supplied
+    /// input — anyone can print one — so only the app's own web origins count.
+    private static let pairingHosts: Set<String> = [
+        "app.luminavault.fyi",
+        "app-staging.luminavault.fyi"
+    ]
+
+    /// Parse a scanned or opened pairing link.
+    ///
+    /// Two forms are accepted. `https://app.luminavault.fyi/pair?id=&code=` is
+    /// what the web app encodes now: a universal link, so the iPhone camera can
+    /// open it and land here directly. `luminavault://pair?id=&code=` is the
+    /// original payload — no installed app claims that scheme, which is why the
+    /// camera used to answer "No usable data found" — and it stays supported
+    /// because a code generated before the web switch flips must still scan.
     static func parse(_ raw: String) -> (id: String, code: String)? {
-        guard
-            let components = URLComponents(string: raw),
-            components.scheme == "luminavault",
-            components.host == "pair"
-        else { return nil }
+        guard let components = URLComponents(string: raw) else { return nil }
+
+        switch components.scheme {
+        case "luminavault":
+            guard components.host == "pair" else { return nil }
+        case "https":
+            guard let host = components.host,
+                  pairingHosts.contains(host.lowercased()),
+                  components.path == "/pair"
+            else { return nil }
+        default:
+            // Notably `http`: a downgraded link is not one of ours.
+            return nil
+        }
+
         let items = components.queryItems ?? []
         guard
             let id = items.first(where: { $0.name == "id" })?.value, !id.isEmpty,
@@ -71,8 +111,10 @@ final class WebSignInApprovalViewModel {
 struct WebSignInApprovalView: View {
     @State private var viewModel: WebSignInApprovalViewModel
 
-    init(client: BaseHTTPClient) {
-        _viewModel = State(initialValue: WebSignInApprovalViewModel(client: client))
+    init(client: BaseHTTPClient, prefilled: (id: String, code: String)? = nil) {
+        _viewModel = State(
+            initialValue: WebSignInApprovalViewModel(client: client, prefilled: prefilled)
+        )
     }
 
     var body: some View {

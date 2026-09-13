@@ -48,6 +48,8 @@ enum PostHogEnv: String {
 struct LuminaVaultClientApp: App {
     @UIApplicationDelegateAdaptor(NotificationsAppDelegate.self) private var appDelegate
     @State private var appState = AppState()
+    /// A pairing scanned from the web sign-in QR, waiting to be confirmed.
+    @State private var pendingPairing: PendingPairingApproval?
     @State private var theme = LVThemeManager()
     @State private var notificationRouter = NotificationRouter()
     @State private var workspaceSelection = WorkspaceSelection()
@@ -394,7 +396,27 @@ struct LuminaVaultClientApp: App {
                 }
             }
             .onOpenURL { url in
+                if handlePairingLink(url.absoluteString) { return }
                 _ = GIDSignIn.sharedInstance.handle(url)
+            }
+            // Web sign-in QR. The payload is a universal link on the web app's
+            // origin (`applinks:` in the entitlements), so pointing the iPhone
+            // camera at the code opens the app here rather than reporting "No
+            // usable data found" — a custom scheme is unopenable by Camera,
+            // which is what the payload used to be.
+            .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                guard let url = activity.webpageURL else { return }
+                _ = handlePairingLink(url.absoluteString)
+            }
+            .sheet(item: $pendingPairing) { pairing in
+                NavigationStack {
+                    WebSignInApprovalView(
+                        client: appState.makeHTTPClient(),
+                        prefilled: (id: pairing.id, code: pairing.code)
+                    )
+                    .environment(appState)
+                    .environment(theme)
+                }
             }
             // HER-209: foreground transitions trigger a credential-state poll.
             // `.active` fires on cold launch AND every return-to-foreground.
@@ -508,6 +530,24 @@ struct LuminaVaultClientApp: App {
     // HER-209 acceptance: "Revocation in iOS Settings logs the user out within
     // 5 s of next app foreground." `credentialState(forUserID:)` returns
     // sub-second on warm devices.
+    /// Present the approval sheet for a scanned web sign-in link.
+    ///
+    /// Returns whether the URL was one of ours, so `onOpenURL` can fall through
+    /// to Google's handler for everything else.
+    ///
+    /// Approving mints tokens for the *signed-in* account, so a link opened
+    /// while signed out has nothing to approve with — the sheet would only be
+    /// able to fail a 401. Dropping it silently is the honest outcome: the web
+    /// page the code came from stays on its "waiting" state, which is the same
+    /// thing the user sees if they never scan at all.
+    @MainActor
+    private func handlePairingLink(_ raw: String) -> Bool {
+        guard let parsed = WebSignInApprovalViewModel.parse(raw) else { return false }
+        guard appState.isAuthenticated else { return true }
+        pendingPairing = PendingPairingApproval(id: parsed.id, code: parsed.code)
+        return true
+    }
+
     private func checkAppleCredentialState() async {
         guard let userID = appState.keychain.appleUserId else { return }
         do {

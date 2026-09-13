@@ -11,6 +11,13 @@
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>webcredentials:$(WEBAUTHN_RP_ID)</string>
+		<!-- Web sign-in QR. The payload is a universal link on the web app's own
+		     origin so the iPhone camera can open it; a custom scheme cannot be
+		     opened by Camera at all, which is what made a scanned code report
+		     "No usable data found". Only /pair is claimed — see the applinks
+		     section of the web app's apple-app-site-association. -->
+		<string>applinks:app.luminavault.fyi</string>
+		<string>applinks:app-staging.luminavault.fyi</string>
 	</array>
 	<key>com.apple.developer.healthkit</key>
 	<true/>
