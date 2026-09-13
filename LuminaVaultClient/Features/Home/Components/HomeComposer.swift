@@ -18,7 +18,9 @@ struct HomeComposer: View {
     /// Non-nil when the field holds nothing but a URL.
     let detectedLink: URL?
     let canSave: Bool
+    let isRecording: Bool
     let onSubmit: () -> Void
+    let onVoice: () -> Void
     let onPhotos: () -> Void
     let onFiles: () -> Void
 
@@ -37,9 +39,18 @@ struct HomeComposer: View {
             }
 
             HStack(spacing: LVSpacing.xs) {
-                // A mic belongs here too. It is held back until the queue can
-                // carry audio and the transcript DTO exists in
-                // LuminaVaultShared — see the voice capture change.
+                Button(action: onVoice) {
+                    LVIconView(
+                        isRecording ? .stopCircleFill : .micFill,
+                        size: 18,
+                        tint: isRecording ? palette.glowPrimary : palette.textSecondary,
+                        label: isRecording ? "Stop recording" : "Record a voice note"
+                    )
+                    .frame(minWidth: LVSize.tapTarget, minHeight: LVSize.tapTarget)
+                    .contentShape(.rect)
+                }
+                .disabled(isSaving)
+
                 affordance(.photoOnRectangleAngled, label: "Add a photo", action: onPhotos)
                 affordance(.paperclip, label: "Add a file", action: onFiles)
 

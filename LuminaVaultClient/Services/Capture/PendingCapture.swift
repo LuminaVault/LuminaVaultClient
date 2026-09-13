@@ -24,11 +24,23 @@ enum PendingCaptureState: String, Codable, Sendable {
 /// original behaviour — rows persisted before this enum landed
 /// deserialise with `.photo` because the SwiftData store falls back to
 /// the default value of a new field.
+/// `.voice` rows carry recorded audio in `imageData` with its MIME in
+/// `contentType` (`audio/mp4` for m4a). The drainer transcribes them through
+/// `POST /v1/transcribe` — the cluster's own whisper service — and stores the
+/// transcript as a markdown note; the audio itself is not uploaded. Recording
+/// therefore works offline and the transcription happens whenever the device
+/// next has a connection, which is the whole reason it goes through the queue
+/// rather than transcribing inline.
+///
+/// No schema migration: the row reuses the existing byte fields, and `kindRaw`
+/// already defaults unknown values to `.photo` for rows written before a case
+/// existed.
 enum PendingCaptureKind: String, Codable, Sendable {
     case photo
     case text
     case textFile
     case url
+    case voice
 }
 
 @Model

@@ -44,7 +44,9 @@ struct CaptureHomeView: View {
                     isSaving: vm.saving,
                     detectedLink: vm.detectedLink,
                     canSave: vm.canSave,
+                    isRecording: vm.isRecording,
                     onSubmit: { Task { await vm.submit() } },
+                    onVoice: { Task { await vm.toggleRecording() } },
                     onPhotos: { present(.photo) },
                     onFiles: { present(.files) }
                 )

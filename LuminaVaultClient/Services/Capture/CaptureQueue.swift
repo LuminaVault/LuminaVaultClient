@@ -117,6 +117,29 @@ struct CaptureSnapshot: Sendable {
         )
     }
 
+    /// A recorded voice note. The audio rides in `imageData`; the drainer
+    /// transcribes it and stores the transcript, then the audio is discarded
+    /// with the queue row.
+    static func voice(
+        id: UUID = UUID(),
+        audio: Data,
+        contentType: String = "audio/mp4",
+        fileExtension: String = "m4a",
+        spaceID: UUID? = nil,
+        createdAt: Date = .now
+    ) -> CaptureSnapshot {
+        CaptureSnapshot(
+            id: id,
+            createdAt: createdAt,
+            captionText: nil,
+            imageData: audio,
+            contentType: contentType,
+            fileExtension: fileExtension,
+            spaceID: spaceID,
+            kind: .voice,
+        )
+    }
+
     /// HER-257 — convenience for URL/link captures. Drainer posts these
     /// to `POST /v1/capture/safari` (HER-149) which enriches asynchronously
     /// (OG / oEmbed / X scrape) and persists a vault file.

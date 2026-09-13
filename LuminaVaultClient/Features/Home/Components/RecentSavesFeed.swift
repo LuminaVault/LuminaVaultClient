@@ -97,6 +97,7 @@ struct RecentSavesFeed: View {
     private func icon(for kind: PendingCaptureKind) -> LVIcon {
         switch kind {
         case .url: return .linkCircle
+        case .voice: return .micFill
         case .photo: return .photoOnRectangleAngled
         case .text, .textFile: return .docText
         }

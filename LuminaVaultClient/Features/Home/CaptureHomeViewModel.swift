@@ -35,6 +35,10 @@ final class CaptureHomeViewModel {
     /// Rows that are queued but not yet on the server, newest first.
     private(set) var pending: [PendingSaveUIModel] = []
 
+    /// Recording state, so the composer can show a mic that is visibly live.
+    let recorder = VoiceRecorder()
+    var isRecording: Bool { recorder.isRecording }
+
     /// The recent-saves feed. `spaceSlug: nil` lists every Space, which is what
     /// makes this a record of what you have been saving rather than a folder.
     let files: VaultFilesViewModel
@@ -124,8 +128,58 @@ final class CaptureHomeViewModel {
     /// shows as pending; it just cannot be matched by path, and is cleared
     /// when the queue drains instead.
     private static func predictedPath(for snapshot: CaptureSnapshot) -> String {
-        guard snapshot.kind == .text else { return "" }
+        guard snapshot.kind == .text || snapshot.kind == .voice else { return "" }
         return "inbox/\(snapshot.id.uuidString).md"
+    }
+
+    // MARK: - Voice
+
+    /// Starts recording, or stops and saves what was recorded.
+    ///
+    /// The audio is queued rather than transcribed here, so a note can be
+    /// spoken with no signal and transcribed whenever the device next has one.
+    func toggleRecording() async {
+        if recorder.isRecording {
+            guard let audio = recorder.stop() else {
+                toast = .failed("That recording was empty.")
+                return
+            }
+            await enqueueVoice(audio)
+        } else {
+            do {
+                try await recorder.start()
+            } catch {
+                toast = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    func cancelRecording() {
+        recorder.discard()
+    }
+
+    private func enqueueVoice(_ audio: Data) async {
+        guard let queue else { return }
+        let id = UUID()
+        let snapshot = CaptureSnapshot.voice(id: id, audio: audio)
+        do {
+            try await queue.enqueue(snapshot)
+            pending.insert(
+                PendingSaveUIModel(
+                    id: id,
+                    kind: .voice,
+                    displayText: "Voice note",
+                    predictedPath: Self.predictedPath(for: snapshot),
+                    createdAt: snapshot.createdAt
+                ),
+                at: 0
+            )
+            await drainer.kick()
+            toast = .queuedOffline(count: 1)
+            await settlePending()
+        } catch {
+            toast = .failed(error.localizedDescription)
+        }
     }
 
     // MARK: - Feed
