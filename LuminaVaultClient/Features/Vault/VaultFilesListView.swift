@@ -19,15 +19,6 @@ struct VaultFilesListView: View {
     @State private var fileToRename: VaultFileDTO?
     @State private var renameInput: String = ""
 
-    /// Hoisted out of `byteCount(_:)`, which the row builder calls for every
-    /// row on every body pass. `ByteCountFormatter.string(fromByteCount:…)`
-    /// builds and discards a formatter on each call.
-    private static let byteFormatter: ByteCountFormatter = {
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .file
-        return formatter
-    }()
-
     init(space: SpaceDTO, vaultClient: VaultClientProtocol, memoryClient: MemoryClientProtocol, uploadClient: any VaultUploadClientProtocol) {
         self.space = space
         self.vaultClient = vaultClient
@@ -149,41 +140,7 @@ struct VaultFilesListView: View {
     }
 
     private func fileRow(_ file: VaultFileDTO) -> some View {
-        let meta = file.metadata
-        let isTodo = meta?.isTodo == true
-        let done = meta?.done == true
-        let title = meta?.title.flatMap { $0.isEmpty ? nil : $0 } ?? (file.path as NSString).lastPathComponent
-        return HStack(alignment: .firstTextBaseline, spacing: 10) {
-            if isTodo {
-                Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(palette.glowPrimary)
-                    .font(.system(size: 16))
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(palette.textPrimary)
-                    .strikethrough(done, color: palette.textSecondary)
-                    .lineLimit(1)
-                HStack(spacing: 8) {
-                    if let due = meta?.dueAt {
-                        Label(due.formatted(date: .abbreviated, time: .shortened), systemImage: "calendar")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(palette.glowPrimary)
-                    } else {
-                        Text(file.path)
-                            .font(.system(size: 11))
-                            .foregroundStyle(palette.textSecondary)
-                            .lineLimit(1)
-                    }
-                    Spacer()
-                    Text(byteCount(file.sizeBytes))
-                        .font(.system(size: 11))
-                        .foregroundStyle(Color.lvTextMuted)
-                }
-            }
-        }
-        .padding(.vertical, 4)
+        VaultFileRow(file: file)
     }
 
     private var emptyState: some View {
@@ -193,9 +150,5 @@ struct VaultFilesListView: View {
             supporting: "Capture your first memory or note from the Home tab.",
             backgroundImage: "Lumina/Mascot/winged-scroll-vault"
         )
-    }
-
-    private func byteCount(_ bytes: Int64) -> String {
-        Self.byteFormatter.string(fromByteCount: bytes)
     }
 }

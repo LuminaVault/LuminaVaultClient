@@ -64,42 +64,13 @@ struct CaptureFAB: View {
         // a session this button opened a sheet with nothing usable in it.
         // Disabling is the honest fix; the `else` arm below is the seatbelt.
         .disabled(coordinator?.queue == nil || coordinator?.ingestionClient == nil)
-        .sheet(isPresented: $showingSheet) {
-            if let queue = coordinator?.queue, let ingestionClient = coordinator?.ingestionClient {
-                CaptureSheet(
-                    photoViewModel: CapturePhotosViewModel(
-                        queue: queue,
-                        locationService: LocationService(),
-                        drainer: coordinator?.drainerHandle ?? .noop,
-                        spacesClient: coordinator?.spacesClient
-                    ),
-                    textViewModel: TextCaptureViewModel(
-                        queue: queue,
-                        locationService: LocationService(),
-                        drainer: coordinator?.drainerHandle ?? .noop,
-                        spacesClient: coordinator?.spacesClient
-                    ),
-                    urlViewModel: URLCaptureViewModel(
-                        queue: queue,
-                        drainer: coordinator?.drainerHandle ?? .noop,
-                        spacesClient: coordinator?.spacesClient
-                    ),
-                    multimodalViewModel: MultimodalCaptureViewModel(
-                        client: ingestionClient,
-                        capabilitiesClient: coordinator?.hermesCapabilitiesClient,
-                        spacesClient: coordinator?.spacesClient,
-                        requestedBatchID: requestedBatchID
-                    ),
-                    initialMode: requestedBatchID == nil ? .photo : .files
-                )
-            } else {
-                LVEmptyState(
-                    headline: "Capture isn't ready yet",
-                    supporting: "Your vault is still being prepared. This will open once it's ready.",
-                    primaryCTA: ("Close", { showingSheet = false })
-                )
-            }
-        }
+        // Shared with the Home composer, which presents the same sheet for
+        // its photo and file affordances. See `CaptureSheetPresenter`.
+        .captureSheet(
+            isPresented: $showingSheet,
+            initialMode: requestedBatchID == nil ? .photo : .files,
+            requestedBatchID: requestedBatchID
+        )
         .task(id: notificationRouter.pendingDeepLink) {
             routePendingIngestion()
         }

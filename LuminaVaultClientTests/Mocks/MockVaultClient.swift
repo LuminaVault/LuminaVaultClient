@@ -39,14 +39,28 @@ final class MockVaultClient: VaultClientProtocol, @unchecked Sendable {
     )
     var deleteFileResult: Result<Void, Error> = .success(())
 
+    /// Recorded so a test can assert *what* was asked for — the Space filter
+    /// and the keyset cursor are the two arguments whose loss is silent.
+    struct ListFilesCall: Equatable {
+        let spaceSlug: String?
+        let q: String?
+        let before: Date?
+        let after: Date?
+        let limit: Int?
+    }
+    private(set) var listFilesCalls: [ListFilesCall] = []
+
     func listFiles(
-        spaceSlug _: String?,
-        q _: String?,
-        before _: Date?,
-        after _: Date?,
-        limit _: Int?,
+        spaceSlug: String?,
+        q: String?,
+        before: Date?,
+        after: Date?,
+        limit: Int?,
     ) async throws -> VaultFileListResponse {
-        try listFilesResult.get()
+        listFilesCalls.append(
+            ListFilesCall(spaceSlug: spaceSlug, q: q, before: before, after: after, limit: limit)
+        )
+        return try listFilesResult.get()
     }
 
     func readFile(relativePath _: String) async throws -> (Data, String) {

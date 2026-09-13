@@ -29,6 +29,10 @@ actor CaptureDrainer {
     /// keep compiling. Production injection comes from
     /// `CaptureCoordinator.start` once the safari client is built.
     private let safariClient: (any CaptureSafariClientProtocol)?
+    /// Optional for the same reason as `safariClient`: existing fixtures and
+    /// coordinator wiring keep compiling without it. A `.voice` row with no
+    /// client is dropped rather than retried forever.
+    private let transcribeClient: (any TranscribeClientProtocol)?
     private let pathPrefix: String
 
     private var draining = false
@@ -40,12 +44,14 @@ actor CaptureDrainer {
         vaultUploader: VaultUploadClientProtocol,
         memoryClient: MemoryClientProtocol,
         safariClient: (any CaptureSafariClientProtocol)? = nil,
+        transcribeClient: (any TranscribeClientProtocol)? = nil,
         pathPrefix: String = "raw/captures"
     ) {
         self.queue = queue
         self.vaultUploader = vaultUploader
         self.memoryClient = memoryClient
         self.safariClient = safariClient
+        self.transcribeClient = transcribeClient
         self.pathPrefix = pathPrefix
     }
 
@@ -197,6 +203,44 @@ actor CaptureDrainer {
                     notes: row.captionText?.nilIfEmpty,
                     spaceId: row.spaceID,
                 ))
+
+            case .voice:
+                // Recorded offline, transcribed whenever the device next has a
+                // connection. Transcription runs on the cluster's own whisper
+                // service; the server picks the provider, so this is a plain
+                // POST of the bytes.
+                guard let transcribeClient else {
+                    log.error("'.voice' row id=\(row.id.uuidString) dropped — transcribe client not configured")
+                    try await queue.delete(id: row.id)
+                    return
+                }
+                guard !row.imageData.isEmpty else {
+                    try await queue.delete(id: row.id)
+                    log.info("dropped empty .voice capture id=\(row.id.uuidString)")
+                    return
+                }
+                let transcription = try await transcribeClient.transcribe(
+                    audio: row.imageData,
+                    contentType: row.contentType.nilIfEmpty ?? "audio/mp4",
+                )
+                let spoken = transcription.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !spoken.isEmpty, let body = spoken.data(using: .utf8) else {
+                    // Silence, or a clip whisper could make nothing of. Storing
+                    // an empty note would be worse than storing nothing.
+                    try await queue.delete(id: row.id)
+                    log.info("dropped .voice capture with no speech id=\(row.id.uuidString)")
+                    return
+                }
+                // Stored as an ordinary note, so it is searchable and
+                // groundable in chat like anything else you type. The audio is
+                // not uploaded; it goes away with the queue row.
+                _ = try await vaultUploader.uploadNote(
+                    data: body,
+                    contentType: "text/markdown",
+                    relativePath: "\(pathPrefix)/\(row.id.uuidString).md",
+                    spaceID: row.spaceID,
+                    metadata: nil,
+                )
             }
 
             try await queue.delete(id: row.id)

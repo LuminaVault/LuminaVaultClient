@@ -32,6 +32,7 @@ struct MainTabView: View {
     @Namespace private var tabUnderline
     @AppStorage("lv.chat.hapticsEnabled") private var hapticsEnabled = true
     @State private var tabHapticTrigger = 0
+    @Environment(\.captureCoordinator) private var captureCoordinator
 
     private static let tabIds = (
         workspaces: "workspaces",
@@ -42,6 +43,10 @@ struct MainTabView: View {
         settings: "settings"
     )
     private static let studioTabID = "studio"
+    /// The KPI dashboard this tab used to open on. Demoted behind More when
+    /// Home became a capture surface — kept whole, just no longer the first
+    /// thing a user sees.
+    private static let dashboardTabID = "dashboard"
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -94,7 +99,7 @@ struct MainTabView: View {
                         .tag(Self.tabIds.workspaces)
                         .toolbar(.hidden, for: .tabBar)
 
-                        home
+                        captureHome
                             .tag(Self.tabIds.home)
                             .toolbar(.hidden, for: .tabBar)
 
@@ -213,6 +218,7 @@ struct MainTabView: View {
         switch selection {
         case Self.tabIds.workspaces: return "Spaces"
         case Self.tabIds.home: return "LuminaVault"
+        case Self.dashboardTabID: return "Dashboard"
         case Self.tabIds.reflect: return "Insights"
         case Self.tabIds.think: return "AI"
         case Self.tabIds.brain: return "Brain"
@@ -229,11 +235,14 @@ struct MainTabView: View {
 
     private static func isOverflow(_ id: String) -> Bool {
         id == tabIds.settings || id == visualSearchTabId || id == studioTabID
+            || id == dashboardTabID
     }
 
     @ViewBuilder
     private var overflowDestination: some View {
         switch selection {
+        case Self.dashboardTabID:
+            dashboard
         case Self.tabIds.settings:
             // HER-212: Settings — Privacy & Data + Advanced (Hermes Gateway).
             SettingsRootView()
@@ -274,6 +283,7 @@ struct MainTabView: View {
 
     private var overflowTabItems: [LVTabItem] {
         [
+            LVTabItem(id: Self.dashboardTabID, label: "Dashboard", icon: .chartUp),
             LVTabItem(id: Self.studioTabID, label: "Studio", icon: .sparklesRectangleStack),
             LVTabItem(id: "visual_search", label: "Visual Search", icon: .photoOnRectangleAngled),
             LVTabItem(id: Self.tabIds.settings, label: "Settings", icon: .tabSettings),
@@ -425,7 +435,29 @@ struct MainTabView: View {
         HealthHTTPClient()
     }
 
-    private var home: some View {
+    /// The Home tab. Wrapped in a `NavigationStack` so a feed row can push
+    /// the reader, matching how the vault's own list behaves.
+    private var captureHome: some View {
+        NavigationStack {
+            CaptureHomeView(
+                vm: CaptureHomeViewModel(
+                    // Both nil until the vault is prepared; the composer
+                    // disables saving in that window rather than accepting a
+                    // capture it cannot store.
+                    queue: captureCoordinator?.queue,
+                    drainer: captureCoordinator?.drainerHandle ?? .noop,
+                    vaultClient: vaultClient
+                ),
+                vaultClient: vaultClient,
+                // The reader edits notes, so it needs the upsert face of the
+                // memory API rather than the query one.
+                memoryClient: memoryUpsertClient,
+                onOpenDashboard: { selection = Self.dashboardTabID }
+            )
+        }
+    }
+
+    private var dashboard: some View {
         // HER-244 — OS Shell Home/Dashboard. Replaces the kb-compile-only
         // SyncAndLearnView with the real dashboard. Compile flow is
         // delegated to the existing SyncAndLearnViewModel + VaultRepository

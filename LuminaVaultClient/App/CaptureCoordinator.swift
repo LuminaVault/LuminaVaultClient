@@ -46,6 +46,7 @@ final class CaptureCoordinator {
             let uploader = VaultUploadHTTPClient(client: httpBase)
             let memory = MemoryHTTPClient(client: httpBase)
             let safari = CaptureSafariHTTPClient(client: httpBase)
+            let transcribe = TranscribeHTTPClient(client: httpBase)
             spacesClient = SpacesHTTPClient(client: httpBase)
             BackgroundIngestionUploader.shared.configure(
                 tokenProvider: tokenProvider,
@@ -59,7 +60,8 @@ final class CaptureCoordinator {
                 queue: queue,
                 vaultUploader: uploader,
                 memoryClient: memory,
-                safariClient: safari
+                safariClient: safari,
+                transcribeClient: transcribe
             )
             self.drainer = drainer
             await drainer.start()

@@ -109,7 +109,7 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>LuminaVault reads photos you pick to save them to your vault. Selection is one-shot and limited to the photos you choose.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Lumina listens to your question so you can ask hands-free.</string>
+	<string>Lumina listens so you can ask a question hands-free or save a spoken note to your vault.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Speech recognition turns your spoken question into text before sending it.</string>
 	<!-- HER-105 "Feed Your Brain" import sources. -->
