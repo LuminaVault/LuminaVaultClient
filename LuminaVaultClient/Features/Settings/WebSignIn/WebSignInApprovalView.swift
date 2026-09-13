@@ -9,7 +9,9 @@ import SwiftUI
 struct PendingPairingApproval: Identifiable, Equatable, Sendable {
     /// `Identifiable` for `.sheet(item:)`; the pairing id doubles as the id.
     let id: String
-    let code: String
+    /// `nil` for a universal link, which deliberately does not carry it — the
+    /// browser shows it and the app asks. Non-nil only for the legacy scheme.
+    let code: String?
 }
 
 @MainActor
@@ -17,6 +19,11 @@ struct PendingPairingApproval: Identifiable, Equatable, Sendable {
 final class WebSignInApprovalViewModel {
     enum Phase: Equatable {
         case scanning
+        /// Scanned a link that carries no code — the browser is showing it, and
+        /// the point is that approving requires having seen that screen.
+        case enterCode(pairingId: String)
+        /// Legacy payload: the code travelled inside the QR, so there is
+        /// nothing to ask for. Retires with the custom scheme.
         case confirm(pairingId: String, code: String)
         case approving
         case approved
@@ -31,13 +38,24 @@ final class WebSignInApprovalViewModel {
     /// already carries the pairing, so re-scanning the code you just scanned
     /// would be absurd. The confirm step still stands — the whole point is that
     /// you check the code against the one on screen before approving.
-    init(client: BaseHTTPClient, prefilled: (id: String, code: String)? = nil) {
+    init(client: BaseHTTPClient, prefilled: (id: String, code: String?)? = nil) {
         self.client = client
-        if let prefilled {
-            phase = .confirm(pairingId: prefilled.id, code: prefilled.code)
-        } else {
-            phase = .scanning
+        phase = Self.initialPhase(prefilled: prefilled)
+    }
+
+    /// Where a freshly opened approval starts.
+    ///
+    /// Split out so it can be tested without standing up an HTTP client: the
+    /// decision it makes is the security-relevant one. A universal link carries
+    /// no code, so it must land on `.enterCode` and force the person to read the
+    /// six digits off the browser that started the sign-in; only the legacy
+    /// scheme, whose builds cannot prompt, skips to `.confirm`.
+    static func initialPhase(prefilled: (id: String, code: String?)?) -> Phase {
+        guard let prefilled else { return .scanning }
+        guard let code = prefilled.code, !code.isEmpty else {
+            return .enterCode(pairingId: prefilled.id)
         }
+        return .confirm(pairingId: prefilled.id, code: code)
     }
 
     func handleScan(_ raw: String) {
@@ -46,15 +64,35 @@ final class WebSignInApprovalViewModel {
             phase = .failed("That QR code isn't a LuminaVault web sign-in.")
             return
         }
-        phase = .confirm(pairingId: parsed.id, code: parsed.code)
+        if let code = parsed.code {
+            phase = .confirm(pairingId: parsed.id, code: code)
+        } else {
+            phase = .enterCode(pairingId: parsed.id)
+        }
     }
 
     func handleScanError(_ message: String) {
         phase = .failed(message)
     }
 
-    func approve() async {
-        guard case let .confirm(pairingId, code) = phase else { return }
+    /// `typedCode` is what the person read off the browser. It is the only
+    /// thing tying this approval to that screen, so an empty one is refused
+    /// here rather than sent for the server to reject.
+    func approve(typedCode: String? = nil) async {
+        let pairingId: String
+        let code: String
+        switch phase {
+        case let .confirm(id, scannedCode):
+            pairingId = id
+            code = scannedCode
+        case let .enterCode(id):
+            let entered = (typedCode ?? "").trimmingCharacters(in: .whitespaces)
+            guard !entered.isEmpty else { return }
+            pairingId = id
+            code = entered
+        default:
+            return
+        }
         phase = .approving
         do {
             _ = try await client.execute(PairingEndpoints.Approve(pairingId: pairingId, code: code))
@@ -83,7 +121,7 @@ final class WebSignInApprovalViewModel {
     /// original payload — no installed app claims that scheme, which is why the
     /// camera used to answer "No usable data found" — and it stays supported
     /// because a code generated before the web switch flips must still scan.
-    static func parse(_ raw: String) -> (id: String, code: String)? {
+    static func parse(_ raw: String) -> (id: String, code: String?)? {
         guard let components = URLComponents(string: raw) else { return nil }
 
         switch components.scheme {
@@ -100,18 +138,26 @@ final class WebSignInApprovalViewModel {
         }
 
         let items = components.queryItems ?? []
-        guard
-            let id = items.first(where: { $0.name == "id" })?.value, !id.isEmpty,
-            let code = items.first(where: { $0.name == "code" })?.value, !code.isEmpty
-        else { return nil }
+        guard let id = items.first(where: { $0.name == "id" })?.value, !id.isEmpty else {
+            return nil
+        }
+        // Absent by design on a universal link: a QR that carries its own
+        // confirmation confirms nothing, since anyone can print one. Present on
+        // the legacy scheme, whose builds cannot prompt for it.
+        let code = items.first(where: { $0.name == "code" })?.value
+        guard let code, !code.isEmpty else { return (id, nil) }
         return (id, code)
     }
 }
 
 struct WebSignInApprovalView: View {
     @State private var viewModel: WebSignInApprovalViewModel
+    /// The six digits read off the browser. Never prefilled — being handed this
+    /// is exactly what makes a scanned code worthless as proof.
+    @State private var typedCode = ""
+    @FocusState private var codeFieldFocused: Bool
 
-    init(client: BaseHTTPClient, prefilled: (id: String, code: String)? = nil) {
+    init(client: BaseHTTPClient, prefilled: (id: String, code: String?)? = nil) {
         _viewModel = State(
             initialValue: WebSignInApprovalViewModel(client: client, prefilled: prefilled)
         )
@@ -130,6 +176,47 @@ struct WebSignInApprovalView: View {
                 )
                 .frame(height: 320)
                 .clipShape(RoundedRectangle(cornerRadius: LVRadius.card, style: .continuous))
+
+            case .enterCode:
+                Text("Approve web sign-in?")
+                    .font(.title2.bold())
+                Text("Type the six digits shown next to the QR code in your browser.")
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                TextField("000000", text: $typedCode)
+                    .keyboardType(.numberPad)
+                    .textContentType(.oneTimeCode)
+                    .multilineTextAlignment(.center)
+                    .font(.system(.title, design: .monospaced).bold())
+                    .tracking(8)
+                    .focused($codeFieldFocused)
+                    .onAppear { codeFieldFocused = true }
+                    .onChange(of: typedCode) { _, new in
+                        // Digits only, six of them: the field should not let you
+                        // paste something that can only fail server-side.
+                        let digits = new.filter(\.isNumber)
+                        if digits != new || digits.count > 6 {
+                            typedCode = String(digits.prefix(6))
+                        }
+                    }
+                Text("If you did not start a sign-in, do not approve this.")
+                    .font(.footnote)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                VStack(spacing: LVSpacing.sm) {
+                    Button {
+                        Task { await viewModel.approve(typedCode: typedCode) }
+                    } label: {
+                        Text("Approve").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(typedCode.count != 6)
+                    Button("Cancel") {
+                        typedCode = ""
+                        viewModel.reset()
+                    }
+                    .buttonStyle(.bordered)
+                }
 
             case let .confirm(_, code):
                 Text("Approve web sign-in?")
