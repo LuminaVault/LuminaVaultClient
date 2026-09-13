@@ -50,6 +50,8 @@ struct CaptureHomeView: View {
                     canSave: vm.canSave,
                     isRecording: vm.isRecording,
                     recordingElapsed: vm.recorder.elapsed,
+                    spaces: vm.availableSpaces ?? [],
+                    selectedSpaceID: $vm.selectedSpaceID,
                     onSubmit: { Task { await vm.submit() } },
                     onVoice: { Task { await vm.toggleRecording() } },
                     onCancelRecording: { vm.cancelRecording() },
@@ -93,6 +95,7 @@ struct CaptureHomeView: View {
         .lvBackground()
         .refreshable { await vm.loadFeed() }
         .task { await vm.loadFeed() }
+        .task { await vm.loadSpacesIfNeeded() }
         .captureSheet(isPresented: $sheetPresented, initialMode: sheetMode)
     }
 

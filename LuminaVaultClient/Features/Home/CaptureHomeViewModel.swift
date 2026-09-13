@@ -56,6 +56,13 @@ final class CaptureHomeViewModel {
         }
     }
 
+    /// Spaces available to file into, fetched once. nil while loading; empty
+    /// means the user has none and the picker stays hidden.
+    var availableSpaces: [SpaceDTO]?
+    /// Where the next capture is filed. nil = unfiled, which lands in the
+    /// vault root the same way the capture sheet's "Unfiled" does.
+    var selectedSpaceID: UUID?
+
     /// Recording state, so the composer can show a mic that is visibly live.
     let recorder = VoiceRecorder()
     var isRecording: Bool { recorder.isRecording }
@@ -71,14 +78,17 @@ final class CaptureHomeViewModel {
     /// same gate as `CaptureFAB`.
     private let queue: CaptureQueueProtocol?
     private let drainer: CaptureDrainerHandle
+    private let spacesClient: (any SpacesClientProtocol)?
 
     init(
         queue: CaptureQueueProtocol?,
         drainer: CaptureDrainerHandle,
-        vaultClient: VaultClientProtocol
+        vaultClient: VaultClientProtocol,
+        spacesClient: (any SpacesClientProtocol)? = nil
     ) {
         self.queue = queue
         self.drainer = drainer
+        self.spacesClient = spacesClient
         self.files = VaultFilesViewModel(vaultClient: vaultClient, spaceSlug: nil)
 
         // Reaching the two-minute cap finishes a note; it does not discard one.
@@ -120,8 +130,9 @@ final class CaptureHomeViewModel {
 
         let id = UUID()
         let link = detectedLink
-        let snapshot = link.map { CaptureSnapshot.url(id: id, url: $0.absoluteString) }
-            ?? CaptureSnapshot.text(id: id, body: body)
+        let snapshot = link.map {
+            CaptureSnapshot.url(id: id, url: $0.absoluteString, spaceID: selectedSpaceID)
+        } ?? CaptureSnapshot.text(id: id, body: body, spaceID: selectedSpaceID)
 
         do {
             try await queue.enqueue(snapshot)
@@ -134,7 +145,7 @@ final class CaptureHomeViewModel {
                     id: id,
                     kind: snapshot.kind,
                     displayText: link?.host ?? body,
-                    predictedPath: Self.predictedPath(for: snapshot),
+                    predictedPath: predictedPath(for: snapshot),
                     createdAt: snapshot.createdAt
                 ),
                 at: 0
@@ -150,13 +161,26 @@ final class CaptureHomeViewModel {
         }
     }
 
-    /// A `.url` row's path is chosen by the server (it embeds the host and a
-    /// uuid), so only text rows can be predicted. An unpredictable row still
-    /// shows as pending; it just cannot be matched by path, and is cleared
-    /// when the queue drains instead.
-    private static func predictedPath(for snapshot: CaptureSnapshot) -> String {
+    /// Where the drainer's upload will land.
+    ///
+    /// `VaultController.upload` keeps only the basename and files it under the
+    /// Space's slug — or `inbox` when unfiled — so the path is known before the
+    /// request is made. A `.url` row's path is chosen by the server (it embeds
+    /// the host and a uuid) and cannot be predicted; such a row still shows as
+    /// pending, it just clears on the queue draining rather than by path.
+    private func predictedPath(for snapshot: CaptureSnapshot) -> String {
         guard snapshot.kind == .text || snapshot.kind == .voice else { return "" }
-        return "inbox/\(snapshot.id.uuidString).md"
+        return "\(spaceFolder(for: snapshot.spaceID))/\(snapshot.id.uuidString).md"
+    }
+
+    /// Mirrors the server's choice of folder. An id with no matching Space
+    /// falls back to `inbox`, which is what the server does too.
+    private func spaceFolder(for spaceID: UUID?) -> String {
+        guard let spaceID,
+              let slug = availableSpaces?.first(where: { $0.id == spaceID })?.slug,
+              !slug.isEmpty
+        else { return "inbox" }
+        return slug
     }
 
     // MARK: - Voice
@@ -185,10 +209,12 @@ final class CaptureHomeViewModel {
         recorder.discard()
     }
 
-    private func enqueueVoice(_ audio: Data) async {
+    /// Not private so a test can enqueue audio without driving real recording
+    /// hardware. `toggleRecording` is the only production caller.
+    func enqueueVoice(_ audio: Data) async {
         guard let queue else { return }
         let id = UUID()
-        let snapshot = CaptureSnapshot.voice(id: id, audio: audio)
+        let snapshot = CaptureSnapshot.voice(id: id, audio: audio, spaceID: selectedSpaceID)
         do {
             try await queue.enqueue(snapshot)
             pending.insert(
@@ -196,7 +222,7 @@ final class CaptureHomeViewModel {
                     id: id,
                     kind: .voice,
                     displayText: "Voice note",
-                    predictedPath: Self.predictedPath(for: snapshot),
+                    predictedPath: predictedPath(for: snapshot),
                     createdAt: snapshot.createdAt
                 ),
                 at: 0
@@ -214,6 +240,17 @@ final class CaptureHomeViewModel {
     func loadFeed() async {
         await files.load()
         await reconcileWithQueue()
+    }
+
+    /// Fetched once per session. A failure leaves the picker hidden rather than
+    /// blocking capture — filing is a convenience, capturing is the point.
+    func loadSpacesIfNeeded() async {
+        guard availableSpaces == nil, let spacesClient else { return }
+        do {
+            availableSpaces = try await spacesClient.list()
+        } catch {
+            availableSpaces = []
+        }
     }
 
     /// Waits for the drainer to work through what was just enqueued, then
