@@ -136,6 +136,69 @@ final class CaptureHomeViewModelTests: XCTestCase {
         XCTAssertEqual(vm.text, "too early")
     }
 
+    // MARK: - Filing into a Space
+
+    func testACaptureIsFiledIntoTheSelectedSpace() async throws {
+        // Without this the fast path could only ever write to the vault root,
+        // which made Spaces something you had to go and fix afterwards.
+        let queue = StubCaptureQueue()
+        let spaceID = UUID()
+        let vm = makeVM(queue: queue)
+        vm.availableSpaces = [Self.space(id: spaceID, name: "Work", slug: "work")]
+        vm.selectedSpaceID = spaceID
+        vm.text = "a note for work"
+
+        await vm.submit()
+
+        let snapshots = await queue.snapshot()
+        let snap = try XCTUnwrap(snapshots.first)
+        XCTAssertEqual(snap.spaceID, spaceID)
+    }
+
+    func testAVoiceNoteIsFiledIntoTheSelectedSpaceToo() async throws {
+        let queue = HoldingCaptureQueue()
+        let spaceID = UUID()
+        let vm = makeVM(queue: queue)
+        vm.availableSpaces = [Self.space(id: spaceID, name: "Work", slug: "work")]
+        vm.selectedSpaceID = spaceID
+
+        await vm.enqueueVoice(Data("audio".utf8))
+
+        let row = try XCTUnwrap(vm.pending.first)
+        XCTAssertTrue(row.predictedPath.hasPrefix("work/"), "got \(row.predictedPath)")
+    }
+
+    func testThePredictedPathFollowsTheSpaceFolder() async throws {
+        // The server keeps only the basename and files it under the Space's
+        // slug, so a row filed into a Space that still predicted `inbox/` would
+        // never match the real file and would linger on screen.
+        let spaceID = UUID()
+        let vm = makeVM(queue: HoldingCaptureQueue())
+        vm.availableSpaces = [Self.space(id: spaceID, name: "Work", slug: "work")]
+        vm.selectedSpaceID = spaceID
+        vm.text = "filed"
+
+        await vm.submit()
+
+        let row = try XCTUnwrap(vm.pending.first)
+        XCTAssertEqual(row.predictedPath, "work/\(row.id.uuidString).md")
+    }
+
+    func testUnfiledStillPredictsInbox() async throws {
+        let vm = makeVM(queue: HoldingCaptureQueue())
+        vm.selectedSpaceID = nil
+        vm.text = "unfiled"
+
+        await vm.submit()
+
+        let row = try XCTUnwrap(vm.pending.first)
+        XCTAssertEqual(row.predictedPath, "inbox/\(row.id.uuidString).md")
+    }
+
+    private static func space(id: UUID, name: String, slug: String) -> SpaceDTO {
+        SpaceDTO(id: id, name: name, slug: slug, description: nil, color: nil, icon: nil)
+    }
+
     // MARK: - Captures that fail
 
     func testAFailedCaptureIsNotMistakenForASavedOne() async throws {

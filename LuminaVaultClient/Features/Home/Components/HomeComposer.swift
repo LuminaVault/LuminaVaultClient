@@ -7,6 +7,7 @@
 // for the inputs a text field genuinely cannot take.
 
 import SwiftUI
+import LuminaVaultShared
 
 struct HomeComposer: View {
     @Environment(\.lvPalette) private var palette
@@ -20,6 +21,10 @@ struct HomeComposer: View {
     let canSave: Bool
     let isRecording: Bool
     let recordingElapsed: TimeInterval
+    /// Empty when the user has no Spaces, in which case no picker is shown —
+    /// an "Unfiled" menu with nothing to choose is just clutter.
+    let spaces: [SpaceDTO]
+    @Binding var selectedSpaceID: UUID?
     let onSubmit: () -> Void
     let onVoice: () -> Void
     let onCancelRecording: () -> Void
@@ -58,6 +63,10 @@ struct HomeComposer: View {
                 affordance(.photoOnRectangleAngled, label: "Add a photo", action: onPhotos)
                 affordance(.paperclip, label: "Add a file", action: onFiles)
 
+                if !spaces.isEmpty {
+                    spacePicker
+                }
+
                 Spacer(minLength: LVSpacing.sm)
 
                 Button(action: onSubmit) {
@@ -74,6 +83,41 @@ struct HomeComposer: View {
         .padding(.horizontal, LVSpacing.base - 2)
         .padding(.vertical, LVSpacing.md)
         .lvGlassCard(cornerRadius: LVRadius.card, intensity: 0.55)
+    }
+
+    /// Files the capture into a Space in the same request, the way the capture
+    /// sheet already does. Without it the fast path could only ever write to
+    /// the vault root, which made Spaces something you had to go and fix later.
+    private var spacePicker: some View {
+        Menu {
+            Picker(selection: $selectedSpaceID) {
+                Text("Unfiled").tag(UUID?.none)
+                ForEach(spaces, id: \.id) { space in
+                    Text(space.name).tag(UUID?.some(space.id))
+                }
+            } label: {
+                Text("Space")
+            }
+        } label: {
+            HStack(spacing: LVSpacing.xs) {
+                LVIconView(.folder, size: 14, tint: palette.textSecondary)
+                Text(selectedSpaceName)
+                    .lvFont(.caption)
+                    .foregroundStyle(palette.textSecondary)
+                    .lineLimit(1)
+            }
+            .frame(minHeight: LVSize.tapTarget)
+            .contentShape(.rect)
+        }
+        .disabled(isSaving)
+        .accessibilityLabel("File into a Space. Currently \(selectedSpaceName)")
+    }
+
+    private var selectedSpaceName: String {
+        guard let selectedSpaceID,
+              let space = spaces.first(where: { $0.id == selectedSpaceID })
+        else { return "Unfiled" }
+        return space.name
     }
 
     /// While recording, the field is not the thing to look at — how long you

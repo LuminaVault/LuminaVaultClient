@@ -446,7 +446,8 @@ struct MainTabView: View {
                     // capture it cannot store.
                     queue: captureCoordinator?.queue,
                     drainer: captureCoordinator?.drainerHandle ?? .noop,
-                    vaultClient: vaultClient
+                    vaultClient: vaultClient,
+                    spacesClient: captureCoordinator?.spacesClient
                 ),
                 vaultClient: vaultClient,
                 // The reader edits notes, so it needs the upsert face of the
