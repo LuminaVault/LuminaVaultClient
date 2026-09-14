@@ -289,6 +289,7 @@ struct LuminaVaultClientApp: App {
                                         settingsClient: SettingsHTTPClient(
                                             client: appState.makeHTTPClient()
                                         ),
+                                        httpClient: appState.makeHTTPClient(),
                                         onFinished: {
                                             hasSeenBYOHermesPrompt = true
                                         }

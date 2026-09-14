@@ -60,6 +60,9 @@ final class SkillsHubViewModel {
     var customEnabled: [LuminaVaultShared.SkillDTO] {
         skills.filter { $0.source == .vault && $0.enabled }
     }
+    var hermesEnabled: [LuminaVaultShared.SkillDTO] {
+        skills.filter { $0.source == .hermes && $0.enabled }
+    }
     var disabled: [LuminaVaultShared.SkillDTO] {
         skills.filter { !$0.enabled }
     }

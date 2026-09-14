@@ -19,13 +19,16 @@ import SwiftUI
 struct BYOHermesOnboardingGate: View {
     @State private var showSetup = false
     private let settingsClient: any SettingsClientProtocol
+    private let httpClient: BaseHTTPClient
     private let onFinished: () -> Void
 
     init(
         settingsClient: any SettingsClientProtocol,
+        httpClient: BaseHTTPClient,
         onFinished: @escaping () -> Void
     ) {
         self.settingsClient = settingsClient
+        self.httpClient = httpClient
         self.onFinished = onFinished
     }
 
@@ -39,7 +42,10 @@ struct BYOHermesOnboardingGate: View {
         )
         .sheet(isPresented: $showSetup) {
             NavigationStack {
-                HermesGatewayPaneView(client: settingsClient)
+                HermesGatewayPaneView(
+                    client: settingsClient,
+                    mirror: HermesMirrorHTTPClient(client: httpClient)
+                )
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Done") {

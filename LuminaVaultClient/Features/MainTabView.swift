@@ -569,9 +569,11 @@ struct MainTabView: View {
                 RemindersListView(vm: RemindersListViewModel(client: remindersClient))
             ) },
             jobsDestination: { [self] in AnyView(
-                WorkflowListView(
-                    client: WorkflowsHTTPClient(client: appState.makeHTTPClient()),
-                    memoryClient: memoryUpsertClient
+                HermesMirrorJobsView(
+                    vm: HermesMirrorJobsListViewModel(
+                        client: HermesMirrorJobsHTTPClient(client: appState.makeHTTPClient())
+                    ),
+                    client: HermesMirrorJobsHTTPClient(client: appState.makeHTTPClient())
                 )
             ) },
             // C6 — Kanban entry: loader resolves the default board then pushes KanbanBoardView.

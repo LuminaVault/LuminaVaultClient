@@ -65,6 +65,13 @@ struct SkillsHubView: View {
                         }
                     }
                 }
+                if !vm.hermesEnabled.isEmpty {
+                    Section("From your Hermes") {
+                        ForEach(vm.hermesEnabled) { skill in
+                            rowLink(skill)
+                        }
+                    }
+                }
                 if !vm.disabled.isEmpty {
                     Section("Disabled") {
                         ForEach(vm.disabled) { skill in
