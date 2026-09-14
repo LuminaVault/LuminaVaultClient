@@ -29,6 +29,14 @@ struct VaultFileRow: View {
             ?? (file.path as NSString).lastPathComponent
     }
 
+    /// A captured link is written as a placeholder and rewritten once the
+    /// server has fetched the page. Saying so is the difference between a row
+    /// that looks broken — no title, a filename full of hyphens — and one that
+    /// is visibly still arriving.
+    private var isEnriching: Bool {
+        file.metadata?.enrichmentStatus == "pending"
+    }
+
     var body: some View {
         let meta = file.metadata
         let isTodo = meta?.isTodo == true
@@ -47,7 +55,11 @@ struct VaultFileRow: View {
                     .strikethrough(done, color: palette.textSecondary)
                     .lineLimit(1)
                 HStack(spacing: LVSpacing.sm) {
-                    if let due = meta?.dueAt {
+                    if isEnriching {
+                        Label("Fetching the page…", systemImage: "arrow.down.circle")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(palette.glowPrimary)
+                    } else if let due = meta?.dueAt {
                         Label(due.formatted(date: .abbreviated, time: .shortened), systemImage: "calendar")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(palette.glowPrimary)
