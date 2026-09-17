@@ -227,14 +227,19 @@ struct MainTabView: View {
     }
 
     private var insightsTab: some View {
-        NavigationStack {
+        let httpClient = appState.makeHTTPClient()
+        return NavigationStack {
             InsightsTabView(
+                analyticsViewModel: AnalyticsDashboardViewModel(
+                    analytics: AnalyticsHTTPClient(client: httpClient),
+                    insights: InsightsHTTPClient(client: httpClient)
+                ),
                 reflectViewModel: ReflectViewModel(vaultClient: vaultClient),
                 runner: ReflectionRunner(
                     skillsClient: skillsClient,
                     vaultUploadClient: vaultUploadClient
                 ),
-                httpClient: appState.makeHTTPClient(),
+                httpClient: httpClient,
                 vaultClient: vaultClient,
                 memoryClient: memoryUpsertClient
             )

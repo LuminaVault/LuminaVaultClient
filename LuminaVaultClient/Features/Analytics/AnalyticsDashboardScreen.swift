@@ -1,24 +1,21 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Analytics/AnalyticsDashboardScreen.swift
 //
-// HER-56 — full-screen wrapper that owns the dashboard view model so each
-// navigation push gets fresh state. Builds the four read clients from the
-// shared `BaseHTTPClient`, mirroring `HealthDashboardScreen` (HER-118).
+// HER-56 — wrapper that carries the dashboard's navigation destinations.
+// The view model itself is owned by `InsightsTabView`, because the range
+// menu is an item in that tab's navigation bar.
 
 import SwiftUI
 
 struct AnalyticsDashboardScreen: View {
-    @State private var viewModel: AnalyticsDashboardViewModel
+    private let viewModel: AnalyticsDashboardViewModel
     // HER-248 — passed to the Patterns section so insight cards can push
     // the shared detail screen.
     private let httpClient: BaseHTTPClient
     @State private var recommendationDestination: AnalyticsRecommendationDestination?
 
-    init(httpClient: BaseHTTPClient) {
+    init(viewModel: AnalyticsDashboardViewModel, httpClient: BaseHTTPClient) {
+        self.viewModel = viewModel
         self.httpClient = httpClient
-        _viewModel = State(initialValue: AnalyticsDashboardViewModel(
-            analytics: AnalyticsHTTPClient(client: httpClient),
-            insights: InsightsHTTPClient(client: httpClient),
-        ))
     }
 
     var body: some View {
