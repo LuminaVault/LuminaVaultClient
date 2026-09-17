@@ -11,6 +11,9 @@ on:
     paths-ignore:
       - "**.md"
       - "docs/**"
+  # Manual only — `record-snapshots` below is the whole reason this trigger
+  # exists. Nothing else in this file runs on it.
+  workflow_dispatch:
 
 jobs:
   lint:
@@ -191,3 +194,102 @@ jobs:
           path: TestResults.xcresult
           if-no-files-found: ignore
           retention-days: 7
+
+  # Manual only. Snapshot baselines are recorded against CI's renderer, not a
+  # developer's: an Xcode 26.2 machine cannot write PNGs that a 26.4 runner
+  # will accept, so a new or changed snapshot suite ships with no baseline and
+  # is recorded here.
+  #
+  # Run it from the Actions tab, download the `snapshots-<sha>` artifact,
+  # unzip it over `LuminaVaultClientTests/__Snapshots__/`, commit the PNGs,
+  # and remove the suite's `XCTSkipIf`. The test step is
+  # `continue-on-error` because a recording run fails by design — every
+  # `assertSnapshot` that writes a reference reports a failure.
+  record-snapshots:
+    name: Record snapshot baselines
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same pin as "Run Tests" — the baselines this job writes are only
+      # valid for the toolchain the PR job will compare them on.
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "26.4"
+
+      - name: Ensure an iOS simulator runtime is installed
+        run: |
+          set -euo pipefail
+          if ! xcrun simctl list runtimes | grep -q "^iOS"; then
+            echo "no iOS simulator runtime — downloading (one-time per image)"
+            sudo xcodebuild -downloadPlatform iOS
+          fi
+          xcrun simctl list runtimes
+
+      - name: Cache SPM packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('LuminaVaultClient.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Materialize xcconfig from samples
+        run: |
+          set -euo pipefail
+          for cfg in Debug Release Beta GoogleAuth; do
+            src="LuminaVaultClient/Config/Config.$cfg.xcconfig"
+            [ "$cfg" = "GoogleAuth" ] && src="LuminaVaultClient/Config/GoogleAuth.xcconfig"
+            if [ ! -f "$src" ] && [ -f "$src.sample" ]; then
+              cp "$src.sample" "$src"
+              echo "materialized $src"
+            fi
+          done
+
+      - name: Resolve Swift packages
+        run: xcodebuild -project LuminaVaultClient.xcodeproj -resolvePackageDependencies
+
+      # Device and runtime pinned exactly as in "Run unit tests (Debug)" —
+      # see the comments above that step for why both axes are fixed. A
+      # baseline recorded on any other device or runtime is worse than none.
+      - name: Record snapshots (Debug)
+        continue-on-error: true
+        env:
+          SNAPSHOT_TESTING_RECORD: all
+        run: |
+          set -euo pipefail
+          DEVICE="iPhone 16 Pro"
+          DEVICE_TYPE="com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro"
+          OS_VERSION="26.4"
+          RUNTIME_ID="com.apple.CoreSimulator.SimRuntime.iOS-26-4"
+          if ! xcrun simctl list runtimes | grep -q "$RUNTIME_ID"; then
+            echo "::error::iOS $OS_VERSION runtime is not on this runner — snapshot baselines are recorded against it"
+            xcrun simctl list runtimes
+            exit 1
+          fi
+          UDID=$(xcrun simctl list devices available \
+            | awk -v hdr="-- iOS ${OS_VERSION} --" '$0==hdr{f=1;next} /^-- /{f=0} f' \
+            | sed -nE "s/^ +${DEVICE} \(([0-9A-Fa-f-]{36})\).*/\1/p" \
+            | head -1 || true)
+          if [ -z "$UDID" ]; then
+            echo "::notice::'${DEVICE}' does not exist on iOS ${OS_VERSION} — creating it"
+            UDID=$(xcrun simctl create "$DEVICE" "$DEVICE_TYPE" "$RUNTIME_ID")
+          fi
+          echo "Recording on: $DEVICE on iOS $OS_VERSION ($UDID)"
+          xcodebuild test \
+            -project LuminaVaultClient.xcodeproj \
+            -scheme LuminaVaultClient \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            -only-testing:LuminaVaultClientTests
+
+      - name: Upload recorded snapshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshots-${{ github.sha }}
+          path: LuminaVaultClientTests/__Snapshots__
+          if-no-files-found: error
+          retention-days: 14
