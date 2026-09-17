@@ -6,6 +6,10 @@
 // you have kept it up, and how much is waiting to be re-read. Each tile shows
 // a placeholder while its call is in flight and a dash if that call failed,
 // because a tile that quietly reads zero is a lie about the vault.
+//
+// The first tile is labelled "Saved", not "Today": the strip sits inside a
+// `Section("Today")` in `CaptureHomeView`, so "Today / Today" read as a
+// repeated header rather than as a count of memories saved today.
 
 import SwiftUI
 
@@ -18,7 +22,7 @@ struct HomeGlanceStrip: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-            tile("Today", memoriesToday) { "\($0)" }
+            tile("Saved", memoriesToday) { "\($0)" }
             tile("Streak", streakDays) { "\($0)d" }
             tile("To revisit", toRevisit) { "\($0)" }
         }

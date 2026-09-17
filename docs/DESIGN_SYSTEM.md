@@ -273,7 +273,7 @@ Native-shell components. All of them render inside an inset-grouped `List`; none
 
 | Component               | File                                              | Notes |
 |-------------------------|---------------------------------------------------|-------|
-| `HomeGlanceStrip`       | `Features/Home/Components/HomeGlanceStrip.swift`  | Three numbers on one row — today, streak, to revisit. Redacted placeholder while loading, `—` on a failed call. |
+| `HomeGlanceStrip`       | `Features/Home/Components/HomeGlanceStrip.swift`  | Three numbers on one row — Saved, Streak, To revisit. Labelled "Saved" rather than "Today" because the strip already sits in a `Section("Today")`. Redacted placeholder while loading, `—` on a failed call. |
 | `HomeRecommendationRow` | `Features/Home/Components/HomeRecommendationRow.swift` | The one suggestion under the strip. A plain list row with a `Label`; `HomeRecommendationLabel` is the `NavigationLink` half. |
 | `VaultFileRow`          | `Features/Vault/VaultFileRow.swift`               | One vault row, wherever the vault is listed. Layout only. |
 | `VaultFileDisplay`      | `Features/Vault/VaultFileDisplay.swift`           | Not a view — the pure rules that turn a `VaultFileDTO` into a title, a subtitle and a glyph. Both vault surfaces read it so they cannot disagree. |

@@ -4,6 +4,10 @@
 // over a glance strip over what you saved, empty and populated, light and
 // dark.
 //
+// The glance strip's tiles read Saved / Streak / To revisit, so `makeGlance`'s
+// `memoriesToday:` is the number under "Saved" — the section header above it
+// is the one that says "Today".
+//
 // No baselines yet, so every case is behind
 // `SnapshotQuarantine.skipUnlessRecording()`: skipped on an ordinary run,
 // executed (and recorded) when `SNAPSHOT_TESTING_RECORD` is set. This suite
