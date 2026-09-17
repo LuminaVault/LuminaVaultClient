@@ -73,7 +73,11 @@ struct InsightsTabView: View {
                         }
                     }
                 } label: {
+                    // `.titleAndIcon`: a bare `Label` in a toolbar renders
+                    // icon-only, which hides which range is active — the whole
+                    // point of putting the range in the bar.
                     Label(analyticsViewModel.range.title, systemImage: "calendar")
+                        .labelStyle(.titleAndIcon)
                 }
             }
         }
