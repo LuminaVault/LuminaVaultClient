@@ -70,19 +70,26 @@ struct AnalyticsDashboardView: View {
     @ViewBuilder
     private var usageSection: some View {
         if let summary = vm.overview?.summary {
+            // `Text(_:format:)` rather than a pre-formatted string: the
+            // formatter then follows the environment locale, which is what
+            // the rest of the row does and what keeps a snapshot from
+            // reading the host's regional settings.
             Section("Usage") {
-                LabeledContent("AI requests", value: summary.aiRequests.formatted(.number))
-                LabeledContent(
-                    "Tokens",
-                    value: (summary.tokensIn + summary.tokensOut).formatted(.number),
-                )
-                LabeledContent("Cost", value: costString(summary.estimatedCostUsdMicros))
+                LabeledContent("AI requests") {
+                    Text(summary.aiRequests, format: .number)
+                }
+                LabeledContent("Tokens") {
+                    Text(summary.tokensIn + summary.tokensOut, format: .number)
+                }
+                LabeledContent("Cost") {
+                    Text(dollars(summary.estimatedCostUsdMicros), format: .currency(code: "USD"))
+                }
             }
         }
     }
 
-    private func costString(_ micros: Int64) -> String {
-        (Double(micros) / 1_000_000.0).formatted(.currency(code: "USD"))
+    private func dollars(_ micros: Int64) -> Double {
+        Double(micros) / 1_000_000.0
     }
 
     // MARK: - Recommended

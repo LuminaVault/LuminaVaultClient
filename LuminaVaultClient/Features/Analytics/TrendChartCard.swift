@@ -34,7 +34,7 @@ struct TrendChartCard: View {
                 .font(.subheadline.weight(.semibold))
             Spacer()
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(formattedLatest)
+                latestValue
                     .font(.title3.weight(.semibold))
                     .monospacedDigit()
                 Text(series.unit)
@@ -44,12 +44,26 @@ struct TrendChartCard: View {
         }
     }
 
-    private var formattedLatest: String {
-        if series.latest == 0 { return "–" }
-        if series.latest >= 1000 {
-            return Int(series.latest.rounded()).formatted(.number)
+    /// Formatted through `Text(_:format:)` rather than into a string so the
+    /// headline follows the same locale as the chart's own axis labels.
+    @ViewBuilder
+    private var latestValue: some View {
+        if series.latest == 0 {
+            Text(verbatim: "–")
+        } else if series.latest >= 1000 {
+            Text(series.latest, format: .number.precision(.fractionLength(0)))
+        } else {
+            Text(series.latest, format: .number.precision(.fractionLength(1)))
         }
-        return String(format: "%.1f", series.latest)
+    }
+
+    /// Spoken form of the same value; VoiceOver reads the label, not the row.
+    private var formattedLatest: String {
+        if series.latest == 0 { return "no data" }
+        if series.latest >= 1000 {
+            return series.latest.formatted(.number.precision(.fractionLength(0)))
+        }
+        return series.latest.formatted(.number.precision(.fractionLength(1)))
     }
 
     @ViewBuilder
