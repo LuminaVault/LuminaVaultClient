@@ -24,7 +24,7 @@ final class HermesMirrorJobsViewSnapshotTests: XCTestCase {
     }
 
     func testJobsListSeparatesScheduledFromPaused() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: baseline re-record pending on CI (feat/native-shell)")
+        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
         let client = StubHermesMirrorJobsClient()
         let vm = HermesMirrorJobsListViewModel(
             client: client,
@@ -41,7 +41,7 @@ final class HermesMirrorJobsViewSnapshotTests: XCTestCase {
     }
 
     func testJobDetailShowsTheCollectedOutput() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: baseline re-record pending on CI (feat/native-shell)")
+        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
         let client = StubHermesMirrorJobsClient()
         let vm = HermesMirrorJobDetailViewModel(
             client: client,
@@ -73,7 +73,7 @@ final class HermesMirrorJobsViewSnapshotTests: XCTestCase {
     }
 
     func testJobEditorPrefillsTheJobBeingEdited() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: baseline re-record pending on CI (feat/native-shell)")
+        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
         let client = StubHermesMirrorJobsClient()
         let vm = HermesMirrorJobEditorViewModel(
             client: client,

@@ -77,7 +77,7 @@ final class AuthLandingViewSnapshotTests: XCTestCase {
     // MARK: - Light
 
     func testAuthLandingLightMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: baseline re-record pending on CI (feat/native-shell)")
+        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
         let view = makeView().preferredColorScheme(.light)
         assertSnapshot(
             of: view,
@@ -94,7 +94,7 @@ final class AuthLandingViewSnapshotTests: XCTestCase {
     // MARK: - Dark
 
     func testAuthLandingDarkMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: baseline re-record pending on CI (feat/native-shell)")
+        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
         let view = makeView().preferredColorScheme(.dark)
         assertSnapshot(
             of: view,

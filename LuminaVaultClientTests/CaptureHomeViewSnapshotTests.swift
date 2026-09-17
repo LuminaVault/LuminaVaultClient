@@ -4,9 +4,14 @@
 // over a glance strip over what you saved, empty and populated, light and
 // dark.
 //
-// Recording is ON in this suite. Baselines cannot be recorded on an Xcode
-// 26.2 machine against CI's iOS 26.4 renderer, so CI writes them on the first
-// run and Task 7 turns recording back off with the PNGs committed.
+// Recording is OFF, and this suite never touches the process-global
+// `isRecording`: a suite that flips it changes what every later suite in the
+// run does. Baselines cannot be recorded on an Xcode 26.2 machine against
+// CI's iOS 26.4 renderer, so they are produced by the `record-snapshots`
+// workflow (`.github/workflows/ci.yml`, workflow_dispatch) and committed from
+// its `snapshots-<sha>` artifact. Until they are, these cases fail with
+// "missing baseline" — which is the honest state, not a green run.
+// A one-off re-record goes through the per-assert `record:` parameter.
 
 import SnapshotTesting
 import SwiftUI
@@ -21,12 +26,10 @@ final class CaptureHomeViewSnapshotTests: XCTestCase {
     override func setUp() {
         super.setUp()
         UIView.setAnimationsEnabled(false)
-        isRecording = true
     }
 
     override func tearDown() {
         UIView.setAnimationsEnabled(true)
-        isRecording = false
         super.tearDown()
     }
 

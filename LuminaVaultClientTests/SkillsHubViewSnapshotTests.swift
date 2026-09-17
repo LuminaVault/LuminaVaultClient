@@ -96,7 +96,7 @@ final class SkillsHubViewSnapshotTests: XCTestCase {
     // MARK: - Cases
 
     func testSkillsHubPopulatedDarkMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: baseline re-record pending on CI (feat/native-shell)")
+        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
         let view = makeView(state: .loaded).preferredColorScheme(.dark)
         assertSnapshot(
             of: view,
@@ -111,7 +111,7 @@ final class SkillsHubViewSnapshotTests: XCTestCase {
     }
 
     func testSkillsHubPopulatedLightMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: baseline re-record pending on CI (feat/native-shell)")
+        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
         let view = makeView(state: .loaded).preferredColorScheme(.light)
         assertSnapshot(
             of: view,
@@ -126,7 +126,7 @@ final class SkillsHubViewSnapshotTests: XCTestCase {
     }
 
     func testSkillsHubLoadingDarkMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: baseline re-record pending on CI (feat/native-shell)")
+        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
         let view = makeView(state: .loading).preferredColorScheme(.dark)
         assertSnapshot(
             of: view,
