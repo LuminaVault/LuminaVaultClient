@@ -15,6 +15,7 @@ struct CaptureHomeView: View {
 
     @State private var vm: CaptureHomeViewModel
     @State private var glance: HomeGlanceViewModel?
+    @State private var ticker: NewsTickerViewModel?
     @FocusState private var composerFocused: Bool
     @State private var sheetPresented = false
     @State private var sheetMode: CaptureSheet.Mode = .photo
@@ -36,10 +37,13 @@ struct CaptureHomeView: View {
         // The glance view model is normally built here from `AppState`, which
         // a preview or a snapshot test has no live clients for.
         glance: HomeGlanceViewModel? = nil,
+        // Same story for the breaking-news strip.
+        ticker: NewsTickerViewModel? = nil,
         onOpenSettings: @escaping () -> Void
     ) {
         self._vm = State(wrappedValue: vm)
         self._glance = State(wrappedValue: glance)
+        self._ticker = State(wrappedValue: ticker)
         self.vaultClient = vaultClient
         self.memoryClient = memoryClient
         self.captureFailures = captureFailures
@@ -90,6 +94,11 @@ struct CaptureHomeView: View {
                             toRevisit: .loading
                         )
                     }
+                    // The breaking-news strip of the first-party news-ticker
+                    // plugin. Hides itself when the plugin is not installed.
+                    if let ticker {
+                        HomeNewsTickerStrip(viewModel: ticker)
+                    }
                     recommendationRows
                 }
             }
@@ -124,9 +133,11 @@ struct CaptureHomeView: View {
         .refreshable {
             await vm.loadFeed()
             await glance?.load()
+            await ticker?.refresh()
         }
         .task {
             if glance == nil { glance = makeGlanceViewModel() }
+            if ticker == nil { ticker = makeTickerViewModel() }
             await glance?.load()
         }
         .task { await vm.loadFeed() }
@@ -197,6 +208,13 @@ struct CaptureHomeView: View {
                 showingCaptureReview = true
             }
         }
+    }
+
+    private func makeTickerViewModel() -> NewsTickerViewModel {
+        NewsTickerViewModel(
+            client: NewsTickerHTTPClient(client: appState.makeHTTPClient()),
+            store: NewsTickerLocalStore(container: appState.modelContainer)
+        )
     }
 
     private func makeGlanceViewModel() -> HomeGlanceViewModel {
