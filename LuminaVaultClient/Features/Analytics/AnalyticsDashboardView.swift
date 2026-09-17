@@ -29,8 +29,6 @@ struct AnalyticsDashboardView: View {
             }
             .padding(20)
         }
-        .navigationTitle("Insights")
-        .navigationBarTitleDisplayMode(.large)
         .task { await vm.load() }
     }
 

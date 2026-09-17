@@ -41,15 +41,12 @@ final class RedesignChromeSnapshotTests: XCTestCase {
             // drift at frame zero — the components gate on it, and
             // `disablesAnimations` alone does not reach an explicit
             // `withAnimation` started from `onAppear`.
-            // `AppState` and `LVTabBarMinimizeState` are required, not
-            // decorative: `ChatView` reads the first and carries
-            // `.lvTabBarMinimizeOnScroll()`, which reads the second, and both
-            // trap when absent. `testThinkEmptyHero` crashed on the first
-            // render — hidden until now behind the suite's skip.
+            // `AppState` is required, not decorative: `ChatView` reads it
+            // and traps when it is absent. `testThinkEmptyHero` crashed on
+            // the first render — hidden until now behind the suite's skip.
             of: view
                 .environment(\.lvAmbientMotionEnabled, false)
                 .environment(AppState())
-                .environment(LVTabBarMinimizeState())
                 .preferredColorScheme(.dark),
             as: .image(
                 precision: 0.98,

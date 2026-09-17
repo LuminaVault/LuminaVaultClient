@@ -30,13 +30,14 @@ struct InsightsTabView: View {
 
             switch section {
             case .overview:
-                NavigationStack {
-                    AnalyticsDashboardScreen(httpClient: httpClient)
-                }
+                AnalyticsDashboardScreen(httpClient: httpClient)
             case .reflect:
                 ReflectTabView(vm: reflectViewModel, runner: runner,
                                vaultClient: vaultClient, memoryClient: memoryClient)
             }
         }
+        // The title lives here rather than on `AnalyticsDashboardView` so it
+        // appears once, above the section picker, for both sections.
+        .navigationTitle("Insights")
     }
 }

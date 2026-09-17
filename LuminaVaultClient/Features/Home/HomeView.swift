@@ -114,8 +114,6 @@ struct HomeView: View {
             // stack as a real row. Bottom clearance is scroll-content inset,
             // not content — as an inset it also keeps the refresh control and
             // scroll indicators correctly placed.
-            .contentMargins(.bottom, LVLayout.tabBarClearance, for: .scrollContent)
-            .lvTabBarMinimizeOnScroll()
             .refreshable {
                 await vm.refresh()
             }

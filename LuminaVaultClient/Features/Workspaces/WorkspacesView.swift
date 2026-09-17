@@ -50,6 +50,6 @@ struct WorkspacesView: View {
             )
         }
         .task { await teamViewModel.load() }
-        .navigationTitle("Team Spaces")
+        .navigationTitle("Spaces")
     }
 }

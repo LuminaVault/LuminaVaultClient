@@ -74,7 +74,6 @@ final class HomeViewSnapshotTests: XCTestCase {
             // absent. Un-quarantining the suite is what surfaced that — every
             // case in here crashed on the first render, hidden until now
             // behind the skip.
-            .environment(LVTabBarMinimizeState())
     }
 
     // MARK: - Populated

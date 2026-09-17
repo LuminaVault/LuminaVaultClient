@@ -45,76 +45,72 @@ struct SpacesListView: View {
     ]
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
-                // HER-307 — bespoke RadialGradient layers removed; lvBackground
-                // (applied below) ships the canonical aurora wash from the
-                // design system.
+        ZStack(alignment: .bottomTrailing) {
+            // HER-307 — bespoke RadialGradient layers removed; lvBackground
+            // (applied below) ships the canonical aurora wash from the
+            // design system.
 
-                // HER-307 — subtle neural-network particle field anchored to
-                // the top half of the screen per DESIGN_SYSTEM §13.4.
-                Color.clear
-                    .lvParticleBackground(intensity: .subtle)
-                    .frame(maxHeight: 380)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .allowsHitTesting(false)
+            // HER-307 — subtle neural-network particle field anchored to
+            // the top half of the screen per DESIGN_SYSTEM §13.4.
+            Color.clear
+                .lvParticleBackground(intensity: .subtle)
+                .frame(maxHeight: 380)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .allowsHitTesting(false)
 
-                content
-                createButton
-            }
-            // HER-255 — header hoisted to MainTabView (app-wide base header).
-            .lvBackground()
-            .toolbar(.hidden, for: .navigationBar) // Custom header instead
-            .task { await vm.load() }
-            .refreshable { await vm.load() }
-            .alert("Delete space?",
-                   isPresented: Binding(
-                    get: { spaceToDelete != nil },
-                    set: { if !$0 { spaceToDelete = nil } }
-                   ),
-                   presenting: spaceToDelete,
-                   actions: { space in
-                       Button("Delete", role: .destructive) {
-                           Task { await vm.delete(id: space.id) }
-                           spaceToDelete = nil
-                       }
-                       Button("Cancel", role: .cancel) {
-                           spaceToDelete = nil
-                       }
-                   },
-                   message: { space in
-                       Text("\"\(space.name)\" will be removed. Notes stored under this space stay on disk in a `_deleted_…` folder.")
-                   })
-            .sheet(item: $presentingEditorFor) { presentation in
-                SpaceEditorSheet(
-                    mode: presentation.mode,
-                    knownCategories: vm.categories,
-                    onSubmit: { payload in
-                        switch presentation.mode {
-                        case .create:
-                            await vm.create(CreateSpaceRequest(
-                                name: payload.name,
-                                slug: payload.slug,
-                                description: nil,
-                                color: payload.color,
-                                icon: payload.icon,
-                                category: payload.category,
-                            ))
-                        case let .edit(existing):
-                            await vm.update(id: existing.id, UpdateSpaceRequest(
-                                name: payload.name,
-                                description: nil,
-                                color: payload.color,
-                                icon: payload.icon,
-                                category: payload.category ?? "",
-                            ))
-                        }
-                    },
-                )
-            }
-            .sheet(isPresented: $presentingSearch) {
-                VaultSearchView(vm: searchVM, vaultClient: vaultClient, memoryClient: memoryDetailClient)
-            }
+            content
+            createButton
+        }
+        .lvBackground()
+        .task { await vm.load() }
+        .refreshable { await vm.load() }
+        .alert("Delete space?",
+               isPresented: Binding(
+                get: { spaceToDelete != nil },
+                set: { if !$0 { spaceToDelete = nil } }
+               ),
+               presenting: spaceToDelete,
+               actions: { space in
+                   Button("Delete", role: .destructive) {
+                       Task { await vm.delete(id: space.id) }
+                       spaceToDelete = nil
+                   }
+                   Button("Cancel", role: .cancel) {
+                       spaceToDelete = nil
+                   }
+               },
+               message: { space in
+                   Text("\"\(space.name)\" will be removed. Notes stored under this space stay on disk in a `_deleted_…` folder.")
+               })
+        .sheet(item: $presentingEditorFor) { presentation in
+            SpaceEditorSheet(
+                mode: presentation.mode,
+                knownCategories: vm.categories,
+                onSubmit: { payload in
+                    switch presentation.mode {
+                    case .create:
+                        await vm.create(CreateSpaceRequest(
+                            name: payload.name,
+                            slug: payload.slug,
+                            description: nil,
+                            color: payload.color,
+                            icon: payload.icon,
+                            category: payload.category,
+                        ))
+                    case let .edit(existing):
+                        await vm.update(id: existing.id, UpdateSpaceRequest(
+                            name: payload.name,
+                            description: nil,
+                            color: payload.color,
+                            icon: payload.icon,
+                            category: payload.category ?? "",
+                        ))
+                    }
+                },
+            )
+        }
+        .sheet(isPresented: $presentingSearch) {
+            VaultSearchView(vm: searchVM, vaultClient: vaultClient, memoryClient: memoryDetailClient)
         }
     }
 
@@ -168,9 +164,7 @@ struct SpacesListView: View {
                 }
             }
             .padding(.top, 40)
-            .padding(.bottom, 120)
         }
-        .lvTabBarMinimizeOnScroll()
     }
 
     private var headerSection: some View {
@@ -293,13 +287,12 @@ struct SpacesListView: View {
         // HER-307 — replaces the bespoke cyan circle + plus with the shared
         // LVFAB component (HER-301). Single source for the cinematic
         // capture-button chrome — cyan glow, gold ring, haptic on press.
-        // Smaller than the default 64 and lifted clear of the LVTabBar
-        // (~70pt) so it isn't cropped by the bottom bar.
+        // Smaller than the default 64 so it reads as a secondary action
+        // beside the native tab bar rather than competing with it.
         LVFAB(size: 52) {
             presentingEditorFor = EditorPresentation(mode: .create)
         }
-        .padding(.trailing, 20)
-        .padding(.bottom, 86)
+        .padding(LVSpacing.lg)
     }
 
     private var emptyState: some View {

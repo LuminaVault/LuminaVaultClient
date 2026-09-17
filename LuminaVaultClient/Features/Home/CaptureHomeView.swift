@@ -20,19 +20,19 @@ struct CaptureHomeView: View {
 
     private let vaultClient: VaultClientProtocol
     private let memoryClient: MemoryClientProtocol
-    /// Takes the user to the dashboard this tab used to be.
-    private let onOpenDashboard: () -> Void
+    /// Opens Settings, which is a sheet from here rather than a tab.
+    private let onOpenSettings: () -> Void
 
     init(
         vm: CaptureHomeViewModel,
         vaultClient: VaultClientProtocol,
         memoryClient: MemoryClientProtocol,
-        onOpenDashboard: @escaping () -> Void
+        onOpenSettings: @escaping () -> Void
     ) {
         self._vm = State(wrappedValue: vm)
         self.vaultClient = vaultClient
         self.memoryClient = memoryClient
-        self.onOpenDashboard = onOpenDashboard
+        self.onOpenSettings = onOpenSettings
     }
 
     var body: some View {
@@ -65,14 +65,6 @@ struct CaptureHomeView: View {
                             .lvFont(.kicker)
                             .foregroundStyle(palette.textSecondary)
                         Spacer()
-                        Button(action: onOpenDashboard) {
-                            HStack(spacing: LVSpacing.xs) {
-                                Text("Dashboard")
-                                LVIconView(.chevronRight, size: 10, tint: palette.textSecondary)
-                            }
-                            .lvFont(.caption)
-                            .foregroundStyle(palette.textSecondary)
-                        }
                     }
 
                     RecentSavesFeed(
@@ -90,9 +82,13 @@ struct CaptureHomeView: View {
             }
             .padding(.horizontal, LVSpacing.base)
             .padding(.top, LVSpacing.md)
-            .padding(.bottom, LVLayout.tabBarClearance)
         }
-        .lvBackground()
+        .navigationTitle("Home")
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Settings", systemImage: "person.crop.circle", action: onOpenSettings)
+            }
+        }
         .refreshable { await vm.loadFeed() }
         .task { await vm.loadFeed() }
         .task { await vm.loadSpacesIfNeeded() }

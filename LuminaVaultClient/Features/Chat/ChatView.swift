@@ -110,7 +110,6 @@ struct ChatView: View {
             // clearance the content needs.
             .contentMargins(.bottom, LVSpacing.sm, for: .scrollContent)
             .scrollDismissesKeyboard(.interactively)
-            .lvTabBarMinimizeOnScroll()
             .onScrollGeometryChange(for: Bool.self) { geometry in
                 let bottomEdge = geometry.contentOffset.y + geometry.containerSize.height
                 let contentEnd = geometry.contentSize.height + geometry.contentInsets.bottom

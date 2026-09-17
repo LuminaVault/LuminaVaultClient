@@ -40,7 +40,6 @@ struct ReflectTabView: View {
                 }
                 .padding(.vertical, 20)
             }
-            .lvTabBarMinimizeOnScroll()
             .refreshable { await vm.refreshRecent() }
         }
         .lvBackground()
