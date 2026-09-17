@@ -19,7 +19,10 @@ struct LVPalette: Equatable {
     let surface: Color           // glass-card fill (pairs with `.ultraThinMaterial`)
     let surfaceStroke: Color     // hairline border
 
-    let backgroundBase: Color    // root background fill
+    /// Root background fill. Every theme maps this to the system
+    /// grouped background so `List` screens and `.lvBackground()` screens
+    /// sit on the same colour.
+    let backgroundBase: Color
     let auroraTop: Color         // top-trailing radial wash
     let auroraBottom: Color      // bottom-leading radial wash
     let auroraCenter: Color      // mid-depth pulse
@@ -80,7 +83,7 @@ extension LVPalette {
         glowSecondary:  Color(uiColor: .systemIndigo),
         surface:        Color(uiColor: .secondarySystemGroupedBackground).opacity(0.72),
         surfaceStroke:  Color(uiColor: .separator),
-        backgroundBase: Color(uiColor: .systemBackground),
+        backgroundBase: Color(uiColor: .systemGroupedBackground),
         auroraTop:      .clear,
         auroraBottom:   .clear,
         auroraCenter:   .clear,
@@ -96,7 +99,7 @@ extension LVPalette {
         glowSecondary:  Color(uiColor: .systemIndigo),
         surface:        Color(uiColor: .secondarySystemGroupedBackground).opacity(0.88),
         surfaceStroke:  Color(uiColor: .separator),
-        backgroundBase: Color(uiColor: .systemBackground),
+        backgroundBase: Color(uiColor: .systemGroupedBackground),
         auroraTop:      .clear,
         auroraBottom:   .clear,
         auroraCenter:   .clear,
@@ -113,7 +116,7 @@ extension LVPalette {
         glowSecondary:  Color(red: 0.961, green: 0.620, blue: 0.043),
         surface:        Color.white.opacity(0.12),
         surfaceStroke:  Color(red: 0.000, green: 0.831, blue: 1.000).opacity(0.38),
-        backgroundBase: Color(red: 0.027, green: 0.051, blue: 0.118), // #070D1E
+        backgroundBase: Color(uiColor: .systemGroupedBackground),
         auroraTop:      Color(red: 0.961, green: 0.620, blue: 0.043).opacity(0.18),
         auroraBottom:   Color(red: 0.000, green: 0.831, blue: 1.000).opacity(0.14),
         auroraCenter:   Color(red: 0.000, green: 0.588, blue: 1.000).opacity(0.08),
@@ -129,7 +132,7 @@ extension LVPalette {
         glowSecondary:  Color(red: 0.961, green: 0.620, blue: 0.043),
         surface:        Color.black.opacity(0.07),
         surfaceStroke:  Color(red: 0.000, green: 0.494, blue: 0.658).opacity(0.34),
-        backgroundBase: Color(red: 0.940, green: 0.970, blue: 1.000), // #F0F7FF
+        backgroundBase: Color(uiColor: .systemGroupedBackground),
         auroraTop:      Color(red: 0.961, green: 0.620, blue: 0.043).opacity(0.09),
         auroraBottom:   Color(red: 0.000, green: 0.831, blue: 1.000).opacity(0.08),
         auroraCenter:   Color(red: 0.000, green: 0.588, blue: 1.000).opacity(0.05),
@@ -146,7 +149,7 @@ extension LVPalette {
         glowSecondary:  Color(red: 0.486, green: 0.302, blue: 1.000),
         surface:        Color.white.opacity(0.12),
         surfaceStroke:  Color(red: 0.878, green: 0.251, blue: 0.984).opacity(0.38),
-        backgroundBase: Color(red: 0.082, green: 0.039, blue: 0.180), // #150A2E
+        backgroundBase: Color(uiColor: .systemGroupedBackground),
         auroraTop:      Color(red: 1.000, green: 0.431, blue: 0.780).opacity(0.20),
         auroraBottom:   Color(red: 0.486, green: 0.302, blue: 1.000).opacity(0.18),
         auroraCenter:   Color(red: 0.878, green: 0.251, blue: 0.984).opacity(0.10),
@@ -162,7 +165,7 @@ extension LVPalette {
         glowSecondary:  Color(red: 0.486, green: 0.302, blue: 1.000),
         surface:        Color.black.opacity(0.07),
         surfaceStroke:  Color(red: 0.580, green: 0.118, blue: 0.690).opacity(0.34),
-        backgroundBase: Color(red: 0.973, green: 0.945, blue: 1.000), // #F8F0FF
+        backgroundBase: Color(uiColor: .systemGroupedBackground),
         auroraTop:      Color(red: 1.000, green: 0.431, blue: 0.780).opacity(0.10),
         auroraBottom:   Color(red: 0.486, green: 0.302, blue: 1.000).opacity(0.08),
         auroraCenter:   Color(red: 0.878, green: 0.251, blue: 0.984).opacity(0.05),
@@ -179,7 +182,7 @@ extension LVPalette {
         glowSecondary:  Color(red: 1.000, green: 0.361, blue: 0.553),
         surface:        Color.white.opacity(0.12),
         surfaceStroke:  Color(red: 1.000, green: 0.702, blue: 0.000).opacity(0.38),
-        backgroundBase: Color(red: 0.118, green: 0.039, blue: 0.078), // #1E0A14
+        backgroundBase: Color(uiColor: .systemGroupedBackground),
         auroraTop:      Color(red: 1.000, green: 0.835, blue: 0.310).opacity(0.20),
         auroraBottom:   Color(red: 1.000, green: 0.361, blue: 0.553).opacity(0.18),
         auroraCenter:   Color(red: 1.000, green: 0.702, blue: 0.000).opacity(0.10),
@@ -195,7 +198,7 @@ extension LVPalette {
         glowSecondary:  Color(red: 1.000, green: 0.361, blue: 0.553),
         surface:        Color.black.opacity(0.07),
         surfaceStroke:  Color(red: 0.690, green: 0.380, blue: 0.000).opacity(0.34),
-        backgroundBase: Color(red: 1.000, green: 0.973, blue: 0.940), // #FFF8F0
+        backgroundBase: Color(uiColor: .systemGroupedBackground),
         auroraTop:      Color(red: 1.000, green: 0.835, blue: 0.310).opacity(0.10),
         auroraBottom:   Color(red: 1.000, green: 0.361, blue: 0.553).opacity(0.08),
         auroraCenter:   Color(red: 1.000, green: 0.702, blue: 0.000).opacity(0.05),

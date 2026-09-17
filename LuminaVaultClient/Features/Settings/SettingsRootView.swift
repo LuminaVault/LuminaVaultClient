@@ -11,6 +11,8 @@ import SwiftUI
 struct SettingsRootView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.lvPalette) private var palette
+    /// Settings is a sheet from Home rather than a tab, so it closes itself.
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -297,9 +299,14 @@ struct SettingsRootView: View {
                     .padding(.bottom, LVSpacing.hero + LVSpacing.xxl)
                 }
             }
-            // HER-255 — header hoisted to MainTabView (app-wide base header).
             .lvBackground()
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
         }
     }
 
