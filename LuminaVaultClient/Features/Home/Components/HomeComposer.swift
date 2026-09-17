@@ -52,7 +52,7 @@ struct HomeComposer: View {
                     LVIconView(
                         isRecording ? .stopCircleFill : .micFill,
                         size: 18,
-                        tint: isRecording ? palette.glowPrimary : palette.textSecondary,
+                        tint: isRecording ? palette.accent : palette.textSecondary,
                         label: isRecording ? "Stop recording" : "Record a voice note"
                     )
                     .frame(minWidth: LVSize.tapTarget, minHeight: LVSize.tapTarget)
@@ -73,7 +73,7 @@ struct HomeComposer: View {
                     LVIconView(
                         .arrowUpCircleFill,
                         size: 28,
-                        tint: canSave ? palette.primary : palette.textSecondary.opacity(0.4),
+                        tint: canSave ? palette.accent : palette.textSecondary.opacity(0.4),
                         label: "Save"
                     )
                 }
@@ -82,7 +82,10 @@ struct HomeComposer: View {
         }
         .padding(.horizontal, LVSpacing.base - 2)
         .padding(.vertical, LVSpacing.md)
-        .lvGlassCard(cornerRadius: LVRadius.card, intensity: 0.55)
+        .background(
+            RoundedRectangle(cornerRadius: LVRadius.card, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
     }
 
     /// Files the capture into a Space in the same request, the way the capture
@@ -124,7 +127,7 @@ struct HomeComposer: View {
     /// have been talking is, along with a way out that is not "save it anyway".
     private var recordingChip: some View {
         HStack(spacing: LVSpacing.sm) {
-            LVIconView(.micFill, size: 16, tint: palette.glowPrimary)
+            LVIconView(.micFill, size: 16, tint: palette.accent)
             Text(Self.durationLabel(recordingElapsed))
                 .lvFont(.bodyEmphasis)
                 .foregroundStyle(palette.textPrimary)
@@ -141,7 +144,7 @@ struct HomeComposer: View {
         .padding(.vertical, LVSpacing.sm)
         .background(
             RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous)
-                .fill(palette.surface.opacity(0.5))
+                .fill(Color(.tertiarySystemGroupedBackground))
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Recording, \(Int(recordingElapsed)) seconds")
@@ -156,7 +159,7 @@ struct HomeComposer: View {
     /// to show. The real title arrives when the server finishes enriching.
     private func linkChip(_ link: URL) -> some View {
         HStack(spacing: LVSpacing.sm) {
-            LVIconView(.linkCircle, size: 16, tint: palette.glowPrimary)
+            LVIconView(.linkCircle, size: 16, tint: palette.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text(link.host ?? link.absoluteString)
                     .lvFont(.bodyEmphasis)
@@ -172,7 +175,7 @@ struct HomeComposer: View {
         .padding(.vertical, LVSpacing.sm)
         .background(
             RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous)
-                .fill(palette.surface.opacity(0.5))
+                .fill(Color(.tertiarySystemGroupedBackground))
         )
     }
 

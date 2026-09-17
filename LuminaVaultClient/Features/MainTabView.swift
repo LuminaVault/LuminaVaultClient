@@ -180,6 +180,7 @@ struct MainTabView: View {
                 // The reader edits notes, so it needs the upsert face of the
                 // memory API rather than the query one.
                 memoryClient: memoryUpsertClient,
+                captureFailures: captureFailures,
                 onOpenSettings: { showSettings = true }
             )
         }

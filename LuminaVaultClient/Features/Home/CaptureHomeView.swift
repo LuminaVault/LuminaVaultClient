@@ -2,24 +2,29 @@
 //
 // Home is capture.
 //
-// This tab used to open on the dashboard, which meant the first thing a new
-// user saw was a report about a vault they had not filled yet. The vault is
-// the product; putting something in it is the thing to make effortless. The
-// dashboard keeps everything it had and moved behind the tab bar's More menu.
+// One composer at the top, three numbers and at most one suggestion under it,
+// then what you have recently saved. The dashboard this tab used to open on is
+// gone: the first thing a new user saw was a report about a vault they had not
+// filled yet, and the vault is the product.
 
 import SwiftUI
 import LuminaVaultShared
 
 struct CaptureHomeView: View {
-    @Environment(\.lvPalette) private var palette
+    @Environment(AppState.self) private var appState
 
     @State private var vm: CaptureHomeViewModel
+    @State private var glance: HomeGlanceViewModel?
     @FocusState private var composerFocused: Bool
     @State private var sheetPresented = false
     @State private var sheetMode: CaptureSheet.Mode = .photo
+    @State private var showingSyncAndLearn = false
+    @State private var showingCaptureReview = false
 
     private let vaultClient: VaultClientProtocol
     private let memoryClient: MemoryClientProtocol
+    /// Captures that gave up retrying. Nil until the capture queue exists.
+    private let captureFailures: CaptureFailuresStore?
     /// Opens Settings, which is a sheet from here rather than a tab.
     private let onOpenSettings: () -> Void
 
@@ -27,21 +32,19 @@ struct CaptureHomeView: View {
         vm: CaptureHomeViewModel,
         vaultClient: VaultClientProtocol,
         memoryClient: MemoryClientProtocol,
+        captureFailures: CaptureFailuresStore? = nil,
         onOpenSettings: @escaping () -> Void
     ) {
         self._vm = State(wrappedValue: vm)
         self.vaultClient = vaultClient
         self.memoryClient = memoryClient
+        self.captureFailures = captureFailures
         self.onOpenSettings = onOpenSettings
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: LVSpacing.lg) {
-                if let toast = vm.toast {
-                    statusBanner(toast)
-                }
-
+        List {
+            Section {
                 HomeComposer(
                     text: $vm.text,
                     focused: $composerFocused,
@@ -58,66 +61,151 @@ struct CaptureHomeView: View {
                     onPhotos: { present(.photo) },
                     onFiles: { present(.files) }
                 )
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
 
-                VStack(alignment: .leading, spacing: LVSpacing.sm) {
-                    HStack {
-                        Text("Recently saved")
-                            .lvFont(.kicker)
-                            .foregroundStyle(palette.textSecondary)
-                        Spacer()
+            if showsTodaySection {
+                Section("Today") {
+                    if let glance, !glance.allFailed {
+                        HomeGlanceStrip(
+                            memoriesToday: glance.memoriesToday,
+                            streakDays: glance.streakDays,
+                            toRevisit: glance.toRevisit
+                        )
                     }
-
-                    RecentSavesFeed(
-                        pending: vm.visiblePending,
-                        files: vm.files.displayedFiles,
-                        vaultClient: vaultClient,
-                        memoryClient: memoryClient,
-                        isLoading: vm.files.isLoading,
-                        hasMore: vm.files.nextCursor != nil,
-                        onLoadMore: { Task { await vm.files.loadMore() } },
-                        onRetry: { row in Task { await vm.retry(row) } },
-                        onDiscard: { row in Task { await vm.discard(row) } }
-                    )
+                    recommendationRows
                 }
             }
-            .padding(.horizontal, LVSpacing.base)
-            .padding(.top, LVSpacing.md)
+
+            Section("Recent") {
+                RecentSavesFeed(
+                    pending: vm.visiblePending,
+                    files: vm.files.displayedFiles,
+                    vaultClient: vaultClient,
+                    memoryClient: memoryClient,
+                    isLoading: vm.files.isLoading,
+                    hasMore: vm.files.nextCursor != nil,
+                    spaceName: { vm.spaceName(for: $0) },
+                    onLoadMore: { Task { await vm.files.loadMore() } },
+                    onRetry: { row in Task { await vm.retry(row) } },
+                    onDiscard: { row in Task { await vm.discard(row) } }
+                )
+            }
         }
+        .listStyle(.insetGrouped)
         .navigationTitle("Home")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button("Settings", systemImage: "person.crop.circle", action: onOpenSettings)
             }
         }
-        .refreshable { await vm.loadFeed() }
+        .safeAreaInset(edge: .top) {
+            if let toast = vm.toast {
+                statusBanner(toast)
+            }
+        }
+        .refreshable {
+            await vm.loadFeed()
+            await glance?.load()
+        }
+        .task {
+            if glance == nil { glance = makeGlanceViewModel() }
+            await glance?.load()
+        }
         .task { await vm.loadFeed() }
         .task { await vm.loadSpacesIfNeeded() }
         .captureSheet(isPresented: $sheetPresented, initialMode: sheetMode)
+        .sheet(isPresented: $showingSyncAndLearn) {
+            NavigationStack {
+                SyncAndLearnView(
+                    vm: SyncAndLearnViewModel(
+                        repository: appState.vaultRepository,
+                        pendingClient: appState.makeKBCompileClient(),
+                        webSocket: appState.makeKBCompileWebSocketClient(),
+                        memoryClient: appState.makeMemoryClient()
+                    )
+                )
+            }
+        }
+        .sheet(isPresented: $showingCaptureReview) {
+            if let captureFailures {
+                CaptureReviewSheet(store: captureFailures)
+            }
+        }
     }
+
+    // MARK: - Today
+
+    private var failedCaptureCount: Int { captureFailures?.count ?? 0 }
+
+    private var showsTodaySection: Bool {
+        guard let glance else { return false }
+        return !glance.allFailed || glance.recommendation != nil || failedCaptureCount > 0
+    }
+
+    @ViewBuilder
+    private var recommendationRows: some View {
+        switch glance?.recommendation {
+        case .syncAndLearn(let count):
+            HomeRecommendationRow(
+                title: "Sync & Learn",
+                subtitle: "^[\(count) capture](inflect: true) to learn",
+                systemImage: "sparkles"
+            ) {
+                showingSyncAndLearn = true
+            }
+        case .dailyReview(let count):
+            NavigationLink {
+                DailyReviewView(
+                    vm: DailyReviewViewModel(client: appState.makeDailyReviewClient())
+                )
+            } label: {
+                HomeRecommendationLabel(
+                    title: "Daily review",
+                    subtitle: "^[\(count) memory](inflect: true) to revisit",
+                    systemImage: "sun.max"
+                )
+            }
+        case .none:
+            EmptyView()
+        }
+
+        if failedCaptureCount > 0 {
+            HomeRecommendationRow(
+                title: "^[\(failedCaptureCount) capture](inflect: true) need attention",
+                systemImage: "exclamationmark.triangle.fill"
+            ) {
+                showingCaptureReview = true
+            }
+        }
+    }
+
+    private func makeGlanceViewModel() -> HomeGlanceViewModel {
+        HomeGlanceViewModel(
+            homeClient: HomeSummaryHTTPClient(client: appState.makeHTTPClient()),
+            dailyReviewClient: appState.makeDailyReviewClient(),
+            pendingClient: appState.makeKBCompileClient()
+        )
+    }
+
+    // MARK: - Toast
 
     @ViewBuilder
     private func statusBanner(_ toast: CapturePhotosViewModel.ToastKind) -> some View {
         let failed: Bool = if case .failed = toast { true } else { false }
-        HStack(spacing: LVSpacing.sm) {
-            LVIconView(
-                failed ? .exclamationmarkTriangleFill : .checkmarkCircleFill,
-                size: 16,
-                tint: failed ? palette.accent : palette.glowPrimary
-            )
+        HStack(spacing: 8) {
+            Image(systemName: failed ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                .foregroundStyle(failed ? AnyShapeStyle(.red) : AnyShapeStyle(.tint))
             Text(Self.message(for: toast))
-                .lvFont(.footnote)
-                .foregroundStyle(palette.textPrimary)
+                .font(.footnote)
             Spacer(minLength: 0)
             Button("Dismiss") { vm.toast = nil }
-                .lvFont(.caption)
-                .foregroundStyle(palette.textSecondary)
+                .font(.footnote)
         }
-        .padding(.horizontal, LVSpacing.md)
-        .padding(.vertical, LVSpacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous)
-                .fill(palette.surface.opacity(0.6))
-        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.regularMaterial)
         .accessibilityElement(children: .combine)
         // A success clears itself; a failure stays until it is read, because it
         // is the only sign the capture did not happen.

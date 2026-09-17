@@ -17,18 +17,18 @@ struct DailyReviewView: View {
     @State var vm: DailyReviewViewModel
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                content
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 16)
-            }
-            .refreshable { await vm.refresh() }
-            .background(Color(.systemBackground))
-            .navigationTitle("Today")
-            .navigationBarTitleDisplayMode(.large)
-            .task { await vm.loadIfNeeded() }
+        // No `NavigationStack` here: Home pushes this view, so owning one
+        // would draw a second navigation bar under the first.
+        ScrollView {
+            content
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
         }
+        .refreshable { await vm.refresh() }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("Today")
+        .navigationBarTitleDisplayMode(.large)
+        .task { await vm.loadIfNeeded() }
     }
 
     @ViewBuilder
