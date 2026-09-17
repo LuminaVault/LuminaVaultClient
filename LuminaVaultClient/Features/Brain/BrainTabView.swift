@@ -63,15 +63,20 @@ struct BrainTabView: View {
     var body: some View {
         NavigationStack {
             content
-                // HER-255 — title + mascot now live in the global app header
-                // (MainTabView). Keep the inline navbar only for the refresh
-                // action below.
+                .navigationTitle("Brain")
                 .navigationBarTitleDisplayMode(.inline)
+                // The graph's own controls belong to the navigation bar and a
+                // bottom bar, not to buttons floating over the canvas: the
+                // native tab bar already owns that corner of the screen.
+                .safeAreaInset(edge: .bottom) { filterBar }
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("Reason", systemImage: "point.3.connected.trianglepath.dotted") {
                             showReasoning = true
                         }
+                    }
+                    ToolbarItem(placement: .principal) {
+                        graphLayerPicker
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
@@ -112,59 +117,69 @@ struct BrainTabView: View {
             // brain…" forever when TLS pinning cancelled every request.
             idleState
         case let .loaded(graph):
-            ZStack(alignment: .bottom) {
-                Group {
-                    if graphLayer == .knowledge {
-                        knowledgeGraphContent
-                    } else if graph.nodes.isEmpty {
-                        emptyState
-                    } else if #available(iOS 18.0, *) {
-                        BrainGraphRealityView(graph: filtered(graph)) { id in
-                            vm.selectedNodeID = id
-                        }
-                        .lvBackground()
-                    } else {
-                        BrainGraphCanvas(graph: filtered(graph)) { id in
-                            vm.selectedNodeID = id
-                        }
-                        .lvBackground()
+            Group {
+                if graphLayer == .knowledge {
+                    knowledgeGraphContent
+                } else if graph.nodes.isEmpty {
+                    emptyState
+                } else if #available(iOS 18.0, *) {
+                    BrainGraphRealityView(graph: filtered(graph)) { id in
+                        vm.selectedNodeID = id
                     }
-                }
-
-                VStack(spacing: 10) {
-                    graphLayerPicker
-                    if graphLayer == .knowledge {
-                        KnowledgeSelectionBar(viewModel: reasoningViewModel) {
-                            showReasoning = true
-                        }
-                    } else if !graph.nodes.isEmpty {
-                        GraphLegend(
-                            activeEdgeKinds: $activeEdgeKinds,
-                            showWikiPages: $showWikiPages,
-                            hasWikiPages: graph.nodes.contains { $0.kind == .wikiPage }
-                        )
+                    .lvBackground()
+                } else {
+                    BrainGraphCanvas(graph: filtered(graph)) { id in
+                        vm.selectedNodeID = id
                     }
+                    .lvBackground()
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 90) // clear the floating tab bar
             }
             .onAppear { pickInitialLayerIfNeeded(memoryGraph: graph) }
             .onChange(of: reasoningViewModel.graphState) { _, _ in
                 pickInitialLayerIfNeeded(memoryGraph: graph)
             }
         case let .failed(message):
-            // Memory failure must not own the whole tab — Knowledge may still work.
-            ZStack(alignment: .bottom) {
-                if graphLayer == .knowledge {
-                    knowledgeGraphContent
-                } else {
-                    errorState(message)
-                }
-                graphLayerPicker
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 90)
+            // Memory failure must not own the whole tab — Knowledge may still
+            // work, and the layer picker in the bar is the way back to it.
+            if graphLayer == .knowledge {
+                knowledgeGraphContent
+            } else {
+                errorState(message)
             }
         }
+    }
+
+    /// The bottom bar under the graph: the edge-kind filters on the memory
+    /// layer, the selection/explain controls on the knowledge one. Empty —
+    /// and therefore absent — until there is a graph to filter.
+    @ViewBuilder
+    private var filterBar: some View {
+        if case let .loaded(graph) = vm.state {
+            if graphLayer == .knowledge {
+                barStrip {
+                    KnowledgeSelectionBar(viewModel: reasoningViewModel) {
+                        showReasoning = true
+                    }
+                }
+            } else if !graph.nodes.isEmpty {
+                barStrip {
+                    GraphLegend(
+                        activeEdgeKinds: $activeEdgeKinds,
+                        showWikiPages: $showWikiPages,
+                        hasWikiPages: graph.nodes.contains { $0.kind == .wikiPage }
+                    )
+                }
+            }
+        }
+    }
+
+    /// Standard bar chrome. Horizontal padding is the content's own so a
+    /// horizontally scrolling row can still run to both edges.
+    private func barStrip(@ViewBuilder _ content: () -> some View) -> some View {
+        content()
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity)
+            .background(.bar)
     }
 
     private func pickInitialLayerIfNeeded(memoryGraph: MemoryGraphResponse) {
@@ -274,8 +289,6 @@ struct BrainTabView: View {
             }
         }
         .pickerStyle(.segmented)
-        .padding(4)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
         .accessibilityHint("Switch between the reasoning graph and captured memories")
     }
 
@@ -451,12 +464,8 @@ private struct KnowledgeSelectionBar: View {
                 }
             }
         }
-        .padding(10)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .overlay {
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(palette.primary.opacity(0.22), lineWidth: 1)
-        }
+        // No card of its own: it sits on the bottom bar's material.
+        .padding(.horizontal, 16)
     }
 
     private var selectionText: String {
@@ -510,7 +519,7 @@ private struct GraphLegend: View {
                     ) { toggle(kind) }
                 }
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, 16)
         }
     }
 
@@ -522,6 +531,9 @@ private struct GraphLegend: View {
         }
     }
 
+    /// A stock bordered capsule. The dot keeps the legend's job — naming the
+    /// colour channel each edge kind is drawn in — while the tint carries
+    /// the on/off state the way any iOS filter chip does.
     private func chip(label: String, color: Color, isOn: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 6) {
@@ -529,16 +541,14 @@ private struct GraphLegend: View {
                     .fill(color)
                     .frame(width: 8, height: 8)
                 Text(label)
-                    .font(.caption2.weight(.semibold))
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(.ultraThinMaterial, in: Capsule())
-            .overlay(Capsule().stroke(color.opacity(isOn ? 0.6 : 0.0), lineWidth: 1))
-            .foregroundStyle(isOn ? palette.textPrimary : palette.textSecondary)
-            .opacity(isOn ? 1.0 : 0.5)
+            .font(.subheadline)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
+        .controlSize(.small)
+        .tint(isOn ? color : Color.secondary)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 
     private func color(for kind: MemoryEdgeKindDTO) -> Color {
