@@ -242,7 +242,6 @@ Prefix convention: all SwiftUI components are `LV*`. (Earlier `HV*` files were r
 | Component            | File                                       | Notes |
 |----------------------|--------------------------------------------|-------|
 | `LVLogoMark`         | `Components/LVLogoMark.swift`              | Static logo glyph. |
-| `LVNavigationBrand`  | `Components/LVNavigationBrand.swift`       | Brand mark + wordmark for nav bar. |
 | `LVFAB`              | `Components/LVFAB.swift`                   | HER-301 — floating capture button. Cyan glow + gold ring. Drops the `LVIcon.plusCircleFill` brand glyph into a circular surface with haptic on tap. |
 | `LVTabBar`           | `Components/LVTabBar.swift`                | Custom 5-tab bar. Home tab uses `.lvPulse` gated on pending insights. Tab icons resolve via `LVIcon` (§12). |
 | `LVIconView`         | `Utilities/LVIcon.swift`                   | Renders an `LVIcon` token with theme tint + size (§12). Custom-asset fallback transparent. |
@@ -544,7 +543,7 @@ Text("LuminaVault")
     .shadow(color: palette.glowPrimary.opacity(0.8), radius: 12)
 ```
 
-In-app chrome (headers, tab bars, settings rows) uses `LVNavigationBrand` (small mark + small wordmark) or just the mark. Never repeat the full wordmark inside the main app surfaces — it becomes noise.
+In-app chrome (tab bars, settings rows) uses just the mark. Never repeat the full wordmark inside the main app surfaces — it becomes noise; navigation bars carry a plain navigation title instead.
 
 ### 13.6 Icon style hierarchy
 
