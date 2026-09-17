@@ -215,14 +215,15 @@ struct MainTabView: View {
         )
     }
 
-    /// `BrainTabView` owns its own `NavigationStack`.
+    /// `BrainTabView` owns its own `NavigationStack`, and its own capture
+    /// toolbar item with it — a `.toolbar` declared out here would have no
+    /// bar to attach to.
     private var brainTab: some View {
         BrainTabView(
             client: memoryGraphClient,
             knowledgeClient: knowledgeGraphClient,
             memoryClient: memoryUpsertClient
         )
-        .captureToolbarItem()
     }
 
     private var insightsTab: some View {

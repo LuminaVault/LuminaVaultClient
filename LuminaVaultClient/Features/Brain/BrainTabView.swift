@@ -83,6 +83,10 @@ struct BrainTabView: View {
                         .disabled(isLoading)
                     }
                 }
+                // Declared inside the stack, beside the toolbar above: a
+                // `.toolbar` on the view that *contains* a `NavigationStack`
+                // has no bar to attach to and is silently dropped.
+                .captureToolbarItem()
                 .task { await loadGraph() }
                 .onChange(of: showWikiPages) { _, _ in scheduleGraphReload() }
                 .onChange(of: activeEdgeKinds) { _, _ in scheduleGraphReload() }
