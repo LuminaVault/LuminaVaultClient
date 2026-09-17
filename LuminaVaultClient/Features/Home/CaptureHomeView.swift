@@ -33,9 +33,13 @@ struct CaptureHomeView: View {
         vaultClient: VaultClientProtocol,
         memoryClient: MemoryClientProtocol,
         captureFailures: CaptureFailuresStore? = nil,
+        // The glance view model is normally built here from `AppState`, which
+        // a preview or a snapshot test has no live clients for.
+        glance: HomeGlanceViewModel? = nil,
         onOpenSettings: @escaping () -> Void
     ) {
         self._vm = State(wrappedValue: vm)
+        self._glance = State(wrappedValue: glance)
         self.vaultClient = vaultClient
         self.memoryClient = memoryClient
         self.captureFailures = captureFailures

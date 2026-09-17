@@ -7,9 +7,12 @@ import Foundation
 import LuminaVaultShared
 
 final class MockDailyReviewClient: DailyReviewClientProtocol, @unchecked Sendable {
-    var result: Result<DailyReviewDigest, Error> = .success(DailyReviewDigest(date: .now))
+    var result: Result<DailyReviewDigest, Error>
     private(set) var callCount = 0
 
+    // `DailyReviewDigest`'s memberwise init is main-actor isolated, so this
+    // one says so rather than warning at every fixture.
+    @MainActor
     init(memories: Int = 0) {
         result = .success(
             DailyReviewDigest(
