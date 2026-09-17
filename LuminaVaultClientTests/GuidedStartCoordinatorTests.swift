@@ -78,12 +78,36 @@ final class GuidedStartCoordinatorTests: XCTestCase {
     final class World {
         var snapshot: OnboardingStateDTO?
         var pendingCaptureCount = 0
+        /// How many times the step-2 guard asked. The guard has to read
+        /// live, so "did it ask at all" is part of the contract.
+        var pendingReads = 0
+        var pendingCountError: Error?
         var dismissed = false
         var setDismissedCalls: [Bool] = []
         var setDismissedError: Error?
 
         init(snapshot: OnboardingStateDTO? = nil) {
             self.snapshot = snapshot
+        }
+    }
+
+    /// A `sleep` that parks until the task is cancelled — the shape a real
+    /// poll has while it waits out a 10s tick. Unlike `FakeClock` it does
+    /// not return instantly, which is what makes "the coordinator was
+    /// dropped mid-wait" reachable in a test.
+    ///
+    /// `@unchecked Sendable`: the counter is guarded by the lock, and the
+    /// box exists precisely so the sleep closure captures *it* and not the
+    /// coordinator.
+    final class ParkingSleeper: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _parked = 0
+
+        var parked: Int { lock.withLock { _parked } }
+
+        func sleep(_ duration: Duration) async throws {
+            lock.withLock { _parked += 1 }
+            try await Task.sleep(for: .seconds(3_600))
         }
     }
 
@@ -111,7 +135,11 @@ final class GuidedStartCoordinatorTests: XCTestCase {
             sleep: { try await clock.sleep($0) },
             snapshot: { world.snapshot },
             applySnapshot: { world.snapshot = $0 },
-            pendingCaptureCount: { world.pendingCaptureCount },
+            pendingCaptureCount: {
+                world.pendingReads += 1
+                if let error = world.pendingCountError { throw error }
+                return world.pendingCaptureCount
+            },
             isDismissed: { world.dismissed },
             setDismissed: { value in
                 world.setDismissedCalls.append(value)
@@ -319,6 +347,29 @@ final class GuidedStartCoordinatorTests: XCTestCase {
         XCTAssertNil(coordinator.requestedTab)
         XCTAssertEqual(coordinator.inlineMessage, GuidedStartCopy.nothingPending)
         XCTAssertFalse(posthog.events.contains("guided_start_step_started"))
+        // Read live at start, not taken from whatever the view had.
+        XCTAssertEqual(world.pendingReads, 1)
+    }
+
+    /// A probe that fails means "cannot determine". Refusing on that would
+    /// be worse than starting on an unknown count.
+    func testSyncLearnStartsWhenThePendingProbeFails() async {
+        let world = World(snapshot: makeState(capture: true))
+        world.pendingCaptureCount = 0
+        world.pendingCountError = BoomError()
+        let (coordinator, _, clock, posthog) = makeCoordinator(
+            responses: [makeState(capture: true)],
+            world: world
+        )
+
+        await coordinator.start(.syncLearn)
+
+        XCTAssertEqual(coordinator.phase, .active(.syncLearn, startedAt: clock.now))
+        XCTAssertNil(coordinator.inlineMessage)
+        XCTAssertTrue(posthog.events.contains("guided_start_step_started"))
+
+        coordinator.skip()
+        await coordinator.settle()
     }
 
     func testSyncLearnStartsWhenSomethingIsPending() async {
@@ -337,9 +388,59 @@ final class GuidedStartCoordinatorTests: XCTestCase {
             posthog.propertiesOf("guided_start_step_started")?["step"],
             .string("sync_learn")
         )
+        XCTAssertEqual(world.pendingReads, 1)
 
         coordinator.skip()
         await coordinator.settle()
+    }
+
+    // MARK: - Lifetime
+
+    /// A poll that is only waiting must not keep the coordinator alive.
+    /// Before `deinit` + the weak-across-the-wait loop, the in-flight task
+    /// held a strong reference for the whole step, so a torn-down screen
+    /// went on polling until the 5-minute cap.
+    func testDroppingTheCoordinatorStopsPolling() async {
+        let world = World(snapshot: makeState())
+        // Never flips, so an un-stopped poll would run the full schedule.
+        let client = ScriptedOnboardingClient([makeState()])
+        let sleeper = ParkingSleeper()
+        weak var weakCoordinator: GuidedStartCoordinator?
+
+        do {
+            let coordinator = GuidedStartCoordinator(
+                client: client,
+                telemetry: GuidedStartTelemetry(client: ConversionFunnelTelemetryTests.FakePostHogClient()),
+                now: { Date() },
+                sleep: { try await sleeper.sleep($0) },
+                snapshot: { world.snapshot },
+                applySnapshot: { world.snapshot = $0 },
+                pendingCaptureCount: { world.pendingCaptureCount },
+                isDismissed: { world.dismissed },
+                setDismissed: { world.dismissed = $0 }
+            )
+            weakCoordinator = coordinator
+            await coordinator.start(.saveMemory)
+
+            // The leak only shows once the poll is actually *waiting*:
+            // that is the state a torn-down screen leaves behind.
+            var spins = 0
+            while sleeper.parked == 0, spins < 500 {
+                await Task.yield()
+                spins += 1
+            }
+            XCTAssertEqual(sleeper.parked, 1, "the poll never reached its wait")
+        }
+
+        for _ in 0..<500 { await Task.yield() }
+
+        XCTAssertNil(weakCoordinator, "a waiting poll kept the coordinator alive")
+        // Only the refresh inside `start`; no poll ever landed.
+        XCTAssertEqual(client.getCount, 1, "polling continued after the owner let go")
+
+        let settled = client.getCount
+        for _ in 0..<200 { await Task.yield() }
+        XCTAssertEqual(client.getCount, settled)
     }
 
     // MARK: - Start refreshes and skips ahead
@@ -365,6 +466,42 @@ final class GuidedStartCoordinatorTests: XCTestCase {
 
         coordinator.skip()
         await coordinator.settle()
+    }
+
+    /// Starting a second step while the first one's poll is still in
+    /// flight: the `runID` fence has to stop the stale run writing over
+    /// the live one.
+    func testStartingASecondStepSupersedesTheFirstStepsPoll() async {
+        let world = World(snapshot: makeState())
+        world.pendingCaptureCount = 1
+        let (coordinator, _, clock, posthog) = makeCoordinator(
+            responses: [
+                makeState(),                               // start 1 refresh
+                makeState(capture: true),                  // start 2 refresh
+                makeState(capture: true),                  // poll, not yet
+                makeState(capture: true, compile: true),   // poll, flips
+            ],
+            world: world
+        )
+
+        await coordinator.start(.saveMemory)
+        // No skip, no settle — step 1's poll has been scheduled and is
+        // still pending when step 2 opens.
+        await coordinator.start(.syncLearn)
+
+        XCTAssertEqual(coordinator.phase, .active(.syncLearn, startedAt: clock.now))
+        XCTAssertEqual(posthog.events.filter { $0 == "guided_start_step_started" }.count, 2)
+
+        await coordinator.settle()
+
+        XCTAssertEqual(coordinator.phase, .idle)
+        // Exactly one completion, and it belongs to the live step. The
+        // superseded run neither completed nor timed out step 1.
+        let completions = posthog.calls.filter { $0.event == "guided_start_step_completed" }
+        XCTAssertEqual(completions.count, 1)
+        XCTAssertEqual(completions.first?.properties["step"], .string("sync_learn"))
+        XCTAssertFalse(posthog.events.contains("guided_start_step_timed_out"))
+        XCTAssertFalse(posthog.events.contains("guided_start_step_skipped"))
     }
 
     func testStartingWhenTheRefreshShowsEverythingDoneFinishesInstead() async {
@@ -428,10 +565,10 @@ final class GuidedStartCoordinatorTests: XCTestCase {
         XCTAssertTrue(coordinator.isCardVisible)
         XCTAssertEqual(world.setDismissedCalls, [false])
         XCTAssertFalse(world.dismissed)
-        XCTAssertEqual(
-            posthog.propertiesOf("guided_start_reopened"),
-            ["source": .string("settings")]
-        )
+        // Reopening only happens one way, so the event carries no
+        // properties — `source` lives on `step_started`.
+        XCTAssertTrue(posthog.events.contains("guided_start_reopened"))
+        XCTAssertEqual(posthog.propertiesOf("guided_start_reopened"), [:])
     }
 
     /// "If everything is already done, show the completed card for that
@@ -514,6 +651,8 @@ final class GuidedStartCoordinatorTests: XCTestCase {
         coordinator.noteCardShown()
 
         XCTAssertEqual(posthog.events.filter { $0 == "guided_start_card_shown" }.count, 1)
+        // The card shows for exactly one reason, so no `source`.
+        XCTAssertEqual(posthog.propertiesOf("guided_start_card_shown"), [:])
     }
 
     func testCardShownDoesNotFireWhenTheCardIsNotVisible() async {

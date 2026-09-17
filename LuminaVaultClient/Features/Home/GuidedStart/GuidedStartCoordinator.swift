@@ -103,7 +103,7 @@ final class GuidedStartCoordinator {
     private let sleep: @MainActor (Duration) async throws -> Void
     private let snapshot: @MainActor () -> OnboardingStateDTO?
     private let applySnapshot: @MainActor (OnboardingStateDTO) -> Void
-    private let pendingCaptureCount: @MainActor () -> Int
+    private let pendingCaptureCount: @MainActor () async throws -> Int
     private let isDismissedSeam: @MainActor () -> Bool
     private let setDismissedSeam: @MainActor (Bool) async throws -> Void
 
@@ -116,7 +116,6 @@ final class GuidedStartCoordinator {
     /// completed card for this session only, and persists nothing.
     @ObservationIgnored private var sessionShowsCompletedCard = false
     @ObservationIgnored private var didFireCardShown = false
-    @ObservationIgnored private var cardSource: GuidedStartSource = .auto
     /// Steps the user visibly did on this device. Their absence is what
     /// makes a completion `completed_elsewhere`.
     @ObservationIgnored private var locallyActed: Set<GuidedStartStep> = []
@@ -139,7 +138,18 @@ final class GuidedStartCoordinator {
         sleep: @MainActor @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
         snapshot: @MainActor @escaping () -> OnboardingStateDTO?,
         applySnapshot: @MainActor @escaping (OnboardingStateDTO) -> Void,
-        pendingCaptureCount: @MainActor @escaping () -> Int,
+        /// **Must perform a fresh read** of the unprocessed-vault-row count
+        /// every time it is called — `KBCompileClientProtocol.pending()` or
+        /// equivalent. Do not wire it to a cached view-model value such as
+        /// `HomeGlanceViewModel.recommendation`: that value is loaded when
+        /// Home appears and never polls, so a memory saved since then makes
+        /// it stale, and a stale zero opens a spotlight that cannot end in
+        /// anything but the 5-minute timeout.
+        ///
+        /// Throwing means "cannot determine right now", and the step starts
+        /// anyway — refusing on a failed probe would be worse than starting
+        /// on an unknown one.
+        pendingCaptureCount: @MainActor @escaping () async throws -> Int,
         isDismissed: @MainActor @escaping () -> Bool,
         setDismissed: @MainActor @escaping (Bool) async throws -> Void
     ) {
@@ -152,6 +162,15 @@ final class GuidedStartCoordinator {
         self.pendingCaptureCount = pendingCaptureCount
         self.isDismissedSeam = isDismissed
         self.setDismissedSeam = setDismissed
+    }
+
+    /// A poll that is merely waiting holds this object weakly, so losing
+    /// the last owning reference gets us here promptly — but the task is
+    /// still parked in `sleep`, and on the real clock that park is up to
+    /// ten seconds long. Cancelling makes `Task.sleep` throw immediately
+    /// instead of letting a torn-down screen keep polling.
+    deinit {
+        work?.cancel()
     }
 
     // MARK: - Derived state
@@ -179,7 +198,7 @@ final class GuidedStartCoordinator {
     func noteCardShown() {
         guard isCardVisible, !didFireCardShown else { return }
         didFireCardShown = true
-        telemetry.cardShown(source: cardSource)
+        telemetry.cardShown()
     }
 
     /// Pull the current ladder. Failures keep the stale snapshot rather
@@ -207,8 +226,10 @@ final class GuidedStartCoordinator {
 
         // An empty compile returns early server-side and never latches,
         // so opening step 2 with nothing pending would strand the user in
-        // a spotlight that cannot finish.
-        if target == .syncLearn, pendingCaptureCount() == 0 {
+        // a spotlight that cannot finish. The count is read *here*, live,
+        // rather than trusting whatever the surrounding view had cached.
+        // A throw means "cannot determine", and is not grounds to refuse.
+        if target == .syncLearn, let pending = try? await pendingCaptureCount(), pending == 0 {
             inlineMessage = GuidedStartCopy.nothingPending
             return
         }
@@ -223,9 +244,7 @@ final class GuidedStartCoordinator {
         requestedTab = tab(for: target)
         telemetry.stepStarted(target, source: source)
 
-        schedule { [weak self] in
-            await self?.runStep(target, startedAt: startedAt, run: run, delayIndex: 0, pollImmediately: false)
-        }
+        startPolling(target, startedAt: startedAt, run: run, delayIndex: 0, pollImmediately: false)
     }
 
     /// Skip is a real action, not a dismiss: the card stays, this step
@@ -248,15 +267,13 @@ final class GuidedStartCoordinator {
         cancelWork()
         runID += 1
         let run = runID
-        schedule { [weak self] in
-            await self?.runStep(
-                step,
-                startedAt: startedAt,
-                run: run,
-                delayIndex: resumeIndex,
-                pollImmediately: true
-            )
-        }
+        startPolling(
+            step,
+            startedAt: startedAt,
+            run: run,
+            delayIndex: resumeIndex,
+            pollImmediately: true
+        )
     }
 
     // MARK: - Dismissal
@@ -280,8 +297,6 @@ final class GuidedStartCoordinator {
     /// cleared dismissal does not amount to a way to re-enter it, because
     /// `allDone` still hides it on the next launch.
     func showMeAround() async {
-        cardSource = .settings
-        didFireCardShown = false
         dismissOverride = false
         inlineMessage = nil
         if progress.isAllDone { sessionShowsCompletedCard = true }
@@ -295,45 +310,80 @@ final class GuidedStartCoordinator {
 
     // MARK: - Polling
 
-    private func runStep(
+    private enum Tick { case keepGoing, stop }
+
+    /// Owns the wait loop. The loop body deliberately does *not* live in a
+    /// method on `self`: `await self?.method()` resolves the weak
+    /// reference into a strong one for the whole call, so a single
+    /// `runStep`-shaped method would pin the coordinator alive for the
+    /// entire step — up to the full five-minute cap — after the owning
+    /// view had been torn down.
+    ///
+    /// Here the coordinator is only held while a tick is doing work. The
+    /// waits run against a captured copy of the `sleep` closure and hold
+    /// nothing, so dropping the last owning reference reaches `deinit`,
+    /// which cancels this task out of its wait.
+    private func startPolling(
         _ step: GuidedStartStep,
         startedAt: Date,
         run: Int,
         delayIndex: Int,
         pollImmediately: Bool
-    ) async {
-        var index = delayIndex
-        var immediate = pollImmediately
+    ) {
+        let sleep = self.sleep
+        let backoff = Self.pollBackoff
+        let steady = Self.pollSteadyState
 
-        while true {
-            guard isRunning(step, run: run) else { return }
+        workGeneration += 1
+        work = Task { [weak self] in
+            var index = delayIndex
+            var immediate = pollImmediately
 
-            if immediate {
-                immediate = false
-            } else {
-                let delay = index < Self.pollBackoff.count ? Self.pollBackoff[index] : Self.pollSteadyState
-                index += 1
-                pollIndex = index
-                do { try await sleep(delay) } catch { return }
-                guard isRunning(step, run: run) else { return }
-            }
+            while true {
+                if Task.isCancelled { return }
 
-            if let state = try? await client.get() {
-                guard isRunning(step, run: run) else { return }
-                applySnapshot(state)
-                if step.isComplete(in: state) {
-                    await complete(step, startedAt: startedAt)
-                    return
+                if immediate {
+                    immediate = false
+                } else {
+                    let delay = index < backoff.count ? backoff[index] : steady
+                    index += 1
+                    self?.notePollIndex(index)
+                    do { try await sleep(delay) } catch { return }
                 }
-            }
 
-            guard isRunning(step, run: run) else { return }
-            if now().timeIntervalSince(startedAt) >= Self.stepTimeout {
-                telemetry.stepTimedOut(step, elapsedMs: elapsedMs(since: startedAt))
-                closeStep()
-                return
+                guard let tick = await self?.pollTick(step, startedAt: startedAt, run: run) else { return }
+                if tick == .stop { return }
             }
         }
+    }
+
+    /// One poll: fetch, apply, and decide whether the step is done, timed
+    /// out, or should keep waiting.
+    private func pollTick(_ step: GuidedStartStep, startedAt: Date, run: Int) async -> Tick {
+        guard isRunning(step, run: run) else { return .stop }
+
+        if let state = try? await client.get() {
+            guard isRunning(step, run: run) else { return .stop }
+            applySnapshot(state)
+            if step.isComplete(in: state) {
+                await complete(step, startedAt: startedAt)
+                return .stop
+            }
+        }
+
+        guard isRunning(step, run: run) else { return .stop }
+        if now().timeIntervalSince(startedAt) >= Self.stepTimeout {
+            telemetry.stepTimedOut(step, elapsedMs: elapsedMs(since: startedAt))
+            closeStep()
+            return .stop
+        }
+        return .keepGoing
+    }
+
+    /// Where the ramp has got to, so a local signal can poll immediately
+    /// and then resume the schedule rather than restart it.
+    private func notePollIndex(_ index: Int) {
+        pollIndex = index
     }
 
     private func complete(_ step: GuidedStartStep, startedAt: Date) async {
@@ -403,11 +453,6 @@ final class GuidedStartCoordinator {
         Int((now().timeIntervalSince(startedAt) * 1_000).rounded())
     }
 
-    private func schedule(_ body: @MainActor @escaping () async -> Void) {
-        workGeneration += 1
-        work = Task { await body() }
-    }
-
     private func cancelWork() {
         work?.cancel()
         work = nil
@@ -415,9 +460,10 @@ final class GuidedStartCoordinator {
 
     // MARK: - Test seam
 
+    #if DEBUG
     /// Awaits whatever run is in flight, including a run that replaced the
-    /// one we started waiting on. Tests only: production code never needs
-    /// to know when polling settles.
+    /// one we started waiting on. Tests only, and not shipped: production
+    /// code never needs to know when polling settles.
     func settle() async {
         for _ in 0..<64 {
             guard let task = work else { return }
@@ -429,4 +475,5 @@ final class GuidedStartCoordinator {
             }
         }
     }
+    #endif
 }
