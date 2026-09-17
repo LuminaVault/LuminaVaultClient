@@ -1,7 +1,7 @@
 // LuminaVaultClient/LuminaVaultClient/Features/VisualSearch/VisualSearchView.swift
 //
-// HER-157 — PhotosPicker entry to the visual-search pipeline. v1 surface.
-// HER-104 (tab bar shell) wires this into MainTabView once it lands.
+// HER-157 — PhotosPicker entry to the visual-search pipeline. Reached from
+// the Spaces tab's `…` menu, which pushes it onto that tab's stack.
 
 import PhotosUI
 import SwiftUI
@@ -15,40 +15,39 @@ struct VisualSearchView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                List {
-                    pickerSection
-                    switch viewModel.state {
-                    case .idle:
-                        EmptyView()
-                    case .extractingText:
-                        Section { ProgressView("Reading text…").frame(maxWidth: .infinity) }
-                    case .querying:
-                        Section { ProgressView("Asking Hermes…").frame(maxWidth: .infinity) }
-                    case let .results(response, extractedText):
-                        VisualSearchResultsSection(response: response, extractedText: extractedText)
-                    case let .error(message):
-                        errorSection(message: message)
-                    }
-                }
-                .scrollContentBackground(.hidden)
-                if case .idle = viewModel.state {
-                    LVEmptyState(
-                        mascot: .thinking,
-                        headline: "Drop an image to search.",
-                        supporting: "Long-press a photo with text and Hermes will hunt your memories.",
-                        backgroundImage: "Lumina/Backgrounds/neural-network"
-                    )
-                    .allowsHitTesting(false)
-                    .padding(.bottom, 80)
+        ZStack {
+            List {
+                pickerSection
+                switch viewModel.state {
+                case .idle:
+                    EmptyView()
+                case .extractingText:
+                    Section { ProgressView("Reading text…").frame(maxWidth: .infinity) }
+                case .querying:
+                    Section { ProgressView("Asking Hermes…").frame(maxWidth: .infinity) }
+                case let .results(response, extractedText):
+                    VisualSearchResultsSection(response: response, extractedText: extractedText)
+                case let .error(message):
+                    errorSection(message: message)
                 }
             }
-            .lvBackground()
-            // HER-255 — title + mascot now live in the global app header
-            // (MainTabView); hide this screen's own navbar.
-            .toolbar(.hidden, for: .navigationBar)
+            .scrollContentBackground(.hidden)
+            if case .idle = viewModel.state {
+                LVEmptyState(
+                    mascot: .thinking,
+                    headline: "Drop an image to search.",
+                    supporting: "Long-press a photo with text and Hermes will hunt your memories.",
+                    backgroundImage: "Lumina/Backgrounds/neural-network"
+                )
+                .allowsHitTesting(false)
+                .padding(.bottom, 80)
+            }
         }
+        .lvBackground()
+        // Pushed from the Spaces `…` menu, so the enclosing stack owns the
+        // bar: no stack of its own, and no hidden navigation bar.
+        .navigationTitle("Search by photo")
+        .navigationBarTitleDisplayMode(.inline)
         .onChange(of: pickedItem) { _, newItem in
             guard let newItem else { return }
             Task {
@@ -86,11 +85,13 @@ struct VisualSearchView: View {
 }
 
 #Preview {
-    VisualSearchView(viewModel: VisualSearchViewModel(
-        ocr: PreviewOCRService(),
-        client: PreviewMemoryQueryClient(),
-        telemetry: NoopTelemetry(),
-    ))
+    NavigationStack {
+        VisualSearchView(viewModel: VisualSearchViewModel(
+            ocr: PreviewOCRService(),
+            client: PreviewMemoryQueryClient(),
+            telemetry: NoopTelemetry(),
+        ))
+    }
 }
 
 // MARK: - Preview-only fakes (kept here so the #Preview block compiles

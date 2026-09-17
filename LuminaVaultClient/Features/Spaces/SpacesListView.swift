@@ -1,10 +1,12 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Spaces/SpacesListView.swift
-// HER-35: home tab post-vault-create. Renders a search bar, segmented
-// category control, LazyVGrid of SpaceCardView, and a FAB to create new
-// Spaces. Long-press menus fire edit/delete via the shared editor sheet.
-// HER-105: each Space card is now a NavigationLink → `VaultFilesListView`
-// (three-pane browser); the magnifying-glass toolbar item opens the
-// universal search sheet (`VaultSearchView`).
+// HER-35: the Spaces tab. A category control and a LazyVGrid of
+// SpaceCardView; long-press menus fire edit/delete via the shared editor
+// sheet. HER-105: each Space card is a NavigationLink → `VaultFilesListView`
+// (three-pane browser).
+//
+// The chrome is the system's: `.searchable` for the filter, the capture "+"
+// and an overflow `…` in the navigation bar for New Space and visual search.
+// The floating create button and the particle field it sat on are gone.
 import SwiftUI
 
 struct SpacesListView: View {
@@ -21,6 +23,11 @@ struct SpacesListView: View {
     @State private var spaceToDelete: SpaceDTO?
     @State private var presentingSearch = false
     @State private var searchVM: VaultSearchViewModel
+    /// Drives the push to `VisualSearchView` from the `…` menu. A
+    /// `NavigationLink` inside a `Menu` does not reliably push, and the menu
+    /// must not present — `MainTabView`'s chained sheets already drop a
+    /// second presentation.
+    @State private var showingVisualSearch = false
 
     init(
         vm: SpacesViewModel,
@@ -45,81 +52,78 @@ struct SpacesListView: View {
     ]
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            // HER-307 — bespoke RadialGradient layers removed; lvBackground
-            // (applied below) ships the canonical aurora wash from the
-            // design system.
-
-            // HER-307 — subtle neural-network particle field anchored to
-            // the top half of the screen per DESIGN_SYSTEM §13.4.
-            Color.clear
-                .lvParticleBackground(intensity: .subtle)
-                .frame(maxHeight: 380)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .allowsHitTesting(false)
-
-            content
-            createButton
-        }
-        .lvBackground()
-        .task { await vm.load() }
-        .refreshable { await vm.load() }
-        .alert("Delete space?",
-               isPresented: Binding(
-                get: { spaceToDelete != nil },
-                set: { if !$0 { spaceToDelete = nil } }
-               ),
-               presenting: spaceToDelete,
-               actions: { space in
-                   Button("Delete", role: .destructive) {
-                       Task { await vm.delete(id: space.id) }
-                       spaceToDelete = nil
-                   }
-                   Button("Cancel", role: .cancel) {
-                       spaceToDelete = nil
-                   }
-               },
-               message: { space in
-                   Text("\"\(space.name)\" will be removed. Notes stored under this space stay on disk in a `_deleted_…` folder.")
-               })
-        .sheet(item: $presentingEditorFor) { presentation in
-            SpaceEditorSheet(
-                mode: presentation.mode,
-                knownCategories: vm.categories,
-                onSubmit: { payload in
-                    switch presentation.mode {
-                    case .create:
-                        await vm.create(CreateSpaceRequest(
-                            name: payload.name,
-                            slug: payload.slug,
-                            description: nil,
-                            color: payload.color,
-                            icon: payload.icon,
-                            category: payload.category,
-                        ))
-                    case let .edit(existing):
-                        await vm.update(id: existing.id, UpdateSpaceRequest(
-                            name: payload.name,
-                            description: nil,
-                            color: payload.color,
-                            icon: payload.icon,
-                            category: payload.category ?? "",
-                        ))
-                    }
-                },
-            )
-        }
-        .sheet(isPresented: $presentingSearch) {
-            VaultSearchView(vm: searchVM, vaultClient: vaultClient, memoryClient: memoryDetailClient)
-        }
+        content
+            .lvBackground()
+            .searchable(text: $vm.searchQuery, prompt: "Search spaces")
+            .captureToolbarItem()
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { spacesMenu }
+            }
+            .navigationDestination(isPresented: $showingVisualSearch) {
+                VisualSearchView(
+                    viewModel: VisualSearchViewModel(
+                        ocr: ImageOCRService(),
+                        client: memoryClient,
+                        telemetry: AnalyticsTelemetry()
+                    )
+                )
+            }
+            .task { await vm.load() }
+            .refreshable { await vm.load() }
+            .alert("Delete space?",
+                   isPresented: Binding(
+                    get: { spaceToDelete != nil },
+                    set: { if !$0 { spaceToDelete = nil } }
+                   ),
+                   presenting: spaceToDelete,
+                   actions: { space in
+                       Button("Delete", role: .destructive) {
+                           Task { await vm.delete(id: space.id) }
+                           spaceToDelete = nil
+                       }
+                       Button("Cancel", role: .cancel) {
+                           spaceToDelete = nil
+                       }
+                   },
+                   message: { space in
+                       Text("\"\(space.name)\" will be removed. Notes stored under this space stay on disk in a `_deleted_…` folder.")
+                   })
+            .sheet(item: $presentingEditorFor) { presentation in
+                SpaceEditorSheet(
+                    mode: presentation.mode,
+                    knownCategories: vm.categories,
+                    onSubmit: { payload in
+                        switch presentation.mode {
+                        case .create:
+                            await vm.create(CreateSpaceRequest(
+                                name: payload.name,
+                                slug: payload.slug,
+                                description: nil,
+                                color: payload.color,
+                                icon: payload.icon,
+                                category: payload.category,
+                            ))
+                        case let .edit(existing):
+                            await vm.update(id: existing.id, UpdateSpaceRequest(
+                                name: payload.name,
+                                description: nil,
+                                color: payload.color,
+                                icon: payload.icon,
+                                category: payload.category ?? "",
+                            ))
+                        }
+                    },
+                )
+            }
+            .sheet(isPresented: $presentingSearch) {
+                VaultSearchView(vm: searchVM, vaultClient: vaultClient, memoryClient: memoryDetailClient)
+            }
     }
 
     @ViewBuilder
     private var content: some View {
         ScrollView {
             VStack(spacing: 24) {
-                searchField
-                
                 if !vm.categories.isEmpty && vm.categories.count > 1 {
                     categoryChips
                 }
@@ -163,41 +167,23 @@ struct SpacesListView: View {
                     .padding(.horizontal, 20)
                 }
             }
-            .padding(.top, 40)
+            .padding(.top, 16)
         }
     }
 
-    private var headerSection: some View {
-        HStack {
-            Text("Spaces")
-                .font(.system(size: 38, weight: .black, design: .rounded))
-                .foregroundStyle(palette.textPrimary)
-                .shadow(color: palette.glowPrimary.opacity(0.8), radius: 12)
-            Spacer()
+    /// The tab's overflow. "New Space" used to be a floating button over the
+    /// tab bar; both actions now live where iOS puts a screen's own verbs.
+    private var spacesMenu: some View {
+        Menu {
+            Button("New Space", systemImage: "plus") {
+                presentingEditorFor = EditorPresentation(mode: .create)
+            }
+            Button("Search by photo", systemImage: "photo.on.rectangle.angled") {
+                showingVisualSearch = true
+            }
+        } label: {
+            Label("More", systemImage: "ellipsis.circle")
         }
-        .padding(.horizontal, 20)
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 12) {
-            LVIconView(.magnifyingglass, size: 18, tint: palette.textSecondary, weight: .medium)
-            
-            TextField("Search spaces", text: $vm.searchQuery)
-                .textFieldStyle(.plain)
-                .autocorrectionDisabled()
-                .foregroundStyle(palette.textPrimary)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background {
-            RoundedRectangle(cornerRadius: 14)
-                .fill(palette.surface)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(palette.surfaceStroke, lineWidth: 1)
-                }
-        }
-        .padding(.horizontal, 20)
     }
 
     private var categoryChips: some View {
@@ -283,23 +269,11 @@ struct SpacesListView: View {
         .padding(.horizontal, 20)
     }
 
-    private var createButton: some View {
-        // HER-307 — replaces the bespoke cyan circle + plus with the shared
-        // LVFAB component (HER-301). Single source for the cinematic
-        // capture-button chrome — cyan glow, gold ring, haptic on press.
-        // Smaller than the default 64 so it reads as a secondary action
-        // beside the native tab bar rather than competing with it.
-        LVFAB(size: 52) {
-            presentingEditorFor = EditorPresentation(mode: .create)
-        }
-        .padding(LVSpacing.lg)
-    }
-
     private var emptyState: some View {
         LVEmptyState(
             mascot: .idle,
             headline: "Your vault is ready.",
-            supporting: "Tap the + button to capture your first space.",
+            supporting: "Create your first space to file notes under.",
             primaryCTA: ("New Space", { presentingEditorFor = EditorPresentation(mode: .create) }),
             chips: [],
             backgroundImage: "Lumina/Backgrounds/neural-network"

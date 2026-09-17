@@ -36,18 +36,25 @@ struct WorkspacesView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            TeamVaultSwitcher(viewModel: teamViewModel) {
-                await vm.load()
+        SpacesListView(
+            vm: vm,
+            vaultClient: vaultClient,
+            memoryClient: memoryClient,
+            memoryDetailClient: memoryDetailClient,
+            uploadClient: uploadClient
+        )
+        // The switcher is chrome, not content: pinned above the list as a
+        // bar so the search field the list owns stays directly under the
+        // navigation title.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            VStack(spacing: 0) {
+                TeamVaultSwitcher(viewModel: teamViewModel) {
+                    await vm.load()
+                }
+                .padding(.vertical, 4)
+                Divider()
             }
-            Divider()
-            SpacesListView(
-                vm: vm,
-                vaultClient: vaultClient,
-                memoryClient: memoryClient,
-                memoryDetailClient: memoryDetailClient,
-                uploadClient: uploadClient
-            )
+            .background(.bar)
         }
         .task { await teamViewModel.load() }
         .navigationTitle("Spaces")
