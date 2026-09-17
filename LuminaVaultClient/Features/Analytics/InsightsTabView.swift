@@ -8,13 +8,15 @@ import SwiftUI
 /// analytics range as a trailing bar menu. That leaves the scroll view to
 /// carry nothing but the sections themselves.
 struct InsightsTabView: View {
-    private enum Section: String, CaseIterable, Identifiable {
+    enum Section: String, CaseIterable, Identifiable {
         case overview = "Overview"
         case reflect = "Reflect"
         var id: String { rawValue }
     }
 
-    @State private var section: Section = .overview
+    /// Which segment the tab opens on. Injectable for the same reason the
+    /// view models are: a snapshot has to be able to ask for Reflect.
+    @State var section: Section = .overview
     /// Owned here, not in `AnalyticsDashboardScreen`: the range menu is a
     /// navigation-bar item of this tab root, so the bar and the content have
     /// to read the same `range`.
