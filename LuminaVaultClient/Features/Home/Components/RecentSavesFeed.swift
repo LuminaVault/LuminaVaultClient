@@ -113,8 +113,13 @@ struct RecentSavesFeed: View {
         }
         .padding(.vertical, 4)
         .opacity(row.hasFailed ? 1 : 0.7)
+        // Only where the row already offers Discard as a button. A queued
+        // capture is still on its way and the queue holds the only copy of
+        // it, so losing one to a stray swipe is not a recoverable mistake.
         .swipeActions(edge: .trailing) {
-            Button("Discard", systemImage: "trash", role: .destructive) { onDiscard(row) }
+            if row.hasFailed {
+                Button("Discard", systemImage: "trash", role: .destructive) { onDiscard(row) }
+            }
         }
         .accessibilityElement(children: row.hasFailed ? .contain : .combine)
         .accessibilityLabel(row.hasFailed ? "" : "\(row.displayText), queued")
