@@ -234,24 +234,29 @@ struct SpacesListView: View {
                 uploadClient: uploadClient,
             )
         } label: {
-            HStack(spacing: 16) {
-                LVIconView(.layers, size: 32, tint: palette.glowPrimary, weight: .light)
-                    .shadow(color: palette.glowPrimary.opacity(0.6), radius: 10)
+            HStack(spacing: LVSpacing.base) {
+                LVIconView(.layers, size: 32, tint: palette.accent, weight: .regular)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Inbox")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(palette.textPrimary)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
                     Text("Unfiled notes")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(palette.glowPrimary)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
-                LVIconView(.chevronRight, size: 16, tint: palette.textSecondary, weight: .semibold)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
-            .padding(20)
+            .padding(LVSpacing.base)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .lvGlassCard(cornerRadius: 24, intensity: 0.7)
-            .lvGlowStroke(cornerRadius: 24, intensity: LVGlow.card)
+            // Same card as the grid below it. It was the one glass surface
+            // left on the screen once the tiles became plain.
+            .background(
+                Color(.secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: LVRadius.card, style: .continuous)
+            )
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 20)
