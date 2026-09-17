@@ -972,6 +972,14 @@ final class ChatViewModel {
                     // Not surfaced in chat UI yet; the link will show up
                     // in the vault on next refresh.
                     continue
+                case .unrecognized:
+                    // A newer server emitted an event type this build does
+                    // not know. Skip the frame and keep reading — treating
+                    // it as an error would abort the turn over something
+                    // purely additive. Shared v5.16.0 made the decoder
+                    // return this instead of throwing; before that, one
+                    // unknown frame killed the whole stream.
+                    continue
                 case .done:
                     // Let the reveal finish typing the tail, then freeze the
                     // fully-revealed text into a finalized bubble.
