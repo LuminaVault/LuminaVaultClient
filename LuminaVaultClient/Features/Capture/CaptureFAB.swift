@@ -22,9 +22,7 @@ struct CaptureFAB: View {
     @Environment(\.lvPalette) private var palette
 
     @Environment(\.captureCoordinator) private var coordinator
-    @Environment(NotificationRouter.self) private var notificationRouter
     @State private var showingSheet = false
-    @State private var requestedBatchID: UUID?
 
     var style: Style = .floating
 
@@ -49,7 +47,6 @@ struct CaptureFAB: View {
 
     var body: some View {
         Button {
-            requestedBatchID = nil
             showingSheet = true
         } label: {
             label
@@ -66,21 +63,7 @@ struct CaptureFAB: View {
         .disabled(coordinator?.queue == nil || coordinator?.ingestionClient == nil)
         // Shared with the Home composer, which presents the same sheet for
         // its photo and file affordances. See `CaptureSheetPresenter`.
-        .captureSheet(
-            isPresented: $showingSheet,
-            initialMode: requestedBatchID == nil ? .photo : .files,
-            requestedBatchID: requestedBatchID
-        )
-        .task(id: notificationRouter.pendingDeepLink) {
-            routePendingIngestion()
-        }
-    }
-
-    private func routePendingIngestion() {
-        guard case let .ingestion(batchID, _) = notificationRouter.pendingDeepLink else { return }
-        requestedBatchID = batchID
-        showingSheet = true
-        _ = notificationRouter.consume()
+        .captureSheet(isPresented: $showingSheet, initialMode: .photo)
     }
 
     private var label: some View {
@@ -115,16 +98,5 @@ struct CaptureFAB: View {
                 x: 0,
                 y: style == .header ? 0 : 4
             )
-    }
-}
-
-private struct CaptureCoordinatorKey: EnvironmentKey {
-    static let defaultValue: CaptureCoordinator? = nil
-}
-
-extension EnvironmentValues {
-    var captureCoordinator: CaptureCoordinator? {
-        get { self[CaptureCoordinatorKey.self] }
-        set { self[CaptureCoordinatorKey.self] = newValue }
     }
 }

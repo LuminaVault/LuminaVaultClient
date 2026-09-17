@@ -36,6 +36,10 @@ struct MainTabView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var captureFailures: CaptureFailuresStore?
     @State private var showingCaptureReview = false
+    /// An ingestion push names a batch that is waiting for its files. The
+    /// capture sheet opens on Files with that batch preselected.
+    @State private var ingestionBatchID: UUID?
+    @State private var showingIngestionCapture = false
 
     private static let tabIds = (
         workspaces: "workspaces",
@@ -216,6 +220,14 @@ struct MainTabView: View {
                 .presentationDragIndicator(.visible)
         }
         .sensoryFeedback(.selection, trigger: tabHapticTrigger)
+        .captureSheet(
+            isPresented: $showingIngestionCapture,
+            initialMode: .files,
+            requestedBatchID: ingestionBatchID
+        )
+        .task(id: notificationRouter.pendingDeepLink) {
+            routePendingIngestion()
+        }
         .sheet(isPresented: $showingCaptureReview) {
             if let captureFailures {
                 CaptureReviewSheet(store: captureFailures)
@@ -236,6 +248,18 @@ struct MainTabView: View {
             guard phase == .active else { return }
             Task { await captureFailures?.refresh() }
         }
+    }
+
+    /// An ingestion push carries the batch the user just started elsewhere
+    /// (Hermes, the web app) and needs files for. Home owns it because the
+    /// capture sheet is a Home affordance; the push is consumed here so no
+    /// other surface re-presents it.
+    private func routePendingIngestion() {
+        guard case let .ingestion(batchID, _) = notificationRouter.pendingDeepLink else { return }
+        selection = Self.tabIds.home
+        ingestionBatchID = batchID
+        showingIngestionCapture = true
+        _ = notificationRouter.consume()
     }
 
     /// HER-255 — global header title per active tab.

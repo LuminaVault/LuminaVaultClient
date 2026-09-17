@@ -9,6 +9,7 @@
 import Foundation
 import OSLog
 import SwiftData
+import SwiftUI
 
 private let log = Logger(subsystem: "com.luminavault", category: "capture.coordinator")
 
@@ -16,7 +17,7 @@ private let log = Logger(subsystem: "com.luminavault", category: "capture.coordi
 final class CaptureCoordinator {
     private(set) var queue: CaptureQueue?
     private(set) var drainer: CaptureDrainer?
-    /// HER-CaptureTab — exposed so `CaptureFAB` can hand the Spaces
+    /// HER-CaptureTab — exposed so the capture surfaces can hand the Spaces
     /// client to the picker VM without giving it AppState access.
     private(set) var spacesClient: (any SpacesClientProtocol)?
     private(set) var ingestionClient: (any IngestionClientProtocol)?
@@ -167,5 +168,21 @@ private enum ShareDrainError: Error {
 private extension String {
     var nilIfEmpty: String? {
         isEmpty ? nil : self
+    }
+}
+
+// MARK: - Environment
+
+private struct CaptureCoordinatorKey: EnvironmentKey {
+    static let defaultValue: CaptureCoordinator? = nil
+}
+
+extension EnvironmentValues {
+    /// The live coordinator, or nil until `appState.vaultInitialized`. Capture
+    /// controls disable themselves while it is nil rather than accepting a
+    /// capture they cannot store.
+    var captureCoordinator: CaptureCoordinator? {
+        get { self[CaptureCoordinatorKey.self] }
+        set { self[CaptureCoordinatorKey.self] = newValue }
     }
 }
