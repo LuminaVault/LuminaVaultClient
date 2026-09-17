@@ -20,7 +20,6 @@ struct VaultFileRow: View {
         let meta = file.metadata
         let isTodo = meta?.isTodo == true
         let done = meta?.done == true
-        let subtitle = VaultFileDisplay.subtitle(for: file, spaceName: spaceName)
 
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Image(systemName: isTodo
@@ -40,11 +39,16 @@ struct VaultFileRow: View {
                     Label(due.formatted(date: .abbreviated, time: .shortened), systemImage: "calendar")
                         .font(.footnote)
                         .foregroundStyle(.tint)
-                } else if !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                } else {
+                    // Built on this branch only: a due date replaces the
+                    // subtitle, and the subtitle costs a `RelativeDateTimeFormatter`.
+                    let subtitle = VaultFileDisplay.subtitle(for: file, spaceName: spaceName)
+                    if !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
             }
 

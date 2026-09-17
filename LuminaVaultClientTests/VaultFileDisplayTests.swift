@@ -76,9 +76,15 @@ final class VaultFileDisplayTests: XCTestCase {
             path: "9E2C4971-1A2B-4C3D-8E5F-00E2C4971AB2.md",
             createdAt: created
         )
-        let title = VaultFileDisplay.title(for: subject)
-        XCTAssertTrue(title.hasPrefix("Note · "), title)
-        XCTAssertGreaterThan(title.count, "Note · ".count)
+        // Pinned locale and time zone: the string the reader sees is the whole
+        // point of the branch, and `hasPrefix("Note · ")` passed for a title
+        // that had lost its time.
+        let title = VaultFileDisplay.title(
+            for: subject,
+            locale: Locale(identifier: "en_GB"),
+            timeZone: TimeZone(identifier: "UTC")!
+        )
+        XCTAssertEqual(title, "Note · 14 Sept 15:57")
     }
 
     func testTitleOfBareUUIDNoteWithoutDateIsJustNote() {

@@ -14,7 +14,15 @@ enum VaultFileDisplay {
     /// the file's own title, then the host of a link still being fetched,
     /// then the capture date for a note the user never named, then the
     /// filename tidied up.
-    static func title(for file: VaultFileDTO) -> String {
+    ///
+    /// `locale` and `timeZone` default to the reader's and are parameters only
+    /// so a test can pin the dated-note string exactly; nothing in the app
+    /// passes them.
+    static func title(
+        for file: VaultFileDTO,
+        locale: Locale = .autoupdatingCurrent,
+        timeZone: TimeZone = .autoupdatingCurrent
+    ) -> String {
         if let title = file.metadata?.title, !title.isEmpty {
             return title
         }
@@ -28,7 +36,7 @@ enum VaultFileDisplay {
 
         if isBareUUID(stem) {
             guard let createdAt = file.createdAt else { return "Note" }
-            return "Note · " + createdAt.formatted(noteDateStyle)
+            return "Note · " + createdAt.formatted(noteDateStyle(locale: locale, timeZone: timeZone))
         }
 
         return humanised(stem)
@@ -50,6 +58,12 @@ enum VaultFileDisplay {
     }
 
     /// What kind of thing this is, at a glance.
+    ///
+    /// Any non-nil `enrichmentStatus` means link, not just `"pending"`: the
+    /// field exists only on a captured URL, so `"done"` and `"failed"` still
+    /// say "this was a link" — which is the thing the glyph is naming. A
+    /// finished enrichment rewrites the title and the subtitle; it does not
+    /// turn the row into a note.
     static func symbolName(for file: VaultFileDTO) -> String {
         if file.metadata?.enrichmentStatus != nil { return "link" }
         if file.contentType.hasPrefix("image/") { return "photo" }
@@ -117,8 +131,8 @@ enum VaultFileDisplay {
     // MARK: - Dates
 
     /// `d MMM, HH:mm` in spirit, laid out the way the reader's locale does it.
-    private static var noteDateStyle: Date.FormatStyle {
-        Date.FormatStyle()
+    private static func noteDateStyle(locale: Locale, timeZone: TimeZone) -> Date.FormatStyle {
+        Date.FormatStyle(locale: locale, calendar: locale.calendar, timeZone: timeZone)
             .day()
             .month(.abbreviated)
             .hour(.defaultDigits(amPM: .abbreviated))
