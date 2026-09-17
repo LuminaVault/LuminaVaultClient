@@ -96,6 +96,8 @@ struct SettingsRootView: View {
                         // Phase 1 — post-onboarding SOUL.md personality editor.
                         // Phase 2 — direct memory browse/edit/delete.
                         LVSectionCard("Your Agent") {
+                            AgentStatusRow(client: homeSummaryClient)
+                            LVSettingsDivider()
                             LVSettingsRow("Personality", icon: .brainHeadProfile) {
                                 SoulEditorView(client: soulClient, capabilities: hermesCapabilitiesClient)
                             }
@@ -311,6 +313,11 @@ struct SettingsRootView: View {
     }
 
     // MARK: - Client wiring (mirrors MainTabView's per-tab factories)
+
+    /// Backs the read-only agent status row above the Your Agent rows.
+    private var homeSummaryClient: any HomeSummaryClientProtocol {
+        HomeSummaryHTTPClient(client: appState.makeHTTPClient())
+    }
 
     private var apnsPrefsClient: any APNSPrefsClientProtocol {
         APNSPrefsHTTPClient(client: appState.makeHTTPClient())

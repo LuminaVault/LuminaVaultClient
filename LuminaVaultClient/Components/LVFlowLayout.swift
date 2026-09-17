@@ -8,7 +8,8 @@
 // item should occupy an equal share of the width, and this when the items
 // size themselves and should pack.
 //
-// Lifted out of `SkillsPreviewPanel`, which held the original private copy.
+// Lifted out of the Dashboard's skills panel, which held the original
+// private copy, when that screen was deleted.
 // `BrainNodeDetailSheet` and `WikilinkMarkdownView` still carry their own
 // private duplicates; they can adopt this and drop them.
 
