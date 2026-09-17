@@ -226,7 +226,10 @@ final class InsightsTabViewSnapshotTests: XCTestCase {
                 layout: .device(config: .iPhone13Pro),
                 traits: .init(userInterfaceStyle: dark ? .dark : .light)
             ),
-            named: name
+            // `testName` rather than `named`, so the baseline is called what
+            // the case is called instead of carrying this helper's signature
+            // and a misleading "dark" into every file name.
+            testName: name
         )
     }
 
@@ -247,7 +250,10 @@ final class InsightsTabViewSnapshotTests: XCTestCase {
                 layout: .fixed(width: 390, height: 2_600),
                 traits: .init(userInterfaceStyle: .light)
             ),
-            named: name
+            // `testName` rather than `named`, so the baseline is called what
+            // the case is called instead of carrying this helper's signature
+            // and a misleading "dark" into every file name.
+            testName: name
         )
     }
 

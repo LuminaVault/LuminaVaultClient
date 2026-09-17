@@ -120,7 +120,10 @@ final class CaptureHomeViewSnapshotTests: XCTestCase {
                 layout: .device(config: .iPhone13Pro),
                 traits: .init(userInterfaceStyle: dark ? .dark : .light)
             ),
-            named: name
+            // `testName` rather than `named`, so the baseline is called what
+            // the case is called instead of carrying this helper's signature
+            // and a misleading "dark" into every file name.
+            testName: name
         )
     }
 
