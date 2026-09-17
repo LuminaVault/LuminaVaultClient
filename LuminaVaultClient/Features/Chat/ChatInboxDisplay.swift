@@ -32,6 +32,15 @@ enum ChatInboxDisplay {
         return String(line.prefix(derivedTitleLimit)) + "…"
     }
 
+    /// The preview line, unless the title was derived from it whole — the
+    /// same sentence printed twice in one row tells the reader nothing the
+    /// first line did not.
+    static func preview(for item: ChatInboxItemDTO) -> String? {
+        let preview = item.preview.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !preview.isEmpty, preview != title(for: item) else { return nil }
+        return preview
+    }
+
     private static func firstNonEmptyLine(of text: String) -> String? {
         text
             .components(separatedBy: .newlines)

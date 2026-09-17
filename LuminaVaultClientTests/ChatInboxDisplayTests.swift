@@ -76,6 +76,29 @@ final class ChatInboxDisplayTests: XCTestCase {
         XCTAssertEqual(title, exact)
     }
 
+    // MARK: - Preview
+
+    func testPreviewIsDroppedWhenTheTitleWasDerivedFromItWhole() {
+        XCTAssertNil(
+            ChatInboxDisplay.preview(for: item(title: "New conversation", preview: "Draft the note"))
+        )
+    }
+
+    func testPreviewSurvivesWhenItSaysMoreThanTheTitle() {
+        let long = String(repeating: "c", count: 80)
+        XCTAssertEqual(ChatInboxDisplay.preview(for: item(title: "", preview: long)), long)
+        XCTAssertEqual(
+            ChatInboxDisplay.preview(for: item(title: "Sealing secrets", preview: "Bound to the namespace")),
+            "Bound to the namespace"
+        )
+    }
+
+    func testEmptyPreviewIsNil() {
+        XCTAssertNil(ChatInboxDisplay.preview(for: item(title: "Sealing secrets", preview: " \n ")))
+    }
+
+    // MARK: - Message count
+
     /// The row's count used to read "1 messages". The fix is automatic
     /// grammar agreement, which the localization engine resolves at render
     /// time — so this asserts the resolved string, not the view. Note that

@@ -26,6 +26,18 @@ struct ChatInboxView: View {
         self.onNewChat = onNewChat
     }
 
+    /// Takes the view model ready-made, which is how the snapshot suite pins
+    /// the loading, populated, and failed states.
+    init(
+        viewModel: ChatInboxViewModel,
+        onOpen: @escaping (UUID) -> Void,
+        onNewChat: @escaping () -> Void
+    ) {
+        _viewModel = State(initialValue: viewModel)
+        self.onOpen = onOpen
+        self.onNewChat = onNewChat
+    }
+
     var body: some View {
         List {
             Section {
@@ -123,8 +135,8 @@ private struct ChatInboxRow: View {
                     .lineLimit(1)
             }
 
-            if !item.preview.isEmpty {
-                Text(item.preview)
+            if let preview = ChatInboxDisplay.preview(for: item) {
+                Text(preview)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
