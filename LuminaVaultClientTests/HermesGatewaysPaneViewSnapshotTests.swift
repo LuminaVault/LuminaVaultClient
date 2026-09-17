@@ -1,8 +1,8 @@
 // LuminaVaultClient/LuminaVaultClientTests/HermesGatewaysPaneViewSnapshotTests.swift
 //
 // HER-241 — image snapshots for the Settings → Messaging Gateways pane.
-// 3 cases × 2 schemes = 6 baselines. Records via flipping `isRecording`
-// on the first run, then revert (pattern shipped in HER-263).
+// 3 cases × 2 schemes = 6 baselines, recorded by the `record-snapshots`
+// workflow. This suite is not quarantined: its baselines still match.
 
 @testable import LuminaVaultClient
 @testable import LuminaVaultShared
@@ -21,7 +21,6 @@ final class HermesGatewaysPaneViewSnapshotTests: XCTestCase {
     override func setUp() {
         super.setUp()
         UIView.setAnimationsEnabled(false)
-        isRecording = false
     }
 
     override func tearDown() {

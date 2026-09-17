@@ -15,7 +15,6 @@ final class HermesMirrorJobsViewSnapshotTests: XCTestCase {
     override func setUp() {
         super.setUp()
         UIView.setAnimationsEnabled(false)
-        isRecording = false
     }
 
     override func tearDown() {
@@ -24,7 +23,7 @@ final class HermesMirrorJobsViewSnapshotTests: XCTestCase {
     }
 
     func testJobsListSeparatesScheduledFromPaused() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let client = StubHermesMirrorJobsClient()
         let vm = HermesMirrorJobsListViewModel(
             client: client,
@@ -41,7 +40,7 @@ final class HermesMirrorJobsViewSnapshotTests: XCTestCase {
     }
 
     func testJobDetailShowsTheCollectedOutput() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let client = StubHermesMirrorJobsClient()
         let vm = HermesMirrorJobDetailViewModel(
             client: client,
@@ -73,7 +72,7 @@ final class HermesMirrorJobsViewSnapshotTests: XCTestCase {
     }
 
     func testJobEditorPrefillsTheJobBeingEdited() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let client = StubHermesMirrorJobsClient()
         let vm = HermesMirrorJobEditorViewModel(
             client: client,

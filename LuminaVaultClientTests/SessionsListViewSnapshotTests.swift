@@ -21,7 +21,6 @@ final class SessionsListViewSnapshotTests: XCTestCase {
     override func setUp() {
         super.setUp()
         UIView.setAnimationsEnabled(false)
-        isRecording = false
     }
 
     override func tearDown() {
@@ -72,7 +71,7 @@ final class SessionsListViewSnapshotTests: XCTestCase {
     }
 
     func testSessionsPopulatedDarkMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let view = makeView(populated: true).preferredColorScheme(.dark)
         assertSnapshot(
             of: view,
@@ -87,7 +86,7 @@ final class SessionsListViewSnapshotTests: XCTestCase {
     }
 
     func testSessionsPopulatedLightMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let view = makeView(populated: true).preferredColorScheme(.light)
         assertSnapshot(
             of: view,
@@ -102,7 +101,7 @@ final class SessionsListViewSnapshotTests: XCTestCase {
     }
 
     func testSessionsEmptyDarkMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let view = makeView(populated: false).preferredColorScheme(.dark)
         assertSnapshot(
             of: view,

@@ -7,8 +7,10 @@
 // when the design changes, not when CI switches simulators. `ci.yml` pins
 // the same device for that reason.
 //
-// To record references: set `isRecording = true` on the suite once,
-// run the suite, commit the generated `__Snapshots__/` directory.
+// To record references: run the `record-snapshots` workflow and commit the
+// PNGs it uploads. No suite sets the process-global `isRecording` — it leaks
+// into every suite that runs after it in the same process, which is how a
+// record run silently records nothing.
 //
 // `LVLogoMark(showSparkle: true)` embeds a `SparkleField`, whose drift is
 // driven by absolute wall-clock. It happens to be inert here already —
@@ -35,7 +37,6 @@ final class AuthLandingViewSnapshotTests: XCTestCase {
         super.setUp()
         UserDefaults.standard.removeObject(forKey: preferenceKey)
         UIView.setAnimationsEnabled(false)
-        isRecording = false
     }
 
     override func tearDown() {
@@ -77,7 +78,7 @@ final class AuthLandingViewSnapshotTests: XCTestCase {
     // MARK: - Light
 
     func testAuthLandingLightMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let view = makeView().preferredColorScheme(.light)
         assertSnapshot(
             of: view,
@@ -94,7 +95,7 @@ final class AuthLandingViewSnapshotTests: XCTestCase {
     // MARK: - Dark
 
     func testAuthLandingDarkMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let view = makeView().preferredColorScheme(.dark)
         assertSnapshot(
             of: view,

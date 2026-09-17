@@ -21,7 +21,6 @@ final class GatewaysSetupViewSnapshotTests: XCTestCase {
     override func setUp() {
         super.setUp()
         UIView.setAnimationsEnabled(false)
-        isRecording = false
     }
 
     override func tearDown() {

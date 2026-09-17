@@ -28,7 +28,6 @@ final class KanbanBoardSnapshotTests: XCTestCase {
     override func setUp() {
         super.setUp()
         UIView.setAnimationsEnabled(false)
-        isRecording = false
     }
 
     override func tearDown() {
@@ -132,14 +131,14 @@ final class KanbanBoardSnapshotTests: XCTestCase {
     // MARK: - Cases
 
     func testKanbanBoardDarkMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         snap(.dark, style: .dark, named: "iPhone13Pro-board-dark")
     }
 
     /// The regression case. Before tokenization this rendered a near-black
     /// scrim with a fixed-cyan header and an invisible card border.
     func testKanbanBoardLightMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         snap(.light, style: .light, named: "iPhone13Pro-board-light")
     }
 }

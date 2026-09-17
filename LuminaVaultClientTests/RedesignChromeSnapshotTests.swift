@@ -10,9 +10,12 @@
 // iPhone 16 Pro / .iPhone13Pro config, dark mode, animations disabled.
 //
 // Quarantined 2026-09-17: the native shell changed every one of these
-// renders. To un-quarantine, run the `record-snapshots` workflow
-// (`.github/workflows/ci.yml`, workflow_dispatch), commit the PNGs from its
-// `snapshots-<sha>` artifact, then delete the `XCTSkipIf`s.
+// renders, so each case is behind `SnapshotQuarantine.skipUnlessRecording()`
+// — skipped on an ordinary run, executed and recorded when
+// `SNAPSHOT_TESTING_RECORD` is set. To un-quarantine, run the
+// `record-snapshots` workflow (`.github/workflows/ci.yml`,
+// workflow_dispatch), commit the PNGs from its `snapshots-<sha>` artifact,
+// then delete the `skipUnlessRecording()` calls.
 
 import SnapshotTesting
 import SwiftUI
@@ -32,7 +35,6 @@ final class RedesignChromeSnapshotTests: XCTestCase {
     override func setUp() {
         super.setUp()
         UIView.setAnimationsEnabled(false)
-        isRecording = false
     }
     override func tearDown() {
         UIView.setAnimationsEnabled(true)
@@ -65,7 +67,7 @@ final class RedesignChromeSnapshotTests: XCTestCase {
     // HER-307 — the Spaces grid. The FAB that used to float over it is gone
     // with `LVFAB`: creating a Space is a toolbar action now.
     func testSpacesGrid() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let spaces: [SpaceDTO] = [
             .stub(name: "AI", category: "ai", noteCount: 4),
             .stub(name: "Health", category: "health", noteCount: 2),
@@ -88,7 +90,7 @@ final class RedesignChromeSnapshotTests: XCTestCase {
 
     // HER-303 — settings hero band (mascot) + glowing section rows
     func testSettingsChrome() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let view = ScrollView {
             VStack(spacing: LVSpacing.xl) {
                 SettingsHeroBand()
@@ -112,13 +114,13 @@ final class RedesignChromeSnapshotTests: XCTestCase {
 
     // HER-305 — capture glass mode tabs + glowing toolbar over aurora
     func testCaptureChrome() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         snap(CaptureChromeProbe(), "capture-chrome-dark")
     }
 
     // HER-302 — Think empty hero (mascot + gradient title + composer)
     func testThinkEmptyHero() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         // The composer's mic button fades to 40% when the speech recognizer
         // reports itself unavailable, and `SFSpeechRecognizer` availability
         // on the CI simulator is not deterministic — the same commit passed

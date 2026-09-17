@@ -17,7 +17,6 @@ final class HermesRunsViewSnapshotTests: XCTestCase {
     override func setUp() {
         super.setUp()
         UIView.setAnimationsEnabled(false)
-        isRecording = false
     }
 
     override func tearDown() {
@@ -28,7 +27,7 @@ final class HermesRunsViewSnapshotTests: XCTestCase {
     // MARK: - Runs list
 
     func testRunsListGroupsBlockedRunsFirst() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let client = StubHermesRunsClient()
         let vm = HermesRunsListViewModel(
             client: client,
@@ -48,7 +47,7 @@ final class HermesRunsViewSnapshotTests: XCTestCase {
     // MARK: - Run detail
 
     func testRunDetailShowsTheApprovalPromptAndTrail() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let client = StubHermesRunsClient()
         let vm = HermesRunDetailViewModel(
             client: client,
@@ -76,7 +75,7 @@ final class HermesRunsViewSnapshotTests: XCTestCase {
     // MARK: - Run as agent
 
     func testRunAsAgentSheetShowsTheDraft() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let client = StubHermesRunsClient()
         let view = NavigationStack {
             HermesRunStartView(

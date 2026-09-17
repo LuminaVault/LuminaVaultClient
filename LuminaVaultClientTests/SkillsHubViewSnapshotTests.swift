@@ -21,7 +21,6 @@ final class SkillsHubViewSnapshotTests: XCTestCase {
     override func setUp() {
         super.setUp()
         UIView.setAnimationsEnabled(false)
-        isRecording = false
     }
 
     override func tearDown() {
@@ -96,7 +95,7 @@ final class SkillsHubViewSnapshotTests: XCTestCase {
     // MARK: - Cases
 
     func testSkillsHubPopulatedDarkMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let view = makeView(state: .loaded).preferredColorScheme(.dark)
         assertSnapshot(
             of: view,
@@ -111,7 +110,7 @@ final class SkillsHubViewSnapshotTests: XCTestCase {
     }
 
     func testSkillsHubPopulatedLightMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let view = makeView(state: .loaded).preferredColorScheme(.light)
         assertSnapshot(
             of: view,
@@ -126,7 +125,7 @@ final class SkillsHubViewSnapshotTests: XCTestCase {
     }
 
     func testSkillsHubLoadingDarkMode() throws {
-        try XCTSkipIf(true, "Quarantined 2026-09-17: run record-snapshots workflow, commit PNGs, then remove this skip")
+        try SnapshotQuarantine.skipUnlessRecording()
         let view = makeView(state: .loading).preferredColorScheme(.dark)
         assertSnapshot(
             of: view,

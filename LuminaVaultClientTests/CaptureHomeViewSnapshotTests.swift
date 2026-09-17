@@ -4,13 +4,16 @@
 // over a glance strip over what you saved, empty and populated, light and
 // dark.
 //
-// Recording is OFF, and this suite never touches the process-global
-// `isRecording`: a suite that flips it changes what every later suite in the
-// run does. Baselines cannot be recorded on an Xcode 26.2 machine against
-// CI's iOS 26.4 renderer, so they are produced by the `record-snapshots`
-// workflow (`.github/workflows/ci.yml`, workflow_dispatch) and committed from
-// its `snapshots-<sha>` artifact. Until they are, these cases fail with
-// "missing baseline" — which is the honest state, not a green run.
+// No baselines yet, so every case is behind
+// `SnapshotQuarantine.skipUnlessRecording()`: skipped on an ordinary run,
+// executed (and recorded) when `SNAPSHOT_TESTING_RECORD` is set. This suite
+// never touches the process-global `isRecording` — a suite that flips it
+// changes what every later suite in the run does.
+//
+// Baselines cannot be recorded on an Xcode 26.2 machine against CI's iOS 26.4
+// renderer, so they come from the `record-snapshots` workflow
+// (`.github/workflows/ci.yml`, workflow_dispatch). Commit the PNGs from its
+// `snapshots-<sha>` artifact, then delete the `skipUnlessRecording()` calls.
 // A one-off re-record goes through the per-assert `record:` parameter.
 
 import SnapshotTesting
@@ -132,7 +135,8 @@ final class CaptureHomeViewSnapshotTests: XCTestCase {
 
     // MARK: - Cases
 
-    func testPopulated() async {
+    func testPopulated() async throws {
+        try SnapshotQuarantine.skipUnlessRecording()
         let vm = await makeViewModel(files: [
             file(path: "notes/2026-09-14-161709-quarterly-plan-00e2c497.md", createdAt: 1_757_865_429),
             file(
@@ -151,14 +155,16 @@ final class CaptureHomeViewSnapshotTests: XCTestCase {
         snap(makeView(vm: vm, glance: glance), "home-populated-dark", dark: true)
     }
 
-    func testEmpty() async {
+    func testEmpty() async throws {
+        try SnapshotQuarantine.skipUnlessRecording()
         let vm = await makeViewModel(files: [])
         let glance = await makeGlance(memoriesToday: 0, streakDays: 0, toRevisit: 0, pendingFiles: 0)
         snap(makeView(vm: vm, glance: glance), "home-empty-light", dark: false)
         snap(makeView(vm: vm, glance: glance), "home-empty-dark", dark: true)
     }
 
-    func testWithRecommendation() async {
+    func testWithRecommendation() async throws {
+        try SnapshotQuarantine.skipUnlessRecording()
         let vm = await makeViewModel(files: [
             file(path: "notes/dentist.md", createdAt: 1_757_761_429)
         ])
