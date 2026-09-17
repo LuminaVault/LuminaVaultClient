@@ -71,11 +71,23 @@ struct CaptureHomeView: View {
 
             if showsTodaySection {
                 Section("Today") {
-                    if let glance, !glance.allFailed {
+                    // `glance` is nil until `.task` builds it, which is after
+                    // the first paint. Drawing the strip's own loading state
+                    // holds the row's height from frame one instead of
+                    // letting the section pop in under the composer.
+                    if let glance {
+                        if !glance.allFailed {
+                            HomeGlanceStrip(
+                                memoriesToday: glance.memoriesToday,
+                                streakDays: glance.streakDays,
+                                toRevisit: glance.toRevisit
+                            )
+                        }
+                    } else {
                         HomeGlanceStrip(
-                            memoriesToday: glance.memoriesToday,
-                            streakDays: glance.streakDays,
-                            toRevisit: glance.toRevisit
+                            memoriesToday: .loading,
+                            streakDays: .loading,
+                            toRevisit: .loading
                         )
                     }
                     recommendationRows
@@ -143,8 +155,10 @@ struct CaptureHomeView: View {
 
     private var failedCaptureCount: Int { captureFailures?.count ?? 0 }
 
+    /// Nil is loading, not empty: the section stays for the redacted strip
+    /// and only disappears once the calls have come back with nothing.
     private var showsTodaySection: Bool {
-        guard let glance else { return false }
+        guard let glance else { return true }
         return !glance.allFailed || glance.recommendation != nil || failedCaptureCount > 0
     }
 
