@@ -4,6 +4,9 @@
 // treatment from `HealthDashboardCard.sparkline` (HER-118) but adds a
 // header row, latest value, and visible axes for the standalone Deep
 // Analytics dashboard.
+//
+// It draws no card of its own: its one call site is a row in the Insights
+// list, where the grouping, inset and background belong to the system.
 
 import Charts
 import SwiftUI
@@ -17,9 +20,7 @@ struct TrendChartCard: View {
             chart
                 .frame(height: 140)
         }
-        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 16))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(series.title) — latest \(formattedLatest) \(series.unit)")
     }
@@ -56,7 +57,7 @@ struct TrendChartCard: View {
         if series.isEmpty {
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(.quaternary.opacity(0.5))
+                    .fill(.fill.tertiary)
                 Text("No data yet")
                     .font(.caption)
                     .foregroundStyle(.secondary)
