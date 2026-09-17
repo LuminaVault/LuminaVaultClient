@@ -1,7 +1,10 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Reflect/ReflectTabView.swift
 //
-// HER-194 — primary "Reflect" tab. Mascot header, three skill cards
-// (Patterns / Contradictions / Beliefs), recent-reflections feed.
+// HER-194 — the "Reflect" segment of the Insights tab. Three skill cards
+// (Patterns / Contradictions / Beliefs) over a recent-reflections feed. No
+// header of its own: the tab's title and section picker come from
+// `InsightsTabView`.
+//
 // The same sheet swaps between TopicInputSheet (gather topic) and
 // ReflectionResultView (run + result + Save) based on runner state, so
 // the user perceives a single uninterrupted flow.
@@ -31,10 +34,8 @@ struct ReflectTabView: View {
             palette.backgroundBase.ignoresSafeArea()
             ScrollView {
                 VStack(spacing: 20) {
-                    header
                     cardsGrid
                     Divider()
-                        .background(palette.surfaceStroke)
                         .padding(.horizontal, 20)
                     feed
                 }
@@ -42,7 +43,6 @@ struct ReflectTabView: View {
             }
             .refreshable { await vm.refreshRecent() }
         }
-        .lvBackground()
         .task { await vm.refreshRecent() }
         .sheet(item: $activeSkill, onDismiss: resetModal) { skill in
             modalContent(for: skill)
@@ -50,27 +50,6 @@ struct ReflectTabView: View {
     }
 
     // MARK: - Subviews
-
-    private var header: some View {
-        VStack(spacing: 6) {
-            HermieMascotView(
-                state: tabMascotState,
-                size: 110,
-                fallbackImageName: "OnboardingMascot",
-                hostTab: "reflect"
-            )
-            Text("Reflect")
-                .font(.system(size: 22, weight: .heavy))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [palette.accent, palette.primary],
-                        startPoint: .leading,
-                        endPoint: .trailing,
-                    ),
-                )
-        }
-        .padding(.top, 12)
-    }
 
     private var cardsGrid: some View {
         VStack(spacing: 12) {
@@ -124,14 +103,6 @@ struct ReflectTabView: View {
     }
 
     // MARK: - State
-
-    private var tabMascotState: HermieMascotState {
-        switch runner.state {
-        case .running, .saving: .thinking
-        case .result, .saved: .celebrating
-        case .failed, .idle: .idle
-        }
-    }
 
     private func present(_ skill: ReflectionSkill) {
         stage = .input
