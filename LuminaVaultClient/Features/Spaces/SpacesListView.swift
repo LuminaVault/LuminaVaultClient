@@ -55,10 +55,13 @@ struct SpacesListView: View {
         content
             .lvBackground()
             .searchable(text: $vm.searchQuery, prompt: "Search spaces")
-            .captureToolbarItem()
+            // Declared before `captureToolbarItem()` so the bar reads
+            // "+" then "…": trailing items land right-to-left in the order
+            // their modifiers are applied.
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { spacesMenu }
             }
+            .captureToolbarItem()
             .navigationDestination(isPresented: $showingVisualSearch) {
                 VisualSearchView(
                     viewModel: VisualSearchViewModel(
