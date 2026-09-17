@@ -13,7 +13,7 @@ The wizard has completed a deep integration of PostHog analytics into LuminaVaul
 - **`Features/Vault/CreateVaultViewModel.swift`** — Captures `vault_created` on successful vault initialisation.
 - **`Features/KB/SyncAndLearnViewModel.swift`** — Captures `kb_compile_completed` with `memories_ingested` and `duration_ms` properties.
 - **`Features/Spaces/SpacesViewModel.swift`** — Captures `space_created` (with `space_slug`, `category`) and `space_deleted`.
-- **`Features/Vault/VaultSearchViewModel.swift`** — Captures `vault_search_performed` with `memory_hits` and `file_hits` counts.
+- ~~**`Features/Vault/VaultSearchViewModel.swift`** — Captures `vault_search_performed` with `memory_hits` and `file_hits` counts.~~ **Removed 2026-09-17 (ADR 0001)** — the universal vault search had no entry point left once the native shell replaced the Spaces chrome; the file and the event are gone.
 - **`Features/Settings/PrivacyDataViewModel.swift`** — Captures `account_data_exported` (with `size_bytes`) and `account_deleted`.
 - **`Features/Settings/HermesGatewayViewModel.swift`** — Captures `hermes_gateway_configured` (with `verified` bool) and `hermes_gateway_disconnected`.
 
@@ -29,7 +29,7 @@ The wizard has completed a deep integration of PostHog analytics into LuminaVaul
 | `kb_compile_completed` | Sync & Learn KB compile succeeded | `Features/KB/SyncAndLearnViewModel.swift` |
 | `space_created` | User created a new Space | `Features/Spaces/SpacesViewModel.swift` |
 | `space_deleted` | User deleted a Space | `Features/Spaces/SpacesViewModel.swift` |
-| `vault_search_performed` | User ran a universal vault search | `Features/Vault/VaultSearchViewModel.swift` |
+| ~~`vault_search_performed`~~ | *No longer emitted — screen removed 2026-09-17 (ADR 0001)* | *(deleted)* |
 | `account_data_exported` | User exported their vault data (GDPR) | `Features/Settings/PrivacyDataViewModel.swift` |
 | `account_deleted` | User permanently deleted their account | `Features/Settings/PrivacyDataViewModel.swift` |
 | `hermes_gateway_configured` | User saved a BYO-Hermes Gateway config | `Features/Settings/HermesGatewayViewModel.swift` |

@@ -61,8 +61,7 @@ struct SavedReflectionsListView: View {
         .padding(12)
         // Was `.ultraThinMaterial` per row: a separate blur pass for every
         // row, stacked on the cinematic backdrop that `ReflectTabView`
-        // already paints. `Color.lvGlass` is the treatment the app's other
-        // scrolling rows use (see `VaultSearchView.fileRow`) and costs a fill.
+        // already paints. `Color.lvGlass` is one fill instead.
         .background(
             RoundedRectangle(cornerRadius: LVRadius.md)
                 .fill(Color.lvGlass)
