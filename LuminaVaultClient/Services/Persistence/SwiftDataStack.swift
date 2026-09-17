@@ -14,7 +14,7 @@ enum SwiftDataStack {
     static func makePersistent() -> ModelContainer {
         do {
             return try ModelContainer(
-                for: LocalVaultFile.self, SyncOperation.self, SyncLogEntry.self
+                for: LocalVaultFile.self, SyncOperation.self, SyncLogEntry.self, CachedNewsTickerItem.self
             )
         } catch {
             fatalError("HER-39: failed to construct SwiftData ModelContainer: \(error)")
@@ -26,7 +26,7 @@ enum SwiftDataStack {
     static func makeInMemory() throws -> ModelContainer {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         return try ModelContainer(
-            for: LocalVaultFile.self, SyncOperation.self, SyncLogEntry.self,
+            for: LocalVaultFile.self, SyncOperation.self, SyncLogEntry.self, CachedNewsTickerItem.self,
             configurations: config
         )
     }
