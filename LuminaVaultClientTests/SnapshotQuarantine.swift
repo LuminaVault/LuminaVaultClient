@@ -1,6 +1,6 @@
 // LuminaVaultClient/LuminaVaultClientTests/SnapshotQuarantine.swift
 //
-// One guard, eleven snapshot suites.
+// One guard, fourteen snapshot suites.
 //
 // The native shell (ADR 0001) changed every existing snapshot render and
 // added three suites that never had baselines. Neither set can be recorded on

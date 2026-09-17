@@ -2,7 +2,7 @@
 //
 // HER-241 — image snapshots for the Settings → Messaging Gateways pane.
 // 3 cases × 2 schemes = 6 baselines, recorded by the `record-snapshots`
-// workflow. This suite is not quarantined: its baselines still match.
+// workflow. Quarantined — see the note on the class.
 
 @testable import LuminaVaultClient
 @testable import LuminaVaultShared
@@ -13,11 +13,15 @@ import XCTest
 
 @MainActor
 final class HermesGatewaysPaneViewSnapshotTests: XCTestCase {
-    // Un-quarantined 2026-08-28. The 2026-07-18 skip was waiting for the
-    // references to be re-recorded on the iOS 26 / Xcode 26.4 toolchain; they
-    // now have been. `makeView` additionally pins `lvAmbientMotionEnabled`,
-    // which is what the animated hero components gate their `repeatForever`
-    // drift on, so consecutive renders agree.
+    // Re-quarantined 2026-09-17. The native shell (ADR 0001) moved this
+    // subject's ground under it, so the committed baselines are stale and a PR
+    // run would go red on a pixel drift nobody can reproduce locally — the
+    // baselines belong to CI's Xcode 26.4 / iOS 26.4 renderer. Un-quarantine by
+    // committing the `record-snapshots` PNGs and deleting these skips.
+    //
+    // `makeView` pins `lvAmbientMotionEnabled`, which is what the animated hero
+    // components gate their `repeatForever` drift on, so consecutive renders
+    // agree once the baselines are back.
     override func setUp() {
         super.setUp()
         UIView.setAnimationsEnabled(false)
@@ -155,27 +159,33 @@ final class HermesGatewaysPaneViewSnapshotTests: XCTestCase {
 
     // MARK: - Cases
 
-    func testAllNotConfiguredDark() {
+    func testAllNotConfiguredDark() throws {
+        try SnapshotQuarantine.skipUnlessRecording()
         snap(makeView(allNotConfigured), scheme: .dark, named: "iPhone13Pro-not-configured-dark")
     }
 
-    func testAllNotConfiguredLight() {
+    func testAllNotConfiguredLight() throws {
+        try SnapshotQuarantine.skipUnlessRecording()
         snap(makeView(allNotConfigured), scheme: .light, named: "iPhone13Pro-not-configured-light")
     }
 
-    func testMixedConnectedDark() {
+    func testMixedConnectedDark() throws {
+        try SnapshotQuarantine.skipUnlessRecording()
         snap(makeView(mixedConnected), scheme: .dark, named: "iPhone13Pro-mixed-dark")
     }
 
-    func testMixedConnectedLight() {
+    func testMixedConnectedLight() throws {
+        try SnapshotQuarantine.skipUnlessRecording()
         snap(makeView(mixedConnected), scheme: .light, named: "iPhone13Pro-mixed-light")
     }
 
-    func testErrorRowDark() {
+    func testErrorRowDark() throws {
+        try SnapshotQuarantine.skipUnlessRecording()
         snap(makeView(errorRow), scheme: .dark, named: "iPhone13Pro-error-dark")
     }
 
-    func testErrorRowLight() {
+    func testErrorRowLight() throws {
+        try SnapshotQuarantine.skipUnlessRecording()
         snap(makeView(errorRow), scheme: .light, named: "iPhone13Pro-error-light")
     }
 

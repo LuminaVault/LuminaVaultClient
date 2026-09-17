@@ -83,8 +83,12 @@ Snapshot baselines change wherever a subject drew `lvBackground()` or
 `palette.backgroundBase`, and the three suites added for the new tab roots
 (`CaptureHomeViewSnapshotTests`, `ChatInboxViewSnapshotTests`,
 `InsightsTabViewSnapshotTests`) have none at all.
+`GatewaysSetupViewSnapshotTests`, `HermesGatewayDetailViewSnapshotTests` and
+`HermesGatewaysPaneViewSnapshotTests` were first read as unaffected because
+neither subject names `lvBackground()` directly; they inherit the new ground
+through the chrome around them, so they are quarantined too.
 
-All eleven suites are quarantined the same way: each case opens with
+All fourteen suites are quarantined the same way: each case opens with
 `SnapshotQuarantine.skipUnlessRecording()`, which skips unless
 `SNAPSHOT_TESTING_RECORD` is set. An ordinary PR run therefore skips them and
 stays green, and the `record-snapshots` workflow — which sets the variable
