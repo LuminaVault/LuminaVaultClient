@@ -40,8 +40,10 @@ final class ChatInboxViewSnapshotTests: XCTestCase {
     /// Offsets from *now*, not fixed instants: the row formats
     /// `.relative(presentation: .named)`, so a pinned epoch renders "last
     /// year" and drifts to "2 years ago" the moment the calendar turns over.
-    /// Every offset here stays under a day, where the formatter reports
-    /// minutes and hours and the render is the same on any run.
+    /// The offsets are small — well under three hours — because that
+    /// presentation says "yesterday" for anything on the previous calendar
+    /// day, so a longer reach back changes the render with the time of day
+    /// the suite happens to run.
     private static func ago(_ seconds: TimeInterval) -> Date {
         Date().addingTimeInterval(-seconds)
     }
@@ -61,7 +63,7 @@ final class ChatInboxViewSnapshotTests: XCTestCase {
             title: "New conversation",
             preview: "How long does the whisper service take on a two-minute voice note?",
             messageCount: 4,
-            lastMessageAt: ago(3 * 60 * 60),
+            lastMessageAt: ago(47 * 60),
             sourceLabel: "Lumina"
         ),
         // One message, which used to read "1 messages".
@@ -70,7 +72,7 @@ final class ChatInboxViewSnapshotTests: XCTestCase {
             title: "New conversation",
             preview: "Draft the demand-hour note",
             messageCount: 1,
-            lastMessageAt: ago(20 * 60 * 60),
+            lastMessageAt: ago(2 * 60 * 60),
             sourceLabel: "Lumina"
         ),
     ]
