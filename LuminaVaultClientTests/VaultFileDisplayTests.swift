@@ -84,7 +84,7 @@ final class VaultFileDisplayTests: XCTestCase {
             locale: Locale(identifier: "en_GB"),
             timeZone: TimeZone(identifier: "UTC")!
         )
-        XCTAssertEqual(title, "Note · 14 Sept 15:57")
+        XCTAssertEqual(title, "Note · 14 Sep at 15:57")
     }
 
     func testTitleOfBareUUIDNoteWithoutDateIsJustNote() {
