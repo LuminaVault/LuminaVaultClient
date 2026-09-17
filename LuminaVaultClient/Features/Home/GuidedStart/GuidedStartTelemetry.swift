@@ -46,10 +46,11 @@ struct GuidedStartTelemetry {
 
     /// Fires once per app session, the first time the card renders — the
     /// coordinator owns that once-ness, not this type.
-    func cardShown(source: GuidedStartSource) {
-        client.capture(GuidedStartEvent.cardShown, properties: [
-            "source": source.rawValue,
-        ])
+    ///
+    /// No `source`: the card shows for exactly one reason, so the property
+    /// would be a constant.
+    func cardShown() {
+        client.capture(GuidedStartEvent.cardShown, properties: nil)
     }
 
     func stepStarted(_ step: GuidedStartStep, source: GuidedStartSource) {
@@ -91,10 +92,12 @@ struct GuidedStartTelemetry {
     }
 
     /// Settings › "Show me around" cleared the dismissal.
+    ///
+    /// No `source`: reopening only ever happens one way, so the property
+    /// would carry no information. `source` earns its place on
+    /// `stepStarted`, where it separates a card tap from a reopened card.
     func reopened() {
-        client.capture(GuidedStartEvent.reopened, properties: [
-            "source": GuidedStartSource.settings.rawValue,
-        ])
+        client.capture(GuidedStartEvent.reopened, properties: nil)
     }
 
     /// All three latches true — the whole loop is taught.
