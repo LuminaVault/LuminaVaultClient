@@ -94,7 +94,11 @@ struct WorkflowListView: View {
     @Environment(NotificationRouter.self) private var notificationRouter
     @State private var viewModel: WorkflowListViewModel
     @State private var selectedApproval: WorkflowApprovalDTO?
-    @State private var runPath: [UUID] = []
+    /// A run pushed programmatically — by running a template, by the swipe
+    /// action, or by a `.workflow` deep link. The stack itself belongs to
+    /// whoever presents this view: a sheet from `MainTabView`, or the
+    /// Settings stack when Studio is pushed from its row.
+    @State private var pushedRunID: UUID?
     private let client: any WorkflowsClientProtocol
     private let memoryClient: any MemoryClientProtocol
 
@@ -105,175 +109,178 @@ struct WorkflowListView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $runPath) {
-            List {
-                if let limits = viewModel.limits {
+        List {
+            if let limits = viewModel.limits {
+                Section {
+                    StudioAllowanceCard(limits: limits)
+                }
+                .listRowBackground(Color.clear)
+
+                if !limits.canAuthor {
                     Section {
-                        StudioAllowanceCard(limits: limits)
-                    }
-                    .listRowBackground(Color.clear)
-
-                    if !limits.canAuthor {
-                        Section {
-                            Label(
-                                limits.tier == .trial
-                                    ? "Upgrade to Pro or Ultimate to build and run workflows."
-                                    : "Your workflow history is read-only on this plan.",
-                                systemImage: "lock"
-                            )
-                            .foregroundStyle(.secondary)
-                        }
+                        Label(
+                            limits.tier == .trial
+                                ? "Upgrade to Pro or Ultimate to build and run workflows."
+                                : "Your workflow history is read-only on this plan.",
+                            systemImage: "lock"
+                        )
+                        .foregroundStyle(.secondary)
                     }
                 }
+            }
 
-                if !viewModel.approvals.isEmpty {
-                    Section("Waiting for you") {
-                        ForEach(viewModel.approvals) { approval in
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(approval.title).font(.headline)
-                                Text(approval.workflowName).foregroundStyle(.secondary)
-                                if let message = approval.message {
-                                    Text(message).font(.subheadline).foregroundStyle(.secondary)
-                                }
-                                HStack {
-                                    Button("Review", systemImage: "paperclip") {
-                                        selectedApproval = approval
-                                    }
-                                    .buttonStyle(.borderedProminent)
-                                    Button("Reject", systemImage: "xmark") {
-                                        Task { await viewModel.decide(approval, approved: false) }
-                                    }
-                                    .buttonStyle(.bordered)
-                                }
-                                .controlSize(.small)
+            if !viewModel.approvals.isEmpty {
+                Section("Waiting for you") {
+                    ForEach(viewModel.approvals) { approval in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(approval.title).font(.headline)
+                            Text(approval.workflowName).foregroundStyle(.secondary)
+                            if let message = approval.message {
+                                Text(message).font(.subheadline).foregroundStyle(.secondary)
                             }
-                            .padding(.vertical, 4)
-                        }
-                    }
-                }
-
-                if !viewModel.templates.isEmpty {
-                    Section("Start from a template") {
-                        ForEach(viewModel.templates) { template in
-                            Button {
-                                Task {
-                                    if let runID = await viewModel.run(template: template) {
-                                        runPath.append(runID)
-                                    }
+                            HStack {
+                                Button("Review", systemImage: "paperclip") {
+                                    selectedApproval = approval
                                 }
-                            } label: {
-                                VStack(alignment: .leading, spacing: 5) {
-                                    HStack {
-                                        Text(template.name).font(.headline)
-                                        Spacer()
-                                        Image(systemName: "play.circle.fill")
-                                    }
-                                    Text(template.descriptionText)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                    Text(template.category.uppercased())
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(.tint)
+                                .buttonStyle(.borderedProminent)
+                                Button("Reject", systemImage: "xmark") {
+                                    Task { await viewModel.decide(approval, approved: false) }
                                 }
-                                .padding(.vertical, 4)
+                                .buttonStyle(.bordered)
                             }
-                            .disabled(viewModel.limits?.canAuthor == false)
+                            .controlSize(.small)
                         }
+                        .padding(.vertical, 4)
                     }
                 }
+            }
 
-                Section("Your workflows") {
-                    ForEach(viewModel.workflows) { workflow in
-                        NavigationLink {
-                            WorkflowDetailView(
-                                workflowID: workflow.id,
-                                client: client,
-                                canRun: viewModel.limits?.canAuthor == true
-                            )
+            if !viewModel.templates.isEmpty {
+                Section("Start from a template") {
+                    ForEach(viewModel.templates) { template in
+                        Button {
+                            Task {
+                                if let runID = await viewModel.run(template: template) {
+                                    pushedRunID = runID
+                                }
+                            }
                         } label: {
                             VStack(alignment: .leading, spacing: 5) {
                                 HStack {
-                                    Text(workflow.name).font(.headline)
+                                    Text(template.name).font(.headline)
                                     Spacer()
-                                    Text(workflow.trigger.rawValue.capitalized)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                    Image(systemName: "play.circle.fill")
                                 }
-                                if let status = workflow.lastRunStatus {
-                                    Label(status.rawValue, systemImage: icon(status))
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
+                                Text(template.descriptionText)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Text(template.category.uppercased())
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(.tint)
                             }
                             .padding(.vertical, 4)
                         }
-                        .swipeActions {
-                            if viewModel.limits?.canAuthor == true {
-                                Button("Run", systemImage: "play.fill") {
-                                    Task {
-                                        if let runID = await viewModel.run(workflow) {
-                                            runPath.append(runID)
-                                        }
+                        .disabled(viewModel.limits?.canAuthor == false)
+                    }
+                }
+            }
+
+            Section("Your workflows") {
+                ForEach(viewModel.workflows) { workflow in
+                    NavigationLink {
+                        WorkflowDetailView(
+                            workflowID: workflow.id,
+                            client: client,
+                            canRun: viewModel.limits?.canAuthor == true
+                        )
+                    } label: {
+                        VStack(alignment: .leading, spacing: 5) {
+                            HStack {
+                                Text(workflow.name).font(.headline)
+                                Spacer()
+                                Text(workflow.trigger.rawValue.capitalized)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let status = workflow.lastRunStatus {
+                                Label(status.rawValue, systemImage: icon(status))
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .swipeActions {
+                        if viewModel.limits?.canAuthor == true {
+                            Button("Run", systemImage: "play.fill") {
+                                Task {
+                                    if let runID = await viewModel.run(workflow) {
+                                        pushedRunID = runID
                                     }
                                 }
-                                .tint(.accentColor)
                             }
+                            .tint(.accentColor)
                         }
                     }
                 }
+            }
 
-                if !viewModel.runs.isEmpty {
-                    Section("Recent runs") {
-                        ForEach(viewModel.runs.prefix(12)) { run in
-                            NavigationLink(value: run.id) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(run.workflowName).font(.headline)
-                                    Label(run.status.rawValue, systemImage: icon(run.status))
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
+            if !viewModel.runs.isEmpty {
+                Section("Recent runs") {
+                    ForEach(viewModel.runs.prefix(12)) { run in
+                        NavigationLink {
+                            WorkflowRunView(runID: run.id, client: client)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(run.workflowName).font(.headline)
+                                Label(run.status.rawValue, systemImage: icon(run.status))
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
                 }
             }
-            .navigationTitle("Cerberus Studio")
-            .navigationDestination(for: UUID.self) { runID in
-                WorkflowRunView(runID: runID, client: client)
+        }
+        .navigationTitle("Cerberus Studio")
+        // `item:` rather than a typed path: this view no longer owns a stack,
+        // and a `for: UUID.self` destination registered on someone else's
+        // stack would claim every UUID link in it.
+        .navigationDestination(item: $pushedRunID) { runID in
+            WorkflowRunView(runID: runID, client: client)
+        }
+        .overlay {
+            if viewModel.state == .loading {
+                ProgressView()
             }
-            .overlay {
-                if viewModel.state == .loading {
-                    ProgressView()
-                }
-            }
-            .overlay {
-                if viewModel.state == .loaded, viewModel.workflows.isEmpty,
-                   viewModel.templates.isEmpty
-                {
-                    ContentUnavailableView(
-                        "Studio is ready",
-                        systemImage: "point.3.connected.trianglepath.dotted",
-                        description: Text("Build workflows on the web, then trigger and monitor them here.")
-                    )
-                }
-            }
-            .task { await viewModel.load() }
-            .task(id: notificationRouter.pendingDeepLink) {
-                if case let .workflow(runID) = notificationRouter.pendingDeepLink {
-                    runPath.append(runID)
-                    _ = notificationRouter.consume()
-                }
-            }
-            .refreshable { await viewModel.load() }
-            .sheet(item: $selectedApproval) { approval in
-                WorkflowApprovalSheet(
-                    approval: approval,
-                    memoryClient: memoryClient,
-                    onApprove: { memoryIDs in
-                        await viewModel.decide(approval, approved: true, memoryIDs: memoryIDs)
-                    }
+        }
+        .overlay {
+            if viewModel.state == .loaded, viewModel.workflows.isEmpty,
+               viewModel.templates.isEmpty
+            {
+                ContentUnavailableView(
+                    "Studio is ready",
+                    systemImage: "point.3.connected.trianglepath.dotted",
+                    description: Text("Build workflows on the web, then trigger and monitor them here.")
                 )
             }
+        }
+        .task { await viewModel.load() }
+        .task(id: notificationRouter.pendingDeepLink) {
+            if case let .workflow(runID) = notificationRouter.pendingDeepLink {
+                pushedRunID = runID
+                _ = notificationRouter.consume()
+            }
+        }
+        .refreshable { await viewModel.load() }
+        .sheet(item: $selectedApproval) { approval in
+            WorkflowApprovalSheet(
+                approval: approval,
+                memoryClient: memoryClient,
+                onApprove: { memoryIDs in
+                    await viewModel.decide(approval, approved: true, memoryIDs: memoryIDs)
+                }
+            )
         }
     }
 

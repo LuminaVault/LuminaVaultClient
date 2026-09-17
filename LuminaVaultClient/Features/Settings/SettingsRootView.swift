@@ -260,6 +260,25 @@ struct SettingsRootView: View {
                                 AutomationsView(vm: AutomationsViewModel(client: skillsClient))
                             }
                             LVSettingsDivider()
+                            // Studio is not a tab. It is where the automations
+                            // above are built and watched, so it lives beside
+                            // them; the subtitle names what it holds.
+                            LVSettingsRow(
+                                "Studio",
+                                icon: .wandSparkle,
+                                trailing: {
+                                    Text("Workflows")
+                                        .lvFont(.caption)
+                                        .foregroundStyle(palette.textSecondary)
+                                },
+                                destination: {
+                                    WorkflowListView(
+                                        client: workflowsClient,
+                                        memoryClient: memoryClient
+                                    )
+                                }
+                            )
+                            LVSettingsDivider()
                             LVSettingsRow("Notifications", icon: .bellBadge) {
                                 NotificationsPaneView(
                                     vm: NotificationsPaneViewModel(client: apnsPrefsClient)
@@ -326,6 +345,11 @@ struct SettingsRootView: View {
     /// Phase 1 — `/v1/hermes/runs`.
     private var hermesRunsClient: any HermesRunsClientProtocol {
         HermesRunsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    /// Studio — `/v1/workflows`.
+    private var workflowsClient: any WorkflowsClientProtocol {
+        WorkflowsHTTPClient(client: appState.makeHTTPClient())
     }
 
     /// Phase 2 — `/v1/hermes/mirror/jobs`.

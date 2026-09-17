@@ -114,10 +114,14 @@ struct MainTabView: View {
             }
         }
         .sheet(item: $pendingWorkflow) { _ in
-            WorkflowListView(
-                client: WorkflowsHTTPClient(client: appState.makeHTTPClient()),
-                memoryClient: memoryUpsertClient
-            )
+            // Studio no longer owns a stack — it is pushed from a Settings row
+            // as well as presented here — so the presenter supplies one.
+            NavigationStack {
+                WorkflowListView(
+                    client: WorkflowsHTTPClient(client: appState.makeHTTPClient()),
+                    memoryClient: memoryUpsertClient
+                )
+            }
         }
         .sheet(isPresented: $showSettings) {
             SettingsRootView()
