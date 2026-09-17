@@ -105,9 +105,10 @@ struct ChatView: View {
             // but only while the user is already there.
             .defaultScrollAnchor(.bottom)
             .scrollPosition(id: $scrolledID, anchor: .bottom)
-            // The composer already rides a `.safeAreaInset`, and MainTabView
-            // already pads for the floating tab bar. This is the only extra
-            // clearance the content needs.
+            // The composer rides a `.safeAreaInset`, and the native tab bar
+            // contributes its own safe area — nothing here compensates for
+            // chrome any more. This is just breathing room above the
+            // composer.
             .contentMargins(.bottom, LVSpacing.sm, for: .scrollContent)
             .scrollDismissesKeyboard(.interactively)
             .onScrollGeometryChange(for: Bool.self) { geometry in
@@ -151,9 +152,19 @@ struct ChatView: View {
             // direct consequence of the drag that just unpinned the list.
             .lvAnimation(LVMotion.snap, value: showsJumpToLatestPill)
         }
-        // HER-255 — header hoisted to MainTabView (app-wide base header).
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomBar
+        }
+        // The host's navigation bar carries the back button and the title;
+        // this is the one chat-scoped control that belongs up there.
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                MultiModelModeControl(
+                    isEnabled: $viewModel.multiModelEnabled,
+                    strategy: $viewModel.multiModelStrategy,
+                    isStreaming: viewModel.isStreaming
+                )
+            }
         }
         // BYOK v2 — when the user changes their LLM provider/model/mode in
         // Settings, start a fresh conversation so a thread never mixes turns

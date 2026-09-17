@@ -1,36 +1,38 @@
 import LuminaVaultShared
 import SwiftUI
 
+/// HER-299 Stage 6 — multi-model is a per-conversation mode, not per-turn
+/// status, so it lives in the chat's navigation bar rather than in a bar
+/// above the composer stealing the transcript's vertical space. A switch
+/// plus a five-way strategy picker is far too wide for a toolbar item, so
+/// it collapses into a menu.
 struct MultiModelModeControl: View {
-    @Environment(\.lvPalette) private var palette
     @Binding var isEnabled: Bool
     @Binding var strategy: ParallelStrategyDTO
     let isStreaming: Bool
 
     var body: some View {
-        HStack(spacing: LVSpacing.sm) {
+        Menu {
             Toggle("Multi-Model", isOn: $isEnabled)
-                .toggleStyle(.switch)
-                .tint(palette.accent)
-                .disabled(isStreaming)
-
-            Spacer(minLength: 0)
 
             if isEnabled {
-                Menu("Strategy: \(label(for: strategy))", systemImage: "point.3.connected.trianglepath.dotted") {
+                Picker("Strategy", selection: $strategy) {
                     ForEach(ParallelStrategyDTO.allCases, id: \.self) { option in
-                        Button(label(for: option)) { strategy = option }
+                        Text(label(for: option)).tag(option)
                     }
                 }
-                .disabled(isStreaming)
-                .accessibilityHint("Chooses how model perspectives are combined")
             }
+        } label: {
+            Label(menuTitle, systemImage: "point.3.connected.trianglepath.dotted")
         }
-        .font(.footnote)
-        .foregroundStyle(palette.textPrimary)
-        .padding(.horizontal, LVSpacing.base)
-        .padding(.vertical, LVSpacing.sm)
-        .background(palette.surface.opacity(0.92), in: .rect(cornerRadius: LVRadius.md))
+        .disabled(isStreaming)
+        .accessibilityHint("Turns multi-model answers on and chooses how perspectives are combined")
+    }
+
+    /// Doubles as the accessibility label, so it states the mode rather than
+    /// just naming the control.
+    private var menuTitle: String {
+        isEnabled ? "Multi-Model on, \(label(for: strategy))" : "Multi-Model off"
     }
 
     private func label(for strategy: ParallelStrategyDTO) -> String {

@@ -1,16 +1,21 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Think/ThinkWithLuminaView.swift
 // HER-107: replaces the one-shot HER-37 query surface with the multi-turn
 // SSE chat from `Features/Chat/ChatView.swift`. The shell still owns:
-//   - NavigationStack chrome + Lumina nav brand
-//   - Toolbar link to the memo Notebook
+//   - the AI tab's NavigationStack and its navigation title
+//   - the single "New chat" action
 //   - Suggestion-chip bootstrap (loaded from /v1/me/suggestions)
 // Chat lifecycle, streaming, mascot states, and cancellation live in
 // `ChatViewModel`.
 import SwiftUI
 
+/// Where the AI tab can navigate. A `nil` id is a thread that does not exist
+/// yet — the first send creates it.
+enum ChatRoute: Hashable {
+    case conversation(UUID?)
+}
+
 struct ThinkWithLuminaView: View {
     @Environment(AppState.self) private var appState
-    @Environment(\.lvPalette) private var palette
 
     @State var chatVM: ChatViewModel
     let conversationsClient: any ConversationsClientProtocol
@@ -28,29 +33,33 @@ struct ThinkWithLuminaView: View {
     var vaultUploadClient: (any VaultUploadClientProtocol)?
 
     @State private var suggestions: [String] = []
-    @State private var showingChat = false
-    @State private var activeConversationID: UUID?
-    @State private var activeConversationNonce = UUID()
+    /// A chat is pushed, so it gets the system back button instead of a
+    /// hand-rolled "Chats" chevron.
+    @State private var path: [ChatRoute] = []
     /// Device-local haptics toggle (mirrors `ChatPreferencesPaneView`). Haptics
     /// are intentionally not server-synced.
     @AppStorage("lv.chat.hapticsEnabled") private var hapticsEnabled = true
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if showingChat {
-                    activeChat
-                } else {
-                    ChatInboxView(
-                        client: chatExperienceClient,
-                        conversationsClient: conversationsClient,
-                        onOpen: openConversation,
-                        onNewChat: newConversation
-                    )
-                    .lvBackground()
+        NavigationStack(path: $path) {
+            ChatInboxView(
+                client: chatExperienceClient,
+                conversationsClient: conversationsClient,
+                onOpen: openConversation,
+                onNewChat: newConversation
+            )
+            .navigationTitle("AI")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("New chat", systemImage: "square.and.pencil") {
+                        newConversation()
+                    }
                 }
             }
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(for: ChatRoute.self) { route in
+                chatDetail(route)
+            }
         }
         .task { await loadPreferences() }
         .onChange(of: hapticsEnabled) { _, value in chatVM.hapticsEnabled = value }
@@ -78,77 +87,31 @@ struct ThinkWithLuminaView: View {
         }
     }
 
-    private var activeChat: some View {
-        VStack(spacing: 0) {
-            chatTopBar
-
-            ChatView(
-                viewModel: chatVM,
-                emptyStateSuggestions: suggestions,
-                emptyHeadline: "AI",
-                emptySupporting: "Ask anything. Lumina pulls from your vault and recent learnings.",
-                vaultClient: vaultClient,
-                memoryClient: memoryClient,
-                vaultUploadClient: vaultUploadClient
-            )
-        }
-        .lvBackground()
-        .task(id: activeConversationNonce) {
+    private func chatDetail(_ route: ChatRoute) -> some View {
+        ChatView(
+            viewModel: chatVM,
+            emptyStateSuggestions: suggestions,
+            emptyHeadline: "AI",
+            emptySupporting: "Ask anything. Lumina pulls from your vault and recent learnings.",
+            vaultClient: vaultClient,
+            memoryClient: memoryClient,
+            vaultUploadClient: vaultUploadClient
+        )
+        .task {
             await loadSuggestions()
-            if let activeConversationID {
-                await chatVM.loadConversation(id: activeConversationID)
+            guard case let .conversation(id) = route else { return }
+            if let id {
+                await chatVM.loadConversation(id: id)
             } else {
                 chatVM.reset()
             }
         }
     }
 
-    private var chatTopBar: some View {
-        HStack(spacing: LVSpacing.sm) {
-            Button {
-                showingChat = false
-            } label: {
-                HStack(spacing: LVSpacing.xs) {
-                    LVIconView(.chevronLeft, size: 13, tint: palette.textPrimary, weight: .semibold)
-                    Text("Chats")
-                        .font(LVTypography.callout.font.weight(.semibold))
-                }
-            }
-            .buttonStyle(.plain)
-            .lvGlowPress()
-
-            Spacer()
-
-            // HER-299 Stage 6 — the multi-model control moved here from the
-            // stack of bars above the composer. It is a per-conversation mode,
-            // not per-turn status, so the top bar is where it belongs and it
-            // stops competing with the composer for vertical space.
-            MultiModelModeControl(
-                isEnabled: $chatVM.multiModelEnabled,
-                strategy: $chatVM.multiModelStrategy,
-                isStreaming: chatVM.isStreaming
-            )
-
-            Button {
-                newConversation()
-            } label: {
-                LVIconView(.plusCircleFill, size: 22, tint: palette.glowPrimary)
-                    .frame(minWidth: LVSize.tapTarget, minHeight: LVSize.tapTarget)
-                    .contentShape(.rect)
-            }
-            .accessibilityLabel("New chat")
-            .buttonStyle(.plain)
-            .lvGlowPress()
-        }
-        .padding(.horizontal, LVSpacing.lg)
-        .padding(.vertical, LVSpacing.sm)
-        .background(.thinMaterial)
-    }
-
+    /// One chat at a time on the stack: opening another thread replaces the
+    /// one that was open, so Back always lands on the inbox.
     private func openConversation(_ id: UUID) {
-        activeConversationID = id
-        activeConversationNonce = UUID()
-        showingChat = true
+        path = [.conversation(id)]
     }
 
     private func openPendingConversation(_ id: UUID?) {
@@ -165,9 +128,7 @@ struct ThinkWithLuminaView: View {
     }
 
     private func newConversation() {
-        activeConversationID = nil
-        activeConversationNonce = UUID()
-        showingChat = true
+        path = [.conversation(nil)]
     }
 
     private func loadSuggestions() async {
@@ -177,22 +138,6 @@ struct ThinkWithLuminaView: View {
         } catch {
             // Non-fatal — chips just stay hidden.
             suggestions = []
-        }
-    }
-
-    private var transportIcon: String {
-        switch chatVM.transport {
-        case .memoryGrounded: "brain.head.profile"
-        case .fresh: "cloud"
-        case .hybrid: "point.3.connected.trianglepath.dotted"
-        }
-    }
-
-    private var transportAccessibilityLabel: String {
-        switch chatVM.transport {
-        case .memoryGrounded: "Memory-grounded mode. Tap to switch to fresh Hermes."
-        case .fresh: "Fresh Hermes mode. Tap to switch to hybrid execution."
-        case .hybrid: "Hybrid local and cloud mode. Tap to switch to memory-grounded."
         }
     }
 }
