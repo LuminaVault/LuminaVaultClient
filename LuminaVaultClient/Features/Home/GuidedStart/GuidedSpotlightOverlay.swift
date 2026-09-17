@@ -85,7 +85,12 @@ struct GuidedSpotlightOverlay: View {
             // the nav bar and the tab bar, and the resolved anchors are in
             // the same full-screen space the dim is drawn in.
             .ignoresSafeArea()
+            // The overlay view itself outlives any one step — only its
+            // content comes and goes — so this has to reset when the step
+            // closes. Left latched, the bubble's entrance played once ever
+            // and steps two and three snapped in at full size.
             .onAppear { appeared = true }
+            .onDisappear { appeared = false }
         }
     }
 
@@ -172,10 +177,10 @@ struct GuidedSpotlightOverlay: View {
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    // The line is the label, and focus lands here when the
-                    // step opens. Nothing traps it: the overlay never claims
-                    // `.isModal`, so the next swipe reaches the real control.
-                    .accessibilityLabel(step.hermieLine)
+                    // Focus lands here when the step opens, and the text is
+                    // its own label. Nothing traps it: the overlay never
+                    // claims `.isModal`, so the next swipe reaches the real
+                    // control being taught.
                     .accessibilityFocused($bubbleFocused)
             }
 

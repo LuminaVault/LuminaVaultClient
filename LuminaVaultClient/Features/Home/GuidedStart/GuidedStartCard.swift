@@ -67,7 +67,12 @@ struct GuidedStartCard: View {
                 .fill(Color(.secondarySystemGroupedBackground))
         )
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(GuidedStartCopy.headline)
+        // The group stop announces how far along you are, not just the
+        // headline — "two of three" is the part worth hearing when you land
+        // on the card and the rows are still ahead of you.
+        .accessibilityLabel(
+            "\(GuidedStartCopy.headline), \(GuidedStartCopy.progress(completed: progress.completedCount))"
+        )
     }
 
     // MARK: - Header
