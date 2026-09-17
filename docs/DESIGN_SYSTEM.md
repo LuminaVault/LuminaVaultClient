@@ -86,9 +86,9 @@ Every palette exposes the same semantic slots. Use slots, never raw hex.
 | `surface`        | Glass-card fill (subtle; pairs with `.ultraThinMaterial`)       |
 | `surfaceStroke`  | Hairline border on cards/pills                                  |
 | `backgroundBase` | Root background (dark cosmic / light cream)                     |
-| `auroraTop`      | Top-trailing radial wash on `lvBackground`                      |
-| `auroraBottom`   | Bottom-leading radial wash on `lvBackground`                    |
-| `auroraCenter`   | Mid-depth pulse on `lvBackground`                               |
+| `auroraTop`      | Top-trailing radial wash. `AuroraBackdrop` (CaptureSheet) only  |
+| `auroraBottom`   | Bottom-leading radial wash. `AuroraBackdrop` only               |
+| `auroraCenter`   | Mid-depth pulse. `AuroraBackdrop` only                          |
 | `textPrimary`    | Body and heading copy                                           |
 | `textSecondary`  | Captions, hints, disabled states (62% alpha)                    |
 
@@ -158,10 +158,8 @@ The starfield + aurora scene backdrop, the gold ring on tab content, and the par
 
 `LuminaVaultClient/Utilities/Extensions/View+LVBackground.swift`
 
-- Fills with `backgroundBase`.
-- Dark mode only: renders `LVStarField` (55 deterministic stars).
-- Three layered `RadialGradient`s: top-trailing (`auroraTop`), bottom-leading (`auroraBottom`), center pulse (`auroraCenter`).
-- **Not for tab roots.** Its remaining consumers are the capture and onboarding surfaces; a tab root that calls it fights the `List`'s own background and the bar materials above it.
+- **One flat fill of `backgroundBase`, and nothing else.** It used to layer `LVStarField` (55 deterministic stars in dark mode) over three `RadialGradient`s; ADR 0001 deleted both and left the modifier in place so its ~97 call sites did not all have to change in one commit.
+- Harmless on a tab root, because what it paints is what `List` paints for itself. It is also not doing anything there — new tab surfaces should not add it.
 
 ```swift
 ScrollView { ... }.lvBackground()
@@ -316,7 +314,7 @@ Native-shell components. All of them render inside an inset-grouped `List`; none
 
 1. **New color token** — add the slot to `LVPalette`, set values in **all six** concrete palettes, document in §3 here.
 2. **New modifier** — add to `Utilities/Extensions/View+LV*.swift`, read palette via `@Environment(\.lvPalette)`, never accept `Color` as a parameter.
-3. **New component** — check §13 first: on a tab surface, the answer is usually a stock control and no new component. If one is warranted, pick prefix (`HV*` for primitive input, `LV*` for composite), drop in `Components/`, add snapshot tests (see HER-241 `HermesGatewaysPaneViewSnapshotTests` for the pattern), document in §6. Baselines are recorded by the `record-snapshots` workflow, not locally.
+3. **New component** — check §13 first: on a tab surface, the answer is usually a stock control and no new component. If one is warranted, pick prefix (`HV*` for primitive input, `LV*` for composite), drop in `Components/`, add snapshot tests (see HER-241 `HermesGatewaysPaneViewSnapshotTests` for the pattern), document in §6. Baselines are recorded by the `record-snapshots` workflow, not locally — a new suite ships quarantined behind `SnapshotQuarantine.skipUnlessRecording()` until its PNGs are committed.
 4. **Bump this doc in the same PR.** Code without docs decays.
 
 ---
@@ -381,7 +379,7 @@ VStack(spacing: LVSpacing.md) { ... }
 - LVIcon migration is exemplar-only — `MainTabView`, `SettingsRootView`, `AuthLandingView`, `ChatView` use it; ~150 other call sites still pass raw SF Symbol strings. ~~HER-301 (b) closes the asset-wiring gap.~~ **Closed by HER-301** — 24 cases now ship a `Lumina/*` PNG override; per-surface call-site conversions track in subtasks c–i under [HER-299](https://linear.app/luminavault/issue/HER-299).
 - Orphaned screens (Tasks, Reminders, Projects, Kanban, Sessions, Today, Health, Achievements) compile but have no entry point since 2026-09-17; the `.today` deep link has no handler reachable. They are kept building rather than deleted so the decision to restore or drop each one is a separate, deliberate call.
 - The cinematic modifiers (`lvAuroraGoldRing`, `lvParticleBackground`) now have a smaller legitimate surface than they were written for — onboarding, paywall, empty states, `CaptureSheet` (§5). Some of those surfaces still do not use them.
-- Three snapshot suites (`CaptureHomeViewSnapshotTests`, `ChatInboxViewSnapshotTests`, `InsightsTabViewSnapshotTests`) have no baselines and eight more are quarantined behind an `XCTSkipIf`, pending the `record-snapshots` workflow.
+- Eleven snapshot suites are quarantined: three (`CaptureHomeViewSnapshotTests`, `ChatInboxViewSnapshotTests`, `InsightsTabViewSnapshotTests`) have never had baselines and eight need re-recording against the native shell. Every case opens with `SnapshotQuarantine.skipUnlessRecording()`, so they skip on a PR run and record on the `record-snapshots` workflow. Un-quarantine by committing that workflow's `snapshots-<sha>` PNGs and deleting the suite's `skipUnlessRecording()` calls.
 
 ---
 
@@ -581,7 +579,7 @@ Cross-platform layer that makes the cyanGold identity pervasive. **iOS scope sin
 | Constellation dot grid | `lvConstellationBackdrop(spacing:)` | `.lv-constellation` |
 | Status lumen (glowing status dot) | `LVStatusLumen` | `.lv-status-lumen` + `connectionHealthTone()` |
 | Premium/headline halo | `lvAuroraGoldRing` (existing) | `.lv-lumen-ring` |
-| Starfield (dark-only ambient) | `LVStarField` (existing) | `.lv-starfield` |
+| Starfield (dark-only ambient) | *(deleted 2026-09-17 — iOS has no counterpart)* | `.lv-starfield` |
 | Capture-lifecycle pulse | `View+LVPulse` (existing) | `.lv-node-pulse` |
 
 Rules: one lumen ring per view (amber = premium signal). Kickers are for eyebrows/system labels, not body copy. Motion mirrors product states (capture → embed → recalled; Hermie `.thinking` = agent working) and always respects reduced motion.

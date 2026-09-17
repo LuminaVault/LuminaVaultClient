@@ -80,10 +80,22 @@ Added: `Features/Capture/CaptureToolbarItem.swift`,
 there), `Features/Settings/Components/AgentStatusRow.swift`.
 
 Snapshot baselines change wherever a subject drew `lvBackground()` or
-`palette.backgroundBase`. Those tests are quarantined with `XCTSkipIf` and a
-dated reason; they are re-recorded on CI (iOS 26.4) and un-quarantined in a
-follow-up, which also turns off recording for the new
-`CaptureHomeViewSnapshotTests`.
+`palette.backgroundBase`, and the three suites added for the new tab roots
+(`CaptureHomeViewSnapshotTests`, `ChatInboxViewSnapshotTests`,
+`InsightsTabViewSnapshotTests`) have none at all.
+
+All eleven suites are quarantined the same way: each case opens with
+`SnapshotQuarantine.skipUnlessRecording()`, which skips unless
+`SNAPSHOT_TESTING_RECORD` is set. An ordinary PR run therefore skips them and
+stays green, and the `record-snapshots` workflow — which sets the variable
+through `TEST_RUNNER_SNAPSHOT_TESTING_RECORD` so it reaches the simulator's
+test process — runs and records them.
+
+To un-quarantine a suite: run `record-snapshots` from the Actions tab, unzip
+its `snapshots-<sha>` artifact over `LuminaVaultClientTests/__Snapshots__/`,
+commit the PNGs, and delete that suite's `skipUnlessRecording()` calls. No
+suite sets the process-global `isRecording`; a one-off re-record uses the
+per-assert `record:` parameter.
 
 Known follow-up: the `.today` push deep link was handled only inside
 `TodayView`, which is now unreachable, so that notification currently opens
