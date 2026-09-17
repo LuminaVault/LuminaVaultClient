@@ -116,6 +116,11 @@ struct MainTabView: View {
         .sheet(item: $pendingWorkflow) { _ in
             // Studio no longer owns a stack — it is pushed from a Settings row
             // as well as presented here — so the presenter supplies one.
+            //
+            // This sheet is the `.workflow` deep link's host: the Settings
+            // push shows the same `WorkflowListView` but never consumes the
+            // link, so a push arriving while Settings is open still opens
+            // this sheet on top of it.
             NavigationStack {
                 WorkflowListView(
                     client: WorkflowsHTTPClient(client: appState.makeHTTPClient()),
