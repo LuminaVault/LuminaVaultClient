@@ -22,8 +22,7 @@ final class HermesMirrorJobsViewSnapshotTests: XCTestCase {
         super.tearDown()
     }
 
-    func testJobsListSeparatesScheduledFromPaused() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testJobsListSeparatesScheduledFromPaused() {
         let client = StubHermesMirrorJobsClient()
         let vm = HermesMirrorJobsListViewModel(
             client: client,
@@ -39,8 +38,7 @@ final class HermesMirrorJobsViewSnapshotTests: XCTestCase {
         )
     }
 
-    func testJobDetailShowsTheCollectedOutput() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testJobDetailShowsTheCollectedOutput() {
         let client = StubHermesMirrorJobsClient()
         let vm = HermesMirrorJobDetailViewModel(
             client: client,
@@ -71,8 +69,7 @@ final class HermesMirrorJobsViewSnapshotTests: XCTestCase {
         )
     }
 
-    func testJobEditorPrefillsTheJobBeingEdited() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testJobEditorPrefillsTheJobBeingEdited() {
         let client = StubHermesMirrorJobsClient()
         let vm = HermesMirrorJobEditorViewModel(
             client: client,

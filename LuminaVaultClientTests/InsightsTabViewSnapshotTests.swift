@@ -7,17 +7,10 @@
 // health, usage, a recommendation, trends, models — because the bug being
 // fixed was how those looked, not whether they appeared.
 //
-// No baselines yet, so every case is behind
-// `SnapshotQuarantine.skipUnlessRecording()`: skipped on an ordinary run,
-// executed (and recorded) when `SNAPSHOT_TESTING_RECORD` is set. This suite
-// never touches the process-global `isRecording` — a suite that flips it
-// changes what every later suite in the run does.
-//
-// Baselines cannot be recorded on an Xcode 26.2 machine against CI's iOS 26.4
-// renderer, so they come from the `record-snapshots` workflow
-// (`.github/workflows/ci.yml`, workflow_dispatch). Commit the PNGs from its
-// `snapshots-<sha>` artifact, then delete the `skipUnlessRecording()` calls.
-// A one-off re-record goes through the per-assert `record:` parameter.
+// Baselines were recorded on CI's iPhone 16 Pro / iOS 26.4 renderer via the
+// `record-snapshots` workflow (`.github/workflows/ci.yml`, workflow_dispatch)
+// on 2026-09-17. Re-record the same way after an intentional render change;
+// a one-off re-record goes through the per-assert `record:` parameter.
 
 import SnapshotTesting
 import SwiftUI
@@ -265,8 +258,7 @@ final class InsightsTabViewSnapshotTests: XCTestCase {
 
     // MARK: - Cases
 
-    func testOverviewLoaded() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testOverviewLoaded() async {
         let analytics = await makeAnalyticsViewModel()
         let reflect = await makeReflectViewModel()
         let view = makeView(section: .overview, analytics: analytics, reflect: reflect)
@@ -274,16 +266,14 @@ final class InsightsTabViewSnapshotTests: XCTestCase {
         snap(view, "insights-overview-dark", dark: true)
     }
 
-    func testOverviewSectionsBelowTheFold() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testOverviewSectionsBelowTheFold() async {
         let analytics = await makeAnalyticsViewModel()
         let reflect = await makeReflectViewModel()
         let view = makeView(section: .overview, analytics: analytics, reflect: reflect)
         snapFullLength(view, "insights-overview-full-light")
     }
 
-    func testReflectSegment() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testReflectSegment() async {
         let analytics = await makeAnalyticsViewModel()
         let reflect = await makeReflectViewModel()
         let view = makeView(section: .reflect, analytics: analytics, reflect: reflect)

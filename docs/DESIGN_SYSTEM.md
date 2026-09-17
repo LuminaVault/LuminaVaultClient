@@ -314,7 +314,7 @@ Native-shell components. All of them render inside an inset-grouped `List`; none
 
 1. **New color token** — add the slot to `LVPalette`, set values in **all six** concrete palettes, document in §3 here.
 2. **New modifier** — add to `Utilities/Extensions/View+LV*.swift`, read palette via `@Environment(\.lvPalette)`, never accept `Color` as a parameter.
-3. **New component** — check §13 first: on a tab surface, the answer is usually a stock control and no new component. If one is warranted, pick prefix (`HV*` for primitive input, `LV*` for composite), drop in `Components/`, add snapshot tests (see HER-241 `HermesGatewaysPaneViewSnapshotTests` for the pattern), document in §6. Baselines are recorded by the `record-snapshots` workflow, not locally — a new suite ships quarantined behind `SnapshotQuarantine.skipUnlessRecording()` until its PNGs are committed.
+3. **New component** — check §13 first: on a tab surface, the answer is usually a stock control and no new component. If one is warranted, pick prefix (`HV*` for primitive input, `LV*` for composite), drop in `Components/`, add snapshot tests (see HER-241 `HermesGatewaysPaneViewSnapshotTests` for the pattern), document in §6. Baselines are recorded by the `record-snapshots` workflow, not locally — run it and commit the PNGs it uploads before merging a new suite.
 4. **Bump this doc in the same PR.** Code without docs decays.
 
 ---
@@ -379,7 +379,6 @@ VStack(spacing: LVSpacing.md) { ... }
 - LVIcon migration is exemplar-only — `MainTabView`, `SettingsRootView`, `AuthLandingView`, `ChatView` use it; ~150 other call sites still pass raw SF Symbol strings. ~~HER-301 (b) closes the asset-wiring gap.~~ **Closed by HER-301** — 24 cases now ship a `Lumina/*` PNG override; per-surface call-site conversions track in subtasks c–i under [HER-299](https://linear.app/luminavault/issue/HER-299).
 - Orphaned screens (Tasks, Reminders, Projects, Kanban, Sessions, Today, Health, Achievements) compile but have no entry point since 2026-09-17; the `.today` deep link has no handler reachable. They are kept building rather than deleted so the decision to restore or drop each one is a separate, deliberate call.
 - The cinematic modifiers (`lvAuroraGoldRing`, `lvParticleBackground`) now have a smaller legitimate surface than they were written for — onboarding, paywall, empty states, `CaptureSheet` (§5). Some of those surfaces still do not use them.
-- Fourteen snapshot suites are quarantined: three (`CaptureHomeViewSnapshotTests`, `ChatInboxViewSnapshotTests`, `InsightsTabViewSnapshotTests`) have never had baselines and eleven need re-recording against the native shell — including `GatewaysSetupViewSnapshotTests`, `HermesGatewayDetailViewSnapshotTests` and `HermesGatewaysPaneViewSnapshotTests`, which were left out of the first pass and still compare against pre-shell baselines. Every case opens with `SnapshotQuarantine.skipUnlessRecording()`, so they skip on a PR run and record on the `record-snapshots` workflow. Un-quarantine by committing that workflow's `snapshots-<sha>` PNGs and deleting the suite's `skipUnlessRecording()` calls.
 
 ---
 

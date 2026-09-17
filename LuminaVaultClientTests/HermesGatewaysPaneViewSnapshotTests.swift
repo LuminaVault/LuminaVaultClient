@@ -159,33 +159,27 @@ final class HermesGatewaysPaneViewSnapshotTests: XCTestCase {
 
     // MARK: - Cases
 
-    func testAllNotConfiguredDark() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testAllNotConfiguredDark() {
         snap(makeView(allNotConfigured), scheme: .dark, named: "iPhone13Pro-not-configured-dark")
     }
 
-    func testAllNotConfiguredLight() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testAllNotConfiguredLight() {
         snap(makeView(allNotConfigured), scheme: .light, named: "iPhone13Pro-not-configured-light")
     }
 
-    func testMixedConnectedDark() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testMixedConnectedDark() {
         snap(makeView(mixedConnected), scheme: .dark, named: "iPhone13Pro-mixed-dark")
     }
 
-    func testMixedConnectedLight() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testMixedConnectedLight() {
         snap(makeView(mixedConnected), scheme: .light, named: "iPhone13Pro-mixed-light")
     }
 
-    func testErrorRowDark() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testErrorRowDark() {
         snap(makeView(errorRow), scheme: .dark, named: "iPhone13Pro-error-dark")
     }
 
-    func testErrorRowLight() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testErrorRowLight() {
         snap(makeView(errorRow), scheme: .light, named: "iPhone13Pro-error-light")
     }
 

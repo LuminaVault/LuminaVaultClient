@@ -70,8 +70,7 @@ final class SessionsListViewSnapshotTests: XCTestCase {
         .environment(\.lvAmbientMotionEnabled, false)
     }
 
-    func testSessionsPopulatedDarkMode() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testSessionsPopulatedDarkMode() {
         let view = makeView(populated: true).preferredColorScheme(.dark)
         assertSnapshot(
             of: view,
@@ -85,8 +84,7 @@ final class SessionsListViewSnapshotTests: XCTestCase {
         )
     }
 
-    func testSessionsPopulatedLightMode() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testSessionsPopulatedLightMode() {
         let view = makeView(populated: true).preferredColorScheme(.light)
         assertSnapshot(
             of: view,
@@ -100,8 +98,7 @@ final class SessionsListViewSnapshotTests: XCTestCase {
         )
     }
 
-    func testSessionsEmptyDarkMode() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testSessionsEmptyDarkMode() {
         let view = makeView(populated: false).preferredColorScheme(.dark)
         assertSnapshot(
             of: view,

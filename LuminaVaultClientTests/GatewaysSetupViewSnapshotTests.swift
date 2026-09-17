@@ -139,33 +139,27 @@ final class GatewaysSetupViewSnapshotTests: XCTestCase {
 
     // MARK: - Cases
 
-    func testInitialDark() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testInitialDark() {
         snap(makeView(items: initialItems), scheme: .dark, named: "iPhone13Pro-initial-dark")
     }
 
-    func testInitialLight() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testInitialLight() {
         snap(makeView(items: initialItems), scheme: .light, named: "iPhone13Pro-initial-light")
     }
 
-    func testOneConnectedDark() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testOneConnectedDark() {
         snap(makeView(items: oneConnected), scheme: .dark, named: "iPhone13Pro-one-connected-dark")
     }
 
-    func testOneConnectedLight() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testOneConnectedLight() {
         snap(makeView(items: oneConnected), scheme: .light, named: "iPhone13Pro-one-connected-light")
     }
 
-    func testAllConnectedDark() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testAllConnectedDark() {
         snap(makeView(items: allConnected), scheme: .dark, named: "iPhone13Pro-all-connected-dark")
     }
 
-    func testAllConnectedLight() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testAllConnectedLight() {
         snap(makeView(items: allConnected), scheme: .light, named: "iPhone13Pro-all-connected-light")
     }
 

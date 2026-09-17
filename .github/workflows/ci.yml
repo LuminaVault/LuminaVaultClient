@@ -197,17 +197,14 @@ jobs:
 
   # Manual only. Snapshot baselines are recorded against CI's renderer, not a
   # developer's: an Xcode 26.2 machine cannot write PNGs that a 26.4 runner
-  # will accept, so a new or changed snapshot suite ships with no baseline and
-  # is recorded here.
+  # will accept, so a new or changed snapshot suite gets its baseline here.
   #
-  # Quarantined cases are gated on `SNAPSHOT_TESTING_RECORD` through
-  # `SnapshotQuarantine.skipUnlessRecording()`, so they skip on the PR job and
-  # run on this one. That is why the variable has to reach the test process
-  # and not just this shell — see the env block on the record step.
+  # `SNAPSHOT_TESTING_RECORD` has to reach the test process and not just this
+  # shell — see the env block on the record step.
   #
   # Run it from the Actions tab, download the `snapshots-<sha>` artifact,
-  # unzip it over `LuminaVaultClientTests/__Snapshots__/`, commit the PNGs,
-  # and delete that suite's `skipUnlessRecording()` calls.
+  # unzip it over `LuminaVaultClientTests/__Snapshots__/`, and commit the
+  # PNGs.
   #
   # Compiling and recording are two steps on purpose. A recording run fails by
   # design — every `assertSnapshot` that writes a reference reports a failure —
@@ -313,9 +310,7 @@ jobs:
           # reach this shell, and the tests run in a separate process on the
           # simulator. xcodebuild strips the prefix and forwards the rest into
           # the test runner's environment, where swift-snapshot-testing (1.19.4)
-          # reads it to turn recording on — and where
-          # `SnapshotQuarantine.skipUnlessRecording()` reads it to let the
-          # quarantined cases run instead of skipping.
+          # reads it to turn recording on.
           TEST_RUNNER_SNAPSHOT_TESTING_RECORD: all
         run: |
           set -euo pipefail

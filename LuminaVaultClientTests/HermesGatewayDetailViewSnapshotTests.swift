@@ -139,20 +139,17 @@ final class HermesGatewayDetailViewSnapshotTests: XCTestCase {
 
     // MARK: - Cases
 
-    func testEmptyFormDark() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testEmptyFormDark() {
         snap(makeView(entry: Self.telegramEntry(status: .notConfigured, hasConfig: false)),
              scheme: .dark, named: "iPhone13Pro-empty-form-dark")
     }
 
-    func testEmptyFormLight() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testEmptyFormLight() {
         snap(makeView(entry: Self.telegramEntry(status: .notConfigured, hasConfig: false)),
              scheme: .light, named: "iPhone13Pro-empty-form-light")
     }
 
-    func testSavedReachableDark() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testSavedReachableDark() {
         snap(
             makeView(
                 entry: Self.telegramEntry(status: .verified, hasConfig: true),
@@ -163,8 +160,7 @@ final class HermesGatewayDetailViewSnapshotTests: XCTestCase {
         )
     }
 
-    func testSavedReachableLight() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testSavedReachableLight() {
         snap(
             makeView(
                 entry: Self.telegramEntry(status: .verified, hasConfig: true),
@@ -175,8 +171,7 @@ final class HermesGatewayDetailViewSnapshotTests: XCTestCase {
         )
     }
 
-    func testSavedUnreachableDark() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testSavedUnreachableDark() {
         snap(
             makeView(
                 entry: Self.telegramEntry(status: .configured, hasConfig: true),
@@ -187,8 +182,7 @@ final class HermesGatewayDetailViewSnapshotTests: XCTestCase {
         )
     }
 
-    func testSavedUnreachableLight() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testSavedUnreachableLight() {
         snap(
             makeView(
                 entry: Self.telegramEntry(status: .configured, hasConfig: true),

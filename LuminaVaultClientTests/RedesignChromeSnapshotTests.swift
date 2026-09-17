@@ -9,13 +9,9 @@
 //
 // iPhone 16 Pro / .iPhone13Pro config, dark mode, animations disabled.
 //
-// Quarantined 2026-09-17: the native shell changed every one of these
-// renders, so each case is behind `SnapshotQuarantine.skipUnlessRecording()`
-// — skipped on an ordinary run, executed and recorded when
-// `SNAPSHOT_TESTING_RECORD` is set. To un-quarantine, run the
-// `record-snapshots` workflow (`.github/workflows/ci.yml`,
-// workflow_dispatch), commit the PNGs from its `snapshots-<sha>` artifact,
-// then delete the `skipUnlessRecording()` calls.
+// Baselines were recorded on CI's iPhone 16 Pro / iOS 26.4 renderer via the
+// `record-snapshots` workflow (`.github/workflows/ci.yml`, workflow_dispatch)
+// on 2026-09-17. Re-record the same way after an intentional render change.
 
 import SnapshotTesting
 import SwiftUI
@@ -66,8 +62,7 @@ final class RedesignChromeSnapshotTests: XCTestCase {
 
     // HER-307 — the Spaces grid. The FAB that used to float over it is gone
     // with `LVFAB`: creating a Space is a toolbar action now.
-    func testSpacesGrid() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testSpacesGrid() {
         let spaces: [SpaceDTO] = [
             .stub(name: "AI", category: "ai", noteCount: 4),
             .stub(name: "Health", category: "health", noteCount: 2),
@@ -89,8 +84,7 @@ final class RedesignChromeSnapshotTests: XCTestCase {
     }
 
     // HER-303 — settings hero band (mascot) + glowing section rows
-    func testSettingsChrome() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testSettingsChrome() {
         let view = ScrollView {
             VStack(spacing: LVSpacing.xl) {
                 SettingsHeroBand()
@@ -113,14 +107,12 @@ final class RedesignChromeSnapshotTests: XCTestCase {
     }
 
     // HER-305 — capture glass mode tabs + glowing toolbar over aurora
-    func testCaptureChrome() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testCaptureChrome() {
         snap(CaptureChromeProbe(), "capture-chrome-dark")
     }
 
     // HER-302 — Think empty hero (mascot + gradient title + composer)
-    func testThinkEmptyHero() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testThinkEmptyHero() {
         // The composer's mic button fades to 40% when the speech recognizer
         // reports itself unavailable, and `SFSpeechRecognizer` availability
         // on the CI simulator is not deterministic — the same commit passed

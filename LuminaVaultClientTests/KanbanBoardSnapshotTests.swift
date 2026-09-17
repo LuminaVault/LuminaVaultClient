@@ -130,15 +130,13 @@ final class KanbanBoardSnapshotTests: XCTestCase {
 
     // MARK: - Cases
 
-    func testKanbanBoardDarkMode() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testKanbanBoardDarkMode() {
         snap(.dark, style: .dark, named: "iPhone13Pro-board-dark")
     }
 
     /// The regression case. Before tokenization this rendered a near-black
     /// scrim with a fixed-cyan header and an invisible card border.
-    func testKanbanBoardLightMode() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testKanbanBoardLightMode() {
         snap(.light, style: .light, named: "iPhone13Pro-board-light")
     }
 }

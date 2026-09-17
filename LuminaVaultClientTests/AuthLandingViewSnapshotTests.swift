@@ -77,8 +77,7 @@ final class AuthLandingViewSnapshotTests: XCTestCase {
 
     // MARK: - Light
 
-    func testAuthLandingLightMode() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testAuthLandingLightMode() {
         let view = makeView().preferredColorScheme(.light)
         assertSnapshot(
             of: view,
@@ -94,8 +93,7 @@ final class AuthLandingViewSnapshotTests: XCTestCase {
 
     // MARK: - Dark
 
-    func testAuthLandingDarkMode() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testAuthLandingDarkMode() {
         let view = makeView().preferredColorScheme(.dark)
         assertSnapshot(
             of: view,

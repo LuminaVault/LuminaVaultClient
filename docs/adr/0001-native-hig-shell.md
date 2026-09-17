@@ -82,23 +82,24 @@ there), `Features/Settings/Components/AgentStatusRow.swift`.
 Snapshot baselines change wherever a subject drew `lvBackground()` or
 `palette.backgroundBase`, and the three suites added for the new tab roots
 (`CaptureHomeViewSnapshotTests`, `ChatInboxViewSnapshotTests`,
-`InsightsTabViewSnapshotTests`) have none at all.
+`InsightsTabViewSnapshotTests`) had none at all.
 `GatewaysSetupViewSnapshotTests`, `HermesGatewayDetailViewSnapshotTests` and
 `HermesGatewaysPaneViewSnapshotTests` were first read as unaffected because
 neither subject names `lvBackground()` directly; they inherit the new ground
-through the chrome around them, so they are quarantined too.
+through the chrome around them, so they needed re-recording too.
 
-All fourteen suites are quarantined the same way: each case opens with
-`SnapshotQuarantine.skipUnlessRecording()`, which skips unless
-`SNAPSHOT_TESTING_RECORD` is set. An ordinary PR run therefore skips them and
-stays green, and the `record-snapshots` workflow — which sets the variable
-through `TEST_RUNNER_SNAPSHOT_TESTING_RECORD` so it reaches the simulator's
-test process — runs and records them.
+All fourteen suites were recorded on CI's iPhone 16 Pro / iOS 26.4 renderer
+on 2026-09-17, via the `record-snapshots` workflow — which sets
+`SNAPSHOT_TESTING_RECORD` through `TEST_RUNNER_SNAPSHOT_TESTING_RECORD` so it
+reaches the simulator's test process, runs every case, and uploads the
+resulting PNGs as the `snapshots-<sha>` artifact. Those PNGs are now
+committed under `LuminaVaultClientTests/__Snapshots__/` and the quarantine
+that skipped these suites before the baselines existed is gone.
 
-To un-quarantine a suite: run `record-snapshots` from the Actions tab, unzip
-its `snapshots-<sha>` artifact over `LuminaVaultClientTests/__Snapshots__/`,
-commit the PNGs, and delete that suite's `skipUnlessRecording()` calls. No
-suite sets the process-global `isRecording`; a one-off re-record uses the
+To re-record a suite after an intentional render change: run
+`record-snapshots` from the Actions tab, unzip its `snapshots-<sha>` artifact
+over `LuminaVaultClientTests/__Snapshots__/`, and commit the PNGs. No suite
+sets the process-global `isRecording`; a one-off re-record uses the
 per-assert `record:` parameter.
 
 Known follow-up: the `.today` push deep link was handled only inside

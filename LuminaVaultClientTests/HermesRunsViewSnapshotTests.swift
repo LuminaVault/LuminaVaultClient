@@ -26,8 +26,7 @@ final class HermesRunsViewSnapshotTests: XCTestCase {
 
     // MARK: - Runs list
 
-    func testRunsListGroupsBlockedRunsFirst() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testRunsListGroupsBlockedRunsFirst() {
         let client = StubHermesRunsClient()
         let vm = HermesRunsListViewModel(
             client: client,
@@ -46,8 +45,7 @@ final class HermesRunsViewSnapshotTests: XCTestCase {
 
     // MARK: - Run detail
 
-    func testRunDetailShowsTheApprovalPromptAndTrail() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testRunDetailShowsTheApprovalPromptAndTrail() {
         let client = StubHermesRunsClient()
         let vm = HermesRunDetailViewModel(
             client: client,
@@ -74,8 +72,7 @@ final class HermesRunsViewSnapshotTests: XCTestCase {
 
     // MARK: - Run as agent
 
-    func testRunAsAgentSheetShowsTheDraft() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testRunAsAgentSheetShowsTheDraft() {
         let client = StubHermesRunsClient()
         let view = NavigationStack {
             HermesRunStartView(

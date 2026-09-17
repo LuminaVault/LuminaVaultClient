@@ -94,8 +94,7 @@ final class SkillsHubViewSnapshotTests: XCTestCase {
 
     // MARK: - Cases
 
-    func testSkillsHubPopulatedDarkMode() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testSkillsHubPopulatedDarkMode() {
         let view = makeView(state: .loaded).preferredColorScheme(.dark)
         assertSnapshot(
             of: view,
@@ -109,8 +108,7 @@ final class SkillsHubViewSnapshotTests: XCTestCase {
         )
     }
 
-    func testSkillsHubPopulatedLightMode() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testSkillsHubPopulatedLightMode() {
         let view = makeView(state: .loaded).preferredColorScheme(.light)
         assertSnapshot(
             of: view,
@@ -124,8 +122,7 @@ final class SkillsHubViewSnapshotTests: XCTestCase {
         )
     }
 
-    func testSkillsHubLoadingDarkMode() throws {
-        try SnapshotQuarantine.skipUnlessRecording()
+    func testSkillsHubLoadingDarkMode() {
         let view = makeView(state: .loading).preferredColorScheme(.dark)
         assertSnapshot(
             of: view,
