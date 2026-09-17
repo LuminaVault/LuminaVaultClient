@@ -109,6 +109,10 @@ final class CaptureHomeViewSnapshotTests: XCTestCase {
                 .environment(\.lvAmbientMotionEnabled, false)
                 .environment(AppState())
                 .environment(\.locale, Locale(identifier: "en_US"))
+                // The app resolves the palette per colour scheme through
+                // `LVThemeManager`; without one the environment default is the
+                // dark palette, which renders light-mode text nearly white.
+                .environment(\.lvPalette, LVTheme.cyanGold.palette(for: dark ? .dark : .light))
                 .preferredColorScheme(dark ? .dark : .light),
             as: .image(
                 precision: 0.98,
