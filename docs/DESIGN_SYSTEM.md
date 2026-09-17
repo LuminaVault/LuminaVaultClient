@@ -2,23 +2,29 @@
 
 This document is the source of truth for LuminaVault's iOS visual language. The code in `LuminaVaultClient/Utilities/` and `LuminaVaultClient/Components/` is canonical — this file documents what already exists and how to use it. There is no Figma library; SwiftUI is the design system.
 
+> **Read [`adr/0001-native-hig-shell.md`](adr/0001-native-hig-shell.md) first.** On 2026-09-17 the app's chrome became the system's: a native `TabView`, one `NavigationStack` per tab, inset-grouped lists, system bar materials. The cinematic language below is still the language — it is now confined to onboarding, the paywall, empty states and `CaptureSheet`. §13 is the rule for everything else; where §13 and an older section disagree, §13 wins.
+
 Linear:
 - [HER-59 — DES-003 Define full design system](https://linear.app/luminavault/issue/HER-59)
 - [HER-299 — Cinematic redesign (parent)](https://linear.app/luminavault/issue/HER-299/redesign-app)
-- [HER-300 — (a) Overall design system direction](https://linear.app/luminavault/issue/HER-300/a-overall-design-system-direction) — §13 below
+- [HER-300 — (a) Overall design system direction](https://linear.app/luminavault/issue/HER-300/a-overall-design-system-direction) — §13's predecessor; superseded by ADR 0001
 - [HER-301 — (b) Icon system](https://linear.app/luminavault/issue/HER-301/b-icon-system) — §12 updates
 
 ## Visual direction at a glance
 
-LuminaVault feels **cinematic, magical, sci-fi**, never sterile. The reference language (HER-299 Stitch frames):
+Two registers, and which one a screen is in is not a taste call — it follows from what the screen is.
+
+**Places** — the five tab roots and everything pushed on them. Native iOS: a standard `TabView`, one `NavigationStack` per tab, inset-grouped lists, system bar materials, stock controls, the brand carried by the tint and the app icon. §13 is the whole rule.
+
+**Moments** — onboarding, the paywall, empty states, `CaptureSheet`. Here LuminaVault feels **cinematic, magical, sci-fi**, never sterile. The reference language (HER-299 Stitch frames):
 
 - **Deep cosmic backdrop** — black → cyan aurora → amber bottom-leading wash → starfield.
-- **Volumetric glow** on every interactive surface; cyan is primary, amber is reserved for premium CTAs.
+- **Volumetric glow** on interactive surfaces; cyan is primary, amber is reserved for premium CTAs.
 - **Glassmorphism** for content surfaces — translucent fills, hairline gradient strokes, subtle inner highlights.
-- **Mascot as hero** — Hermie renders large on Home, Onboarding, and empty states; small on chat assistant rows.
-- **Custom illustrated icons** (`Lumina/Icons/*`) for product chrome; SF Symbols only for system-affordance affordances.
+- **Mascot as hero** — Hermie renders large on Onboarding and empty states; small on chat assistant rows.
+- **Custom illustrated icons** (`Lumina/Icons/*`); SF Symbols for system affordances, and for every tab glyph.
 
-Subtask plans (c–i under HER-299) consume the conventions documented here. See §13 "Cinematic Conventions" before designing a new screen.
+Subtask plans (c–i under HER-299) consume the conventions documented here — but only for the surfaces §5 still allows them on. See §13 "Native chrome conventions" before designing a new screen.
 
 ---
 
@@ -144,6 +150,10 @@ Common rewrites:
 
 Reusable view modifiers that read `\.lvPalette`. All are palette-aware — they automatically restyle when the user switches theme.
 
+**Where they are allowed (2026-09-17, ADR 0001).** `lvGlassCard`, `lvGlowStroke`, `lvAuroraGoldRing`, `lvParticleBackground`, `lvPulse` and `lvGlowPress` are valid on **onboarding, the paywall, empty states and `CaptureSheet`** — surfaces that are a moment rather than a place. They are **not** valid on a tab root, a `List` row, a `Form`, or anything in a navigation or tab bar. Those use system materials, `Color(.secondarySystemGroupedBackground)` and the tint; see §13.
+
+The starfield + aurora scene backdrop, the gold ring on tab content, and the particle field are no longer part of the tab-surface story at all: the five tab roots are plain grouped lists on the system background.
+
 ### `lvBackground()` — root scene background
 
 `LuminaVaultClient/Utilities/Extensions/View+LVBackground.swift`
@@ -151,7 +161,7 @@ Reusable view modifiers that read `\.lvPalette`. All are palette-aware — they 
 - Fills with `backgroundBase`.
 - Dark mode only: renders `LVStarField` (55 deterministic stars).
 - Three layered `RadialGradient`s: top-trailing (`auroraTop`), bottom-leading (`auroraBottom`), center pulse (`auroraCenter`).
-- Apply at the root of every full-screen view that should feel "in space".
+- **Not for tab roots.** Its remaining consumers are the capture and onboarding surfaces; a tab root that calls it fights the `List`'s own background and the bar materials above it.
 
 ```swift
 ScrollView { ... }.lvBackground()
@@ -181,7 +191,7 @@ VStack { ... }.padding().lvGlassCard()
 
 - 1.5pt linear-gradient stroke `palette.accent → palette.glowPrimary.opacity(0.5) → palette.accent`.
 - Outer shadow stack: `palette.accent @ 0.4 × intensity` @ 12pt, `palette.glowPrimary @ 0.18 × intensity` @ 28pt.
-- **Reserve for the single most important CTA on a screen** (Home "Sync & Learn", Onboarding "Start", paywall "Continue"). Multiple gold rings per screen flattens the hierarchy.
+- **Reserve for the single most important CTA on an onboarding, paywall or empty-state screen** (Onboarding "Start", paywall "Continue"). Multiple gold rings per screen flattens the hierarchy. Never on a tab root — Home's "Sync & Learn" is a plain list row now.
 - Defaults: `cornerRadius: 20`, `intensity: 1.0`.
 - Composes with `palette.surface` fill underneath; does not paint the fill itself.
 
@@ -199,7 +209,7 @@ Text("Sync & Learn")
 
 - Layers `Lumina/Backgrounds/neural-network` PNG with `.screen` blend on top of `lvBackground()`.
 - `LVParticleIntensity.subtle` (0.10) / `.standard` (0.18) / `.hero` (0.28).
-- **Reserve for hero surfaces** — Home empty-state, Onboarding, splash, full-screen mascot moments. Avoid on scroll surfaces; competes with copy.
+- **Reserve for hero surfaces** — Onboarding, splash, empty states, full-screen mascot moments. Never on a tab root, a list or a toolbar; it competes with copy and with the bar materials.
 
 ```swift
 ZStack { ... }.lvBackground().lvParticleBackground(intensity: .hero)
@@ -241,9 +251,8 @@ Prefix convention: all SwiftUI components are `LV*`. (Earlier `HV*` files were r
 
 | Component            | File                                       | Notes |
 |----------------------|--------------------------------------------|-------|
-| `LVLogoMark`         | `Components/LVLogoMark.swift`              | Static logo glyph. |
-| `LVFAB`              | `Components/LVFAB.swift`                   | HER-301 — floating capture button. Cyan glow + gold ring. Drops the `LVIcon.plusCircleFill` brand glyph into a circular surface with haptic on tap. |
-| `LVTabBar`           | `Components/LVTabBar.swift`                | Custom 5-tab bar. Home tab uses `.lvPulse` gated on pending insights. Tab icons resolve via `LVIcon` (§12). |
+| `LVLogoMark`         | `Components/LVLogoMark.swift`              | Static logo glyph. Top-of-funnel only (splash, onboarding, About). |
+| `CaptureToolbarItem` | `Features/Capture/CaptureToolbarItem.swift` | The `+`. A `ToolbarItem` a tab root attaches with `.captureToolbarItem()`, not a floating button — one primary action per bar (§13). |
 | `LVIconView`         | `Utilities/LVIcon.swift`                   | Renders an `LVIcon` token with theme tint + size (§12). Custom-asset fallback transparent. |
 | `EnvironmentTagView` | `Components/EnvironmentTagView.swift`      | Dev/staging/prod environment badge. |
 | `LVPasteBanner`      | `Components/LVPasteBanner.swift`           | Clipboard-paste prompt banner. |
@@ -260,14 +269,32 @@ Prefix convention: all SwiftUI components are `LV*`. (Earlier `HV*` files were r
 | `GetStartedHeroRiveView`   | `Components/GetStartedHeroRiveView.swift`     | Rive hero for onboarding. |
 | `WingedScrollRiveView`     | `Components/WingedScrollRiveView.swift`       | Rive winged-scroll motif (see `Resources/WingedScroll/WINGED_SCROLL.md`). |
 
+### Tab-surface content (2026-09-17)
+
+Native-shell components. All of them render inside an inset-grouped `List`; none of them paint their own background.
+
+| Component               | File                                              | Notes |
+|-------------------------|---------------------------------------------------|-------|
+| `HomeGlanceStrip`       | `Features/Home/Components/HomeGlanceStrip.swift`  | Three numbers on one row — today, streak, to revisit. Redacted placeholder while loading, `—` on a failed call. |
+| `HomeRecommendationRow` | `Features/Home/Components/HomeRecommendationRow.swift` | The one suggestion under the strip. A plain list row with a `Label`; `HomeRecommendationLabel` is the `NavigationLink` half. |
+| `VaultFileRow`          | `Features/Vault/VaultFileRow.swift`               | One vault row, wherever the vault is listed. Layout only. |
+| `VaultFileDisplay`      | `Features/Vault/VaultFileDisplay.swift`           | Not a view — the pure rules that turn a `VaultFileDTO` into a title, a subtitle and a glyph. Both vault surfaces read it so they cannot disagree. |
+| `ChatInboxDisplay`      | `Features/Chat/ChatInboxDisplay.swift`            | Not a view — the pure rule that turns a thread into a scannable title and an optional preview, in place of the server's "New conversation" placeholder. |
+
+#### Deleted 2026-09-17 (ADR 0001)
+
+`LVTabBar`, `LVTabBarMinimizeState`, `LVNavigationBrand` / the `LuminaHeader` wordmark header, `LVFAB`, `CaptureFAB`, `LVLayout`, and the Dashboard set: `HomeView`, `HomeViewModel`, `CommandCenterHeroView`, `SystemVitalsPanel`, `CommandDeckPanel`, `DashboardCardShell`, `ActiveJobsPanel`, `ActivityFeedView`, `BrainPreviewCard`, `CronsPreviewPanel`, `HomeActivityChartCard`, `HomeMixDonutCard`, `PeriodChipBar`, `PeriodKpiRow`, `PowerLevelTitle`, `PowerProgressStrip`, `RetrievalHealthTile`, `SkillsPreviewPanel`, `ToolsPreviewPanel`, `QuickSettingsView`.
+
+`SciFiCardView` (in `Components/HermieMascotView.swift`) survives, used only by Reflect's saved-reflection cards. It is not a tab-root component; do not reach for it on a list surface.
+
 ---
 
 ## 7. Motion Conventions
 
 | Motion                    | When to use                                   |
 |---------------------------|-----------------------------------------------|
-| `.lvPulse(active:)`       | Drawing attention to state change (pending insights, new memory). |
-| `.lvGlowPress()`          | Any custom tappable surface (replaces system button press). |
+| `.lvPulse(active:)`       | Drawing attention to state change, on a §13.9 surface only. |
+| `.lvGlowPress()`          | A custom tappable surface on a §13.9 surface. On a tab surface, use a stock button and inherit its press state. |
 | Spring `response:0.3, dampingFraction:0.7` | Default for tap feedback and small UI shifts. |
 | `.easeInOut(duration:1.4).repeatForever` | Pulse / breathing loops only. |
 | Rive animations           | Hero moments — splash, onboarding, signature views. Not for general UI. |
@@ -289,7 +316,7 @@ Prefix convention: all SwiftUI components are `LV*`. (Earlier `HV*` files were r
 
 1. **New color token** — add the slot to `LVPalette`, set values in **all six** concrete palettes, document in §3 here.
 2. **New modifier** — add to `Utilities/Extensions/View+LV*.swift`, read palette via `@Environment(\.lvPalette)`, never accept `Color` as a parameter.
-3. **New component** — pick prefix (`HV*` for primitive input, `LV*` for composite), drop in `Components/`, add snapshot tests (see HER-241 `HermesGatewaysPaneViewSnapshotTests` for the pattern), document in §6.
+3. **New component** — check §13 first: on a tab surface, the answer is usually a stock control and no new component. If one is warranted, pick prefix (`HV*` for primitive input, `LV*` for composite), drop in `Components/`, add snapshot tests (see HER-241 `HermesGatewaysPaneViewSnapshotTests` for the pattern), document in §6. Baselines are recorded by the `record-snapshots` workflow, not locally.
 4. **Bump this doc in the same PR.** Code without docs decays.
 
 ---
@@ -319,7 +346,7 @@ Prefix convention: all SwiftUI components are `LV*`. (Earlier `HV*` files were r
 |------------------------|-------|------------------------------------------|
 | `.buttonHeight`        | 48    | Primary CTA button height (`LVButton`)   |
 | `.largeControlHeight`  | 56    | Large CTA, search bar                    |
-| `.tabBarGlyph`         | 22    | Tab-bar glyph (`LVTabBar`)               |
+| `.tabBarGlyph`         | 22    | 22pt inline glyph. The custom tab bar it was named for is gone; a native `Tab` sizes its own `systemImage`. |
 | `.rowGlyph`            | 28    | List-row leading glyph                   |
 | `.mascotSmall`         | 220   | Empty-state Rive mascot                  |
 | `.heroLarge`           | 320   | Splash / onboarding hero size            |
@@ -351,8 +378,10 @@ VStack(spacing: LVSpacing.md) { ... }
 - ~~No icon token system — features use SF Symbols directly with palette tints.~~ Closed by HER-291 — see §12.
 - Snapshot test coverage uneven — HermesGateways suite is the reference pattern; expand to other components incrementally.
 - Many feature views still contain ad-hoc `.font(.system(size:))` and raw point literals — migrate incrementally as files are touched.
-- LVIcon migration is exemplar-only — `LVTabBar`, `MainTabView`, `SettingsRootView`, `AuthLandingView`, `ChatView` use it; ~150 other call sites still pass raw SF Symbol strings. ~~HER-301 (b) closes the asset-wiring gap.~~ **Closed by HER-301** — 24 cases now ship a `Lumina/*` PNG override; per-surface call-site conversions track in subtasks c–i under [HER-299](https://linear.app/luminavault/issue/HER-299).
-- Cinematic conventions documented in §13 are adopted by `lvBackground` + `lvGlassCard` everywhere, but the new `lvAuroraGoldRing` + `lvParticleBackground` modifiers have no consumers yet — they roll out as the per-surface subtasks (c–i) land.
+- LVIcon migration is exemplar-only — `MainTabView`, `SettingsRootView`, `AuthLandingView`, `ChatView` use it; ~150 other call sites still pass raw SF Symbol strings. ~~HER-301 (b) closes the asset-wiring gap.~~ **Closed by HER-301** — 24 cases now ship a `Lumina/*` PNG override; per-surface call-site conversions track in subtasks c–i under [HER-299](https://linear.app/luminavault/issue/HER-299).
+- Orphaned screens (Tasks, Reminders, Projects, Kanban, Sessions, Today, Health, Achievements) compile but have no entry point since 2026-09-17; the `.today` deep link has no handler reachable. They are kept building rather than deleted so the decision to restore or drop each one is a separate, deliberate call.
+- The cinematic modifiers (`lvAuroraGoldRing`, `lvParticleBackground`) now have a smaller legitimate surface than they were written for — onboarding, paywall, empty states, `CaptureSheet` (§5). Some of those surfaces still do not use them.
+- Three snapshot suites (`CaptureHomeViewSnapshotTests`, `ChatInboxViewSnapshotTests`, `InsightsTabViewSnapshotTests`) have no baselines and eight more are quarantined behind an `XCTSkipIf`, pending the `record-snapshots` workflow.
 
 ---
 
@@ -429,13 +458,13 @@ LVIconView(
 )
 ```
 
-- **Default size** is `LVSize.rowGlyph` (28pt) — list-row leading glyphs. Pass `LVSize.tabBarGlyph` (22pt) inside tab bars. For inline body glyphs (composer search icon, etc.) pass an explicit pt value.
-- Custom assets render with `.template` mode + tint — the same `LVIcon` case looks consistent everywhere it's used outside the tab bar.
-- Glow / pulse / press effects stay on the wrapper view (`.lvPulse()`, `.lvGlowStroke()`, `.shadow(...)`). `LVIconView` only resolves name + tint.
+- **Default size** is `LVSize.rowGlyph` (28pt) — list-row leading glyphs. For inline body glyphs (composer search icon, etc.) pass an explicit pt value.
+- Custom assets render with `.template` mode + tint — the same `LVIcon` case looks consistent everywhere it is used.
+- Glow / pulse / press effects stay on the wrapper view (`.lvPulse()`, `.lvGlowStroke()`, `.shadow(...)`). `LVIconView` only resolves name + tint. On a tab root, do not add them at all (§5).
 
-### `LVTabBar` is special
+### Not in the tab bar
 
-`LVTabBar` resolves names via `LVIcon` but renders custom assets with `.original` mode + saturation damping — that preserves the full-colour brand artwork on the active tab and fades it to ~55% saturation on inactive tabs. `LVIconView` is intentionally not used inside the tab bar.
+The tab bar takes SF Symbols and nothing else: a native `Tab("Home", systemImage: "house", …)` renders and tints its own glyph, so `LVIcon` and the `Lumina/Tab/*` brand artwork play no part in it. The brand in the shell is the tint and the app icon.
 
 ### Migration recipe
 
@@ -464,104 +493,84 @@ For each ad-hoc `Image(systemName:)` or `Label(_:systemImage:)`:
 
 ---
 
-## 13. Cinematic Conventions (HER-300)
+## 13. Native chrome conventions
 
-Shipped by HER-300 (a) under HER-299. Every new surface or redesigned surface adopts these conventions; the per-surface subtasks (c–i) consume them. If a screen feels "flat" or "AI-generated default", it is missing one of the layers below.
+Adopted 2026-09-17 by [ADR 0001](adr/0001-native-hig-shell.md), replacing the cinematic chrome conventions that stood here. **This section outranks every older section in this file.** Where §5 or §12 still describes a glowing, glass or wordmarked surface, §13 says where that is allowed: onboarding, the paywall, empty states and `CaptureSheet` — nowhere else.
 
-### 13.1 Layer stack
+The rule behind all of it: the app's chrome is the system's. A user should be able to tell what a control does from having used any other iPhone app. The brand is the content and the tint, not the furniture.
 
-Every full-screen surface stacks the same way, top to bottom:
+### 13.1 The shell
 
-```
-┌──────────────────────────────────────────────────────┐
-│  Content (text, controls, cards)                     │  ← reads palette tokens
-├──────────────────────────────────────────────────────┤
-│  Glass cards / pills           lvGlassCard           │  ← surface fill + stroke
-├──────────────────────────────────────────────────────┤
-│  Particle field (hero only)    lvParticleBackground  │  ← optional, .screen blend
-├──────────────────────────────────────────────────────┤
-│  Aurora gradients              lvBackground          │  ← cyan + amber radial wash
-├──────────────────────────────────────────────────────┤
-│  Starfield (dark only)         lvBackground          │  ← 55 deterministic pinpricks
-├──────────────────────────────────────────────────────┤
-│  palette.backgroundBase        lvBackground          │  ← root color
-└──────────────────────────────────────────────────────┘
-```
+A standard `TabView` with five `Tab`s. Nothing is drawn under, over or around it; there is no minimize-on-scroll state for scroll surfaces to opt into.
 
-Apply `.lvBackground()` once at the scene root of every full-screen view. Add `.lvParticleBackground(intensity:)` only on hero surfaces (§13.4). Cards reach for `.lvGlassCard()`; the single most important CTA reaches for `.lvAuroraGoldRing()`.
+| Label      | `AppTab` id   | Root view              |
+|------------|---------------|------------------------|
+| Home       | `home`        | `CaptureHomeView`      |
+| Spaces     | `workspaces`  | `WorkspacesView`       |
+| AI         | `think`       | `ThinkWithLuminaView`  |
+| Brain      | `brain`       | `BrainTabView`         |
+| Insights   | `reflect`     | `InsightsTabView`      |
 
-### 13.2 Mascot placement
+The raw values are load-bearing — `\.lvActiveTab` consumers compare them literally — so a tab is renamed in its label, never in its id.
 
-`HermieMascotView` is the brand. Place by surface importance:
+Settings is a sheet from Home's leading toolbar item, not a sixth tab. A sixth tab is how the old bar ended up with an overflow menu inside it.
 
-| Surface kind                          | Size        | Example                                  |
-|---------------------------------------|-------------|------------------------------------------|
-| Splash / onboarding hero              | 240–320 pt  | `AuthLandingView`, splash screen          |
-| Home dashboard greeting               | 160–220 pt  | `HomeView` empty-state, dashboard header |
-| Chat assistant turn / pending bubble  | 32–80 pt    | `ChatView` `AssistantAvatar`             |
-| Empty-state illustration              | 96–160 pt   | `LVEmptyState`, dev-menu placeholders    |
-| Inline chrome (toolbar, avatar)       | 24–32 pt    | `LuminaHeader`, navigation accessories   |
+### 13.2 One `NavigationStack` per tab
 
-Never crop the mascot's wings. Pair with `.lvPulse(active:)` while loading / thinking; idle when finalized. Reduce-Motion freezes the pulse — keep the static frame readable.
+Each tab owns exactly one stack, and every push inside that tab goes on it. A tab root either declares the stack in `MainTabView` (Home, Spaces) or owns it itself (AI, Brain, Insights) — never both, and never a second stack nested inside the first.
 
-### 13.3 Gold-ring CTA spec
+A screen reached by push is a place, and gets a push. A screen that is an errand — a run, an editor, a picker, a review — is a sheet.
 
-The accent amber is reserved. **One gold ring per screen, on the most important action**. Anything else uses `lvGlowStroke` (cyan). The Stitch frames hold this rule strictly — Home's "Sync & Learn" is the only gold; Settings has none.
+### 13.3 Titles
 
-Implementation: `.lvAuroraGoldRing(cornerRadius:intensity:)` (§5). The ring paints only the stroke + glow; the fill is your responsibility (`palette.surface`, `palette.accent.opacity(0.15)`, or a transparent button background, depending on weight).
+- **Large title** on a list root: Home, Spaces, AI, Insights.
+- **Inline title** on a canvas or a detail: Brain (the graph needs its vertical space), every sheet, every pushed detail.
+- The title is the only place the screen names itself. No `Text` at the top of the content repeating it, and no wordmark above it.
 
-Anti-patterns:
+### 13.4 Lists
 
-- Multiple gold rings per screen → flattens hierarchy.
-- Gold on destructive actions → conflicts with `palette.warningGlow` (red).
-- Gold ring on a primary action that already uses `LVButton` (the button has its own treatment).
+Content surfaces are `List` with `.listStyle(.insetGrouped)` and section headers that are plain strings. Rows do not paint their own backgrounds; a card that must stand apart from a list uses `Color(.secondarySystemGroupedBackground)` at `LVRadius.card`, as the Spaces grid does.
 
-### 13.4 Particle background placement
+No hand-drawn cards, dividers, capsules or segmented controls where a `Section`, a `Picker` or a stock `Button` does the job. The stock control gets Dynamic Type, the tint, the pressed state, VoiceOver and the right contrast for free; the hand-drawn one gets none of them and has to be maintained.
 
-`.lvParticleBackground(intensity:)` is expensive and opinionated. Use sparingly.
+### 13.5 Materials
 
-| Surface                       | Use?           | Intensity   |
-|-------------------------------|----------------|-------------|
-| Splash + Onboarding           | ✅ always      | `.hero`     |
-| Home dashboard empty-state    | ✅             | `.standard` |
-| Home dashboard with content   | ✅ at top only | `.subtle`   |
-| Chat (full surface)           | ❌ scrolling — competes | —    |
-| Settings list                 | ❌ dense copy  | —           |
-| Spaces grid                   | ✅ at top only | `.subtle`   |
-| Modal sheets                  | ❌             | —           |
+System materials appear in exactly two places: the navigation and tab bars, which apply their own, and a `safeAreaInset` pinned to a bar edge, which uses `.background(.bar)` so it reads as part of the bar above or below it.
 
-The asset is `Lumina/Backgrounds/neural-network` rendered with `.screen` blend so it sits on top of the aurora gradients without crushing them. It does not animate yet — that's a future ticket (animated particle drift is a separate Rive integration).
+`.ultraThinMaterial` in content is a glass card by another name — see §5.
 
-### 13.5 Wordmark treatment
+### 13.6 Brand
 
-"LuminaVault" the wordmark only appears on top-of-funnel surfaces (splash, onboarding, paywall, About). Format:
+The brand in the shell is `.tint(palette.accent)` on the `TabView` and the app icon. That is the whole list.
 
-```swift
-Text("LuminaVault")
-    .font(LVTypography.display.font)
-    .foregroundStyle(.white)
-    .shadow(color: palette.glowPrimary.opacity(0.8), radius: 12)
-```
+Tab glyphs are SF Symbols, sized and tinted by the system. The wordmark does not appear inside the app; it belongs to splash, onboarding, the paywall and About.
 
-In-app chrome (tab bars, settings rows) uses just the mark. Never repeat the full wordmark inside the main app surfaces — it becomes noise; navigation bars carry a plain navigation title instead.
+### 13.7 Toolbars
 
-### 13.6 Icon style hierarchy
+**One primary action per screen**, at the trailing edge:
 
-Three tiers, in priority order — pick the highest tier that has an asset for your case:
+- Capture `+` on Spaces, Brain and Insights, via `.captureToolbarItem()`. Home has none — its composer is the entry.
+- **New chat** on AI, which is that tab's create action instead.
 
-1. **Premium custom glyph** — `Lumina/Icons/*_premium` (`brain_premium`, `winged_lock_premium`, `winged_scroll_premium`, `skeleton_key_premium`). Use for paywall, identity, hero moments.
-2. **Standard custom glyph** — `Lumina/Icons/*` (cyan-gradient illustrations). Use for product chrome wherever an asset exists. Wired through `LVIcon` (§12) — call sites get the asset transparently via `LVIconView`.
-3. **SF Symbol** — fallback for chrome that doesn't have a branded glyph yet. Always go through `LVIcon` so a future asset drop-in is one file edit.
+Everything else goes in a single overflow `Menu` labelled `ellipsis.circle`, next to the primary action. Two visible verbs in a bar is already a menu that has not been written yet.
 
-The per-surface subtasks (c–i) replace SF-Symbol-only `Image(systemName:)` calls with `LVIconView(.someCase)`; do not bulk-migrate ahead of those tickets.
+Leading edge is for navigation, plus Home's Settings entry point.
 
-### 13.7 Inspiration
+### 13.8 What does not go on a tab surface
 
-Reference frames live on [HER-299](https://linear.app/luminavault/issue/HER-299/redesign-app). When a tradeoff is ambiguous (how much glow? how dense the particles? how big the mascot?), the Stitch frames are the source of truth. Match the energy of the frame for the surface you're building.
+- Wordmarks, brand headers, mascots-as-chrome.
+- Decorative ordinals, kickers, mono small-caps eyebrows (§14 is for marketing and onboarding copy, not for list headers).
+- Glows, glass, gold rings, particle fields, starfields, aurora backdrops (§5).
+- Floating buttons over the tab bar.
+- A second control that duplicates one the navigation bar already offers — `.searchable` is the search field; a drawn one underneath it is a bug.
+
+### 13.9 When a surface may still be cinematic
+
+Onboarding, the paywall, empty states and `CaptureSheet`. These are moments rather than places: they are entered deliberately, they are not scrolled through daily, and the language in §5 and §14 is what makes them feel like the product rather than a settings screen. Match the energy of the HER-299 reference frames there, and nowhere else.
 
 ## 14. Motif Kit & Kickers (identity-deepening pass, 2026-07)
 
-Cross-platform layer that makes the cyanGold identity pervasive. Same vocabulary on both surfaces; web classes live in `LuminaVaultWebApp/src/lib/theme/palette.css`, iOS counterparts below. All iOS motifs read `palette.*` slots — never hardcode cyan/amber (nebula/solar must keep working).
+Cross-platform layer that makes the cyanGold identity pervasive. **iOS scope since 2026-09-17: §13.9 surfaces only** — kickers, sigil frames, seams and constellation backdrops do not belong on a tab root or in a list. The web app is unaffected. Same vocabulary on both surfaces; web classes live in `LuminaVaultWebApp/src/lib/theme/palette.css`, iOS counterparts below. All iOS motifs read `palette.*` slots — never hardcode cyan/amber (nebula/solar must keep working).
 
 | Motif | iOS | Web |
 |---|---|---|

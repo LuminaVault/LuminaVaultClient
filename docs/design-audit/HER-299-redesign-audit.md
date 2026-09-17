@@ -1,3 +1,6 @@
+> **Superseded 2026-09-17 by [ADR 0001](../adr/0001-native-hig-shell.md).** Kept as a record of what shipped, not as guidance.
+> The custom tab bar and the floating capture button this audit passes no longer exist; the sections describing them do not apply.
+
 # HER-299 Redesign Audit — does the iOS app respect each subtask's design constraints + screenshots?
 
 **Date:** 2026-05-28 · **Branch:** `main` (incl. PRs #96–#102, #104) · **Reviewer:** Claude
