@@ -12,10 +12,14 @@ import SwiftUI
 @Observable
 @MainActor
 final class AgentStatusRowViewModel {
-    /// Three states, not two. "Offline" is something the server told us; a
+    /// Four states, not two. "Offline" is something the server told us; a
     /// request that never landed knows nothing, and saying "Offline" for it
-    /// asserts a fact we do not have.
+    /// asserts a fact we do not have. `.loading` is the state before the one
+    /// call has answered: "Status unavailable" is a verdict, and flashing it
+    /// while the request is still in flight reports a failure that has not
+    /// happened yet.
     enum Status {
+        case loading
         case unknown
         case online
         case offline
@@ -23,7 +27,7 @@ final class AgentStatusRowViewModel {
 
     private(set) var model: String?
     private(set) var provider: String?
-    private(set) var status: Status = .unknown
+    private(set) var status: Status = .loading
     private(set) var loaded = false
 
     private let client: any HomeSummaryClientProtocol
@@ -42,9 +46,10 @@ final class AgentStatusRowViewModel {
             status = summary.agentOnline ? .online : .offline
             loaded = true
         } catch {
-            // The row shows the default-brain copy and "Status unavailable"
-            // rather than inventing a model name or asserting Offline, and
-            // stays unloaded so a later appearance retries.
+            // Only now is the status unknown: the call landed and told us
+            // nothing. The row shows the default-brain copy and "Status
+            // unavailable" rather than inventing a model name or asserting
+            // Offline, and stays unloaded so a later appearance retries.
             status = .unknown
             loaded = false
         }
@@ -92,27 +97,42 @@ struct AgentStatusRow: View {
                     .lvFont(.caption)
                     .foregroundStyle(palette.textSecondary)
             }
+            // While the call is in flight the trailing text is placeholder
+            // copy behind a redaction, so the row holds its width without
+            // claiming the status is unavailable.
+            .redacted(reason: vm.status == .loading ? .placeholder : [])
         }
         .padding(.vertical, LVSpacing.md)
         .padding(.horizontal, LVSpacing.base)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "Agent: \(vm.model ?? "default brain"), \(statusText.lowercased())"
+            "Agent: \(vm.model ?? "default brain"), \(accessibleStatus)"
         )
         .task { await vm.load() }
     }
 
     private var statusText: String {
         switch vm.status {
+        // Placeholder copy: it is redacted into a grey bar, and only its
+        // width reaches the screen.
+        case .loading: "Checking"
         case .unknown: "Status unavailable"
         case .online: "Online"
         case .offline: "Offline"
         }
     }
 
+    /// VoiceOver does not read the redaction, so it gets the state in words
+    /// rather than the placeholder that stands in for it.
+    private var accessibleStatus: String {
+        vm.status == .loading ? "checking status" : statusText.lowercased()
+    }
+
     private var dotTone: Color? {
         switch vm.status {
-        case .unknown: nil
+        // No dot before the answer, for the same reason there is none for
+        // `.unknown`: nothing has been reported yet.
+        case .loading, .unknown: nil
         case .online: .green
         case .offline: palette.textSecondary.opacity(0.5)
         }
