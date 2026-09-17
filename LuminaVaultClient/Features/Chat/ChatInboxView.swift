@@ -125,9 +125,11 @@ private struct ChatInboxRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
+                // Two lines, because a title derived from the preview is the
+                // whole first thing that was said and is not cut short.
                 Text(ChatInboxDisplay.title(for: item))
                     .font(.headline)
-                    .lineLimit(1)
+                    .lineLimit(2)
                 Spacer(minLength: 8)
                 Text(item.lastMessageAt.formatted(.relative(presentation: .named)))
                     .font(.caption)

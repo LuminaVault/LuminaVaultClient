@@ -64,33 +64,44 @@ final class ChatInboxDisplayTests: XCTestCase {
         )
     }
 
-    func testTruncatesALongPreviewLineToSixtyCharactersWithAnEllipsis() {
-        let long = String(repeating: "a", count: 80)
-        let title = ChatInboxDisplay.title(for: item(title: "", preview: long))
-        XCTAssertEqual(title, String(repeating: "a", count: 60) + "…")
-    }
-
-    func testAPreviewLineAtExactlySixtyCharactersIsNotTruncated() {
-        let exact = String(repeating: "b", count: 60)
-        let title = ChatInboxDisplay.title(for: item(title: "", preview: exact))
-        XCTAssertEqual(title, exact)
+    /// A derived title is never cut: the row gives it two lines instead, and
+    /// a 60-character "…" only meant the same sentence appeared twice, once
+    /// truncated and once whole.
+    func testADerivedTitleIsTheFullFirstLine() {
+        let long = "How long does the whisper service take on a two-minute voice note, end to end?"
+        XCTAssertTrue(long.count > 60)
+        let row = ChatInboxDisplay.rowText(for: item(title: "New conversation", preview: long))
+        XCTAssertEqual(row.title, long)
+        XCTAssertNil(row.preview)
     }
 
     // MARK: - Preview
 
-    func testPreviewIsDroppedWhenTheTitleWasDerivedFromItWhole() {
+    func testADerivedTitleLeavesNoPreviewLine() {
         XCTAssertNil(
             ChatInboxDisplay.preview(for: item(title: "New conversation", preview: "Draft the note"))
         )
+        XCTAssertNil(
+            ChatInboxDisplay.preview(for: item(title: "", preview: String(repeating: "c", count: 80)))
+        )
     }
 
-    func testPreviewSurvivesWhenItSaysMoreThanTheTitle() {
-        let long = String(repeating: "c", count: 80)
-        XCTAssertEqual(ChatInboxDisplay.preview(for: item(title: "", preview: long)), long)
-        XCTAssertEqual(
-            ChatInboxDisplay.preview(for: item(title: "Sealing secrets", preview: "Bound to the namespace")),
-            "Bound to the namespace"
+    func testARealTitleKeepsItsPreview() {
+        let row = ChatInboxDisplay.rowText(
+            for: item(title: "Sealing secrets", preview: "Bound to the namespace")
         )
+        XCTAssertEqual(row.title, "Sealing secrets")
+        XCTAssertEqual(row.preview, "Bound to the namespace")
+    }
+
+    /// The remainder of a multi-line preview is shown nowhere: the first line
+    /// became the title, and a third line of text in a list row is clutter.
+    func testAMultiLinePreviewContributesOnlyItsFirstLine() {
+        let row = ChatInboxDisplay.rowText(
+            for: item(title: "New conversation", preview: "Summarise yesterday\nand today\nand tomorrow")
+        )
+        XCTAssertEqual(row.title, "Summarise yesterday")
+        XCTAssertNil(row.preview)
     }
 
     func testEmptyPreviewIsNil() {
