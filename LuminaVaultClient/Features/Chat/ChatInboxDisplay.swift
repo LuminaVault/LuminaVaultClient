@@ -32,7 +32,11 @@ enum ChatInboxDisplay {
         let preview = item.preview.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if !given.isEmpty, given.caseInsensitiveCompare(placeholderTitle) != .orderedSame {
-            return (given, preview.isEmpty ? nil : preview)
+            // A server title that is simply the first message repeats itself
+            // under the row — the same sentence twice, in two sizes. Drop the
+            // second copy rather than print it.
+            let repeated = preview.caseInsensitiveCompare(given) == .orderedSame
+            return (given, preview.isEmpty || repeated ? nil : preview)
         }
 
         // Derived: the whole first line, uncut. The row gives the title two

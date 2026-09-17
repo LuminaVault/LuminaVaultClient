@@ -104,6 +104,16 @@ final class ChatInboxDisplayTests: XCTestCase {
         XCTAssertNil(row.preview)
     }
 
+    /// A thread named after its own opening line: the preview would print the
+    /// same sentence a second time, one size smaller.
+    func testARealTitleEqualToItsPreviewDropsThePreview() {
+        let row = ChatInboxDisplay.rowText(
+            for: item(title: "Sealing secrets", preview: "  sealing secrets\n")
+        )
+        XCTAssertEqual(row.title, "Sealing secrets")
+        XCTAssertNil(row.preview)
+    }
+
     func testEmptyPreviewIsNil() {
         XCTAssertNil(ChatInboxDisplay.preview(for: item(title: "Sealing secrets", preview: " \n ")))
     }
