@@ -1,4 +1,8 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Chat/ChatInboxView.swift
+//
+// The AI tab's root list. The navigation title and the single "New chat"
+// action belong to the host's navigation bar, so there is no in-list header
+// here — two titles and two "+" buttons on one screen was the bug.
 import SwiftUI
 
 struct ChatInboxView: View {
@@ -51,8 +55,6 @@ struct ChatInboxView: View {
                         }
                     }
                 }
-            } header: {
-                header
             } footer: {
                 if let error = viewModel.errorMessage {
                     Text(error)
@@ -61,33 +63,8 @@ struct ChatInboxView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .background(Color.clear)
         .refreshable { await viewModel.load() }
         .task { await viewModel.load() }
-    }
-
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Chats")
-                    .font(LVTypography.title.font.weight(.semibold))
-                    .foregroundStyle(palette.textPrimary)
-                    .textCase(nil)
-                Text("Recent threads, sources, and quick access.")
-                    .font(LVTypography.caption.font)
-                    .foregroundStyle(palette.textSecondary)
-                    .textCase(nil)
-            }
-            Spacer()
-            Button {
-                onNewChat()
-            } label: {
-                LVIconView(.plusCircleFill, size: 24, tint: palette.glowPrimary)
-            }
-            .accessibilityLabel("New chat")
-        }
-        .padding(.top, LVSpacing.sm)
     }
 
     /// Shown when the inbox fetch failed and we have nothing cached. Distinct
@@ -126,61 +103,38 @@ struct ChatInboxView: View {
     }
 }
 
+/// A stock inset-grouped row: title, preview, and the two facts worth
+/// knowing about a thread. No leading glyph and no source pill — every row
+/// in a single-source inbox carries the same ones, so they were decoration
+/// that pushed the words that differ off the line.
 private struct ChatInboxRow: View {
-    @Environment(\.lvPalette) private var palette
     let item: ChatInboxItemDTO
 
     var body: some View {
-        HStack(alignment: .top, spacing: LVSpacing.base) {
-            LVIconView(.bubbleLeftAndTextBubbleRight, size: 18, tint: palette.glowPrimary)
-                .frame(width: LVSize.rowGlyph)
-
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(item.title.isEmpty ? "Untitled chat" : item.title)
-                        .font(LVTypography.bodyEmphasis.font)
-                        .foregroundStyle(palette.textPrimary)
-                        .lineLimit(1)
-                    Spacer(minLength: LVSpacing.sm)
-                    Text(item.lastMessageAt.formatted(.relative(presentation: .named)))
-                        .font(LVTypography.caption.font)
-                        .foregroundStyle(palette.textSecondary)
-                        .lineLimit(1)
-                }
-
-                if !item.preview.isEmpty {
-                    Text(item.preview)
-                        .font(LVTypography.caption.font)
-                        .foregroundStyle(palette.textSecondary)
-                        .lineLimit(2)
-                }
-
-                HStack(spacing: LVSpacing.xs) {
-                    if let source = item.sourceLabel, !source.isEmpty {
-                        ChatInboxPill(source)
-                    }
-                    ChatInboxPill("\(item.messageCount) messages")
-                }
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(ChatInboxDisplay.title(for: item))
+                    .font(.headline)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                Text(item.lastMessageAt.formatted(.relative(presentation: .named)))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
+
+            if !item.preview.isEmpty {
+                Text(item.preview)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Text("^[\(item.messageCount) message](inflect: true)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
-        .padding(.vertical, LVSpacing.xs)
+        .padding(.vertical, 4)
         .contentShape(Rectangle())
-    }
-}
-
-private struct ChatInboxPill: View {
-    let text: String
-
-    init(_ text: String) {
-        self.text = text
-    }
-
-    var body: some View {
-        Text(text)
-            .font(LVTypography.caption.font.weight(.medium))
-            .padding(.horizontal, LVSpacing.sm)
-            .padding(.vertical, 3)
-            .background(.thinMaterial, in: Capsule())
-            .foregroundStyle(.secondary)
     }
 }
