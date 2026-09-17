@@ -21,8 +21,6 @@ struct SpacesListView: View {
 
     @State private var presentingEditorFor: EditorPresentation?
     @State private var spaceToDelete: SpaceDTO?
-    @State private var presentingSearch = false
-    @State private var searchVM: VaultSearchViewModel
     /// Drives the push to `VisualSearchView` from the `…` menu. A
     /// `NavigationLink` inside a `Menu` does not reliably push, and the menu
     /// must not present — `MainTabView`'s chained sheets already drop a
@@ -41,9 +39,6 @@ struct SpacesListView: View {
         self.memoryClient = memoryClient
         self.memoryDetailClient = memoryDetailClient
         self.uploadClient = uploadClient
-        self._searchVM = State(wrappedValue: VaultSearchViewModel(
-            memoryClient: memoryClient, vaultClient: vaultClient,
-        ))
     }
 
     private let columns = [
@@ -118,9 +113,6 @@ struct SpacesListView: View {
                     },
                 )
             }
-            .sheet(isPresented: $presentingSearch) {
-                VaultSearchView(vm: searchVM, vaultClient: vaultClient, memoryClient: memoryDetailClient)
-            }
     }
 
     @ViewBuilder
@@ -189,40 +181,33 @@ struct SpacesListView: View {
         }
     }
 
+    /// Stock bordered buttons, prominent for the selected one. The glowing
+    /// capsules they replace were a second, hand-drawn segmented control that
+    /// did not pick up tint, Dynamic Type or the pressed state for free.
     private var categoryChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+            HStack(spacing: LVSpacing.sm) {
                 ForEach(vm.categories, id: \.self) { cat in
-                    let isSelected = vm.selectedCategory == cat
-                    Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            vm.selectedCategory = cat
-                        }
-                    } label: {
-                        Text(cat == allCategoriesSlug ? "All" : cat.capitalized)
-                            .font(.system(size: 13, weight: .bold))
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background {
-                                if isSelected {
-                                    Capsule()
-                                        .fill(palette.glowPrimary)
-                                        .shadow(color: palette.glowPrimary.opacity(0.5), radius: 8)
-                                } else {
-                                    Capsule()
-                                        .fill(palette.surface)
-                                        .overlay {
-                                            Capsule()
-                                                .stroke(palette.surfaceStroke, lineWidth: 1)
-                                        }
-                                }
-                            }
-                            .foregroundStyle(isSelected ? .black : palette.textPrimary)
-                    }
-                    .buttonStyle(.plain)
+                    categoryChip(cat)
                 }
             }
             .padding(.horizontal, 20)
+        }
+    }
+
+    @ViewBuilder
+    private func categoryChip(_ cat: String) -> some View {
+        let title = cat == allCategoriesSlug ? "All" : cat.capitalized
+        let select = { withAnimation(.snappy) { vm.selectedCategory = cat } }
+
+        if vm.selectedCategory == cat {
+            Button(title, action: select)
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+        } else {
+            Button(title, action: select)
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
         }
     }
 

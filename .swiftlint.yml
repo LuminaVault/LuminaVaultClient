@@ -68,6 +68,6 @@ custom_rules:
   near_invisible_opacity:
     name: "Near-invisible opacity"
     regex: '\.opacity\(0\.[0-2]\d*\)'
-    excluded: ".*/(Utilities|Components/LVTabBar)\\.swift"
+    excluded: ".*/Utilities\\.swift"
     message: "Below ~0.3 alpha foreground content falls under the 3:1 contrast floor. Tint from LVPalette instead."
     severity: warning

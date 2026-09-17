@@ -1,14 +1,18 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Spaces/SpaceCardView.swift
 //
 // HER-35: tile rendered in the LazyVGrid on the Spaces home.
-// HER-307: cinematic upgrade —
-//   * Drops the visible "…" Menu chrome (Stitch reference shows clean
-//     glass tiles); Edit / Delete moved to a long-press `contextMenu`
-//     attached to the whole card. Also kills the noisy
-//     `_UIReparentingView` warning that fired every time SwiftUI's
-//     Menu popover re-parented through UIHostingController.
-//   * Maps server-supplied SF Symbol icon names to `LVIcon` cases so
-//     the cards pick up the branded `Lumina/Icons/*` PNGs (HER-301).
+//
+// A plain grouped-background card. The glass fill, the cyan glow stroke and
+// the glyph's halo went with the rest of the cinematic chrome: a grid of
+// glowing tiles reads as decoration, and what the user is scanning for is the
+// name and the count. The brand survives as the glyph's tint.
+//
+// Edit / Delete stay on a long-press `contextMenu` rather than a visible "…"
+// per tile — also what keeps the `_UIReparentingView` warning away that a
+// per-card `Menu` popover fired through `UIHostingController`.
+//
+// Server-supplied SF Symbol icon names still map to `LVIcon` cases so the
+// cards pick up the branded `Lumina/Icons/*` PNGs (HER-301).
 import SwiftUI
 
 struct SpaceCardView: View {
@@ -23,27 +27,27 @@ struct SpaceCardView: View {
         VStack(alignment: .leading, spacing: 12) {
             LVIconView(
                 Self.resolveIcon(space.icon),
-                size: 36,
-                tint: palette.glowPrimary,
-                weight: .light,
+                size: 32,
+                tint: palette.accent,
+                weight: .regular,
             )
-            .shadow(color: palette.glowPrimary.opacity(0.6), radius: 10)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(space.name)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(palette.textPrimary)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
 
-                Text("\(space.noteCount) \(space.noteCount == 1 ? "note" : "notes")")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(palette.glowPrimary)
+                Text("^[\(space.noteCount) note](inflect: true)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
-            .padding(.top, 4)
         }
-        .padding(20)
+        .padding(LVSpacing.base)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .lvGlassCard(cornerRadius: 24, intensity: 0.7)
-        .lvGlowStroke(cornerRadius: 24, intensity: LVGlow.card)
+        .background(
+            Color(.secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: LVRadius.card, style: .continuous)
+        )
         .contextMenu {
             Button {
                 onEdit()
