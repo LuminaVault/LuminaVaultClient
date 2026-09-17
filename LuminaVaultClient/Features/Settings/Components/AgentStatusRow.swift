@@ -2,9 +2,9 @@
 //
 // Which brain is answering, and whether it is up.
 //
-// This replaces the Dashboard's "LUMINA COMMAND / AGENT CORE · ONLINE" panel.
-// The information was worth keeping and the theatre was not, and Settings is
-// where someone goes when they want to know what their agent is set to.
+// This replaces the Dashboard's agent-core status panel. The information was
+// worth keeping and the theatre was not, and Settings is where someone goes
+// when they want to know what their agent is set to.
 
 import LuminaVaultShared
 import SwiftUI
@@ -12,9 +12,18 @@ import SwiftUI
 @Observable
 @MainActor
 final class AgentStatusRowViewModel {
+    /// Three states, not two. "Offline" is something the server told us; a
+    /// request that never landed knows nothing, and saying "Offline" for it
+    /// asserts a fact we do not have.
+    enum Status {
+        case unknown
+        case online
+        case offline
+    }
+
     private(set) var model: String?
     private(set) var provider: String?
-    private(set) var online = false
+    private(set) var status: Status = .unknown
     private(set) var loaded = false
 
     private let client: any HomeSummaryClientProtocol
@@ -30,12 +39,13 @@ final class AgentStatusRowViewModel {
             let summary = try await client.summary(period: .today)
             model = summary.primaryModel
             provider = summary.primaryProvider
-            online = summary.agentOnline
+            status = summary.agentOnline ? .online : .offline
             loaded = true
         } catch {
-            // Staying unloaded is the honest state: the row shows the
-            // default-brain copy and an offline dot rather than inventing a
-            // model name.
+            // The row shows the default-brain copy and "Status unavailable"
+            // rather than inventing a model name or asserting Offline, and
+            // stays unloaded so a later appearance retries.
+            status = .unknown
             loaded = false
         }
     }
@@ -71,10 +81,14 @@ struct AgentStatusRow: View {
             Spacer(minLength: LVSpacing.sm)
 
             HStack(spacing: LVSpacing.xs) {
-                Circle()
-                    .fill(vm.online ? Color.green : palette.textSecondary.opacity(0.5))
-                    .frame(width: 8, height: 8)
-                Text(vm.online ? "Online" : "Offline")
+                // No dot when the status is unknown: a grey dot reads as a
+                // reported state, and nothing was reported.
+                if let tone = dotTone {
+                    Circle()
+                        .fill(tone)
+                        .frame(width: 8, height: 8)
+                }
+                Text(statusText)
                     .lvFont(.caption)
                     .foregroundStyle(palette.textSecondary)
             }
@@ -83,8 +97,24 @@ struct AgentStatusRow: View {
         .padding(.horizontal, LVSpacing.base)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "Agent: \(vm.model ?? "default brain"), \(vm.online ? "online" : "offline")"
+            "Agent: \(vm.model ?? "default brain"), \(statusText.lowercased())"
         )
         .task { await vm.load() }
+    }
+
+    private var statusText: String {
+        switch vm.status {
+        case .unknown: "Status unavailable"
+        case .online: "Online"
+        case .offline: "Offline"
+        }
+    }
+
+    private var dotTone: Color? {
+        switch vm.status {
+        case .unknown: nil
+        case .online: .green
+        case .offline: palette.textSecondary.opacity(0.5)
+        }
     }
 }
