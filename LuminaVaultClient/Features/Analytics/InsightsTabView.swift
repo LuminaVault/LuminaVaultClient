@@ -73,11 +73,16 @@ struct InsightsTabView: View {
                         }
                     }
                 } label: {
-                    // `.titleAndIcon`: a bare `Label` in a toolbar renders
-                    // icon-only, which hides which range is active — the whole
-                    // point of putting the range in the bar.
-                    Label(analyticsViewModel.range.title, systemImage: "calendar")
-                        .labelStyle(.titleAndIcon)
+                    // `Text`, not `Label`. A toolbar takes a `Label`'s icon and
+                    // drops its title, so the bar showed a bare calendar glyph
+                    // and never said which range was active —
+                    // `.labelStyle(.titleAndIcon)` does not change that: with
+                    // it applied the rendered bar item kept the same width to
+                    // the pixel, i.e. the title was still discarded. A label
+                    // with no icon to extract leaves the toolbar nothing to
+                    // render but the range itself.
+                    Text(analyticsViewModel.range.title)
+                        .accessibilityLabel("Range, \(analyticsViewModel.range.title)")
                 }
             }
         }
