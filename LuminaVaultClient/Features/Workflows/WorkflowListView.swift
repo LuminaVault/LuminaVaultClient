@@ -91,20 +91,29 @@ final class WorkflowListViewModel {
 }
 
 struct WorkflowListView: View {
-    @Environment(NotificationRouter.self) private var notificationRouter
     @State private var viewModel: WorkflowListViewModel
     @State private var selectedApproval: WorkflowApprovalDTO?
     /// A run pushed programmatically — by running a template, by the swipe
-    /// action, or by a `.workflow` deep link. The stack itself belongs to
-    /// whoever presents this view: a sheet from `MainTabView`, or the
-    /// Settings stack when Studio is pushed from its row.
+    /// action, or by the `initialRunID` a `.workflow` deep link arrived with.
+    /// The stack itself belongs to whoever presents this view: a sheet from
+    /// `MainTabView`, or the Settings stack when Studio is pushed from its row.
     @State private var pushedRunID: UUID?
     private let client: any WorkflowsClientProtocol
     private let memoryClient: any MemoryClientProtocol
+    /// The run to open as soon as this view appears. This view does not read
+    /// `NotificationRouter`: it is hosted from two places, and a view that
+    /// consumed the link itself would race with whichever host presented it.
+    /// `MainTabView` owns the link and hands the run id down.
+    private let initialRunID: UUID?
 
-    init(client: any WorkflowsClientProtocol, memoryClient: any MemoryClientProtocol) {
+    init(
+        client: any WorkflowsClientProtocol,
+        memoryClient: any MemoryClientProtocol,
+        initialRunID: UUID? = nil
+    ) {
         self.client = client
         self.memoryClient = memoryClient
+        self.initialRunID = initialRunID
         _viewModel = State(initialValue: WorkflowListViewModel(client: client))
     }
 
@@ -266,11 +275,9 @@ struct WorkflowListView: View {
             }
         }
         .task { await viewModel.load() }
-        .task(id: notificationRouter.pendingDeepLink) {
-            if case let .workflow(runID) = notificationRouter.pendingDeepLink {
-                pushedRunID = runID
-                _ = notificationRouter.consume()
-            }
+        .task(id: initialRunID) {
+            guard let initialRunID else { return }
+            pushedRunID = initialRunID
         }
         .refreshable { await viewModel.load() }
         .sheet(item: $selectedApproval) { approval in

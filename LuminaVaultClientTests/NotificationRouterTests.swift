@@ -54,6 +54,24 @@ struct NotificationRouterTests {
         ]) == .none)
     }
 
+    /// `MainTabView` owns the `.workflow` link now: it consumes on arrival and
+    /// hands the run id to `WorkflowListView` as `initialRunID`. This pins the
+    /// half the router is responsible for — a consume hands the link over once
+    /// and leaves nothing behind for a second host to re-present.
+    @Test
+    func `consuming a workflow link yields its run once and clears it`() {
+        let runID = UUID()
+        let router = NotificationRouter()
+        router.pendingDeepLink = router.deepLink(from: [
+            "category": "workflow",
+            "runID": runID.uuidString,
+        ])
+
+        #expect(router.consume() == .workflow(runID: runID))
+        #expect(router.pendingDeepLink == .none)
+        #expect(router.consume() == .none)
+    }
+
     // MARK: - Hermes runs (Phase 1)
 
     @Test

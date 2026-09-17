@@ -34,6 +34,11 @@ struct MainTabView: View {
     /// Non-nil while a workflow push is being shown. Studio is not a tab any
     /// more, and a run is a modal errand rather than a place.
     @State private var pendingWorkflow: WorkflowPresentation?
+    /// A workflow push that arrived while the Settings sheet was up. Only one
+    /// sheet can be presented from this view at a time, so the run waits here
+    /// until Settings has finished dismissing and is presented from its
+    /// `onDismiss`.
+    @State private var workflowAfterSettings: WorkflowPresentation?
     @State private var showSettings = false
     @AppStorage("lv.chat.hapticsEnabled") private var hapticsEnabled = true
     @State private var tabHapticTrigger = 0
@@ -99,10 +104,22 @@ struct MainTabView: View {
                 pendingHermesRunID = HermesRunPresentation(id: runID)
                 notificationRouter.pendingDeepLink = .none
             }
-            // `WorkflowListView` consumes the link itself to push the run, so
-            // this only opens the sheet it will be consumed in.
+            // A workflow push. This view owns the link end to end: it is
+            // consumed here and the run id is handed to `WorkflowListView`,
+            // which is hosted both by the sheet below and by a Settings row
+            // and so cannot consume the link for itself without racing.
             if case .workflow(let runID) = deepLink {
-                pendingWorkflow = WorkflowPresentation(id: runID)
+                _ = notificationRouter.consume()
+                let presentation = WorkflowPresentation(id: runID)
+                if showSettings {
+                    // SwiftUI presents one sheet at a time: asking for the
+                    // workflow sheet now would be dropped. Close Settings and
+                    // let its `onDismiss` hand over.
+                    workflowAfterSettings = presentation
+                    showSettings = false
+                } else {
+                    pendingWorkflow = presentation
+                }
             }
         }
         .sheet(item: $pendingHermesRunID) { presentation in
@@ -113,22 +130,27 @@ struct MainTabView: View {
                 )
             }
         }
-        .sheet(item: $pendingWorkflow) { _ in
+        .sheet(item: $pendingWorkflow) { presentation in
             // Studio no longer owns a stack — it is pushed from a Settings row
             // as well as presented here — so the presenter supplies one.
             //
-            // This sheet is the `.workflow` deep link's host: the Settings
-            // push shows the same `WorkflowListView` but never consumes the
-            // link, so a push arriving while Settings is open still opens
-            // this sheet on top of it.
+            // The deep link was already consumed in `onChange` above; what
+            // reaches Studio is a plain run id, which it pushes on appear.
             NavigationStack {
                 WorkflowListView(
                     client: WorkflowsHTTPClient(client: appState.makeHTTPClient()),
-                    memoryClient: memoryUpsertClient
+                    memoryClient: memoryUpsertClient,
+                    initialRunID: presentation.id
                 )
             }
         }
         .sheet(isPresented: $showSettings) {
+            // A workflow push that arrived while Settings was up closed it and
+            // parked itself here; present it now that the slot is free.
+            guard let presentation = workflowAfterSettings else { return }
+            workflowAfterSettings = nil
+            pendingWorkflow = presentation
+        } content: {
             SettingsRootView()
         }
         .sensoryFeedback(.selection, trigger: tabHapticTrigger)
