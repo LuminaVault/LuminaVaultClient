@@ -63,6 +63,13 @@ final class CaptureHomeViewModel {
     /// vault root the same way the capture sheet's "Unfiled" does.
     var selectedSpaceID: UUID?
 
+    /// The name of a Space, for a feed row that knows only its id. Nil while
+    /// the Spaces list is still loading and for the vault root.
+    func spaceName(for id: UUID?) -> String? {
+        guard let id else { return nil }
+        return availableSpaces?.first(where: { $0.id == id })?.name
+    }
+
     /// Recording state, so the composer can show a mic that is visibly live.
     let recorder = VoiceRecorder()
     var isRecording: Bool { recorder.isRecording }
