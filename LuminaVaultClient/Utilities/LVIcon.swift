@@ -14,9 +14,9 @@
 //     composing cleanly with existing `lvPulse` / `lvGlowStroke` /
 //     `lvGlowPress` modifiers.
 //
-// `LVTabBar` consumes `LVIcon` to resolve names but renders custom
-// assets with `.original` mode + saturation damping (tab-specific
-// styling). Everywhere else, prefer `LVIconView`.
+// The tab bar is the system's now and takes SF Symbol names directly, so
+// the `Tab/*` cases below are a catalogue the shell no longer reads.
+// Prefer `LVIconView` everywhere.
 
 import SwiftUI
 
@@ -273,13 +273,12 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
     /// Asset catalog path (e.g. "Lumina/Tab/home") when a custom
     /// branded glyph exists. `nil` falls through to `sfSymbol`.
     ///
-    /// The Tab/* assets are full-colour brand glyphs and are loaded by
-    /// `LVTabBar` with `renderingMode(.original)`. `LVIconView` loads
-    /// them as templates and applies the requested tint instead — that
-    /// gives the same name a consistent look outside the tab bar.
+    /// The Tab/* assets are full-colour brand glyphs. `LVIconView` loads
+    /// them as templates and applies the requested tint, which is what
+    /// keeps one name looking the same wherever it is drawn.
     var customAssetName: String? {
         switch self {
-        // Tab chrome — full-colour brand glyphs, rendered .original by LVTabBar.
+        // Tab chrome — full-colour brand glyphs.
         case .tabHome:                 return "Lumina/Tab/home"
         case .tabSpaces:               return "Lumina/Tab/spaces"
         case .tabThink:                return "Lumina/Tab/think"
@@ -331,9 +330,8 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
 /// itself only resolves the name + tint, so the existing modifier
 /// stack keeps working.
 ///
-/// `LVTabBar` renders custom assets with `.original` mode for full
-/// brand colour; `LVIconView` renders them as `.template` so a single
-/// case looks consistent regardless of where it's used.
+/// `LVIconView` renders custom assets as `.template` so a single case
+/// looks consistent regardless of where it's used.
 struct LVIconView: View {
     let icon: LVIcon
     let size: CGFloat

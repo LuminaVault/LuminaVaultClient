@@ -82,7 +82,7 @@ final class CaptureHomeViewModel {
 
     /// Nil until `appState.vaultInitialized`. The composer disables its save
     /// button in that window rather than accepting a capture it cannot store —
-    /// same gate as `CaptureFAB`.
+    /// same gate every other capture control uses.
     private let queue: CaptureQueueProtocol?
     private let drainer: CaptureDrainerHandle
     private let spacesClient: (any SpacesClientProtocol)?

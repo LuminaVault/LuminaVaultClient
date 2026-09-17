@@ -49,7 +49,7 @@ enum LVSize {
     /// icon-only control to this; never the glyph, which keeps its own size.
     public static let tapTarget: CGFloat = 44
 
-    /// 22pt — tab-bar glyph size (`LVTabBar`).
+    /// 22pt — glyph size for a bar-sized icon.
     public static let tabBarGlyph: CGFloat = 22
 
     /// 28pt — list-row leading glyph.

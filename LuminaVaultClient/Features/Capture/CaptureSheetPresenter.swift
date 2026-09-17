@@ -2,8 +2,8 @@
 //
 // One place that knows how to stand up the capture sheet.
 //
-// Extracted from `CaptureFAB` when the Home composer needed to present the
-// same sheet for its photo and file affordances. The composer handles text and
+// Extracted from the old capture FAB when the Home composer needed to present
+// the same sheet for its photo and file affordances. The composer handles text and
 // links itself; photos and files already work well in the sheet — offline
 // queued, with a Space picker — so it hands off rather than rebuilding pickers
 // that would then drift from the originals.
