@@ -168,13 +168,14 @@ struct CaptureHomeView: View {
         .task { await vm.loadFeed() }
         .task { await vm.loadSpacesIfNeeded() }
         // The glance is loaded once on appear and on pull-to-refresh, so by
-        // the time a step opens its counts are older than the capture that
-        // got the user here. Re-reading it when the active step changes is
-        // what makes the row say "1 capture to learn" instead of nothing.
-        // The row itself no longer depends on this landing — see
-        // `showsGuidedSyncRow` — but the number does.
+        // the time step 2 opens its counts are older than the capture that
+        // got the user here. Re-reading it then is what makes the row say
+        // "1 capture to learn" instead of nothing. The row itself no longer
+        // depends on this landing — see `showsGuidedSyncRow` — but the
+        // number does. Step 2 is the only step whose target shows a count,
+        // so the other two do not pay for a refetch.
         .task(id: guided?.activeStep) {
-            guard guided?.activeStep != nil else { return }
+            guard guided?.activeStep == .syncLearn else { return }
             await glance?.load()
         }
         // A nudge, not a completion: the server owns the latch. A capture
@@ -263,27 +264,34 @@ struct CaptureHomeView: View {
 
     @ViewBuilder
     private var recommendationRows: some View {
+        // The guided row stands in for the heuristic's suggestion rather
+        // than sitting beside it. Rendering both puts two competing next
+        // actions on screen and spotlights one of them, which is the
+        // opposite of what a step that says "tap Sync & Learn" is for.
+        // (When the heuristic already recommends Sync & Learn,
+        // `showsGuidedSyncRow` is false and the case below carries the
+        // target instead, so the row is never published twice.)
         if showsGuidedSyncRow {
             syncAndLearnRow(count: nil)
-        }
-
-        switch glance?.recommendation {
-        case .syncAndLearn(let count):
-            syncAndLearnRow(count: count)
-        case .dailyReview(let count):
-            NavigationLink {
-                DailyReviewView(
-                    vm: DailyReviewViewModel(client: appState.makeDailyReviewClient())
-                )
-            } label: {
-                HomeRecommendationLabel(
-                    title: "Daily review",
-                    subtitle: "^[\(count) memory](inflect: true) to revisit",
-                    systemImage: "sun.max"
-                )
+        } else {
+            switch glance?.recommendation {
+            case .syncAndLearn(let count):
+                syncAndLearnRow(count: count)
+            case .dailyReview(let count):
+                NavigationLink {
+                    DailyReviewView(
+                        vm: DailyReviewViewModel(client: appState.makeDailyReviewClient())
+                    )
+                } label: {
+                    HomeRecommendationLabel(
+                        title: "Daily review",
+                        subtitle: "^[\(count) memory](inflect: true) to revisit",
+                        systemImage: "sun.max"
+                    )
+                }
+            case .none:
+                EmptyView()
             }
-        case .none:
-            EmptyView()
         }
 
         if failedCaptureCount > 0 {
