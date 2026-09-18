@@ -12,6 +12,10 @@ import LuminaVaultShared
 
 struct CaptureHomeView: View {
     @Environment(AppState.self) private var appState
+    /// "Get started with Hermie". Created by `MainTabView`; optional so a
+    /// preview or a snapshot suite that does not stand up the shell simply
+    /// renders Home without the card.
+    @Environment(GuidedStartCoordinator.self) private var guided: GuidedStartCoordinator?
 
     @State private var vm: CaptureHomeViewModel
     @State private var glance: HomeGlanceViewModel?
@@ -69,12 +73,30 @@ struct CaptureHomeView: View {
                     onPhotos: { present(.photo) },
                     onFiles: { present(.files) }
                 )
+                // Step 1's spotlight. The mark goes on the composer itself,
+                // not the row, so the hole is the control being taught.
+                .guidedTarget(.composer, in: .home)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             }
 
             if showsTodaySection {
                 Section("Today") {
+                    // The get-started card owns the top of Home until it is
+                    // finished. It brings its own card surface, so it rides a
+                    // clear row like the composer does.
+                    if isGuidedCardVisible, let guided {
+                        GuidedStartCard(
+                            progress: guided.progress,
+                            hermieState: guided.hermieState,
+                            message: guided.inlineMessage,
+                            onSelect: { step in Task { await guided.start(step) } },
+                            onDismiss: { Task { await guided.dismissCard() } }
+                        )
+                        .onAppear { guided.noteCardShown() }
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                    }
                     // `glance` is nil until `.task` builds it, which is after
                     // the first paint. Drawing the strip's own loading state
                     // holds the row's height from frame one instead of
@@ -95,8 +117,11 @@ struct CaptureHomeView: View {
                         )
                     }
                     // The breaking-news strip of the first-party news-ticker
-                    // plugin. Hides itself when the plugin is not installed.
-                    if let ticker {
+                    // plugin. Hides itself when the plugin is not installed —
+                    // and stays hidden while the get-started card is up, so a
+                    // first-time user sees exactly one thing to do. It comes
+                    // back once the card is completed or dismissed.
+                    if let ticker, !isGuidedCardVisible {
                         HomeNewsTickerStrip(viewModel: ticker)
                     }
                     recommendationRows
@@ -142,6 +167,16 @@ struct CaptureHomeView: View {
         }
         .task { await vm.loadFeed() }
         .task { await vm.loadSpacesIfNeeded() }
+        // A nudge, not a completion: the server owns the latch. A capture
+        // leaving the pending list means the drainer got it uploaded, which
+        // is the earliest moment `firstCaptureCompleted` can possibly be
+        // true — so poll now instead of waiting out the backoff. Lives here,
+        // as a view-level `onChange`, so `CaptureHomeViewModel` stays unaware
+        // that a wizard exists.
+        .onChange(of: vm.visiblePending.count) { previous, current in
+            guard previous > 0, current == 0 else { return }
+            guided?.noteUserAction(.saveMemory)
+        }
         .captureSheet(isPresented: $sheetPresented, initialMode: sheetMode)
         .sheet(isPresented: $showingSyncAndLearn) {
             NavigationStack {
@@ -166,9 +201,19 @@ struct CaptureHomeView: View {
 
     private var failedCaptureCount: Int { captureFailures?.count ?? 0 }
 
+    /// The one predicate the contract asks for: the card's own visibility
+    /// rule, read once and used both to place the card and to hold the
+    /// breaking-news strip back.
+    private var isGuidedCardVisible: Bool { guided?.isCardVisible ?? false }
+
     /// Nil is loading, not empty: the section stays for the redacted strip
     /// and only disappears once the calls have come back with nothing.
+    ///
+    /// The card is reason enough on its own — a brand-new account is exactly
+    /// where the glance calls are most likely to come back empty or failed,
+    /// and that is precisely when the card must be on screen.
     private var showsTodaySection: Bool {
+        if isGuidedCardVisible { return true }
         guard let glance else { return true }
         return !glance.allFailed || glance.recommendation != nil || failedCaptureCount > 0
     }
@@ -184,6 +229,8 @@ struct CaptureHomeView: View {
             ) {
                 showingSyncAndLearn = true
             }
+            // Step 2's spotlight.
+            .guidedTarget(.sync, in: .home)
         case .dailyReview(let count):
             NavigationLink {
                 DailyReviewView(

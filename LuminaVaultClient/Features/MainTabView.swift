@@ -47,6 +47,12 @@ struct MainTabView: View {
     /// capture sheet opens on Files with that batch preselected.
     @State private var ingestionBatchID: UUID?
     @State private var showingIngestionCapture = false
+    /// "Get started with Hermie". Created here because the shell is the only
+    /// place that owns all three of its needs: the card lives on Home, the
+    /// spotlight overlay must sit on the `TabView` to see every tab's
+    /// anchors, and step 3 is a tab switch. Everything below reads it out of
+    /// the environment.
+    @State private var guided: GuidedStartCoordinator?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -81,6 +87,44 @@ struct MainTabView: View {
             }
             .environment(\.lvActiveTab, selection.rawValue)
             .modifier(TabBarMinimizeOnScrollDown())
+            // Attached to the `TabView` and nowhere lower: anchors from the
+            // other tabs would never reach an overlay inside a tab, and the
+            // dim would stop short of the nav and tab bars. `activeTab` is
+            // passed so a background tab's lingering, stale anchors are
+            // dropped instead of being spotlighted.
+            .guidedSpotlight(
+                step: guided?.activeStep,
+                activeTab: guidedTab(for: selection),
+                hermieState: guided?.hermieState ?? .thinking,
+                onSkip: { guided?.skip() }
+            )
+            // The last latch flipping is the whole point of the wizard, so
+            // the celebration is hosted where nothing can clip it.
+            .overlay(ConfettiOverlay(trigger: guided?.confettiTrigger ?? 0))
+        }
+        .environment(guided)
+        .environment(\.lvReopenGuidedStart, guided.map { coordinator in
+            {
+                // Back to Home first: "Show me around" is meaningless on a
+                // tab that does not host the card.
+                selection = .home
+                showSettings = false
+                Task { await coordinator.showMeAround() }
+            }
+        })
+        .task {
+            guard guided == nil else { return }
+            let coordinator = GuidedStartCoordinator.live(appState: appState)
+            guided = coordinator
+            // The visibility rule renders nothing until a snapshot is in
+            // hand, so the card cannot flash in and out on a cold launch.
+            await coordinator.refresh()
+        }
+        .onChange(of: guided?.requestedTab) { _, requested in
+            // Step 3 lives on the AI tab. The coordinator asks in its own
+            // two-case vocabulary; mapping it to `AppTab` is the shell's job.
+            guard let requested else { return }
+            selection = appTab(for: requested)
         }
         .tint(palette.accent)
         .onChange(of: selection) { oldValue, newValue in
@@ -176,6 +220,27 @@ struct MainTabView: View {
             // so the count is stale by the time anyone looks at it.
             guard phase == .active else { return }
             Task { await captureFailures?.refresh() }
+        }
+    }
+
+    // MARK: - Guided start
+
+    /// The guided-start vocabulary for the tab that is on screen. Tabs that
+    /// host no guided target map to `nil`, which is what tells the overlay
+    /// there is no anchor to look for rather than to reuse a stale one.
+    private func guidedTab(for tab: AppTab) -> GuidedTab? {
+        switch tab {
+        case .home:  .home
+        case .think: .chat
+        default:     nil
+        }
+    }
+
+    /// `.chat` is the AI tab, which is where the chat composer lives.
+    private func appTab(for tab: GuidedTab) -> AppTab {
+        switch tab {
+        case .home: .home
+        case .chat: .think
         }
     }
 
