@@ -204,7 +204,6 @@ final class CaptureHomeViewSnapshotTests: XCTestCase {
     /// No baseline yet, so it is quarantined. The PNGs come from the
     /// `record-snapshots` workflow, same as every other baseline here.
     func testGuidedStartCardOnAFreshAccount() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
         let vm = await makeViewModel(files: [])
         let glance = await makeGlance(memoriesToday: 0, streakDays: 0, toRevisit: 0, pendingFiles: 0)
         let guided = makeGuided(state: makeStepState())
@@ -224,7 +223,6 @@ final class CaptureHomeViewSnapshotTests: XCTestCase {
     /// card and the rest of Today sharing the section, which is the layout
     /// most likely to go wrong.
     func testGuidedStartCardAboveARecommendation() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
         let vm = await makeViewModel(files: [
             file(path: "notes/dentist.md", createdAt: 1_757_761_429)
         ])

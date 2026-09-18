@@ -8,16 +8,15 @@
 // so there is no view model, no client and no network here. The snapshot is
 // of exactly what Home will embed.
 //
-// No baselines yet, so every case is behind
-// `SnapshotQuarantine.skipUnlessRecording()`: skipped on an ordinary run,
-// executed (and recorded) when `SNAPSHOT_TESTING_RECORD` is set. This suite
-// never touches the process-global `isRecording` — a suite that flips it
-// changes what every later suite in the run does.
+// The baselines are committed, so these cases assert. This suite never
+// touches the process-global `isRecording` — a suite that flips it changes
+// what every later suite in the run does.
 //
 // Baselines cannot be recorded on this machine against CI's iOS 26.4
 // renderer, so they come from the `record-snapshots` workflow
-// (`.github/workflows/ci.yml`, workflow_dispatch). Commit the PNGs from its
-// `snapshots-<sha>` artifact, then delete the `skipUnlessRecording()` calls.
+// (`.github/workflows/ci.yml`, workflow_dispatch): commit the PNGs from its
+// `snapshots-<sha>` artifact. That run re-records everything, so take only
+// the images you meant to change and check the rest came back identical.
 // A one-off re-record goes through the per-assert `record:` parameter.
 //
 // Every case is `async` on purpose: this toolchain aborts
@@ -99,21 +98,18 @@ final class GuidedStartCardSnapshotTests: XCTestCase {
 
     /// A fresh account: all three latches false, the first row pulsing.
     func testNothingDone() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
         let progress = GuidedStartProgress(makeStepState())
         snap(makeView(progress: progress, hermie: .idle), "guided-card-0of3-light", dark: false)
         snap(makeView(progress: progress, hermie: .idle), "guided-card-0of3-dark", dark: true)
     }
 
     func testOneDone() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
         let progress = GuidedStartProgress(makeStepState(capture: true))
         snap(makeView(progress: progress, hermie: .idle), "guided-card-1of3-light", dark: false)
         snap(makeView(progress: progress, hermie: .idle), "guided-card-1of3-dark", dark: true)
     }
 
     func testTwoDone() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
         let progress = GuidedStartProgress(makeStepState(capture: true, compile: true))
         snap(makeView(progress: progress, hermie: .idle), "guided-card-2of3-light", dark: false)
         snap(makeView(progress: progress, hermie: .idle), "guided-card-2of3-dark", dark: true)
@@ -124,7 +120,6 @@ final class GuidedStartCardSnapshotTests: XCTestCase {
     /// it is on screen only for the celebration and for Settings ›
     /// "Show me around" — so it is worth a baseline of its own.
     func testAllDone() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
         let progress = GuidedStartProgress(makeStepState(capture: true, compile: true, query: true))
         snap(
             makeView(progress: progress, hermie: .celebrating),
