@@ -194,5 +194,14 @@ enum ConversationsEndpoints {
         var body: (any Encodable & Sendable)? {
             request
         }
+
+        /// Declares that this build can skip a stream event type it does not
+        /// know. The server withholds the agent-run pointer from clients that
+        /// have not said so, because a build older than LuminaVaultShared
+        /// 5.16.0 aborts the whole stream on one unfamiliar frame and the
+        /// server cannot tell the two apart on the wire.
+        var additionalHeaders: [String: String] {
+            ["X-LV-Client-Caps": "chat.hermes_run"]
+        }
     }
 }

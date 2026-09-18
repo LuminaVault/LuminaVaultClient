@@ -222,7 +222,12 @@ final class BaseHTTPClientSSETests: XCTestCase {
 
     // MARK: - Forward compatibility (Shared v5.16.0)
 
-    /// The regression this whole release exists for. `QueryStreamEvent` used
+    /// The regression this whole release exists for.
+    ///
+    /// Uses a tag that is deliberately not a real event. This test first used
+    /// `hermes_run`, which stopped being unknown the moment Shared 5.18.0
+    /// added it — a test asserting "unknown" must not name something the
+    /// codebase is about to implement. `QueryStreamEvent` used
     /// to decode `type` into a strict enum, so an event type this build did
     /// not know threw — and `BaseHTTPClient.executeStream` rethrows a decode
     /// failure as `APIError.decodingFailed`, which aborts the stream. One
@@ -232,7 +237,7 @@ final class BaseHTTPClientSSETests: XCTestCase {
         let lines = [
             #"data: {"type":"token","payload":"before"}"#,
             "",
-            #"data: {"type":"hermes_run","payload":{"runID":"abc","afterSeq":0}}"#,
+            #"data: {"type":"not_a_real_event","payload":{"anything":1}}"#,
             "",
             #"data: {"type":"token","payload":"after"}"#,
             "",
@@ -242,7 +247,7 @@ final class BaseHTTPClientSSETests: XCTestCase {
         let (events, _) = try run(lines)
         XCTAssertEqual(
             events,
-            [.token("before"), .unrecognized("hermes_run"), .token("after"), .done],
+            [.token("before"), .unrecognized("not_a_real_event"), .token("after"), .done],
             "an unknown type must be surfaced as .unrecognized and the stream must continue"
         )
     }

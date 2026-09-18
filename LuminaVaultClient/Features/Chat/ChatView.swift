@@ -271,6 +271,9 @@ struct ChatView: View {
         }
         switch viewModel.phase {
         case .starting, .streaming: return "Thinking…"
+        // Named separately because it is a different wait: the agent is
+        // running tools, which takes longer than a reply and is worth saying.
+        case .delegated: return "Working on it…"
         case .failed: return "Let's try that again"
         case .idle: return "Ready when you are"
         }
@@ -346,6 +349,34 @@ struct ChatView: View {
                 // produced them, instead of stacking above the composer where
                 // they shoved it down mid-typing.
                 proposalCards(anchoredTo: message.id)
+            }
+
+            // An escalated turn: what the agent did, and the decision it is
+            // blocked on. Both absent on an ordinary turn.
+            ChatToolTrailView(
+                items: viewModel.toolTrail,
+                isRunning: viewModel.phase == .delegated
+            )
+
+            if let approval = viewModel.pendingApproval {
+                ChatApprovalPromptView(
+                    item: approval,
+                    isBusy: viewModel.runFollower?.isAnswering ?? false,
+                    onRespond: { choice in
+                        Task { await viewModel.respondToApproval(choice) }
+                    }
+                )
+            }
+
+            // The run's answer as it arrives. A plain text view rather than
+            // the typewriter row: this text is already paced by the run feed,
+            // and revealing it a second time would double the delay.
+            if viewModel.phase == .delegated, !viewModel.delegatedAnswer.isEmpty {
+                Text(viewModel.delegatedAnswer)
+                    .font(.body)
+                    .foregroundStyle(palette.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
             }
 
             if viewModel.hasPendingTurn {

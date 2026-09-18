@@ -131,6 +131,10 @@ final class ChatViewModel {
         case idle
         case starting
         case streaming
+        /// The turn escalated to a Hermes agent run: the chat stream has
+        /// closed and the answer is arriving on the run's feed. Still a busy
+        /// state, so the composer stays disabled and stop stays live.
+        case delegated
         case failed(message: String)
     }
 
@@ -369,6 +373,11 @@ final class ChatViewModel {
         llmPreferencesClient: (any LLMPreferencesClientProtocol)? = nil,
         localExecutor: (any LocalChatExecuting)? = nil,
         localMemorySync: LocalMemorySyncService? = nil,
+        /// Follows an escalated turn's agent run. Optional so the focused
+        /// initializers and tests need no Hermes stack; nil means a turn can
+        /// still escalate server-side but this build will not follow it, so
+        /// the answer lands on reload rather than live.
+        runsClient: (any HermesRunsClientProtocol)? = nil,
         telemetry: any TelemetryProtocol = LoggerTelemetry(),
         cloudAvailable: @escaping @MainActor @Sendable () -> Bool = { true }
     ) {
@@ -381,6 +390,7 @@ final class ChatViewModel {
         self.llmPreferencesClient = llmPreferencesClient
         self.localExecutor = localExecutor
         self.localMemorySync = localMemorySync
+        self.runsClient = runsClient
         self.cloudAvailable = cloudAvailable
         self.telemetry = telemetry
         self.voice = voice
@@ -402,12 +412,80 @@ final class ChatViewModel {
         )
     }
 
-    var isStreaming: Bool {
-        if case .streaming = phase {
-            return true
+    /// Busy in a way that should keep the composer closed. Covers the
+    /// delegated window too: the chat stream has ended there, but the turn
+    /// has not — its answer is still arriving on the run feed.
+    /// Starts following the run that is answering this turn.
+    private func startFollowingRun(_ ref: ChatHermesRunRefDTO) {
+        guard let runsClient else {
+            // No Hermes stack in this build. The server still ran the turn and
+            // persisted the answer, so it appears on the next load — better
+            // than pretending the turn failed.
+            return
         }
-        return false
+        runFollowTask?.cancel()
+        let follower = ChatRunFollower(
+            client: runsClient,
+            runID: ref.runID,
+            sessionID: ref.sessionID
+        )
+        runFollower = follower
+        phase = .delegated
+        runFollowTask = Task { [weak self] in
+            await follower.follow(after: ref.afterSeq)
+            guard let self, self.runFollower === follower else { return }
+            self.settleDelegatedTurn(follower)
+        }
     }
+
+    /// Turns the finished run into an ordinary assistant turn, so the
+    /// transcript reads the same whether or not the turn escalated.
+    private func settleDelegatedTurn(_ follower: ChatRunFollower) {
+        let answer = follower.answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !answer.isEmpty {
+            replacePendingAssistant(with: answer)
+            drainTypewriterNow()
+            finalizeAssistantTurn()
+        }
+        if case let .failed(message) = follower.phase {
+            phase = .failed(message: message)
+        } else {
+            phase = .idle
+            flashHappyThenIdle()
+        }
+    }
+
+    /// Answers a tool waiting on the user.
+    func respondToApproval(_ choice: HermesApprovalChoice) async {
+        await runFollower?.respond(choice)
+    }
+
+    /// Stops an escalated turn and settles whatever it produced.
+    func stopDelegatedRun() async {
+        guard let follower = runFollower else { return }
+        runFollowTask?.cancel()
+        await follower.stop()
+        settleDelegatedTurn(follower)
+    }
+
+    var isStreaming: Bool {
+        phase == .streaming || phase == .delegated
+    }
+
+    private let runsClient: (any HermesRunsClientProtocol)?
+    /// Live agent run for the turn in flight, when one escalated.
+    private(set) var runFollower: ChatRunFollower?
+    private var runFollowTask: Task<Void, Never>?
+
+    /// The trail of what the agent did this turn. Empty on an ordinary turn.
+    var toolTrail: [HermesRunTrailItem] { runFollower?.trail ?? [] }
+    /// The run's answer as it streams, for the live bubble.
+    var delegatedAnswer: String { runFollower?.answer ?? "" }
+    /// The tool decision the run is blocked on, if any.
+    var pendingApproval: HermesRunTrailItem? { runFollower?.pendingApproval }
+    /// Scopes the artifact strip to this turn. Artifacts are keyed by Hermes
+    /// session rather than conversation.
+    var runSessionID: String? { runFollower?.sessionID }
 
     var canSend: Bool {
         composerModel.hasContent && canAcceptSend
@@ -926,6 +1004,11 @@ final class ChatViewModel {
             phase = .streaming
             clearPendingAssistant()
             pendingSources = []
+            // Drop any previous turn's run before this one can escalate, so a
+            // stale follower cannot make this turn look delegated.
+            runFollowTask?.cancel()
+            runFollowTask = nil
+            runFollower = nil
 
             let stream = conversationsClient.streamReply(
                 conversationID: id,
@@ -980,7 +1063,16 @@ final class ChatViewModel {
                     // return this instead of throwing; before that, one
                     // unknown frame killed the whole stream.
                     continue
+                case let .hermesRun(ref):
+                    // The turn escalated to an agent run. The chat stream is
+                    // about to close; the answer and the tool trail arrive on
+                    // the run's own feed.
+                    startFollowingRun(ref)
                 case .done:
+                    // NOT the end of a delegated turn. Finalizing here would
+                    // commit an empty bubble and leave the run's answer with
+                    // nowhere to land.
+                    if runFollower != nil { return }
                     // Let the reveal finish typing the tail, then freeze the
                     // fully-revealed text into a finalized bubble.
                     await drainTypewriter()
@@ -996,7 +1088,10 @@ final class ChatViewModel {
                 }
             }
             // Stream ended without `.done` (e.g. server hung up). Treat
-            // any buffered text as a complete turn.
+            // any buffered text as a complete turn — unless the turn was
+            // delegated, in which case the run feed is still working and the
+            // composer must stay closed until it finishes.
+            if runFollower != nil { return }
             await drainTypewriter()
             if !pendingAssistant.isEmpty {
                 finalizeAssistantTurn()
