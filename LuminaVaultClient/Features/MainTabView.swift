@@ -105,10 +105,9 @@ struct MainTabView: View {
         .environment(guided)
         .environment(\.lvReopenGuidedStart, guided.map { coordinator in
             {
-                // Back to Home first: "Show me around" is meaningless on a
-                // tab that does not host the card.
+                // Back to Home: "Show me around" is meaningless on a tab
+                // that does not host the card. Settings closes itself.
                 selection = .home
-                showSettings = false
                 Task { await coordinator.showMeAround() }
             }
         })

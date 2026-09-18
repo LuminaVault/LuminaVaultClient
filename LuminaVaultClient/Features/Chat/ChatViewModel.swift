@@ -972,6 +972,12 @@ final class ChatViewModel {
                     // Not surfaced in chat UI yet; the link will show up
                     // in the vault on next refresh.
                     continue
+                case .unrecognized:
+                    // An event type the server ships ahead of this build.
+                    // Skipping the frame is the whole point of the case —
+                    // treating it as an error would kill the turn over one
+                    // line the client happens not to know yet.
+                    continue
                 case .done:
                     // Let the reveal finish typing the tail, then freeze the
                     // fully-revealed text into a finalized bubble.

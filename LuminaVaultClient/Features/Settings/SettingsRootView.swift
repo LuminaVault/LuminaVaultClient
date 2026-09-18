@@ -13,6 +13,9 @@ struct SettingsRootView: View {
     @Environment(\.lvPalette) private var palette
     /// Settings is a sheet from Home rather than a tab, so it closes itself.
     @Environment(\.dismiss) private var dismiss
+    /// Settings › "Show me around". Supplied by `MainTabView`; `nil` when no
+    /// shell is hosting, which is when the row has nothing to reopen.
+    @Environment(\.lvReopenGuidedStart) private var reopenGuidedStart
 
     var body: some View {
         NavigationStack {
@@ -37,6 +40,18 @@ struct SettingsRootView: View {
 
                         LVSectionCard("Setup with Lumina") {
                             SetupWithLuminaSection(onSend: {})
+                            // "Get started with Hermie" again. Clearing the
+                            // dismissal, going back to Home and closing this
+                            // sheet are one action from here; the shell owns
+                            // the first two because it owns the tab and the
+                            // coordinator. Hidden when no shell is hosting.
+                            if let reopenGuidedStart {
+                                LVSettingsDivider()
+                                LVSettingsButtonRow("Show me around", icon: .wandSparkle) {
+                                    reopenGuidedStart()
+                                    dismiss()
+                                }
+                            }
                         }
 
                         LVSectionCard("Connections") {
