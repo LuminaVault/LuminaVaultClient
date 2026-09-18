@@ -1,60 +1,91 @@
-# Rive animations — single-file contract (`lumina_anims.riv`)
+# Rive animations — what is real, and what is not
 
-All four Rive marks are authored as **artboards inside one Rive file** and
-exported together as **`lumina_anims.riv`**. The runtime selects each mark by
-artboard name (`RiveAssets.viewModel(named:artboardName:stateMachineName:)`),
-so there is one bundled `.riv`, not four.
+**There is no `.riv` file in this repository.** Not tracked, not on disk, not
+in the bundle. `Resources/Hermie/` holds a `.gitkeep` and a design brief;
+`lumina_anims.riv` has never existed. Every Rive-aware view in the app is
+rendering its PNG fallback, and has been since the views were written.
 
-## Artboard contract
+This file used to describe `lumina_anims.riv` as a shipped artefact with an
+idle-only Hermie in it. That was wrong on both counts.
 
-| Artboard | Size | State Machine | Animation | Consumer view |
-|----------|------|---------------|-----------|---------------|
-| `splash_hero`       | 512×512   | `State Machine 1` | `bounce` (loop) | `SplashHeroRiveView` |
-| `get_started_hero`  | 512×512   | `State Machine 1` | `bounce` (loop) | `GetStartedHeroRiveView` |
-| `winged_scroll`     | 1024×1024 | `State Machine 1` | `bounce` (loop) | `WingedScrollRiveView` / `LVLogoMark` |
-| `hermie`            | 512×512   | `State Machine 1` | `idle` (loop)   | `HermieMascotView` |
+## What the app actually does today
 
-Every state machine auto-enters its looping timeline — no inputs required to
-play. Reduce Motion is handled on the Swift side (`viewModel.pause()` +
-render-loop suspension), so the animation stops for those users regardless of
-inputs.
+Four views ask for a Rive artboard, find nothing, and fall back:
 
-### Known limitation — Hermie multi-state
+| Artboard the view asks for | Consumer view | What renders |
+|---|---|---|
+| `splash_hero` | `SplashHeroRiveView` | static PNG |
+| `get_started_hero` | `GetStartedHeroRiveView` | static PNG |
+| `winged_scroll` | `WingedScrollRiveView` / `LVLogoMark` | static PNG + host-side breathing |
+| `hermie` | `HermieMascotView` | static PNG + host-side reactions |
 
-`HermieMascotView` drives a `state` number input (idle/thinking/happy/…) via
-`setInput`. The Rive **editor MCP cannot author classic state-machine inputs**
-(it only exposes data-binding view-model properties, which rive-ios `getBool`/
-`getNumber` do **not** read). So `hermie` currently ships **idle-only**: the
-`setInput("state", …)` calls are harmless no-ops and the idle loop always
-plays. To get true 7-state switching, either add classic `state` + `isPlaying`
-inputs in the Rive editor by hand, or migrate `HermieMascotView` to rive-ios
-data binding (`RiveModel.enableAutoBind`).
+**Hermie's seven reactions are host-side SwiftUI**, in
+`Components/HermieMotion.swift`: one pose function per state, driven by a
+single animated `cycle` scalar through an `Animatable` view modifier.
+`idle` breathes, `thinking` sways, `learning` pulses, `sad` slumps and dims,
+`sleeping` breathes deeply and leans, `happy` hops once, `celebrating` hops
+twice with a wiggle. Tempos come from the timeline table in
+`Hermie/README.md`.
 
-### What is waiting on this
+**Web does the same thing in CSS**, state for state and tempo for tempo. The
+two were built to read as one character, and the shared contract
+(`LuminaVaultShared/docs/guided-start.md`) is what keeps the *inputs* aligned.
 
-Until 2026-09 nothing drove Hermie's states, so idle-only cost nothing. The
-guided-start wizard (`LuminaVaultShared/docs/guided-start.md`) is the first
-feature that does: it sends `thinking` while a step is open, `happy` on each
-completion and `celebrating` at the end, on iOS and on web, and the host UI
-fakes all three today with scale and bounce.
+## This is the interim, and it is meant to hold
 
-So authoring the classic `state` input on the `hermie` artboard now has a
-visible payoff on two platforms at once, and needs no code change on either —
-both already send the states. That is the whole follow-up.
+Not a workaround waiting to be ripped out. Two reasons to leave it alone:
 
-## Export → bundle (manual)
+1. It is what ships the behaviour. Before it, seven distinct states rendered
+   one static image on both platforms — the app was claiming a reaction
+   vocabulary it did not have.
+2. It is the fallback either way. When an artboard lands, the host-side
+   motion does not get deleted; it becomes what plays when the file is
+   missing, when the artboard is renamed, or when an export goes wrong. The
+   app has never been allowed to break on a missing `.riv` and that does not
+   change.
 
-Rive desktop is sandboxed/cloud; there is no CLI/MCP export. To ship:
+## What adding Rive later actually costs
 
-1. In the Rive editor, **Export → Download → Runtime (.riv)** for the file
-   (exports all artboards into one `.riv`).
-2. Save it here as **`Resources/lumina_anims.riv`**.
-3. The `LuminaVaultClient` group is a file-system-synchronized root group
-   (Xcode 16+), so the file bundles automatically on the next build. No
-   pbxproj edit needed.
-4. Build & run. Each view auto-detects its artboard and drops the static-PNG
-   fallback. If the file (or a named artboard/state machine) is missing, the
-   view keeps its PNG fallback — the app never breaks.
+Less than it looks, because **the code already sends the state**.
 
-**Instant revert:** delete `Resources/lumina_anims.riv` → all four views fall
-back to their approved PNG assets.
+`HermieMascotView` drives a `state` number input from `HermieMascotState`
+(idle=0 … celebrating=6) and an `isPlaying` boolean for Reduce Motion. Web
+sends the same. Both have been sending them the whole time — into nothing.
+So the artboard arrives with **no code change on either platform**: drop the
+file in, the runtime finds the artboard, `viewModel` becomes non-nil, and the
+Rive canvas renders instead of the image. `HermieMotionModifier` keeps
+applying poses to whatever is inside it, so a loaded artboard wants its own
+`state` timelines to do the work and the host-side poses become dead weight
+under it — the one follow-up worth doing at that point is deciding whether to
+skip the host motion when a view model is present, which is one `if`.
+
+The full input contract the artboard has to honour is in `Hermie/README.md`.
+
+### The two blockers, unchanged
+
+1. **The Rive editor MCP cannot author classic state-machine inputs.** It
+   only exposes data-binding view-model properties, which rive-ios `getBool` /
+   `getNumber` do not read. So the `state` / `isPlaying` inputs have to be
+   added by hand in the editor, or `HermieMascotView` has to migrate to
+   rive-ios data binding (`RiveModel.enableAutoBind`).
+2. **Export has no command line.** Rive desktop is sandboxed/cloud; there is
+   no CLI and no MCP export. Shipping a file is a human going to
+   **Export → Download → Runtime (.riv)** and committing the result.
+
+Neither is a code problem, which is why neither has moved.
+
+## If a `.riv` ever does land
+
+1. Save it as `Resources/lumina_anims.riv` (all artboards in one file; the
+   runtime selects by name via
+   `RiveAssets.viewModel(named:artboardName:stateMachineName:)`).
+2. The `LuminaVaultClient` group is a file-system-synchronized root group
+   (Xcode 16+), so it bundles on the next build. No pbxproj edit.
+3. Each state machine must auto-enter its looping timeline. Reduce Motion
+   stays a Swift-side concern (`viewModel.pause()` plus render-loop
+   suspension), so it works regardless of inputs.
+4. **Re-record the snapshot baselines.** Twelve of them render Hermie. They
+   currently capture the fallback image; a Rive canvas will not match.
+
+**Instant revert:** delete the file → every view falls back to its approved
+PNG, exactly as it does now.

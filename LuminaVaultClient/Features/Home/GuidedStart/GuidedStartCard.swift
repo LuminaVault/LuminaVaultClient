@@ -80,9 +80,24 @@ struct GuidedStartCard: View {
     private var header: some View {
         HStack(alignment: .center, spacing: LVSpacing.md) {
             // Below `HermieMascotView`'s 64pt Rive threshold, so this is the
-            // static mascot image — one deterministic frame, which is what a
-            // snapshot needs and what a 56pt avatar can legibly show anyway.
-            HermieMascotView(state: hermieState, size: Self.mascotSize)
+            // fallback image — but above its 48pt *motion* threshold, so the
+            // reaction is the host-side one in `HermieMotion`: a breath at
+            // rest, a pendulum sway while a step is open, an absorb pulse on
+            // Sync & Learn, a hop on each completion, a double hop at the end.
+            // The 1.08 bump below rides on top of it.
+            //
+            // The snapshot suites still capture one deterministic frame:
+            // `\.lvAmbientMotionEnabled` is false there, which stills the
+            // mascot at exactly the pose this card's eight baselines hold.
+            //
+            // `hostTab` because Home stays mounted when you leave it —
+            // `onDisappear` never fires, and an ambient loop would keep
+            // running behind another tab.
+            HermieMascotView(
+                state: hermieState,
+                size: Self.mascotSize,
+                hostTab: MainTabView.AppTab.home.rawValue
+            )
                 .scaleEffect(mascotScale)
                 .lvAnimation(LVMotion.standardSpring, value: hermieState)
                 .accessibilityHidden(true)

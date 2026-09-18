@@ -1,13 +1,19 @@
 # Hermie Rive Asset
 
-> **SUPERSEDED (2026-07):** Hermie now ships as the `hermie` **artboard inside
-> the shared `Resources/lumina_anims.riv`** — see `Resources/README_RIVE.md`.
-> Do not drop a standalone `hermie.riv`. The `state`-input multi-state
-> behavior below is NOT wired yet (editor MCP can't author classic inputs);
-> `hermie` ships idle-only. The rest of this file is the original design
-> intent, kept for reference.
-
-Drop `hermie.riv` into this folder once exported from Rive.
+> **This folder is empty, and nothing here ships (2026-09).** There is no
+> `.riv` file anywhere in this repository. When one is made, Hermie goes in
+> as the `hermie` **artboard inside the shared `Resources/lumina_anims.riv`**
+> — not as a standalone `hermie.riv` — and `Resources/README_RIVE.md` is the
+> file that says where things actually stand.
+>
+> **The timeline table below is live design, not dead reference.** It is the
+> brief that `Components/HermieMotion.swift` implements in SwiftUI today, and
+> that web implements in CSS, state for state and tempo for tempo. An
+> artboard authored from it will match what users already see. Change this
+> table and you are changing three things.
+>
+> The `state`-input contract below is what the app already sends and nothing
+> yet reads; see README_RIVE for the two blockers.
 
 ## Required Rive contract
 
@@ -40,8 +46,27 @@ enabled — see `HermieMascotView.apply(state:)`.
 | `celebrating` | 0.9 s | clap: double hop (y −18 px ×2), ±6° wiggle, scale pulse, confetti burst layer |
 | `rest` | 1 frame | hold pose for `isPlaying == false` |
 
-If the `.riv` file is missing, the view falls back to the static
-`Mascot` image asset in `Assets.xcassets` — the app still ships.
+If the `.riv` file is missing — which, today, it always is — the view falls
+back to the static `Mascot` image asset in `Assets.xcassets` and animates it
+directly. The app still ships.
+
+### What the SwiftUI fallback does and does not do
+
+`Components/HermieMotion.swift` implements the table above with transforms,
+opacity and the palette glow the view already applies. Three deliberate
+simplifications, because they need extra layers rather than extra transforms:
+
+- `sleeping` has no rising "Z" glyphs. It distinguishes itself from `idle`
+  by tempo and direction instead — twice the amplitude at half the speed,
+  sinking and dimming where idle lifts and brightens.
+- `learning`'s glow-ring ripple is a glow ramp on the mascot's own shadows,
+  not a separate ring.
+- `celebrating` has no confetti layer of its own. The wizard already fires
+  `ConfettiOverlay` at the tab-view root, hosted where nothing can clip it.
+
+Amplitudes are ratios of the rendered size rather than the pixel figures
+above, so the same gesture reads at a 56pt avatar and a 220pt hero. Below
+48pt nothing moves at all; see `HermieMotion.sizeThreshold`.
 
 ## Xcode wiring
 

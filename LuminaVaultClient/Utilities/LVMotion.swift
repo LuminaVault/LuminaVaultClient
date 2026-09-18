@@ -40,6 +40,25 @@ enum LVMotion {
     /// motion that triggers vestibular discomfort.
     static let ambient = Animation.easeInOut(duration: 1.8)
 
+    // MARK: - Cycles
+
+    /// Walks a normalised cycle from 0 to 1 over `duration` seconds, for
+    /// motion whose *shape* is computed per frame from that cycle rather
+    /// than expressed as a start and an end pose — `HermieMotion` is the one
+    /// such thing today.
+    ///
+    /// **Linear on purpose, and this is the whole point of the token.** The
+    /// pose function already carries the easing (a hop is `sin(πc)`: fast off
+    /// the ground, slow at the apex, which is what gravity looks like). An
+    /// eased carrier would ease the easing — it would stall a loop at its
+    /// seam, visible as a stutter once per cycle, and hang a hop at its
+    /// landing. Add `.repeatForever(autoreverses: false)` for an ambient
+    /// loop, use it bare for a one-shot, and gate either on Reduce Motion
+    /// like any other entry under ``ambient``.
+    static func cycle(duration: Double) -> Animation {
+        .linear(duration: duration)
+    }
+
     // MARK: - Springs
 
     /// Fast with a touch of overshoot. Reserved for motion continuing a
