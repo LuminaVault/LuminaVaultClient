@@ -94,6 +94,13 @@ struct CaptureHomeView: View {
                             onDismiss: { Task { await guided.dismissCard() } }
                         )
                         .onAppear { guided.noteCardShown() }
+                        // The card draws its own surface on a cleared row,
+                        // while the glance strip below takes the List's. Two
+                        // adjacent rows means no gutter between them, so the
+                        // two white blocks fused into one shape with a seam
+                        // across it. This is the gap the grouped style would
+                        // have given them if they were separate sections.
+                        .padding(.bottom, LVSpacing.md)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
                     }
