@@ -15,13 +15,16 @@ public enum HermieMascotState: String, CaseIterable, Sendable {
     /// mascot reads as "absorbing" the new memo.
     case learning
     /// HER-179 — fires for ~3 seconds when an APNS digest is delivered
-    /// in-app. Maps to the existing `.happy` Rive trigger until a
-    /// dedicated celebrate animation ships in the .riv file.
+    /// in-app, and once at the end of the guided start.
     case celebrating
 
     /// Value driven into the `state` number input on "State Machine 1".
-    /// Must match the transition conditions authored in `hermie.riv`
-    /// (see `Resources/Hermie/README.md`).
+    /// Must match the transition conditions the eventual `hermie` artboard
+    /// authors (see `Resources/Hermie/README.md`). No `.riv` file exists yet,
+    /// so today every one of these is a no-op and the reaction the user
+    /// actually sees is the host-side one in `HermieMotion` — which is the
+    /// point of sending them anyway: the artboard lands without a code
+    /// change here. `Resources/README_RIVE.md` has the full state of play.
     var stateValue: Double {
         switch self {
         case .idle: 0
@@ -51,12 +54,19 @@ public struct HermieMascotView: View {
 
     @State private var viewModel: RiveViewModel?
 
+    /// The single animated scalar behind every host-side reaction. Every pose
+    /// is a pure function of it (`HermieMotion.pose(for:cycle:size:)`) and
+    /// `cycle == 0` is the resting pose for all seven states, so "stop
+    /// moving" is exactly "snap this back to 0".
+    @State private var cycle: Double = 0
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.lvActiveTab) private var activeTab
-    /// Snapshot suites set this false to hold one Rive frame. Without it the
-    /// state machine kept animating under test and `think-empty-dark`
-    /// captured a different frame on different CI runs.
+    /// Snapshot suites set this false to hold one frame — of the Rive state
+    /// machine when one is loaded, and of the host-side motion below when it
+    /// is not. Without it the state machine kept animating under test and
+    /// `think-empty-dark` captured a different frame on different CI runs.
     @Environment(\.lvAmbientMotionEnabled) private var ambientMotionEnabled
 
     private static let riveFileName = "lumina_anims"
@@ -64,9 +74,11 @@ public struct HermieMascotView: View {
     private static let stateMachineName = "State Machine 1"
     private static let stateInput = "state"
     private static let isPlayingInput = "isPlaying"
-    /// Below this point size the animation is unreadable and the Rive
-    /// canvas is not worth its runtime cost; the static PNG renders instead.
-    private static let animationSizeThreshold: CGFloat = 64
+    /// Below this point size a Rive canvas is not worth its runtime cost —
+    /// dozens of live instances in a chat list is real CPU — so the static
+    /// PNG renders instead. Higher than `HermieMotion.sizeThreshold` on
+    /// purpose: four affine transforms cost nothing, a render loop does.
+    private static let riveSizeThreshold: CGFloat = 64
 
     public init(
         state: HermieMascotState,
@@ -82,7 +94,7 @@ public struct HermieMascotView: View {
         self.hostTab = hostTab
     }
 
-    private var riveEligible: Bool { animated && size >= Self.animationSizeThreshold }
+    private var riveEligible: Bool { animated && size >= Self.riveSizeThreshold }
 
     private var shouldPlay: Bool {
         HermieMascotPlayback.shouldPlay(
@@ -97,6 +109,33 @@ public struct HermieMascotView: View {
     /// Motion the state machine itself may run, independent of visibility.
     private var motionAllowed: Bool { !reduceMotion && ambientMotionEnabled }
 
+    /// What the *fallback* image does for this state. `.still` whenever
+    /// Reduce Motion is on, `\.lvAmbientMotionEnabled` is off, the call site
+    /// opted out, or the mascot is too small for the motion to read — and
+    /// `.still` means `HermieMotionModifier` applies no transform at all.
+    ///
+    /// `animated` is folded in here as well as into `riveEligible`: a call
+    /// site that opted out of the Rive canvas is opting out of motion, not
+    /// merely out of Rive.
+    private var motionPlan: HermieMotionPlan {
+        guard animated else { return .still }
+        return HermieMotion.plan(
+            for: state,
+            size: size,
+            reduceMotion: reduceMotion,
+            ambientMotionEnabled: ambientMotionEnabled
+        )
+    }
+
+    /// Everything the host-side driver depends on. `.task(id:)` restarts on
+    /// any change and is torn down when the view goes away.
+    private var motionKey: MotionKey { MotionKey(plan: motionPlan, live: shouldPlay) }
+
+    private struct MotionKey: Equatable {
+        let plan: HermieMotionPlan
+        let live: Bool
+    }
+
     public var body: some View {
         Group {
             if let viewModel {
@@ -109,14 +148,21 @@ public struct HermieMascotView: View {
                     .frame(width: size, height: size)
             }
         }
-        .shadow(color: palette.primary.opacity(0.45), radius: 30)
-        .shadow(color: palette.accent.opacity(0.20), radius: 50)
+        // Owns the two palette shadows as well as the transforms, because
+        // `learning` and `sad` express themselves partly through the glow.
+        // In the `.still` branch it applies those shadows and nothing else,
+        // at exactly the opacities this view used before it could move.
+        .modifier(HermieMotionModifier(plan: motionPlan, size: size, cycle: cycle))
         .accessibilityLabel("Hermie mascot — \(state.rawValue)")
         .task { loadIfAvailable() }
+        .task(id: motionKey) { await driveHostMotion() }
         .onChange(of: state) { _, newValue in
             apply(state: newValue)
         }
         .onChange(of: reduceMotion) { _, _ in
+            apply(state: state)
+        }
+        .onChange(of: ambientMotionEnabled) { _, _ in
             apply(state: state)
         }
         .onChange(of: scenePhase) { _, _ in
@@ -126,7 +172,14 @@ public struct HermieMascotView: View {
             setLive(shouldPlay)
         }
         .onAppear { setLive(shouldPlay) }
-        .onDisappear { setLive(false) }
+        .onDisappear {
+            setLive(false)
+            // `.task(id:)` is cancelled here, but a `repeatForever` already
+            // handed to the render server is not — it has to be revoked by
+            // writing the value back. Same reason `\.lvAmbientMotionEnabled`
+            // exists at all.
+            stopHostMotion()
+        }
     }
 
     private func loadIfAvailable() {
@@ -138,6 +191,10 @@ public struct HermieMascotView: View {
         ) else { return }
         viewModel = vm
         apply(state: state)
+        // `onAppear` already ran, and it found no view model to pause — a
+        // mascot mounted on an inactive tab or in the background would
+        // otherwise start playing the moment the file loaded.
+        setLive(shouldPlay)
     }
 
     private func apply(state: HermieMascotState) {
@@ -155,6 +212,89 @@ public struct HermieMascotView: View {
             viewModel.play()
         } else {
             viewModel.pause()
+        }
+    }
+
+    // MARK: - Host-side motion
+
+    /// Runs the fallback image's reaction. The same discipline the Rive path
+    /// gets: nothing is scheduled unless the plan says to move *and* the view
+    /// is on screen, in the foreground, on the active tab.
+    private func driveHostMotion() async {
+        stopHostMotion()
+        guard shouldPlay, let duration = motionPlan.duration else { return }
+        // `stopHostMotion` lands in this update. The cycle has to start in a
+        // later one, or SwiftUI sees the stored value go 1 → 0 → 1 inside a
+        // single transaction, concludes nothing changed, and animates
+        // nothing. Cancellation (disappear, state change) falls out here.
+        guard (try? await Task.sleep(for: .milliseconds(16))) != nil else { return }
+        let carrier = LVMotion.cycle(duration: duration)
+        withAnimation(motionPlan.isLooping ? carrier.repeatForever(autoreverses: false) : carrier) {
+            cycle = 1
+        }
+    }
+
+    /// Revoke any running animation and hold the resting pose. Unanimated on
+    /// purpose: this is the frame every state agrees on.
+    ///
+    /// Not routed through `lvAnimation` / `LVMotion.reduced`: a
+    /// `repeatForever` has no cross-fade equivalent, so the Reduce Motion
+    /// degradation here is the one `View.lvRepeatingAnimation` documents —
+    /// settle at rest and stay there — and it is enforced a step earlier, by
+    /// `HermieMotion.plan` returning `.still`.
+    private func stopHostMotion() {
+        guard cycle != 0 else { return }
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { cycle = 0 }
+    }
+}
+
+// MARK: - Motion modifier
+
+/// Applies a `HermiePose` to the mascot, recomputing it per frame from the
+/// animated `cycle`.
+///
+/// `Animatable` is what makes the sinusoids in `HermieMotion` work at all:
+/// SwiftUI interpolates a modifier's `animatableData` and calls `body` for
+/// each intermediate value, so a pose that is a non-linear function of the
+/// cycle is honoured frame by frame. Animating the transforms directly would
+/// interpolate endpoint-to-endpoint instead, and a loop whose endpoints are
+/// both the resting pose would render as no motion at all.
+private struct HermieMotionModifier: ViewModifier, Animatable {
+    @Environment(\.lvPalette) private var palette
+
+    let plan: HermieMotionPlan
+    let size: CGFloat
+    var cycle: Double
+
+    var animatableData: Double {
+        get { cycle }
+        set { cycle = newValue }
+    }
+
+    private var pose: HermiePose { plan.pose(at: cycle, size: size) }
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if plan.isStill {
+            // The frozen frame, and byte-for-byte what this view rendered
+            // before it could move: the two shadows, no transform, no
+            // opacity change. The branch is keyed on `plan`, not on the
+            // per-frame pose, so it never flips mid-animation.
+            content
+                .shadow(color: palette.primary.opacity(0.45), radius: 30)
+                .shadow(color: palette.accent.opacity(0.20), radius: 50)
+        } else {
+            content
+                .shadow(color: palette.primary.opacity(0.45 * pose.glow), radius: 30)
+                .shadow(color: palette.accent.opacity(0.20 * pose.glow), radius: 50)
+                // Anchored at the feet: a mascot sways and squashes about the
+                // ground it stands on, not about its middle.
+                .scaleEffect(x: pose.scaleX, y: pose.scaleY, anchor: .bottom)
+                .rotationEffect(.degrees(pose.rotationDegrees), anchor: .bottom)
+                .offset(y: pose.offsetY(for: size))
+                .opacity(pose.opacity)
         }
     }
 }
