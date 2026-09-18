@@ -48,6 +48,10 @@ struct ChatView: View {
         appState.pendingPaywallID = PaywallPresentation(id: "default")
     }
 
+    /// "Get started with Hermie". Optional — chat is opened from plenty of
+    /// places that do not stand up the shell.
+    @Environment(GuidedStartCoordinator.self) private var guided: GuidedStartCoordinator?
+
     @FocusState private var composerFocused: Bool
     /// Presents the vault-note `@`-reference picker.
     @State private var showNotePicker = false
@@ -185,6 +189,14 @@ struct ChatView: View {
             // Remember where the user parked so reopening the thread lands
             // there. Nothing renders from this, so it costs no invalidation.
             viewModel.lastReadMessageID = id as? UUID
+        }
+        // A nudge, not a completion: the server latches `firstQueryCompleted`
+        // when it finishes the reply, and polling is what reads it. The
+        // falling edge of `isStreaming` is the local moment that says "the
+        // reply just landed", so poll now rather than after the next tick.
+        .onChange(of: viewModel.isStreaming) { wasStreaming, isStreaming in
+            guard wasStreaming, !isStreaming else { return }
+            guided?.noteUserAction(.ask)
         }
         .sheet(item: $comparisonPresentation) { _ in
             ParallelComparisonView(viewModel: viewModel)
@@ -489,6 +501,9 @@ struct ChatView: View {
                 onRunWorkflow: { showWorkflowPicker = true },
                 onRunAsAgent: { draft in agentRunDraft = AgentRunDraft(prompt: draft) }
             )
+            // Step 3's spotlight. The composer itself, not the whole bottom
+            // bar — the status strip above it is not what is being taught.
+            .guidedTarget(.chat, in: .chat)
             .sheet(isPresented: $showNotePicker) {
                 if let vaultClient {
                     NavigationStack {

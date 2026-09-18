@@ -39,6 +39,9 @@ struct ThinkWithLuminaView: View {
     /// Device-local haptics toggle (mirrors `ChatPreferencesPaneView`). Haptics
     /// are intentionally not server-synced.
     @AppStorage("lv.chat.hapticsEnabled") private var hapticsEnabled = true
+    /// "Get started with Hermie". Optional so the AI tab still stands up in
+    /// previews and tests with no shell around it.
+    @Environment(GuidedStartCoordinator.self) private var guided: GuidedStartCoordinator?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -72,7 +75,30 @@ struct ThinkWithLuminaView: View {
         .onAppear {
             openPendingConversation(appState.pendingChatConversationID)
             applyPendingPrefill(appState.pendingChatPrefill)
+            // The tab may have been unvisited when the step opened, in which
+            // case this is the first chance to act on it.
+            showRootChatForGuidedStep()
         }
+        // Step 3 spotlights the chat composer, and the composer only exists
+        // on the chat screen — the inbox at the root of this stack has none.
+        // So when the wizard asks for this tab, reset the stack to the root
+        // chat, which is what publishes the `.chat` anchor.
+        .onChange(of: guided?.activeStep) { _, _ in
+            showRootChatForGuidedStep()
+        }
+    }
+
+    private func showRootChatForGuidedStep() {
+        guard guided?.activeStep == .ask else { return }
+        showRootChat()
+    }
+
+    /// Puts the chat composer on screen. An already-open thread is left
+    /// alone — it has a composer of its own, and yanking the user out of a
+    /// conversation to teach them how to have one would be absurd.
+    private func showRootChat() {
+        guard path.isEmpty else { return }
+        newConversation()
     }
 
     /// Loads the server-backed chat preferences and pushes them (plus the
