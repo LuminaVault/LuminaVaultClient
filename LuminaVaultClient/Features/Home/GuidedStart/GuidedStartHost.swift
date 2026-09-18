@@ -28,10 +28,10 @@
 // then makes it stale, and a stale zero opens step 2 on a spotlight that
 // cannot end in anything but the five-minute timeout.
 //
-// (The contract doc calls this endpoint `/v1/memory-compile/pending`; the
-// client's `KBCompileEndpoints.Pending` calls `/v1/kb-compile/pending`.
-// Same probe, two names — the endpoint is the server's to rename, not
-// something to work around here.)
+// That is `GET /v1/memory-compile/pending`, the name the contract uses and
+// the one `KBCompileEndpoints.Pending` now calls. The type is still spelled
+// `KBCompile*` after HER-240 renamed the endpoints; that is a rename waiting
+// to happen, not a second probe.
 
 import LuminaVaultShared
 import SwiftUI

@@ -972,11 +972,15 @@ final class ChatViewModel {
                     // Not surfaced in chat UI yet; the link will show up
                     // in the vault on next refresh.
                     continue
-                case .unrecognized:
+                case let .unrecognized(rawType):
                     // An event type the server ships ahead of this build.
                     // Skipping the frame is the whole point of the case —
                     // treating it as an error would kill the turn over one
-                    // line the client happens not to know yet.
+                    // line the client happens not to know yet. The tag is
+                    // logged rather than dropped, so "the server started
+                    // sending something we ignore" leaves a trace instead of
+                    // being invisible until someone reads this switch.
+                    log.debug("ignoring unrecognized stream event: \(rawType, privacy: .public)")
                     continue
                 case .done:
                     // Let the reveal finish typing the tail, then freeze the

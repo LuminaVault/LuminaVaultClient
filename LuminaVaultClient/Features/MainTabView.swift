@@ -87,21 +87,23 @@ struct MainTabView: View {
             }
             .environment(\.lvActiveTab, selection.rawValue)
             .modifier(TabBarMinimizeOnScrollDown())
-            // Attached to the `TabView` and nowhere lower: anchors from the
-            // other tabs would never reach an overlay inside a tab, and the
-            // dim would stop short of the nav and tab bars. `activeTab` is
-            // passed so a background tab's lingering, stale anchors are
-            // dropped instead of being spotlighted.
-            .guidedSpotlight(
-                step: guided?.activeStep,
-                activeTab: guidedTab(for: selection),
-                hermieState: guided?.hermieState ?? .thinking,
-                onSkip: { guided?.skip() }
-            )
-            // The last latch flipping is the whole point of the wizard, so
-            // the celebration is hosted where nothing can clip it.
-            .overlay(ConfettiOverlay(trigger: guided?.confettiTrigger ?? 0))
         }
+        // Outside the `VStack`, not on the `TabView` inside it: anchors still
+        // travel up from every tab, and the dim now also covers
+        // `SyncStatusBanner()`, which otherwise sat undimmed and tappable
+        // above a spotlight that was supposedly the only thing on screen.
+        // Lower than this and the other tabs' anchors never arrive at all.
+        // `activeTab` is passed so a background tab's lingering, stale
+        // anchors are dropped instead of being spotlighted.
+        .guidedSpotlight(
+            step: guided?.activeStep,
+            activeTab: guidedTab(for: selection),
+            hermieState: guided?.hermieState ?? .thinking,
+            onSkip: { guided?.skip() }
+        )
+        // The last latch flipping is the whole point of the wizard, so the
+        // celebration is hosted where nothing can clip it.
+        .overlay(ConfettiOverlay(trigger: guided?.confettiTrigger ?? 0))
         .environment(guided)
         .environment(\.lvReopenGuidedStart, guided.map { coordinator in
             {
