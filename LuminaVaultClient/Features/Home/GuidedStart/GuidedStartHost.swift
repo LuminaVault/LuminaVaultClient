@@ -78,12 +78,37 @@ extension GuidedStartCoordinator {
     /// The contract's reaction vocabulary: `idle` on the resting card,
     /// `thinking` while a step is open, `happy` on a step completing,
     /// `celebrating` on the last one.
+    ///
+    /// **One deliberate deviation, matched on web.** Step 2 is `learning`,
+    /// not `thinking`. "Sync & Learn" is literally handing Hermie something
+    /// to read, and `learning` is already defined as the absorb pulse for a
+    /// compile or embedding job (`Resources/Hermie/README.md`) — which is
+    /// exactly what the step kicks off. Web landed this first; the shared
+    /// contract is being amended to match rather than the two platforms
+    /// quietly disagreeing. Steps 1 and 3 stay `thinking`.
+    ///
+    /// `sleeping` and `sad` are unreachable from here on purpose. A
+    /// first-time user who has not started yet should be invited, not shown
+    /// a mascot asleep, and there is no wizard input that means "failed".
+    /// `GuidedStartHermieStateTests` asserts no phase can produce either, so
+    /// nobody wires one up silently. Web does the same.
     var hermieState: HermieMascotState {
+        Self.hermieState(for: phase, isAllDone: progress.isAllDone)
+    }
+
+    /// The mapping itself, as a pure function over the only two inputs it
+    /// has. `phase` is `private(set)`, so this is what lets the wizard's
+    /// whole reaction vocabulary be enumerated in a test — including the
+    /// negative half, that nothing here can reach `sleeping` or `sad`.
+    static func hermieState(
+        for phase: Phase,
+        isAllDone: Bool
+    ) -> HermieMascotState {
         switch phase {
-        case .idle:        .idle
-        case .active:      .thinking
-        case .celebrating: progress.isAllDone ? .celebrating : .happy
-        case .finished:    .celebrating
+        case .idle:                  .idle
+        case .active(let step, _):   step == .syncLearn ? .learning : .thinking
+        case .celebrating:           isAllDone ? .celebrating : .happy
+        case .finished:              .celebrating
         }
     }
 }

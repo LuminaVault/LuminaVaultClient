@@ -178,6 +178,14 @@ struct GuidedSpotlightOverlay: View {
 
         return VStack(alignment: .leading, spacing: LVSpacing.md) {
             HStack(alignment: .top, spacing: LVSpacing.md) {
+                // This mascot used to be completely inert — the one place in
+                // the app where Hermie is most obviously supposed to be doing
+                // something was the one place he was frozen, because 56pt is
+                // under the Rive canvas's 64pt bar and there is no `.riv`
+                // file anyway. It is over `HermieMotion`'s 48pt motion
+                // threshold, so it sways while the step is open and pulses on
+                // Sync & Learn. No `hostTab`: the bubble only exists while a
+                // step is active, and it unmounts with the overlay.
                 HermieMascotView(state: hermieState, size: Self.mascotSize)
                     .scaleEffect(mascotScale)
                     .lvAnimation(LVMotion.standardSpring, value: hermieState)
