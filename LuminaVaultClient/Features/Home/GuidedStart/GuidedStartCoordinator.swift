@@ -115,6 +115,12 @@ final class GuidedStartCoordinator {
     /// Settings › "Show me around" on an already-finished wizard shows the
     /// completed card for this session only, and persists nothing.
     @ObservationIgnored private var sessionShowsCompletedCard = false
+    /// Set by `showMeAround()` and spent by the next `start()`. The contract
+    /// splits the funnel by how the user arrived, and arriving through
+    /// Settings is a tap on the card one moment later — not something the
+    /// card itself can know, and not worth a parameter every call site would
+    /// have to thread.
+    @ObservationIgnored private var pendingSource: GuidedStartSource?
     @ObservationIgnored private var didFireCardShown = false
     /// Steps the user visibly did on this device. Their absence is what
     /// makes a completion `completed_elsewhere`.
@@ -242,7 +248,13 @@ final class GuidedStartCoordinator {
 
         phase = .active(target, startedAt: startedAt)
         requestedTab = tab(for: target)
-        telemetry.stepStarted(target, source: source)
+        // A remembered surfacing wins over the argument, because the argument
+        // is the `.auto` default at every call site that exists — the card
+        // cannot know the user came from Settings a moment ago. Spent here
+        // rather than at the guard above, so a step refused for having
+        // nothing pending does not burn the attribution.
+        telemetry.stepStarted(target, source: pendingSource ?? source)
+        pendingSource = nil
 
         startPolling(target, startedAt: startedAt, run: run, delayIndex: 0, pollImmediately: false)
     }
@@ -299,12 +311,19 @@ final class GuidedStartCoordinator {
     func showMeAround() async {
         dismissOverride = false
         inlineMessage = nil
+        pendingSource = .settings
         if progress.isAllDone { sessionShowsCompletedCard = true }
         telemetry.reopened()
         do {
             try await setDismissedSeam(false)
         } catch {
-            dismissOverride = nil
+            // Deliberately *not* symmetric with `dismissCard()`'s revert.
+            // Reverting here means the card the user just asked for never
+            // appears, on a Home they have already been returned to with the
+            // Settings sheet closed behind them — the failure the user sees
+            // is nothing happening at all. So the optimistic un-dismiss
+            // stands for this session and the card says it did not stick.
+            inlineMessage = GuidedStartCopy.reopenFailed
         }
     }
 

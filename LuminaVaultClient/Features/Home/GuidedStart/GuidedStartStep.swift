@@ -128,6 +128,11 @@ enum GuidedStartCopy {
     /// Shown when the dismiss PATCH fails and the card un-hides.
     static let dismissFailed = "Couldn't hide that just now — try again in a moment."
 
+    /// Shown when Settings › "Show me around" could not clear the dismissal.
+    /// The card is here anyway for this session; what failed is remembering
+    /// that, so the line promises only what is true.
+    static let reopenFailed = "Here for now — I couldn't save that, so I may hide again next time."
+
     static func progress(completed: Int) -> String {
         "\(completed) of \(GuidedStartStep.allCases.count)"
     }

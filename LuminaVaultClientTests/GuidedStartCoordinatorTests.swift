@@ -571,6 +571,68 @@ final class GuidedStartCoordinatorTests: XCTestCase {
         XCTAssertEqual(posthog.propertiesOf("guided_start_reopened"), [:])
     }
 
+    /// The contract splits `step_started` by how the user arrived, and the
+    /// `settings` arm only ever exists if reopening is remembered: no call
+    /// site passes it, because the card cannot know where the user came
+    /// from a moment earlier.
+    func testStepStartedAfterShowMeAroundIsAttributedToSettings() async {
+        let world = World(snapshot: makeState())
+        world.dismissed = true
+        let (coordinator, _, _, posthog) = makeCoordinator(
+            responses: [makeState()],
+            world: world
+        )
+
+        await coordinator.showMeAround()
+        await coordinator.start(.saveMemory)
+
+        XCTAssertEqual(posthog.propertiesOf("guided_start_step_started")?["source"], .string("settings"))
+    }
+
+    /// Spent once. A second step in the same session is an ordinary card
+    /// tap again, not another arrival from Settings.
+    func testSettingsAttributionIsSpentOnTheFirstStep() async {
+        let world = World(snapshot: makeState())
+        world.dismissed = true
+        let (coordinator, _, _, posthog) = makeCoordinator(
+            responses: [makeState()],
+            world: world
+        )
+
+        await coordinator.showMeAround()
+        await coordinator.start(.saveMemory)
+        coordinator.skip()
+        await coordinator.start(.saveMemory)
+
+        // `propertiesOf` answers with the *first* matching call, so the
+        // second start is read off the call list directly.
+        let sources = posthog.calls
+            .filter { $0.event == "guided_start_step_started" }
+            .map { $0.properties["source"] }
+        XCTAssertEqual(sources, [.string("settings"), .string("auto")])
+    }
+
+    /// The failure mode this guards: the sheet has closed, the user is back
+    /// on Home, and reverting the optimistic un-dismiss would mean the card
+    /// they just asked for never appears and nothing explains why.
+    func testShowMeAroundFailureKeepsTheCardAndSaysSo() async {
+        let world = World(snapshot: makeState())
+        world.dismissed = true
+        world.setDismissedError = BoomError()
+        let (coordinator, _, _, _) = makeCoordinator(
+            responses: [makeState()],
+            world: world
+        )
+
+        await coordinator.showMeAround()
+
+        XCTAssertTrue(coordinator.isCardVisible)
+        XCTAssertEqual(coordinator.inlineMessage, GuidedStartCopy.reopenFailed)
+        // Nothing was persisted, so a fresh coordinator next launch still
+        // reads the dismissal — which is exactly what the line admits.
+        XCTAssertTrue(world.dismissed)
+    }
+
     /// "If everything is already done, show the completed card for that
     /// session only — do not persist a way to re-enter a finished wizard."
     func testShowMeAroundOnAFinishedWizardIsSessionOnly() async {
