@@ -236,6 +236,15 @@ struct SettingsRootView: View {
                                 )
                             }
                             LVSettingsDivider()
+                            // Read-only views of the agent's checkout. Sits
+                            // beside the other Hermes surfaces because that is
+                            // where someone goes to look at their own agent.
+                            LVSettingsRow("Code", icon: .folder) {
+                                WorkspaceView(
+                                    client: HermesWorkspaceHTTPClient(client: appState.makeHTTPClient())
+                                )
+                            }
+                            LVSettingsDivider()
                             // Phase 2 — full control of the cron jobs on the
                             // user's own Hermes, plus the runs LuminaVault has
                             // collected from them.
