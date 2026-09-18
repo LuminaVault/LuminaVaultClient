@@ -24,6 +24,23 @@ These rules apply to every agent (Claude, Codex, etc.) working in this repo. The
 - When adding a new DTO that crosses the wire: add it to `LuminaVaultShared` first, then consume from `LuminaVaultClient`.
 - If you find duplicate DTOs, treat it as a bug: consolidate into `LuminaVaultShared` and delete the duplicate.
 
+## 4. Guided onboarding — read the contract, and never set a latch
+
+- The cross-platform contract is `LuminaVaultShared/docs/guided-start.md` (the
+  sibling repo). Web and a future Android client read the same document, so
+  step ids, copy, targets and the visibility rule are not this repo's to
+  change alone.
+- `firstCaptureCompleted`, `firstKBCompileCompleted` and `firstQueryCompleted`
+  are latched by the server. The client polls them and never writes them. A
+  local "saved" is not a server "saved" — capture is offline-queued, so the
+  latch is the only trustworthy completion signal.
+- Spotlight targets are places in the UI, steps are tasks. They are one-to-one
+  only by coincidence today.
+- The spotlight is built on anchor preferences only. `.coordinateSpace(.named:)`
+  does not cross the tab or sheet hosting boundary and `frame(in: .named(…))`
+  silently returns window coordinates there — about ninety points of error with
+  no warning. Anchors from a sheet never reach the tab-level overlay at all.
+
 ## How To Apply
 
 - Before opening a PR that touches API calls: confirm the DTO comes from `LuminaVaultShared` and the endpoint exists in server `openapi.yaml`.

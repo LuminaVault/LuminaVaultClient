@@ -392,9 +392,11 @@ final class AppState {
         DailyReviewHTTPClient(client: makeHTTPClient())
     }
 
-    /// HER-293 / HER-108 — kb-compile HTTP client (POST `/v1/kb-compile`
-    /// and `GET /v1/kb-compile/pending`). Used by `SyncAndLearnViewModel`
-    /// to drive the disable-on-zero state.
+    /// HER-293 / HER-108 — memory-compile HTTP client (POST
+    /// `/v1/memory-compile` and `GET /v1/memory-compile/pending`; HER-240
+    /// renamed both from `/v1/kb-compile`). Used by `SyncAndLearnViewModel`
+    /// to drive the disable-on-zero state, and by the guided-start card to
+    /// decide whether its Sync & Learn step can complete at all.
     func makeKBCompileClient() -> any KBCompileClientProtocol {
         KBCompileHTTPClient(client: makeHTTPClient())
     }
@@ -578,7 +580,12 @@ final class AppState {
             firstQueryCompleted: current.firstQueryCompleted,
             firstQueryCompletedAt: current.firstQueryCompletedAt,
             brainConfiguredCompleted: true,
-            brainConfiguredCompletedAt: current.brainConfiguredCompletedAt ?? Date()
+            brainConfiguredCompletedAt: current.brainConfiguredCompletedAt ?? Date(),
+            // Carried, not defaulted. This rebuilds the row field by field,
+            // so anything left out is silently cleared — and clearing the
+            // dismissal un-hides the guided-start card until the next GET
+            // puts it back.
+            guidedStartDismissedAt: current.guidedStartDismissedAt
         )
     }
 

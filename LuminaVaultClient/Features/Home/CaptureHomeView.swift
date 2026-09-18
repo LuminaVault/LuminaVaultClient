@@ -12,6 +12,10 @@ import LuminaVaultShared
 
 struct CaptureHomeView: View {
     @Environment(AppState.self) private var appState
+    /// "Get started with Hermie". Created by `MainTabView`; optional so a
+    /// preview or a snapshot suite that does not stand up the shell simply
+    /// renders Home without the card.
+    @Environment(GuidedStartCoordinator.self) private var guided: GuidedStartCoordinator?
 
     @State private var vm: CaptureHomeViewModel
     @State private var glance: HomeGlanceViewModel?
@@ -69,12 +73,42 @@ struct CaptureHomeView: View {
                     onPhotos: { present(.photo) },
                     onFiles: { present(.files) }
                 )
+                // Step 1's spotlight. The mark goes on the composer itself,
+                // not the row, so the hole is the control being taught.
+                .guidedTarget(.composer, in: .home)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             }
 
             if showsTodaySection {
                 Section("Today") {
+                    // The get-started card owns the top of Home until it is
+                    // finished. It brings its own card surface, so it rides a
+                    // clear row like the composer does.
+                    if isGuidedCardVisible, let guided {
+                        GuidedStartCard(
+                            progress: guided.progress,
+                            hermieState: guided.hermieState,
+                            message: guided.inlineMessage,
+                            onSelect: { step in Task { await guided.start(step) } },
+                            onDismiss: { Task { await guided.dismissCard() } }
+                        )
+                        .onAppear { guided.noteCardShown() }
+                        // The card draws its own surface on a cleared row,
+                        // while the glance strip below takes the List's. Two
+                        // adjacent rows means no gutter between them, so the
+                        // two white blocks fused into one shape with a seam
+                        // across it. This is the gap the grouped style would
+                        // have given them if they were separate sections.
+                        .padding(.bottom, LVSpacing.md)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                        // The grouped style still draws its separator between
+                        // this row and the strip below, and with the row's
+                        // background cleared that hairline ends up stranded
+                        // across the top of the strip's own card.
+                        .listRowSeparator(.hidden)
+                    }
                     // `glance` is nil until `.task` builds it, which is after
                     // the first paint. Drawing the strip's own loading state
                     // holds the row's height from frame one instead of
@@ -95,8 +129,11 @@ struct CaptureHomeView: View {
                         )
                     }
                     // The breaking-news strip of the first-party news-ticker
-                    // plugin. Hides itself when the plugin is not installed.
-                    if let ticker {
+                    // plugin. Hides itself when the plugin is not installed —
+                    // and stays hidden while the get-started card is up, so a
+                    // first-time user sees exactly one thing to do. It comes
+                    // back once the card is completed or dismissed.
+                    if let ticker, !isGuidedCardVisible {
                         HomeNewsTickerStrip(viewModel: ticker)
                     }
                     recommendationRows
@@ -142,6 +179,27 @@ struct CaptureHomeView: View {
         }
         .task { await vm.loadFeed() }
         .task { await vm.loadSpacesIfNeeded() }
+        // The glance is loaded once on appear and on pull-to-refresh, so by
+        // the time step 2 opens its counts are older than the capture that
+        // got the user here. Re-reading it then is what makes the row say
+        // "1 capture to learn" instead of nothing. The row itself no longer
+        // depends on this landing — see `showsGuidedSyncRow` — but the
+        // number does. Step 2 is the only step whose target shows a count,
+        // so the other two do not pay for a refetch.
+        .task(id: guided?.activeStep) {
+            guard guided?.activeStep == .syncLearn else { return }
+            await glance?.load()
+        }
+        // A nudge, not a completion: the server owns the latch. A capture
+        // leaving the pending list means the drainer got it uploaded, which
+        // is the earliest moment `firstCaptureCompleted` can possibly be
+        // true — so poll now instead of waiting out the backoff. Lives here,
+        // as a view-level `onChange`, so `CaptureHomeViewModel` stays unaware
+        // that a wizard exists.
+        .onChange(of: vm.visiblePending.count) { previous, current in
+            guard previous > 0, current == 0 else { return }
+            guided?.noteUserAction(.saveMemory)
+        }
         .captureSheet(isPresented: $sheetPresented, initialMode: sheetMode)
         .sheet(isPresented: $showingSyncAndLearn) {
             NavigationStack {
@@ -166,38 +224,86 @@ struct CaptureHomeView: View {
 
     private var failedCaptureCount: Int { captureFailures?.count ?? 0 }
 
+    /// The one predicate the contract asks for: the card's own visibility
+    /// rule, read once and used both to place the card and to hold the
+    /// breaking-news strip back.
+    private var isGuidedCardVisible: Bool { guided?.isCardVisible ?? false }
+
     /// Nil is loading, not empty: the section stays for the redacted strip
     /// and only disappears once the calls have come back with nothing.
+    ///
+    /// The card is reason enough on its own — a brand-new account is exactly
+    /// where the glance calls are most likely to come back empty or failed,
+    /// and that is precisely when the card must be on screen.
     private var showsTodaySection: Bool {
+        if isGuidedCardVisible { return true }
         guard let glance else { return true }
         return !glance.allFailed || glance.recommendation != nil || failedCaptureCount > 0
     }
 
+    /// True when step 2 is open and the glance heuristic is not already
+    /// rendering the row its spotlight points at.
+    ///
+    /// The heuristic is stale by construction here: `glance.load()` runs on
+    /// first appear and on pull-to-refresh, never after a capture — so on the
+    /// canonical path (save a memory, step 2 opens) it still holds the
+    /// pre-save zero while the wizard's own live probe correctly says there
+    /// is something to compile. Leaving the anchor to it means step 2 opens
+    /// on a row that is not there.
+    ///
+    /// "Is there anything to compile?" and "is this worth recommending right
+    /// now?" are different questions. The step asks the first one directly.
+    private var showsGuidedSyncRow: Bool {
+        guard guided?.activeStep == .syncLearn else { return false }
+        if case .syncAndLearn = glance?.recommendation { return false }
+        return true
+    }
+
+    /// The row step 2 teaches. `count` is nil when the glance has not caught
+    /// up — the row still works, it just does not claim a number it does not
+    /// have.
+    private func syncAndLearnRow(count: Int?) -> some View {
+        HomeRecommendationRow(
+            title: "Sync & Learn",
+            subtitle: count.map { "^[\($0) capture](inflect: true) to learn" },
+            systemImage: "sparkles"
+        ) {
+            showingSyncAndLearn = true
+        }
+        // Step 2's spotlight.
+        .guidedTarget(.sync, in: .home)
+    }
+
     @ViewBuilder
     private var recommendationRows: some View {
-        switch glance?.recommendation {
-        case .syncAndLearn(let count):
-            HomeRecommendationRow(
-                title: "Sync & Learn",
-                subtitle: "^[\(count) capture](inflect: true) to learn",
-                systemImage: "sparkles"
-            ) {
-                showingSyncAndLearn = true
+        // The guided row stands in for the heuristic's suggestion rather
+        // than sitting beside it. Rendering both puts two competing next
+        // actions on screen and spotlights one of them, which is the
+        // opposite of what a step that says "tap Sync & Learn" is for.
+        // (When the heuristic already recommends Sync & Learn,
+        // `showsGuidedSyncRow` is false and the case below carries the
+        // target instead, so the row is never published twice.)
+        if showsGuidedSyncRow {
+            syncAndLearnRow(count: nil)
+        } else {
+            switch glance?.recommendation {
+            case .syncAndLearn(let count):
+                syncAndLearnRow(count: count)
+            case .dailyReview(let count):
+                NavigationLink {
+                    DailyReviewView(
+                        vm: DailyReviewViewModel(client: appState.makeDailyReviewClient())
+                    )
+                } label: {
+                    HomeRecommendationLabel(
+                        title: "Daily review",
+                        subtitle: "^[\(count) memory](inflect: true) to revisit",
+                        systemImage: "sun.max"
+                    )
+                }
+            case .none:
+                EmptyView()
             }
-        case .dailyReview(let count):
-            NavigationLink {
-                DailyReviewView(
-                    vm: DailyReviewViewModel(client: appState.makeDailyReviewClient())
-                )
-            } label: {
-                HomeRecommendationLabel(
-                    title: "Daily review",
-                    subtitle: "^[\(count) memory](inflect: true) to revisit",
-                    systemImage: "sun.max"
-                )
-            }
-        case .none:
-            EmptyView()
         }
 
         if failedCaptureCount > 0 {
