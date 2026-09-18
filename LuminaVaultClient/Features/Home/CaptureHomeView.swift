@@ -103,6 +103,11 @@ struct CaptureHomeView: View {
                         .padding(.bottom, LVSpacing.md)
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
+                        // The grouped style still draws its separator between
+                        // this row and the strip below, and with the row's
+                        // background cleared that hairline ends up stranded
+                        // across the top of the strip's own card.
+                        .listRowSeparator(.hidden)
                     }
                     // `glance` is nil until `.task` builds it, which is after
                     // the first paint. Drawing the strip's own loading state
