@@ -30,6 +30,18 @@ plays. To get true 7-state switching, either add classic `state` + `isPlaying`
 inputs in the Rive editor by hand, or migrate `HermieMascotView` to rive-ios
 data binding (`RiveModel.enableAutoBind`).
 
+### What is waiting on this
+
+Until 2026-09 nothing drove Hermie's states, so idle-only cost nothing. The
+guided-start wizard (`LuminaVaultShared/docs/guided-start.md`) is the first
+feature that does: it sends `thinking` while a step is open, `happy` on each
+completion and `celebrating` at the end, on iOS and on web, and the host UI
+fakes all three today with scale and bounce.
+
+So authoring the classic `state` input on the `hermie` artboard now has a
+visible payoff on two platforms at once, and needs no code change on either —
+both already send the states. That is the whole follow-up.
+
 ## Export → bundle (manual)
 
 Rive desktop is sandboxed/cloud; there is no CLI/MCP export. To ship:
