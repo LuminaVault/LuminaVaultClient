@@ -93,7 +93,8 @@ final class CaptureHomeViewSnapshotTests: XCTestCase {
 
     private func makeView(
         vm: CaptureHomeViewModel,
-        glance: HomeGlanceViewModel
+        glance: HomeGlanceViewModel,
+        guided: GuidedStartCoordinator? = nil
     ) -> some View {
         NavigationStack {
             CaptureHomeView(
@@ -104,6 +105,31 @@ final class CaptureHomeViewSnapshotTests: XCTestCase {
                 onOpenSettings: {}
             )
         }
+        // Home reads the coordinator out of the environment, so `nil` is what
+        // the three cases above render: Home exactly as it was before the
+        // wizard existed. Their baselines are therefore unchanged — the
+        // composer's new anchor is a preference and moves no pixels.
+        .environment(guided)
+    }
+
+    /// A coordinator with the latches a fresh account has and no network
+    /// underneath it. Nothing here polls: the card's render only reads
+    /// `progress`, `hermieState` and `inlineMessage`.
+    private func makeGuided(
+        state: OnboardingStateDTO,
+        dismissed: Bool = false
+    ) -> GuidedStartCoordinator {
+        GuidedStartCoordinator(
+            client: GuidedStartCoordinatorTests.ScriptedOnboardingClient([state]),
+            telemetry: GuidedStartTelemetry(
+                client: ConversionFunnelTelemetryTests.FakePostHogClient()
+            ),
+            snapshot: { state },
+            applySnapshot: { _ in },
+            pendingCaptureCount: { 0 },
+            isDismissed: { dismissed },
+            setDismissed: { _ in }
+        )
     }
 
     private func snap(_ view: some View, _ name: String, dark: Bool) {
@@ -165,6 +191,66 @@ final class CaptureHomeViewSnapshotTests: XCTestCase {
         let glance = await makeGlance(memoriesToday: 2, streakDays: 11, toRevisit: 4, pendingFiles: 6)
         snap(makeView(vm: vm, glance: glance), "home-recommendation-light", dark: false)
         snap(makeView(vm: vm, glance: glance), "home-recommendation-dark", dark: true)
+    }
+
+    // MARK: - Guided start
+
+    /// The first thing a new account sees: an empty vault, and the
+    /// get-started card at the top of Today. This is the render that says
+    /// the wizard is actually mounted rather than merely compiled — the app
+    /// cannot sign in on this simulator, so a device-size snapshot is the
+    /// evidence, not a walkthrough.
+    ///
+    /// No baseline yet, so it is quarantined. The PNGs come from the
+    /// `record-snapshots` workflow, same as every other baseline here.
+    func testGuidedStartCardOnAFreshAccount() async throws {
+        try SnapshotQuarantine.skipUnlessRecording()
+        let vm = await makeViewModel(files: [])
+        let glance = await makeGlance(memoriesToday: 0, streakDays: 0, toRevisit: 0, pendingFiles: 0)
+        let guided = makeGuided(state: makeStepState())
+        snap(
+            makeView(vm: vm, glance: glance, guided: guided),
+            "home-guided-start-light",
+            dark: false
+        )
+        snap(
+            makeView(vm: vm, glance: glance, guided: guided),
+            "home-guided-start-dark",
+            dark: true
+        )
+    }
+
+    /// Two steps in, with a Sync & Learn recommendation underneath — the
+    /// card and the rest of Today sharing the section, which is the layout
+    /// most likely to go wrong.
+    func testGuidedStartCardAboveARecommendation() async throws {
+        try SnapshotQuarantine.skipUnlessRecording()
+        let vm = await makeViewModel(files: [
+            file(path: "notes/dentist.md", createdAt: 1_757_761_429)
+        ])
+        let glance = await makeGlance(memoriesToday: 2, streakDays: 1, toRevisit: 0, pendingFiles: 6)
+        let guided = makeGuided(state: makeStepState(capture: true))
+        snap(
+            makeView(vm: vm, glance: glance, guided: guided),
+            "home-guided-start-recommendation-light",
+            dark: false
+        )
+        snap(
+            makeView(vm: vm, glance: glance, guided: guided),
+            "home-guided-start-recommendation-dark",
+            dark: true
+        )
+    }
+
+    /// A dismissed card is no card: Home goes back to exactly what the three
+    /// cases above render, which is also what lets the breaking-news strip
+    /// return. The assertion is on the visibility predicate rather than on
+    /// pixels, because "renders nothing" has no baseline to compare.
+    func testDismissedCardHidesItselfAndReleasesTheNewsStrip() async {
+        let visible = makeGuided(state: makeStepState())
+        let dismissed = makeGuided(state: makeStepState(), dismissed: true)
+        XCTAssertTrue(visible.isCardVisible)
+        XCTAssertFalse(dismissed.isCardVisible)
     }
 }
 
