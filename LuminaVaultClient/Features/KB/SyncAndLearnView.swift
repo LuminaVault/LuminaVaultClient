@@ -15,6 +15,12 @@ struct SyncAndLearnView: View {
     /// and from previews alike, and nothing here depends on the wizard.
     @Environment(GuidedStartCoordinator.self) private var guided: GuidedStartCoordinator?
 
+    /// `.done` is reached from three different sites, and `scheduleRevert()`
+    /// bounces it back to `.idle`, so `.reviewing → .done` can happen again
+    /// in one visit. Each nudge cancels the in-flight poll and restarts it
+    /// with an immediate GET, so re-firing is not free — one per visit.
+    @State private var didNudgeGuidedStep = false
+
     var body: some View {
         ZStack {
             palette.backgroundBase.ignoresSafeArea()
@@ -58,7 +64,8 @@ struct SyncAndLearnView: View {
         // rather than after the next tick. View-level, so the view model
         // stays unaware of the wizard.
         .onChange(of: vm.phase) { _, phase in
-            guard case .done = phase else { return }
+            guard case .done = phase, !didNudgeGuidedStep else { return }
+            didNudgeGuidedStep = true
             guided?.noteUserAction(.syncLearn)
         }
         .sheet(isPresented: reviewSheetBinding) {
