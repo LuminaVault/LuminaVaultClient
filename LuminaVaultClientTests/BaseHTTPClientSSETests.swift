@@ -14,6 +14,7 @@
 //   - flush() emits trailing frame when stream ends without blank line
 //   - non-2xx HTTP response throws `APIError.httpError` (BaseHTTPClient
 //     short-circuits before parsing — covered by the live transport test)
+//   - an UNKNOWN event type does not abort the stream (Shared v5.16.0)
 import LuminaVaultShared
 import XCTest
 @testable import LuminaVaultClient
@@ -217,6 +218,45 @@ final class BaseHTTPClientSSETests: XCTestCase {
         let wire = #"data: {"type":"token","payload":"last"}"#
         let (events, _) = try runBytes(wire)
         XCTAssertEqual(events, [.token("last")])
+    }
+
+    // MARK: - Forward compatibility (Shared v5.16.0)
+
+    /// The regression this whole release exists for.
+    ///
+    /// Uses a tag that is deliberately not a real event. This test first used
+    /// `hermes_run`, which stopped being unknown the moment Shared 5.18.0
+    /// added it — a test asserting "unknown" must not name something the
+    /// codebase is about to implement. `QueryStreamEvent` used
+    /// to decode `type` into a strict enum, so an event type this build did
+    /// not know threw — and `BaseHTTPClient.executeStream` rethrows a decode
+    /// failure as `APIError.decodingFailed`, which aborts the stream. One
+    /// unknown frame therefore killed the entire chat turn, and the server
+    /// could never add an event type until every shipped client knew it.
+    func testUnknownEventTypeDoesNotAbortTheStream() throws {
+        let lines = [
+            #"data: {"type":"token","payload":"before"}"#,
+            "",
+            #"data: {"type":"not_a_real_event","payload":{"anything":1}}"#,
+            "",
+            #"data: {"type":"token","payload":"after"}"#,
+            "",
+            #"data: {"type":"done"}"#,
+            "",
+        ]
+        let (events, _) = try run(lines)
+        XCTAssertEqual(
+            events,
+            [.token("before"), .unrecognized("not_a_real_event"), .token("after"), .done],
+            "an unknown type must be surfaced as .unrecognized and the stream must continue"
+        )
+    }
+
+    /// Tolerance stops at the discriminator. A corrupt payload on a type we
+    /// DO know is a real bug and must still surface rather than be skipped.
+    func testMalformedPayloadOnKnownTypeStillThrows() {
+        let frame = Data(#"{"type":"token","payload":{"not":"a string"}}"#.utf8)
+        XCTAssertThrowsError(try decode(frame))
     }
 }
 

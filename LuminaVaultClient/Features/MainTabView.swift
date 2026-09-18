@@ -411,6 +411,9 @@ struct MainTabView: View {
             llmPreferencesClient: appState.makeLLMPreferencesClient(),
             localExecutor: executor,
             localMemorySync: localMemorySync,
+            // Lets chat follow a turn that escalates to an agent run. Same
+            // client the Agent Runs screen uses.
+            runsClient: HermesRunsHTTPClient(client: appState.makeHTTPClient()),
             telemetry: AnalyticsTelemetry(),
             cloudAvailable: { appState.networkMonitor.isConnected }
         )
