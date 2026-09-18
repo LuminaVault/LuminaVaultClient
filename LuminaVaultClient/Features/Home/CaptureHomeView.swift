@@ -167,6 +167,16 @@ struct CaptureHomeView: View {
         }
         .task { await vm.loadFeed() }
         .task { await vm.loadSpacesIfNeeded() }
+        // The glance is loaded once on appear and on pull-to-refresh, so by
+        // the time a step opens its counts are older than the capture that
+        // got the user here. Re-reading it when the active step changes is
+        // what makes the row say "1 capture to learn" instead of nothing.
+        // The row itself no longer depends on this landing — see
+        // `showsGuidedSyncRow` — but the number does.
+        .task(id: guided?.activeStep) {
+            guard guided?.activeStep != nil else { return }
+            await glance?.load()
+        }
         // A nudge, not a completion: the server owns the latch. A capture
         // leaving the pending list means the drainer got it uploaded, which
         // is the earliest moment `firstCaptureCompleted` can possibly be
@@ -218,19 +228,48 @@ struct CaptureHomeView: View {
         return !glance.allFailed || glance.recommendation != nil || failedCaptureCount > 0
     }
 
+    /// True when step 2 is open and the glance heuristic is not already
+    /// rendering the row its spotlight points at.
+    ///
+    /// The heuristic is stale by construction here: `glance.load()` runs on
+    /// first appear and on pull-to-refresh, never after a capture — so on the
+    /// canonical path (save a memory, step 2 opens) it still holds the
+    /// pre-save zero while the wizard's own live probe correctly says there
+    /// is something to compile. Leaving the anchor to it means step 2 opens
+    /// on a row that is not there.
+    ///
+    /// "Is there anything to compile?" and "is this worth recommending right
+    /// now?" are different questions. The step asks the first one directly.
+    private var showsGuidedSyncRow: Bool {
+        guard guided?.activeStep == .syncLearn else { return false }
+        if case .syncAndLearn = glance?.recommendation { return false }
+        return true
+    }
+
+    /// The row step 2 teaches. `count` is nil when the glance has not caught
+    /// up — the row still works, it just does not claim a number it does not
+    /// have.
+    private func syncAndLearnRow(count: Int?) -> some View {
+        HomeRecommendationRow(
+            title: "Sync & Learn",
+            subtitle: count.map { "^[\($0) capture](inflect: true) to learn" },
+            systemImage: "sparkles"
+        ) {
+            showingSyncAndLearn = true
+        }
+        // Step 2's spotlight.
+        .guidedTarget(.sync, in: .home)
+    }
+
     @ViewBuilder
     private var recommendationRows: some View {
+        if showsGuidedSyncRow {
+            syncAndLearnRow(count: nil)
+        }
+
         switch glance?.recommendation {
         case .syncAndLearn(let count):
-            HomeRecommendationRow(
-                title: "Sync & Learn",
-                subtitle: "^[\(count) capture](inflect: true) to learn",
-                systemImage: "sparkles"
-            ) {
-                showingSyncAndLearn = true
-            }
-            // Step 2's spotlight.
-            .guidedTarget(.sync, in: .home)
+            syncAndLearnRow(count: count)
         case .dailyReview(let count):
             NavigationLink {
                 DailyReviewView(

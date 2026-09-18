@@ -149,9 +149,20 @@ struct GuidedSpotlightOverlay: View {
         }
     }
 
+    /// The blockers frame the hole. With no hole there is nothing to frame,
+    /// and — this is the important half — nothing to block: a full-screen
+    /// blocker would swallow every touch on a screen whose only instruction
+    /// is "tap that thing over there", leaving Skip and the five-minute
+    /// timeout as the only ways out.
+    ///
+    /// An absent anchor is an ordinary, expected state (an unvisited tab, a
+    /// row the host has not rendered yet, a target scrolled off screen), so
+    /// a spotlight with no target degrades to a hint: still dimmed, still
+    /// speaking, but the UI underneath stays live so the user can scroll to
+    /// the control, or pull Home into producing it.
     private func blockerRects(container: CGSize, hole: CGRect?) -> [CGRect] {
         let full = CGRect(origin: .zero, size: container)
-        guard let hole = hole?.intersection(full), !hole.isNull, !hole.isEmpty else { return [full] }
+        guard let hole = hole?.intersection(full), !hole.isNull, !hole.isEmpty else { return [] }
         return [
             CGRect(x: 0, y: 0, width: container.width, height: hole.minY),
             CGRect(x: 0, y: hole.maxY, width: container.width, height: container.height - hole.maxY),
