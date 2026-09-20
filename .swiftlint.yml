@@ -41,6 +41,12 @@ opt_in_rules:
   - unused_import
   - vertical_whitespace_closing_braces
   - vertical_whitespace_opening_braces
+  - redundant_nil_coalescing
+  - shorthand_optional_binding
+  - unowned_variable_capture
+  - weak_delegate
+  - legacy_multiple
+  - yoda_condition
 
 force_unwrapping:
   severity: warning
