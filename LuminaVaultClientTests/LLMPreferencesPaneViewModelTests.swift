@@ -66,6 +66,45 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
         func deletePool(_: ProviderID, keyID _: UUID) async throws {}
     }
 
+    /// Records router writes. An actor, because the protocol is `Sendable`.
+    private actor MockRouterClient: RouterClientProtocol {
+        let current: RouterProfileDTO
+        private(set) var updates: [RouterProfileWriteRequest] = []
+
+        init(current: RouterProfileDTO) {
+            self.current = current
+        }
+
+        func profiles() async throws -> RouterProfilesResponse {
+            RouterProfilesResponse(profiles: [current], defaultProfileID: current.id)
+        }
+
+        func catalog() async throws -> RouterCatalogResponse {
+            throw URLError(.unsupportedURL)
+        }
+
+        func dashboard() async throws -> RouterDashboardResponse {
+            throw URLError(.unsupportedURL)
+        }
+
+        func updateProfile(id _: UUID, request: RouterProfileWriteRequest) async throws -> RouterProfileDTO {
+            updates.append(request)
+            return current
+        }
+
+        func bindings() async throws -> RouterBindingsResponse {
+            throw URLError(.unsupportedURL)
+        }
+
+        func bind(scope: RouterBindingScope, scopeID: String, profileID: UUID) async throws -> RouterBindingDTO {
+            RouterBindingDTO(id: UUID(), scope: scope, scopeID: scopeID, profileID: profileID)
+        }
+
+        func unbind(scope _: RouterBindingScope, scopeID _: String) async throws {}
+    }
+
+    private static let managedLabel = "LuminaVault Brain · Auto"
+
     // MARK: Fixtures
 
     private var client: MockLLMPreferencesClient!
@@ -82,10 +121,11 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
     // MARK: Loading
 
     func testLoadingManagedResponsePopulatesModeAndDefaults() async {
+        // Under managed the server sends the brain label, not a model id.
         client.stubbedGet = LLMPreferencesGetResponse(
             mode: .managed,
             primaryProvider: .openRouter,
-            primaryModel: "deepseek/deepseek-v4-flash",
+            primaryModel: Self.managedLabel,
             fallbackChain: []
         )
         let sut = makeSUT()
@@ -94,7 +134,9 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
         XCTAssertEqual(sut.state, .loaded)
         XCTAssertEqual(sut.mode, .managed)
         XCTAssertEqual(sut.primaryProvider, .openRouter)
-        XCTAssertEqual(sut.primaryModel, "deepseek/deepseek-v4-flash")
+        // The label is never held as the model; a switch to BYOK would send
+        // it back as one.
+        XCTAssertNotEqual(sut.primaryModel, Self.managedLabel)
         XCTAssertTrue(sut.fallbackChain.isEmpty)
         XCTAssertFalse(sut.hasUnsavedChanges)
     }
@@ -222,5 +264,69 @@ final class LLMPreferencesPaneViewModelTests: XCTestCase {
         XCTAssertEqual(put.fallbackChain.count, 1)
         XCTAssertEqual(put.fallbackChain.first?.provider, .openai)
         XCTAssertEqual(put.fallbackChain.first?.model, "gpt-4o")
+    }
+
+    // MARK: The managed label is not a model
+
+    func testSwitchingFromManagedToBYOKNeverSavesTheLabel() async throws {
+        client.stubbedGet = LLMPreferencesGetResponse(
+            mode: .managed,
+            primaryProvider: .custom,
+            primaryModel: Self.managedLabel,
+            fallbackChain: []
+        )
+        let sut = makeSUT()
+        await sut.load()
+
+        sut.selectMode(.byok)
+        await sut.save()
+
+        XCTAssertNotEqual(client.putCalls.last?.primaryModel, Self.managedLabel)
+    }
+
+    // MARK: Router save after a preferences save
+
+    /// The preferences PUT bumps the default profile's revision on the server
+    /// and, on a switch to BYOK, replaces its routes. Saving the router profile
+    /// with what was read before answered 409, and sent back the managed
+    /// placeholder routes it had been shown.
+    func testRouterSaveUsesTheProfileAsItIsAfterThePreferencesSave() async throws {
+        let id = UUID()
+        let stale = RouterProfileDTO(
+            id: id,
+            name: "Default",
+            mode: .managed,
+            defaultAction: RouterActionDTO(routes: [RouterModelRouteDTO(provider: .openRouter, model: "auto")]),
+            revision: 1
+        )
+        let realRoute = RouterModelRouteDTO(provider: .anthropic, model: "claude-opus-4-7")
+        let fresh = RouterProfileDTO(
+            id: id,
+            name: "Default",
+            mode: .byok,
+            defaultAction: RouterActionDTO(routes: [realRoute]),
+            revision: 2
+        )
+        let router = MockRouterClient(current: fresh)
+        client.stubbedGet = LLMPreferencesGetResponse(
+            mode: .byok,
+            primaryProvider: .anthropic,
+            primaryModel: "claude-opus-4-7",
+            fallbackChain: []
+        )
+        let sut = LLMPreferencesPaneViewModel(client: client, providersClient: MockProvidersClient(), routerClient: router)
+        await sut.load()
+        // What the pane held before the save.
+        sut.routerProfiles = [stale]
+        sut.selectedRouterProfileID = id
+        sut.updateQualityWeight(60)
+
+        await sut.save()
+
+        let updates = await router.updates
+        let update = try XCTUnwrap(updates.last)
+        XCTAssertEqual(update.expectedRevision, 2)
+        XCTAssertEqual(update.defaultAction.routes, [realRoute])
+        XCTAssertNotEqual(sut.state, .failed("Couldn't load preferences."))
     }
 }
