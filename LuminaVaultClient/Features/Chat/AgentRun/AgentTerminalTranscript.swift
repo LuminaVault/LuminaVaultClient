@@ -72,7 +72,7 @@ enum AgentTerminalTranscript {
                 seq: event.seq,
                 command: command,
                 background: fields["background"]?.lvBool ?? false
-            ))]
+            )),]
 
         case "tool.completed", "tool.failed":
             guard tool == terminalTool else { return nil }
