@@ -112,6 +112,15 @@ struct LuminaShortcuts: AppShortcutsProvider {
             systemImageName: "square.and.pencil"
         )
         AppShortcut(
+            intent: SaveAppleNoteIntent(),
+            phrases: [
+                "Save a note to \(.applicationName)",
+                "Copy my notes to \(.applicationName)",
+            ],
+            shortTitle: "Save Apple Note",
+            systemImageName: "note.text"
+        )
+        AppShortcut(
             intent: AskLuminaIntent(),
             phrases: [
                 "Ask \(.applicationName)",
