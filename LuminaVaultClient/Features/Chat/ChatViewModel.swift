@@ -423,7 +423,7 @@ final class ChatViewModel {
             // than pretending the turn failed.
             return
         }
-        runFollowTask?.cancel()
+        dropFollower()
         let follower = ChatRunFollower(
             client: runsClient,
             runID: ref.runID,
@@ -431,6 +431,8 @@ final class ChatViewModel {
         )
         runFollower = follower
         phase = .delegated
+        // The shell says so while the user is on another tab.
+        shellActivity?.begin(ref.runID)
         runFollowTask = Task { [weak self] in
             await follower.follow(after: ref.afterSeq)
             guard let self, self.runFollower === follower else { return }
@@ -441,11 +443,12 @@ final class ChatViewModel {
     /// Turns the finished run into an ordinary assistant turn, so the
     /// transcript reads the same whether or not the turn escalated.
     private func settleDelegatedTurn(_ follower: ChatRunFollower) {
+        shellActivity?.end(follower.runID)
         let answer = follower.answer.trimmingCharacters(in: .whitespacesAndNewlines)
         if !answer.isEmpty {
             replacePendingAssistant(with: answer)
             drainTypewriterNow()
-            finalizeAssistantTurn()
+            finalizeAssistantTurn(toolCallCount: follower.toolCallCount)
         }
         if case let .failed(message) = follower.phase {
             phase = .failed(message: message)
@@ -470,6 +473,25 @@ final class ChatViewModel {
 
     var isStreaming: Bool {
         phase == .streaming || phase == .delegated
+    }
+
+    /// The shell's registry of runs still working. Set by the host view,
+    /// which is where the environment lives; nil in previews and tests that
+    /// do not care.
+    var shellActivity: ShellActivity?
+
+    /// Stops following the current run, if any, and stops reporting it.
+    ///
+    /// Cancelling the follow task alone is not enough: the task then never
+    /// reaches `settleDelegatedTurn`, so nothing would deregister the run and
+    /// the shell would claim an agent was working for the rest of the session.
+    private func dropFollower() {
+        runFollowTask?.cancel()
+        runFollowTask = nil
+        if let follower = runFollower {
+            shellActivity?.end(follower.runID)
+        }
+        runFollower = nil
     }
 
     private let runsClient: (any HermesRunsClientProtocol)?
@@ -1006,9 +1028,7 @@ final class ChatViewModel {
             pendingSources = []
             // Drop any previous turn's run before this one can escalate, so a
             // stale follower cannot make this turn look delegated.
-            runFollowTask?.cancel()
-            runFollowTask = nil
-            runFollower = nil
+            dropFollower()
 
             let stream = conversationsClient.streamReply(
                 conversationID: id,
@@ -1607,13 +1627,18 @@ final class ChatViewModel {
         refreshPendingTurnFlag()
     }
 
-    private func finalizeAssistantTurn(playsCompletionHaptic: Bool = true) {
+    /// - Parameter toolCallCount: The tools this turn ran, when the caller
+    ///   knows better than the usage event — an escalated turn counts its own
+    ///   run's calls. Otherwise the server's figure from `RouterUsageDTO` is
+    ///   used, and `nil` from an older server stays `nil` rather than `0`.
+    private func finalizeAssistantTurn(playsCompletionHaptic: Bool = true, toolCallCount: Int? = nil) {
         let assistant = Message(
             role: .assistant,
             content: pendingAssistant,
             sources: pendingSources,
             parallelExecutionID: parallelExecution?.id,
-            modelLabel: routeUsage?.model ?? routingEvent?.activeRoutes.first?.model
+            modelLabel: routeUsage?.model ?? routingEvent?.activeRoutes.first?.model,
+            toolCallCount: toolCallCount ?? routeUsage?.toolCallCount
         )
         messages.append(assistant)
         let spokenBody = pendingAssistant

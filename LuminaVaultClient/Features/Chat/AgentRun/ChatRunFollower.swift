@@ -52,6 +52,10 @@ final class ChatRunFollower {
     private(set) var cursor: Int = 0
     private(set) var pendingApproval: HermesRunTrailItem?
     private(set) var isAnswering = false
+    /// Tools the run has invoked, for the turn receipt. Counted from
+    /// `tool.started` rather than from trail rows: a start and its completion
+    /// are both `.tool` rows, so counting rows would report every call twice.
+    private(set) var toolCallCount = 0
 
     private let client: any HermesRunsClientProtocol
     /// Injectable so tests do not sleep through the backoff.
@@ -153,6 +157,10 @@ final class ChatRunFollower {
     func apply(_ event: HermesRunEventDTO) {
         guard event.seq > cursor else { return }
         cursor = event.seq
+
+        if event.event == "tool.started" {
+            toolCallCount += 1
+        }
 
         if let delta = HermesRunTrailItem.messageDelta(in: event) {
             answer += delta

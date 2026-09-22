@@ -65,6 +65,16 @@ struct ChatView: View {
     /// Hermes Companion Phase 1 — non-nil while the "Run as agent" sheet is
     /// up. Carries the draft so the sheet opens with the words already typed.
     @State private var agentRunDraft: AgentRunDraft?
+    /// True while something is being dragged over the composer, so the drop
+    /// target can say it is one.
+    @State private var isDropTargeted = false
+    /// The preview pane: beside the transcript at regular width, a sheet at
+    /// compact. Size class rather than idiom, because iPad multitasking makes
+    /// compact reachable on iPad.
+    @State private var preview = ChatPreviewStore()
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    /// Optional: chat is opened from places that do not stand up the shell.
+    @Environment(ShellActivity.self) private var shellActivity: ShellActivity?
 
     // MARK: Scroll state
 
@@ -90,6 +100,61 @@ struct ChatView: View {
     private static let pinnedTolerance: CGFloat = 40
 
     var body: some View {
+        HStack(spacing: 0) {
+            chatColumn
+            if showsPreviewRail, let target = preview.target {
+                Divider()
+                ChatPreviewPane(target: target, model: makePreviewModel(), onClose: { preview.close() })
+                    // Clamped rather than draggable: the transcript's scroll
+                    // anchoring and the composer inset are what a resizable
+                    // split would have to re-derive.
+                    .frame(width: 380)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
+        .lvAnimation(LVMotion.standard, value: showsPreviewRail)
+        .sheet(isPresented: compactPreviewBinding) {
+            if let target = preview.target {
+                ChatPreviewPane(target: target, model: makePreviewModel(), onClose: { preview.close() })
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
+        }
+        // Previews belong to the conversation that produced them.
+        .onChange(of: viewModel.conversationID) { _, _ in
+            preview.reset()
+        }
+        // The view model has no environment of its own; hand it the registry.
+        .task {
+            viewModel.shellActivity = shellActivity
+        }
+    }
+
+    private var showsPreviewRail: Bool {
+        horizontalSizeClass == .regular && preview.isOpen && preview.target != nil
+    }
+
+    private var compactPreviewBinding: Binding<Bool> {
+        Binding(
+            get: { horizontalSizeClass != .regular && preview.isOpen && preview.target != nil },
+            set: { if !$0 { preview.close() } }
+        )
+    }
+
+    private var artifactsClient: (any HermesArtifactsClientProtocol)? {
+        HermesArtifactsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    private func makePreviewModel() -> ChatPreviewContentModel {
+        let http = appState.makeHTTPClient()
+        return ChatPreviewContentModel(
+            artifacts: HermesArtifactsHTTPClient(client: http),
+            vault: vaultClient,
+            runs: HermesRunsHTTPClient(client: http)
+        )
+    }
+
+    private var chatColumn: some View {
         ZStack {
             ChatCosmicBackground()
 
@@ -367,7 +432,18 @@ struct ChatView: View {
             // blocked on. Both absent on an ordinary turn.
             ChatToolTrailView(
                 items: viewModel.toolTrail,
-                isRunning: viewModel.phase == .delegated
+                isRunning: viewModel.phase == .delegated,
+                toolCount: viewModel.runFollower?.toolCallCount ?? 0,
+                onSelect: viewModel.runFollower.map { follower in
+                    { item in preview.open(.toolOutput(runID: follower.runID.uuidString, seq: item.id)) }
+                }
+            )
+
+            ChatArtifactStrip(
+                sessionID: viewModel.runSessionID,
+                client: artifactsClient,
+                store: preview,
+                refreshKey: viewModel.phase == .delegated ? 0 : 1
             )
 
             if let approval = viewModel.pendingApproval {
@@ -532,6 +608,24 @@ struct ChatView: View {
                 onRunWorkflow: { showWorkflowPicker = true },
                 onRunAsAgent: { draft in agentRunDraft = AgentRunDraft(prompt: draft) }
             )
+            // Files dragged in from Files or another app in Split View stage
+            // exactly as picked ones do. See `ChatDropItem`.
+            .dropDestination(for: ChatDropItem.self) { items, _ in
+                guard !items.isEmpty else { return false }
+                handleDrop(items.map(\.url))
+                return true
+            } isTargeted: { targeted in
+                isDropTargeted = targeted
+            }
+            .overlay {
+                if isDropTargeted {
+                    RoundedRectangle(cornerRadius: LVRadius.md)
+                        .strokeBorder(palette.accent, style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                        .padding(.horizontal, LVSpacing.sm)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
             // Step 3's spotlight. The composer itself, not the whole bottom
             // bar — the status strip above it is not what is being taught.
             .guidedTarget(.chat, in: .chat)
@@ -604,6 +698,24 @@ struct ChatView: View {
             return
         }
         uploadToVault(url)
+    }
+
+    /// Stages every readable file in a drop and reports the rest. Also uploads
+    /// each staged file to the vault, the same "do both" as `handleAttach`.
+    private func handleDrop(_ urls: [URL]) {
+        Task {
+            let outcome = await ChatDropStaging.stage(urls)
+            for extracted in outcome.staged {
+                viewModel.attach(name: extracted.name, text: extracted.text)
+            }
+            for url in urls where outcome.staged.contains(where: { $0.name == url.lastPathComponent }) {
+                uploadToVault(url)
+            }
+            if let first = outcome.failures.first {
+                let more = outcome.failures.count - 1
+                showAttachmentError(more > 0 ? "\(first) (and \(more) more)" : first)
+            }
+        }
     }
 
     /// `@`-reference an existing vault note: read its text and stage it as a
