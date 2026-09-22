@@ -68,11 +68,12 @@ enum AgentTerminalTranscript {
         switch event.event {
         case "tool.started":
             guard tool == terminalTool, let command = fields["command"]?.lvString, !command.isEmpty else { return nil }
-            return entries + [.command(.init(
+            let started = AgentTerminalEntry.Command(
                 seq: event.seq,
                 command: command,
                 background: fields["background"]?.lvBool ?? false
-            )),]
+            )
+            return entries + [.command(started)]
 
         case "tool.completed", "tool.failed":
             guard tool == terminalTool else { return nil }
