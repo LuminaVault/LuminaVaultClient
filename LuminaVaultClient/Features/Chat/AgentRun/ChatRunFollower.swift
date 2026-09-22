@@ -56,6 +56,9 @@ final class ChatRunFollower {
     /// `tool.started` rather than from trail rows: a start and its completion
     /// are both `.tool` rows, so counting rows would report every call twice.
     private(set) var toolCallCount = 0
+    /// What the agent ran in its terminal and what it printed. Empty on a
+    /// Hermes that does not stream terminal output.
+    private(set) var terminal: [AgentTerminalEntry] = []
 
     private let client: any HermesRunsClientProtocol
     /// Injectable so tests do not sleep through the backoff.
@@ -160,6 +163,10 @@ final class ChatRunFollower {
 
         if event.event == "tool.started" {
             toolCallCount += 1
+        }
+
+        if let next = AgentTerminalTranscript.apply(event, to: terminal) {
+            terminal = next
         }
 
         if let delta = HermesRunTrailItem.messageDelta(in: event) {
