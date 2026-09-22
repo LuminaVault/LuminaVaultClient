@@ -94,7 +94,7 @@
 	<key>NSHealthShareUsageDescription</key>
 	<string>LuminaVault reads your HealthKit data so Lumina can surface patterns and nudges from your activity, sleep, and workouts.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>LuminaVault writes mindfulness sessions and notes back to HealthKit when you ask Lumina to.</string>
+	<string>LuminaVault only reads your Health data. It never writes to Apple Health.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>LuminaVault tags captures with the place you saved them — only when you toggle Location on for that capture.</string>
 	<key>NSLocalNetworkUsageDescription</key>
