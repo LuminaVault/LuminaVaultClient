@@ -15,14 +15,17 @@ import SwiftUI
 struct ChatToolTrailView: View {
     let items: [HermesRunTrailItem]
     let isRunning: Bool
+    /// Tools the run actually invoked, from `ChatRunFollower.toolCallCount`.
+    /// Not derived from `items`: a start and its completion are both `.tool`
+    /// rows, so counting rows reported every call twice.
+    let toolCount: Int
+    /// Opens a step in the preview pane. Tap only — nothing here opens it on
+    /// its own. `nil` hides the affordance.
+    var onSelect: ((HermesRunTrailItem) -> Void)?
 
     @Environment(\.lvPalette) private var palette
     @State private var isExpanded = false
     @State private var userToggled = false
-
-    private var toolCount: Int {
-        items.filter { $0.kind == .tool }.count
-    }
 
     var body: some View {
         if !items.isEmpty {
@@ -31,7 +34,17 @@ struct ChatToolTrailView: View {
                 if isExpanded {
                     VStack(alignment: .leading, spacing: LVSpacing.xs) {
                         ForEach(items) { item in
-                            row(item)
+                            if let onSelect, item.kind == .tool || item.kind == .failure {
+                                Button {
+                                    onSelect(item)
+                                } label: {
+                                    row(item).contentShape(.rect)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityHint("Shows this step's output")
+                            } else {
+                                row(item)
+                            }
                         }
                     }
                 }

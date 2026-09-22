@@ -12,12 +12,11 @@
 // assistant turn, so it has to earn its space at a glance and never compete
 // with the answer above it.
 //
-// Known limit: on a *live* send the tool count is not available. The server
-// counts tool invocations from `ChatStreamChunk.toolCallID`, but nothing in
-// `QueryStreamEvent` carries that to the client and `RouterUsageDTO` does not
-// include it either — so a freshly streamed turn shows the model alone and
-// gains its tool count when the thread is next loaded. Surfacing it live needs
-// a new SSE event; inventing a number here would be worse than waiting.
+// The tool count on a live turn comes from `RouterUsageDTO.toolCallCount`,
+// or, for a turn that escalated to an agent run, from the run's own
+// `tool.started` events. An older server sends neither, and the receipt then
+// shows the model alone until the thread is next loaded — `nil` is never
+// rendered as zero.
 
 import LuminaVaultShared
 import SwiftUI

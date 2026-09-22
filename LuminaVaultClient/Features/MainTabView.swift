@@ -53,11 +53,28 @@ struct MainTabView: View {
     /// anchors, and step 3 is a tab switch. Everything below reads it out of
     /// the environment.
     @State private var guided: GuidedStartCoordinator?
+    /// Agent runs still working, for the banner shown on the other tabs.
+    @State private var shellActivity = ShellActivity()
+    @State private var showCommandPalette = false
+    /// Settings chosen from the palette. Only one sheet can be up at a time,
+    /// so it opens from the palette's `onDismiss`, the same hand-over the
+    /// workflow push uses with Settings.
+    @State private var settingsAfterPalette = false
 
     var body: some View {
         VStack(spacing: 0) {
             // HER-39 — pinned sync status. Hidden when idle.
             SyncStatusBanner()
+
+            // An escalated turn keeps running after you leave the AI tab; this
+            // is how you find your way back to it. Absent the rest of the time,
+            // including on the AI tab, where the trail already says so.
+            if shellActivity.busy, selection != .think {
+                AgentWorkingBanner(count: shellActivity.runIDs.count) {
+                    selection = .think
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
 
             TabView(selection: $selection) {
                 Tab("Home", systemImage: "house", value: AppTab.home) {
@@ -88,6 +105,18 @@ struct MainTabView: View {
             .environment(\.lvActiveTab, selection.rawValue)
             .modifier(TabBarMinimizeOnScrollDown())
         }
+        .lvAnimation(LVMotion.standard, value: shellActivity.busy && selection != .think)
+        .environment(shellActivity)
+        .background { keyboardShortcuts }
+        .sheet(isPresented: $showCommandPalette, onDismiss: {
+            guard settingsAfterPalette else { return }
+            settingsAfterPalette = false
+            showSettings = true
+        }, content: {
+            CommandPaletteView(entries: Self.paletteEntries) { entry in
+                runPaletteEntry(entry)
+            }
+        })
         // Outside the `VStack`, not on the `TabView` inside it: anchors still
         // travel up from every tab, and the dim now also covers
         // `SyncStatusBanner()`, which otherwise sat undimmed and tappable
@@ -222,6 +251,49 @@ struct MainTabView: View {
             guard phase == .active else { return }
             Task { await captureFailures?.refresh() }
         }
+    }
+
+    // MARK: - Keyboard
+
+    /// Destinations the palette offers. The tab titles are the ones in the tab
+    /// bar, so what you type is what you see.
+    static let paletteEntries: [CommandPaletteMatcher.Entry] = [
+        .init(id: "tab.home", label: "Home", group: "Tabs", keywords: ["capture", "today"]),
+        .init(id: "tab.workspaces", label: "Spaces", group: "Tabs", keywords: ["files", "folders", "workspace"]),
+        .init(id: "tab.think", label: "AI", group: "Tabs", keywords: ["chat", "ask", "agent"]),
+        .init(id: "tab.brain", label: "Brain", group: "Tabs", keywords: ["graph", "memories"]),
+        .init(id: "tab.reflect", label: "Insights", group: "Tabs", keywords: ["reflect", "analytics"]),
+        .init(id: "settings", label: "Settings", group: "App", keywords: ["preferences", "theme", "account"]),
+    ]
+
+    private func runPaletteEntry(_ entry: CommandPaletteMatcher.Entry) {
+        if entry.id == "settings" {
+            settingsAfterPalette = true
+            return
+        }
+        let raw = entry.id.replacingOccurrences(of: "tab.", with: "")
+        if let tab = AppTab(rawValue: raw) {
+            selection = tab
+        }
+    }
+
+    /// Hardware-keyboard shortcuts. Invisible buttons, because a shortcut
+    /// needs a control to hang on and the tab bar exposes none. Their titles
+    /// are what the iPad shortcut overlay lists when Command is held.
+    private var keyboardShortcuts: some View {
+        Group {
+            Button("Go to…") { showCommandPalette.toggle() }
+                .keyboardShortcut("k", modifiers: .command)
+            Button("Home") { selection = .home }.keyboardShortcut("1", modifiers: .command)
+            Button("Spaces") { selection = .workspaces }.keyboardShortcut("2", modifiers: .command)
+            Button("AI") { selection = .think }.keyboardShortcut("3", modifiers: .command)
+            Button("Brain") { selection = .brain }.keyboardShortcut("4", modifiers: .command)
+            Button("Insights") { selection = .reflect }.keyboardShortcut("5", modifiers: .command)
+        }
+        .frame(width: 0, height: 0)
+        .opacity(0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     // MARK: - Guided start

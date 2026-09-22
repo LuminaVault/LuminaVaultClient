@@ -53,13 +53,22 @@ struct ChatStatusStrip: View {
     /// Everything the strip renders, folded into one comparable value so a
     /// single `.animation(_:value:)` covers appear, disappear and expand.
     private var statusIdentity: String {
-        [
-            viewModel.fallbackNotice?.userMessage ?? "",
-            viewModel.routingEvent.map(\.profileName) ?? "",
-            viewModel.parallelExecution.map { "\($0.id)-\($0.status)" } ?? "",
-            viewModel.routeUsage.map { "\($0.tokensIn + $0.tokensOut)" } ?? "",
-            isExpanded ? "open" : "shut",
-        ].joined(separator: "|")
+        // Built up one part at a time: as a single array literal of optional
+        // chains this exceeds the type checker's time budget.
+        var parts: [String] = []
+        parts.append(viewModel.fallbackNotice?.userMessage ?? "")
+        parts.append(viewModel.routingEvent?.profileName ?? "")
+        if let execution = viewModel.parallelExecution {
+            parts.append("\(execution.id)-\(execution.status)")
+        }
+        if let usage = viewModel.routeUsage {
+            parts.append(String(usage.tokensIn + usage.tokensOut))
+        }
+        if let prompt = viewModel.routingEvent?.promptTokens {
+            parts.append(String(prompt))
+        }
+        parts.append(isExpanded ? "open" : "shut")
+        return parts.joined(separator: "|")
     }
 
     // MARK: - Collapsed
@@ -75,6 +84,9 @@ struct ChatStatusStrip: View {
                     .foregroundStyle(palette.textSecondary)
                     .lineLimit(1)
                 Spacer(minLength: 0)
+                if let reading = contextReading {
+                    ChatContextGauge(reading: reading)
+                }
                 if let usage = viewModel.routeUsage {
                     Text("\(usage.tokensIn + usage.tokensOut) tok")
                         .lvFont(.microTag)
@@ -93,6 +105,10 @@ struct ChatStatusStrip: View {
         .buttonStyle(.plain)
         .accessibilityLabel(summaryText)
         .accessibilityHint(isExpanded ? "Collapse execution details" : "Expand execution details")
+    }
+
+    private var contextReading: ChatContextGauge.Reading? {
+        ChatContextGauge.Reading.make(routing: viewModel.routingEvent, usage: viewModel.routeUsage)
     }
 
     private var summaryIcon: LVIcon {
@@ -139,6 +155,11 @@ struct ChatStatusStrip: View {
             )
             .lvFont(.microTag)
             .foregroundStyle(palette.textSecondary)
+        }
+        if let dropped = contextReading?.droppedPhrase {
+            Text(dropped)
+                .lvFont(.microTag)
+                .foregroundStyle(palette.textSecondary)
         }
         if let execution = viewModel.parallelExecution {
             Button {
