@@ -218,9 +218,45 @@ final class ChatViewModel {
         set { composerModel.text = newValue }
     }
 
-    /// HER-107 — drives `HermieMascotView`. Transitions: idle → thinking
-    /// (on send / streaming) → happy (on .done) → idle (after ~1.5s).
-    var mascotState: HermieMascotState = .idle
+    /// Muse Stage B — what Hermie is doing, for the chat header: status
+    /// copy, avatar art and the working ring. Derived on read from the
+    /// phase, the run trail, focus and the celebration window; see
+    /// `MuseChatState.derive(_:)`, which is pure and unit-tested.
+    var museState: MuseChatState {
+        MuseChatState.derive(museStateInputs)
+    }
+
+    /// Everything `museState` depends on, in one place so tests can check
+    /// the wiring and the mapping separately.
+    var museStateInputs: MuseChatState.Inputs {
+        let follower = phase == .delegated ? runFollower : nil
+        return MuseChatState.Inputs(
+            phase: phase,
+            hasFirstToken: follower.map(\.hasAnswer) ?? hasFirstToken,
+            lastTrailItem: follower?.trail.last,
+            isAwaitingApproval: follower?.pendingApproval != nil,
+            isComposerFocused: isComposerFocused,
+            isRecordingVoice: voice.isRecording,
+            isCelebrating: isCelebrating
+        )
+    }
+
+    /// HER-107 — drives `HermieMascotView`. Follows `museState`: thinking
+    /// while a turn is open, happy for the celebration after it lands.
+    var mascotState: HermieMascotState { museState.mascotState }
+
+    /// Mirrors the composer's focus, pushed in by `ChatView` (which owns the
+    /// `@FocusState`). Focused and idle reads as "is listening".
+    var isComposerFocused = false
+
+    /// Inside the 1.2s window after a completed turn. Only `celebrate()`
+    /// sets it; its own timer or the next turn clears it.
+    private(set) var isCelebrating = false
+
+    /// At least one token of the in-flight answer has landed on the chat
+    /// stream. Stored and written only on change, like `hasPendingTurn`, so
+    /// the header does not re-render per token.
+    private(set) var hasFirstToken = false
     /// HER-107 — active transport. Defaults to memory-grounded (the
     /// HER-269 SSE path); user toggles via the toolbar.
     var transport: Transport = .memoryGrounded
@@ -454,7 +490,7 @@ final class ChatViewModel {
             phase = .failed(message: message)
         } else {
             phase = .idle
-            flashHappyThenIdle()
+            celebrate()
         }
     }
 
@@ -581,7 +617,7 @@ final class ChatViewModel {
         routingEvent = nil
         routeUsage = nil
         parallelExecution = nil
-        setMascot(.thinking)
+        cancelCelebration()
 
         let userMessage = Message(role: .user, content: displayContent)
         messages.append(userMessage)
@@ -744,7 +780,7 @@ final class ChatViewModel {
         fallbackNotice = nil
         routingEvent = nil
         routeUsage = nil
-        setMascot(.thinking)
+        cancelCelebration()
         streamTask?.cancel()
         streamTask = Task { [weak self] in
             await self?.runSend(content: content)
@@ -767,7 +803,7 @@ final class ChatViewModel {
         fallbackNotice = nil
         routingEvent = nil
         routeUsage = nil
-        setMascot(.thinking)
+        cancelCelebration()
         streamTask?.cancel()
         streamTask = Task { [weak self] in
             guard let self else { return }
@@ -780,7 +816,7 @@ final class ChatViewModel {
                 await runSend(content: content)
             } catch {
                 phase = .idle
-                setMascot(.idle)
+                cancelCelebration()
                 fallbackNotice = nil
                 // Surface via the last-error path used by stream failures.
                 phase = .failed(message: "Couldn't escalate: \(friendlyError(error))")
@@ -930,7 +966,7 @@ final class ChatViewModel {
             await runMemoryGroundedSend(content: content)
         case let .unavailable(message):
             phase = .failed(message: message)
-            setMascot(.idle)
+            cancelCelebration()
         case .local:
             guard let localExecutor else {
                 phase = .failed(message: "No local model is configured.")
@@ -997,17 +1033,17 @@ final class ChatViewModel {
                 }
                 finalizeAssistantTurn()
                 phase = .idle
-                flashHappyThenIdle()
+                celebrate()
             } catch is CancellationError {
                 await cancelPreparedExecutionIfNeeded(prepared)
                 drainTypewriterNow()
                 phase = .idle
-                setMascot(.idle)
+                cancelCelebration()
             } catch {
                 await cancelPreparedExecutionIfNeeded(prepared)
                 drainTypewriterNow()
                 failSend(with: error)
-                setMascot(.idle)
+                cancelCelebration()
             }
         }
     }
@@ -1100,12 +1136,12 @@ final class ChatViewModel {
                     await drainTypewriter()
                     finalizeAssistantTurn()
                     phase = .idle
-                    flashHappyThenIdle()
+                    celebrate()
                     return
                 case let .error(message):
                     drainTypewriterNow()
                     phase = .failed(message: message)
-                    setMascot(.idle)
+                    cancelCelebration()
                     return
                 }
             }
@@ -1119,7 +1155,7 @@ final class ChatViewModel {
                 finalizeAssistantTurn()
             }
             phase = .idle
-            flashHappyThenIdle()
+            celebrate()
         } catch is CancellationError {
             // User-initiated cancel via `cancel()` — reveal-all, preserve
             // partials (no point animating after teardown).
@@ -1128,11 +1164,11 @@ final class ChatViewModel {
                 finalizeAssistantTurn(playsCompletionHaptic: false)
             }
             phase = .idle
-            setMascot(.idle)
+            cancelCelebration()
         } catch {
             drainTypewriterNow()
             failSend(with: error)
-            setMascot(.idle)
+            cancelCelebration()
         }
     }
 
@@ -1167,16 +1203,16 @@ final class ChatViewModel {
             await drainTypewriter()
             finalizeAssistantTurn()
             phase = .idle
-            flashHappyThenIdle()
+            celebrate()
         } catch is CancellationError {
             drainTypewriterNow()
             phase = .idle
-            setMascot(.idle)
+            cancelCelebration()
         } catch {
             drainTypewriterNow()
             let message = friendlyError(error)
             phase = .failed(message: message)
-            setMascot(.idle)
+            cancelCelebration()
         }
     }
 
@@ -1485,18 +1521,24 @@ final class ChatViewModel {
 
     // MARK: - Mascot
 
-    private func setMascot(_ state: HermieMascotState) {
+    /// Ends any celebration still showing — a new turn, a failure or a
+    /// cancel supersedes it.
+    private func cancelCelebration() {
         mascotDecayTask?.cancel()
-        mascotState = state
+        mascotDecayTask = nil
+        if isCelebrating { isCelebrating = false }
     }
 
-    /// Pulse happy, then decay back to idle after 1.5s. Cancellable so
+    /// Celebrate the finished turn, then fall back to idle after
+    /// `MuseChatState.celebrationDuration` (contract: 1.2s). Cancellable so
     /// rapid-fire turns don't accumulate timers.
-    private func flashHappyThenIdle() {
-        setMascot(.happy)
+    private func celebrate() {
+        cancelCelebration()
+        isCelebrating = true
         mascotDecayTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1.5))
-            await MainActor.run { self?.mascotState = .idle }
+            try? await Task.sleep(for: MuseChatState.celebrationDuration)
+            guard !Task.isCancelled else { return }
+            self?.isCelebrating = false
         }
     }
 
@@ -1600,6 +1642,10 @@ final class ChatViewModel {
         if hasPendingTurn != next {
             hasPendingTurn = next
         }
+        let tokens = !pendingAssistant.isEmpty
+        if hasFirstToken != tokens {
+            hasFirstToken = tokens
+        }
     }
 
     /// Clear both buffers and the reveal cursor together. Every wholesale
@@ -1693,7 +1739,7 @@ final class ChatViewModel {
         stagedReferences = []
         lastReadMessageID = nil
         phase = .idle
-        mascotState = .idle
+        isCelebrating = false
         if let store = historyStore, let oldID {
             Task { try? await store.clear(conversationID: oldID) }
         }

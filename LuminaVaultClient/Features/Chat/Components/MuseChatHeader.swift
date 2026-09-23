@@ -6,9 +6,9 @@
 // right — with Hermie centred at 110pt, hanging ~55pt below the bar into the
 // transcript. Under Hermie, one pill: the agent's name, and a status line.
 //
-// This view owns no state machine. It says what it is told: `ChatView` maps
-// the phase it already has onto the status copy. Stage B replaces that
-// mapping; the header does not change.
+// This view owns no state machine. It says what it is told: `ChatView` hands
+// it `ChatViewModel.museState` (Stage B, `MuseChatState`), split into status
+// copy, art and ring.
 //
 // Rides `.safeAreaInset(edge: .top)`, so the transcript scrolls underneath.
 // A canvas → clear scrim behind it keeps the name and status legible over
@@ -283,21 +283,18 @@ private struct MuseWorkingRing: View {
 private struct MuseChatHeaderPreviewGrid: View {
     @Environment(\.lvPalette) private var palette
     @Environment(\.colorScheme) private var scheme
-    @State private var expanded = false
+    static let states: [MuseChatState] = [
+        .idle, .listening, .thinking, .writing, .tool(label: "searching the web"),
+        .awaitingApproval, .delegated, .failed,
+    ]
 
     var body: some View {
         ScrollView {
             VStack(spacing: LVSpacing.xl) {
-                MuseChatHeader(status: "Ready", mascotState: .idle, isWorking: false,
-                               onShowConversations: {}, onNewChat: {})
-                MuseChatHeader(status: "is listening", mascotState: .idle, isWorking: false,
-                               onShowConversations: {}, onNewChat: {})
-                MuseChatHeader(status: "is thinking", mascotState: .thinking, isWorking: true,
-                               isDetailExpanded: $expanded, onShowConversations: {}, onNewChat: {})
-                MuseChatHeader(status: "is still working — you can leave", mascotState: .thinking,
-                               isWorking: true, onShowConversations: {}, onNewChat: {})
-                MuseChatHeader(status: "hit a snag", mascotState: .idle, isWorking: false,
-                               isAttention: true, onNewChat: {})
+                ForEach(Self.states, id: \.status) { state in
+                    MuseChatHeader(status: state.status, mascotState: state.mascotState,
+                                   isWorking: state.isWorking, onShowConversations: {}, onNewChat: {})
+                }
             }
         }
         .background(palette.muse(scheme).canvas)
