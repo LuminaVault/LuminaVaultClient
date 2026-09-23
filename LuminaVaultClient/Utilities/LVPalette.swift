@@ -207,6 +207,70 @@ extension LVPalette {
     )
 }
 
+// MARK: - Muse chat tokens
+
+/// The Muse chat surface's semantic colours (`_reviews/muse-chat-contract.md`).
+///
+/// Separate from the theme palette on purpose: the contract fixes these per
+/// app rather than per theme, so the chat reads the same whichever theme is
+/// picked. Dark-first with a light variant — the scheme decides, never the
+/// chat (no forced dark).
+struct LVMuseColors: Equatable {
+    let canvas: Color
+    let agentBubble: Color
+    let userBubble: Color
+    let userText: Color
+    let pill: Color
+    let text: Color
+    let textSecondary: Color
+}
+
+extension LVPalette {
+    /// `#070d1e` — the dark chat canvas.
+    static let museCanvasDark = Color(red: 7 / 255, green: 13 / 255, blue: 30 / 255)
+    /// Contract value is `#0096ff` (`--lv-secondary`), but white body text on
+    /// it measures 3.09:1 and fails WCAG AA. `#0074DA` keeps the hue and
+    /// measures 4.66:1.
+    static let museUserBubble = Color(red: 0 / 255, green: 116 / 255, blue: 218 / 255)
+    /// Tailwind gray-100, the light agent bubble.
+    static let museAgentBubbleLight = Color(red: 243 / 255, green: 244 / 255, blue: 246 / 255)
+
+    /// Muse tokens for `scheme`. Light keeps the palette's own base and text,
+    /// which is what "existing light base" means in the contract.
+    func muse(_ scheme: ColorScheme) -> LVMuseColors {
+        if scheme == .dark {
+            return LVMuseColors(
+                canvas: Self.museCanvasDark,
+                agentBubble: Color.white.opacity(0.07),
+                userBubble: Self.museUserBubble,
+                userText: .white,
+                pill: Color.white.opacity(0.10),
+                text: .white,
+                textSecondary: Color.white.opacity(0.72)
+            )
+        }
+        return LVMuseColors(
+            canvas: backgroundBase,
+            agentBubble: Self.museAgentBubbleLight,
+            userBubble: Self.museUserBubble,
+            userText: .white,
+            pill: Color.black.opacity(0.06),
+            text: textPrimary,
+            textSecondary: textSecondary
+        )
+    }
+}
+
+/// Muse geometry. Bubble radius and width caps come from the contract.
+enum LVMuse {
+    static let bubbleRadius: CGFloat = 24
+    static let cardRadius: CGFloat = 16
+    static let avatarSize: CGFloat = 110
+    static let userBubbleWidth: CGFloat = 0.85
+    static let agentBubbleWidth: CGFloat = 0.94
+    static let scrimHeight: CGFloat = 120
+}
+
 // MARK: - Environment injection
 
 private struct LVPaletteKey: EnvironmentKey {
