@@ -1143,6 +1143,11 @@ final class ChatViewModel {
                     phase = .failed(message: message)
                     cancelCelebration()
                     return
+                case let .errorDetail(detail):
+                    drainTypewriterNow()
+                    phase = .failed(message: detail.message)
+                    cancelCelebration()
+                    return
                 }
             }
             // Stream ended without `.done` (e.g. server hung up). Treat
