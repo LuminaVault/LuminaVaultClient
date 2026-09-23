@@ -5,13 +5,17 @@
 // `.safeAreaInset(edge: .bottom)`. Auto-scrolls to the live pending
 // bubble as tokens arrive.
 //
-// The empty state is an "Input Hub": a shared cosmic background, a
-// Hermie status badge, and a horizontal carousel of quick-action cards
-// above the composer. Both empty and active states share the same
-// background + composer so switching between them is seamless, and the
-// quick actions sit well above the composer so they can never overlap
-// or intercept its taps (the cause of the old "typed send does nothing"
-// bug — full-width suggestion buttons stole the send tap).
+// Muse (Stage A, `_reviews/muse-chat-contract.md`): a plain canvas, the
+// `MuseChatHeader` pinned via `.safeAreaInset(edge: .top)` in place of the
+// navigation bar, and bubbles on both sides with no inline avatar — Hermie
+// lives in the header, once, and says what it is doing there.
+//
+// The empty state is a horizontal carousel of quick-action cards above the
+// composer. Both empty and active states share the same background +
+// composer so switching between them is seamless, and the quick actions sit
+// well above the composer so they can never overlap or intercept its taps
+// (the cause of the old "typed send does nothing" bug — full-width
+// suggestion buttons stole the send tap).
 import PhotosUI
 import SwiftUI
 
@@ -53,6 +57,12 @@ struct ChatView: View {
     @Environment(GuidedStartCoordinator.self) private var guided: GuidedStartCoordinator?
 
     @FocusState private var composerFocused: Bool
+    /// The header's left button returns to the inbox this chat was pushed from.
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    private var muse: LVMuseColors { palette.muse(colorScheme) }
+    /// Run details (route, usage, multi-model) folded under the name pill.
+    @State private var isRunDetailsOpen = false
     /// Presents the vault-note `@`-reference picker.
     @State private var showNotePicker = false
     /// Photo picker + add-link prompt state.
@@ -224,17 +234,14 @@ struct ChatView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomBar
         }
-        // The host's navigation bar carries the back button and the title;
-        // this is the one chat-scoped control that belongs up there.
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                MultiModelModeControl(
-                    isEnabled: $viewModel.multiModelEnabled,
-                    strategy: $viewModel.multiModelStrategy,
-                    isStreaming: viewModel.isStreaming
-                )
-            }
+        // The Muse header replaces the navigation bar: its left button is the
+        // way back to the inbox, and "New chat" sits on the right. The
+        // multi-model control that used to be the toolbar item lives in the
+        // run details under the name pill.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            museHeader
         }
+        .toolbar(.hidden, for: .navigationBar)
         // BYOK v2 — when the user changes their LLM provider/model/mode in
         // Settings, start a fresh conversation so a thread never mixes turns
         // from two different models.
@@ -308,13 +315,78 @@ struct ChatView: View {
         scrolledID = viewModel.isStreaming ? Self.pendingAnchor : AnyHashable(id)
     }
 
-    // MARK: - Empty state ("Input Hub")
+    // MARK: - Header
+
+    private var museHeader: some View {
+        MuseChatHeader(
+            status: museStatus,
+            mascotState: viewModel.mascotState,
+            isWorking: isHermieWorking,
+            isAttention: viewModel.fallbackNotice != nil,
+            isDetailExpanded: $isRunDetailsOpen,
+            onShowConversations: { dismiss() },
+            onNewChat: { viewModel.reset() }
+        ) {
+            if !viewModel.toolTrail.isEmpty || isRunDetailsOpen {
+                MuseHeaderTray {
+                    VStack(spacing: LVSpacing.sm) {
+                        // What the agent did on an escalated turn, collapsed
+                        // under the status line rather than in the transcript.
+                        ChatToolTrailView(
+                            items: viewModel.toolTrail,
+                            isRunning: viewModel.phase == .delegated,
+                            toolCount: viewModel.runFollower?.toolCallCount ?? 0,
+                            onSelect: viewModel.runFollower.map { follower in
+                                { item in preview.open(.toolOutput(runID: follower.runID.uuidString, seq: item.id)) }
+                            }
+                        )
+                        if isRunDetailsOpen {
+                            MuseRunDetails(
+                                viewModel: viewModel,
+                                onOpenComparison: { execution in
+                                    comparisonPresentation = .init(id: execution.id)
+                                }
+                            )
+                            .transition(.opacity)
+                        }
+                    }
+                    .padding(.horizontal, LVSpacing.lg)
+                    .padding(.top, LVSpacing.sm)
+                }
+            }
+        }
+        .lvAnimation(LVMotion.standard, value: isRunDetailsOpen)
+    }
+
+    /// Hermie is busy: the ring shows. Every non-idle, non-failed phase.
+    private var isHermieWorking: Bool {
+        switch viewModel.phase {
+        case .starting, .streaming, .delegated: true
+        case .idle, .failed: false
+        }
+    }
+
+    /// The header's status line, in the contract's copy. Derived from what
+    /// the view already has — phase, voice, composer focus. Stage B replaces
+    /// this with a real state (tool labels, "is writing", celebrating).
+    private var museStatus: String {
+        if viewModel.voice.isRecording {
+            return "is listening"
+        }
+        switch viewModel.phase {
+        case .starting, .streaming: return "is thinking"
+        // A different wait: the agent is running tools, which takes longer
+        // than a reply, and the user can leave while it does.
+        case .delegated: return "is still working — you can leave"
+        case .failed: return "hit a snag"
+        case .idle: return composerFocused ? "is listening" : "Ready"
+        }
+    }
+
+    // MARK: - Empty state
 
     private var emptyState: some View {
         VStack(spacing: LVSpacing.xl) {
-            HermieStatusBadge(mascotState: viewModel.mascotState, label: statusLabel)
-                .padding(.top, LVSpacing.lg)
-
             if !emptyStateSuggestions.isEmpty {
                 VStack(alignment: .leading, spacing: LVSpacing.sm) {
                     Text("Quick actions")
@@ -341,21 +413,6 @@ struct ChatView: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// Short label under the mascot badge, derived from voice + phase.
-    private var statusLabel: String {
-        if viewModel.voice.isRecording {
-            return "Listening…"
-        }
-        switch viewModel.phase {
-        case .starting, .streaming: return "Thinking…"
-        // Named separately because it is a different wait: the agent is
-        // running tools, which takes longer than a reply and is worth saying.
-        case .delegated: return "Working on it…"
-        case .failed: return "Let's try that again"
-        case .idle: return "Ready when you are"
-        }
-    }
-
     // MARK: - Active conversation
 
     private var conversation: some View {
@@ -363,22 +420,12 @@ struct ChatView: View {
         // separates turns now that the assistant side has no card. Spacing
         // survives at every content length; a card visibly fails around a wide
         // table.
+        // "Clear conversation" used to sit at the top of the transcript; the
+        // header's "New chat" pill does the same thing (`reset()`).
         LazyVStack(alignment: .leading, spacing: LVSpacing.xl) {
-            HStack {
-                Spacer()
-                Button {
-                    viewModel.reset()
-                } label: {
-                    LVIconView(.trash, size: 14, tint: palette.textSecondary, label: "Clear conversation")
-                }
-                .lvGlowPress()
-            }
-            .padding(.bottom, LVSpacing.sm)
-
             ForEach(viewModel.messages) { message in
                 MessageRow(
                     message: message,
-                    mascotState: .idle,
                     vaultClient: vaultClient,
                     memoryClient: memoryClient
                 )
@@ -419,7 +466,6 @@ struct ChatView: View {
                             { viewModel.beginEdit(userTurn) }
                         }
                     )
-                    .padding(.leading, LVSpacing.hero)
                 }
 
                 // Proposal cards sit in the transcript, under the turn that
@@ -428,17 +474,9 @@ struct ChatView: View {
                 proposalCards(anchoredTo: message.id)
             }
 
-            // An escalated turn: what the agent did, and the decision it is
-            // blocked on. Both absent on an ordinary turn.
-            ChatToolTrailView(
-                items: viewModel.toolTrail,
-                isRunning: viewModel.phase == .delegated,
-                toolCount: viewModel.runFollower?.toolCallCount ?? 0,
-                onSelect: viewModel.runFollower.map { follower in
-                    { item in preview.open(.toolOutput(runID: follower.runID.uuidString, seq: item.id)) }
-                }
-            )
-
+            // An escalated turn: the terminal and the decision it is blocked
+            // on. Absent on an ordinary turn. The tool trail itself moved under
+            // the header's status line.
             AgentTerminalView(
                 entries: viewModel.runFollower?.terminal ?? [],
                 isRunning: viewModel.phase == .delegated
@@ -467,9 +505,9 @@ struct ChatView: View {
             if viewModel.phase == .delegated, !viewModel.delegatedAnswer.isEmpty {
                 Text(viewModel.delegatedAnswer)
                     .font(.body)
-                    .foregroundStyle(palette.textPrimary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(muse.text)
                     .textSelection(.enabled)
+                    .museAgentBubble(muse)
             }
 
             if viewModel.hasPendingTurn {
@@ -573,21 +611,14 @@ struct ChatView: View {
 
     // MARK: - Bottom bar (toasts + composer)
 
-    /// Ten stacked conditionals became two: a status strip and the composer.
+    /// Ten stacked conditionals became one: the composer.
     ///
-    /// The six toasts now share one slot and overlay the transcript; the two
-    /// proposal cards moved into the transcript itself; the mode control moved
-    /// to the top bar. What is left never pushes the composer around while the
-    /// user is typing.
+    /// The six toasts share one slot and overlay the transcript; the two
+    /// proposal cards live in the transcript itself; the status strip that
+    /// used to sit here became the Muse header's status line and run details.
+    /// Nothing here pushes the composer around while the user is typing.
     private var bottomBar: some View {
         VStack(spacing: 0) {
-            ChatStatusStrip(
-                viewModel: viewModel,
-                onOpenComparison: { execution in
-                    comparisonPresentation = .init(id: execution.id)
-                }
-            )
-
             // The composer's own scope. `ChatView`'s body passes object
             // references only and never reads the draft text, so a keystroke
             // re-renders this subview and nothing else on the screen.
@@ -631,8 +662,7 @@ struct ChatView: View {
                         .accessibilityHidden(true)
                 }
             }
-            // Step 3's spotlight. The composer itself, not the whole bottom
-            // bar — the status strip above it is not what is being taught.
+            // Step 3's spotlight: the composer itself.
             .guidedTarget(.chat, in: .chat)
             .sheet(isPresented: $showNotePicker) {
                 if let vaultClient {
@@ -833,55 +863,48 @@ struct ChatView: View {
 
 private struct MessageRow: View {
     @Environment(\.lvPalette) private var palette
+    @Environment(\.colorScheme) private var colorScheme
     let message: ChatViewModel.Message
-    let mascotState: HermieMascotState
     /// HER-155 follow-up — passed through from `ChatView`. Assistant
     /// bubbles render their body via `WikilinkMarkdownView` only when
     /// both clients are present; otherwise we fall back to plain text.
     let vaultClient: (any VaultClientProtocol)?
     let memoryClient: (any MemoryClientProtocol)?
 
+    private var muse: LVMuseColors { palette.muse(colorScheme) }
+
     var body: some View {
-        HStack(alignment: .top, spacing: LVSpacing.sm) {
-            if message.role == .user {
-                Spacer(minLength: LVSpacing.hero)
+        if message.role == .user {
+            bubble
+                .museBubbleWidth(LVMuse.userBubbleWidth, alignment: .trailing)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        } else {
+            // No avatar and no name label: Hermie is in the header, once.
+            VStack(alignment: .leading, spacing: LVSpacing.md) {
                 bubble
-            } else {
-                // Fixed leading gutter. The avatar and the copy share a column
-                // baseline, which is what carries the turn boundary now that
-                // the glass card is gone.
-                AssistantAvatar(state: mascotState)
-                    .padding(.top, LVSpacing.xs)
-                VStack(alignment: .leading, spacing: LVSpacing.md) {
-                    bubble
-                    // Cerberus transparency — what this turn actually did.
-                    // The model alone said who answered; the tool count is
-                    // what distinguishes an agent that did work from a model
-                    // that only talked.
-                    // Gated here rather than inside the view: the VStack has
-                    // explicit spacing, so an always-present child that
-                    // happens to render nothing is not the same as no child.
-                    if TurnReceiptView.summary(
+                // Cerberus transparency — what this turn actually did.
+                // The model alone said who answered; the tool count is
+                // what distinguishes an agent that did work from a model
+                // that only talked.
+                // Gated here rather than inside the view: the VStack has
+                // explicit spacing, so an always-present child that
+                // happens to render nothing is not the same as no child.
+                if TurnReceiptView.summary(
+                    modelLabel: message.modelLabel,
+                    toolCallCount: message.toolCallCount
+                ) != nil {
+                    TurnReceiptView(
                         modelLabel: message.modelLabel,
                         toolCallCount: message.toolCallCount
-                    ) != nil {
-                        TurnReceiptView(
-                            modelLabel: message.modelLabel,
-                            toolCallCount: message.toolCallCount
-                        )
-                    }
+                    )
                 }
-                // No trailing `Spacer(minLength: .hero)` on the assistant side:
-                // it capped the column at ~48pt short of the screen, so
-                // `MarkdownTheme`'s code blocks and tables rendered narrower
-                // than the width they were designed for.
             }
+            .museBubbleWidth(LVMuse.agentBubbleWidth, alignment: .leading)
         }
     }
 
-    @ViewBuilder
     private var bubble: some View {
-        let content = VStack(alignment: .leading, spacing: LVSpacing.xs) {
+        VStack(alignment: .leading, spacing: LVSpacing.xs) {
             bubbleBody
             // Render any images the assistant returned (e.g. Hermes Tool
             // Gateway image generation) — AttributedString markdown drops
@@ -891,7 +914,7 @@ private struct MessageRow: View {
                     switch phase {
                     case let .success(image):
                         image.resizable().scaledToFit()
-                            .clipShape(RoundedRectangle(cornerRadius: LVRadius.card, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: LVMuse.cardRadius, style: .continuous))
                     case .empty:
                         ProgressView().frame(maxWidth: .infinity, minHeight: 120)
                     case .failure:
@@ -906,30 +929,11 @@ private struct MessageRow: View {
                 SourceChipRow(sources: message.sources)
             }
         }
-        // Only the user side pays for bubble padding. The assistant column is
-        // the page, so insetting it would just narrow the content.
-        .padding(.horizontal, message.role == .user ? LVSpacing.base : 0)
-        .padding(.vertical, message.role == .user ? LVSpacing.md : 0)
+        .museBubble(fill: message.role == .user ? muse.userBubble : muse.agentBubble)
+    }
 
-        if message.role == .user {
-            content
-                .background {
-                    RoundedRectangle(cornerRadius: LVRadius.card, style: .continuous)
-                        .fill(palette.glowPrimary.opacity(0.18))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: LVRadius.card, style: .continuous)
-                                .stroke(palette.glowPrimary.opacity(0.5), lineWidth: 1)
-                        }
-                }
-                .shadow(color: palette.glowPrimary.opacity(0.25), radius: 10)
-        } else {
-            // Assistant turns are full-width and bubble-free. The asymmetry is
-            // the pattern: the user's words are a quoted object, the
-            // assistant's are the page. Glass + avatar + spacing was three
-            // separation signals where one suffices, and the card was the one
-            // that broke around a wide table.
-            content
-        }
+    private var textColor: Color {
+        message.role == .user ? muse.userText : muse.text
     }
 
     @ViewBuilder
@@ -947,12 +951,41 @@ private struct MessageRow: View {
                 vaultClient: vaultClient,
                 memoryClient: memoryClient
             )
-            .foregroundStyle(palette.textPrimary)
+            .foregroundStyle(textColor)
         } else {
             Text(message.content)
                 .lvFont(.body)
-                .foregroundStyle(palette.textPrimary)
+                .foregroundStyle(textColor)
                 .multilineTextAlignment(.leading)
+        }
+    }
+}
+
+// MARK: - Muse bubble geometry
+
+extension View {
+    /// Contract bubble: 24pt continuous corners on the given fill.
+    func museBubble(fill: Color) -> some View {
+        padding(.horizontal, LVSpacing.base)
+            .padding(.vertical, LVSpacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: LVMuse.bubbleRadius, style: .continuous)
+                    .fill(fill)
+            )
+    }
+
+    /// An agent-side bubble, capped at the contract's 94%.
+    func museAgentBubble(_ muse: LVMuseColors) -> some View {
+        museBubble(fill: muse.agentBubble)
+            .museBubbleWidth(LVMuse.agentBubbleWidth, alignment: .leading)
+    }
+
+    /// Caps a transcript row at `fraction` of the column. The container is the
+    /// transcript's `ScrollView`, so the column's horizontal padding comes off
+    /// first — otherwise 94% of the scroll view overruns the padded column.
+    func museBubbleWidth(_ fraction: CGFloat, alignment: Alignment) -> some View {
+        containerRelativeFrame(.horizontal, alignment: alignment) { length, _ in
+            max(0, length - 2 * LVSpacing.lg) * fraction
         }
     }
 }
@@ -1018,6 +1051,8 @@ private struct ChatComposerSection: View {
 /// while an answer arrives.
 private struct StreamingAssistantRow: View {
     @Environment(\.lvPalette) private var palette
+    @Environment(\.colorScheme) private var colorScheme
+    private var muse: LVMuseColors { palette.muse(colorScheme) }
     let viewModel: ChatViewModel
     let vaultClient: (any VaultClientProtocol)?
     let memoryClient: (any MemoryClientProtocol)?
@@ -1027,34 +1062,31 @@ private struct StreamingAssistantRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: LVSpacing.sm) {
-            AssistantAvatar(state: viewModel.mascotState)
-                .padding(.top, LVSpacing.xs)
-            VStack(alignment: .leading, spacing: LVSpacing.md) {
-                if viewModel.displayedAssistant.isEmpty && isStreaming {
-                    HStack(spacing: LVSpacing.sm) {
-                        TypingIndicator()
-                        if viewModel.autoExpandThinking {
-                            Text("Preparing a response…")
-                                .lvFont(.callout)
-                                .foregroundStyle(palette.textSecondary)
-                                .transition(.opacity)
-                        }
+        // The same agent bubble the finalized turn uses, so nothing jumps when
+        // the turn settles. The typing dots and the caret live inside it —
+        // there is no separate typing row and no avatar.
+        VStack(alignment: .leading, spacing: LVSpacing.md) {
+            if viewModel.displayedAssistant.isEmpty && isStreaming {
+                HStack(spacing: LVSpacing.sm) {
+                    TypingIndicator()
+                    if viewModel.autoExpandThinking {
+                        Text("Preparing a response…")
+                            .lvFont(.callout)
+                            .foregroundStyle(muse.textSecondary)
+                            .transition(.opacity)
                     }
-                } else {
-                    body(for: viewModel.streamingMarkdown)
                 }
-                if !viewModel.pendingSources.isEmpty {
-                    SourceChipRow(sources: viewModel.pendingSources)
-                }
+            } else {
+                body(for: viewModel.streamingMarkdown)
             }
-            // Bubble-free and full-width, matching the finalized assistant
-            // turn — the streaming row used to carry glass that vanished the
-            // instant the turn finalized, which read as a layout jump.
-            // Drives the typing-indicator → first-token swap, whose
-            // `.transition(.opacity)` had no animation anywhere in scope.
-            .lvAnimation(LVMotion.standard, value: viewModel.displayedAssistant.isEmpty)
+            if !viewModel.pendingSources.isEmpty {
+                SourceChipRow(sources: viewModel.pendingSources)
+            }
         }
+        .museAgentBubble(muse)
+        // Drives the typing-indicator → first-token swap, whose
+        // `.transition(.opacity)` had no animation anywhere in scope.
+        .lvAnimation(LVMotion.standard, value: viewModel.displayedAssistant.isEmpty)
     }
 
     /// Two stacked layers: finished blocks already rendered as markdown, and
@@ -1076,7 +1108,7 @@ private struct StreamingAssistantRow: View {
                     if !buffer.tail.isEmpty {
                         Text(buffer.tail)
                             .lvFont(.body)
-                            .foregroundStyle(palette.textPrimary)
+                            .foregroundStyle(muse.text)
                             .multilineTextAlignment(.leading)
                     }
                     if isStreaming {
@@ -1120,18 +1152,6 @@ private struct CommittedStreamingMarkdown: View, Equatable {
                 .foregroundStyle(palette.textPrimary)
                 .multilineTextAlignment(.leading)
         }
-    }
-}
-
-/// Inline assistant-turn mascot avatar. Reuses `HermieMascotView` at a
-/// chat-bubble-friendly 32pt. Pending bubbles animate (`.thinking` →
-/// `.happy`); finalized turns pin to `.idle` so the chat history doesn't
-/// jitter as new turns arrive.
-private struct AssistantAvatar: View {
-    let state: HermieMascotState
-    var body: some View {
-        HermieMascotView(state: state, size: 32, fallbackImageName: "Mascot")
-            .frame(width: 32, height: 32)
     }
 }
 

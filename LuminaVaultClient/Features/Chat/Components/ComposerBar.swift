@@ -11,6 +11,8 @@ import UniformTypeIdentifiers
 
 struct ComposerBar: View {
     @Environment(\.lvPalette) private var palette
+    @Environment(\.colorScheme) private var colorScheme
+    private var muse: LVMuseColors { palette.muse(colorScheme) }
     @Binding var text: String
     let canSend: Bool
     let isStreaming: Bool
@@ -101,8 +103,15 @@ struct ComposerBar: View {
         }
         .padding(.horizontal, LVSpacing.base)
         .padding(.vertical, LVSpacing.md)
-        .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.focused, material: .regularMaterial)
-        .lvInnerGlow(cornerRadius: LVRadius.card, intensity: LVGlow.card)
+        // Muse: the pill fill at the contract's 24pt radius, over the canvas
+        // so the transcript scrolling underneath never shows through the
+        // draft.
+        .background {
+            RoundedRectangle(cornerRadius: LVMuse.bubbleRadius, style: .continuous)
+                .fill(muse.canvas)
+            RoundedRectangle(cornerRadius: LVMuse.bubbleRadius, style: .continuous)
+                .fill(muse.pill)
+        }
         .padding(.horizontal, LVSpacing.lg)
         .padding(.vertical, LVSpacing.sm)
         // Two values, because two different things animate here. `canSend`

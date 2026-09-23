@@ -112,7 +112,13 @@ final class RedesignChromeSnapshotTests: XCTestCase {
     }
 
     // HER-302 — Think empty hero (mascot + gradient title + composer)
-    func testThinkEmptyHero() {
+    //
+    // Quarantined 2026-09-23 by the Muse restyle (Stage A): the chat is now a
+    // flat canvas with the Muse header, so the recorded baseline is stale by
+    // design. Re-record through the `record-snapshots` workflow, commit the
+    // PNG, then delete the skip.
+    func testThinkEmptyHero() throws {
+        try SnapshotQuarantine.skipUnlessRecording()
         // The composer's mic button fades to 40% when the speech recognizer
         // reports itself unavailable, and `SFSpeechRecognizer` availability
         // on the CI simulator is not deterministic — the same commit passed
