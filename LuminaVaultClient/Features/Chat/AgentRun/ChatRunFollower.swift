@@ -59,6 +59,10 @@ final class ChatRunFollower {
     /// What the agent ran in its terminal and what it printed. Empty on a
     /// Hermes that does not stream terminal output.
     private(set) var terminal: [AgentTerminalEntry] = []
+    /// At least one answer token has arrived. Stored and written once, so the
+    /// chat header can tell "writing" from "working" without observing
+    /// `answer`, which changes on every token.
+    private(set) var hasAnswer = false
 
     private let client: any HermesRunsClientProtocol
     /// Injectable so tests do not sleep through the backoff.
@@ -171,10 +175,17 @@ final class ChatRunFollower {
 
         if let delta = HermesRunTrailItem.messageDelta(in: event) {
             answer += delta
+            if !hasAnswer, !delta.isEmpty { hasAnswer = true }
             return
         }
 
-        if let item = HermesRunTrailItem(event: event) {
+        if var item = HermesRunTrailItem(event: event) {
+            // A progress row that does not name its tool is still that tool
+            // running: keep its label, so the header does not drop "is
+            // searching the web" on every progress tick.
+            if item.toolLabel == nil, Self.progressEvents.contains(event.event) {
+                item.toolLabel = trail.last?.toolLabel
+            }
             trail.append(item)
             switch event.event {
             case "approval.request": pendingApproval = item
@@ -195,10 +206,15 @@ final class ChatRunFollower {
         // follower that attached after the deltas were missed.
         if let summary = run.summary, !summary.isEmpty, answer.isEmpty || run.status.isTerminal {
             answer = summary
+            hasAnswer = true
         }
         pendingApproval = nil
         phase = run.status == .failed ? .failed(run.error ?? "The run failed.") : .finished
     }
+
+    private static let progressEvents: Set<String> = [
+        "tool.progress", "hermes.tool.progress", "reasoning.available",
+    ]
 
     static func isTerminal(_ event: String) -> Bool {
         ["run.completed", "run.failed", "run.cancelled"].contains(event) || event.hasPrefix("watcher.")

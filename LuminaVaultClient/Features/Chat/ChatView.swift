@@ -257,6 +257,11 @@ struct ChatView: View {
             guard editing != nil else { return }
             composerFocused = true
         }
+        // The header's "is listening" reads focus from the view model, which
+        // cannot own a `@FocusState`.
+        .onChange(of: composerFocused, initial: true) { _, focused in
+            viewModel.isComposerFocused = focused
+        }
         .onChange(of: scrolledID) { _, id in
             // Remember where the user parked so reopening the thread lands
             // there. Nothing renders from this, so it costs no invalidation.
@@ -319,9 +324,9 @@ struct ChatView: View {
 
     private var museHeader: some View {
         MuseChatHeader(
-            status: museStatus,
-            mascotState: viewModel.mascotState,
-            isWorking: isHermieWorking,
+            status: museState.status,
+            mascotState: museState.mascotState,
+            isWorking: museState.isWorking,
             isAttention: viewModel.fallbackNotice != nil,
             isDetailExpanded: $isRunDetailsOpen,
             onShowConversations: { dismiss() },
@@ -358,30 +363,9 @@ struct ChatView: View {
         .lvAnimation(LVMotion.standard, value: isRunDetailsOpen)
     }
 
-    /// Hermie is busy: the ring shows. Every non-idle, non-failed phase.
-    private var isHermieWorking: Bool {
-        switch viewModel.phase {
-        case .starting, .streaming, .delegated: true
-        case .idle, .failed: false
-        }
-    }
-
-    /// The header's status line, in the contract's copy. Derived from what
-    /// the view already has — phase, voice, composer focus. Stage B replaces
-    /// this with a real state (tool labels, "is writing", celebrating).
-    private var museStatus: String {
-        if viewModel.voice.isRecording {
-            return "is listening"
-        }
-        switch viewModel.phase {
-        case .starting, .streaming: return "is thinking"
-        // A different wait: the agent is running tools, which takes longer
-        // than a reply, and the user can leave while it does.
-        case .delegated: return "is still working — you can leave"
-        case .failed: return "hit a snag"
-        case .idle: return composerFocused ? "is listening" : "Ready"
-        }
-    }
+    /// What Hermie is doing — status copy, art and ring in one value, so the
+    /// three can never disagree. Derived in the view model (Stage B).
+    private var museState: MuseChatState { viewModel.museState }
 
     // MARK: - Empty state
 

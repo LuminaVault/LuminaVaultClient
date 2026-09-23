@@ -34,6 +34,11 @@ struct HermesRunTrailItem: Identifiable, Equatable, Sendable {
     let title: String
     let detail: String?
     let at: Date
+    /// Verb phrase for a tool still in flight ("searching the web"), for the
+    /// chat header's status line. Set on `tool.started` and on progress rows
+    /// that name their tool; `nil` on everything else — including a tool's
+    /// completion, which is what lets the header move on.
+    var toolLabel: String? = nil
 
     var systemImage: String {
         switch kind {
@@ -56,6 +61,12 @@ extension HermesRunTrailItem {
             fields["tool"]?.lvString ?? fields["tool_name"]?.lvString
         }
 
+        /// Hermes sends no human label today; `label` is read so one added
+        /// later passes straight through instead of being ignored.
+        func explicitLabel() -> String? {
+            fields["label"]?.lvString
+        }
+
         switch event.event {
         case "message.delta", "assistant.delta", "message.started":
             return nil
@@ -69,7 +80,8 @@ extension HermesRunTrailItem {
                 kind: .tool,
                 title: tool().map { "Running \($0)" } ?? "Running a tool",
                 detail: fields["preview"]?.lvString,
-                at: event.at
+                at: event.at,
+                toolLabel: MuseToolLabel.phrase(tool: tool(), explicitLabel: explicitLabel())
             )
 
         case "tool.completed":
@@ -101,7 +113,14 @@ extension HermesRunTrailItem {
                 kind: .tool,
                 title: tool() ?? "Working",
                 detail: text,
-                at: event.at
+                at: event.at,
+                // Reasoning is not a tool, and a progress row that does not
+                // say which tool it is has nothing better than "using a
+                // tool" to offer. Left nil; `ChatRunFollower` carries the
+                // running tool's label forward onto such rows.
+                toolLabel: event.event == "reasoning.available" || (tool() == nil && explicitLabel() == nil)
+                    ? nil
+                    : MuseToolLabel.phrase(tool: tool(), explicitLabel: explicitLabel())
             )
 
         case "approval.request":

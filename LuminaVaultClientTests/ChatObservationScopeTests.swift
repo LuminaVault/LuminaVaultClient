@@ -39,6 +39,61 @@ final class ChatObservationScopeTests: XCTestCase {
         return box.fired
     }
 
+    // MARK: - Muse header state (Stage B)
+
+    func testMuseStateFollowsPhaseAndFocus() async {
+        let vm = makeViewModel()
+        XCTAssertEqual(vm.museState, .idle)
+
+        vm.isComposerFocused = true
+        XCTAssertEqual(vm.museState, .listening)
+
+        vm.isComposerFocused = false
+        vm.phase = .starting
+        XCTAssertEqual(vm.museState, .thinking)
+        XCTAssertEqual(vm.mascotState, .thinking)
+
+        vm.phase = .failed(message: "boom")
+        XCTAssertEqual(vm.museState, .failed)
+        XCTAssertEqual(vm.mascotState, .idle)
+    }
+
+    func testFirstTokenTurnsThinkingIntoWriting() async {
+        let vm = makeViewModel()
+        vm.phase = .streaming
+        XCTAssertEqual(vm.museState, .thinking)
+
+        // `hasFirstToken` is recomputed with `hasPendingTurn`; a phase write
+        // is one of the triggers, the same as an appended token.
+        vm.pendingAssistant = "Hel"
+        vm.phase = .streaming
+        XCTAssertTrue(vm.hasFirstToken)
+        XCTAssertEqual(vm.museState, .writing)
+    }
+
+    func testResetEndsTheMuseStateAtIdle() async {
+        let vm = makeViewModel()
+        vm.phase = .failed(message: "boom")
+        vm.reset()
+        XCTAssertEqual(vm.museState, .idle)
+    }
+
+    /// The header reads `museState` on every body pass. Its inputs are
+    /// stored flags written on change, so a typewriter tick must not reach it.
+    func testTypewriterTickDoesNotInvalidateTheHeader() async {
+        let vm = makeViewModel()
+        vm.phase = .streaming
+        vm.pendingAssistant = "a"
+        vm.phase = .streaming
+
+        let fired = didNotify {
+            _ = vm.museState
+        } mutate: {
+            vm.displayedAssistant = "a token arrived"
+        }
+        XCTAssertFalse(fired, "a typewriter tick must not invalidate the header")
+    }
+
     // MARK: - Streaming text
 
     func testStreamingTextDoesNotInvalidateTheTranscriptScope() {

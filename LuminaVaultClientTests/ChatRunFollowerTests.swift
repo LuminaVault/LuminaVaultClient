@@ -182,4 +182,47 @@ final class ChatRunFollowerTests: XCTestCase {
         sut.apply(.stub(seq: 1, event: "watcher.timeout"))
         XCTAssertTrue(sut.isFinished)
     }
+
+    // MARK: - Muse Stage B: tool labels and first token
+
+    func testToolStartedCarriesAHeaderLabelAndCompletionClearsIt() async {
+        let sut = makeFollower()
+        sut.apply(.stub(seq: 1, event: "tool.started", fields: ["tool": .string("web_search")]))
+        XCTAssertEqual(sut.trail.last?.toolLabel, "searching the web")
+
+        sut.apply(.stub(seq: 2, event: "tool.completed", fields: ["tool": .string("web_search")]))
+        XCTAssertNil(sut.trail.last?.toolLabel)
+    }
+
+    func testProgressWithoutAToolNameKeepsTheRunningLabel() async {
+        let sut = makeFollower()
+        sut.apply(.stub(seq: 1, event: "tool.started", fields: ["tool": .string("terminal")]))
+        sut.apply(.stub(seq: 2, event: "tool.progress", fields: ["text": .string("npm install")]))
+        XCTAssertEqual(sut.trail.last?.toolLabel, "running code")
+    }
+
+    func testExplicitLabelOnTheWirePassesThrough() async {
+        let sut = makeFollower()
+        sut.apply(.stub(seq: 1, event: "tool.started", fields: [
+            "tool": .string("web_search"),
+            "label": .string("checking flight prices"),
+        ]))
+        XCTAssertEqual(sut.trail.last?.toolLabel, "checking flight prices")
+    }
+
+    func testFailedToolCarriesNoLabel() async {
+        let sut = makeFollower()
+        sut.apply(.stub(seq: 1, event: "tool.started", fields: ["tool": .string("shell")]))
+        sut.apply(.stub(seq: 2, event: "tool.failed", fields: ["tool": .string("shell")]))
+        XCTAssertNil(sut.trail.last?.toolLabel)
+    }
+
+    func testHasAnswerFlipsOnTheFirstDelta() async {
+        let sut = makeFollower()
+        XCTAssertFalse(sut.hasAnswer)
+        sut.apply(.stub(seq: 1, event: "message.delta", fields: ["delta": .string("")]))
+        XCTAssertFalse(sut.hasAnswer, "an empty delta is not a token")
+        sut.apply(.stub(seq: 2, event: "message.delta", fields: ["delta": .string("Hi")]))
+        XCTAssertTrue(sut.hasAnswer)
+    }
 }
