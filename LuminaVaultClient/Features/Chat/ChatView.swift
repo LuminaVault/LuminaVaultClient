@@ -439,6 +439,11 @@ struct ChatView: View {
                 }
             )
 
+            AgentTerminalView(
+                entries: viewModel.runFollower?.terminal ?? [],
+                isRunning: viewModel.phase == .delegated
+            )
+
             ChatArtifactStrip(
                 sessionID: viewModel.runSessionID,
                 client: artifactsClient,
