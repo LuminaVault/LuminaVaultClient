@@ -1,7 +1,15 @@
-# Dedicated PRIVATE certs repo — NOT the app source repo.
-# Create it empty first. SSH URL so match can push without a token prompt.
-# CI may override with the MATCH_GIT_URL secret.
-git_url(ENV["MATCH_GIT_URL"] || "git@github.com:LuminaVault/LuminaVaultIOSSecrets.git")
+# The team's shared match repo — the same one Norviq signs from.
+#
+# One Apple Distribution certificate signs every app in team 84X9WYBF36, and
+# Apple caps how many a team may hold. When LuminaVault and Norviq each kept
+# their own match repo, each could create (and push out) the other's
+# certificate; LuminaVault's was invalidated around 2026-09-20 and every
+# TestFlight build failed from then on. Sharing one repo means match reuses
+# the one certificate and only adds this app's provisioning profiles.
+#
+# CI overrides with the MATCH_GIT_URL secret; MATCH_PASSWORD is that repo's
+# password and MATCH_GIT_BASIC_AUTHORIZATION must be able to read it.
+git_url(ENV["MATCH_GIT_URL"] || "https://github.com/FinancePlanner/norviq-certificates.git")
 
 storage_mode("git")
 
