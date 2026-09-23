@@ -153,11 +153,22 @@ platform :ios do
         use_automatic_signing: false,
         team_id: TEAM_ID,
         code_sign_identity: "Apple Distribution",
-        profile_name: "match AppStore #{bundle_id}",
+        profile_name: installed_profile_name(bundle_id),
         targets: [target],
         build_configurations: [flavor[:configuration]]
       )
     end
+  end
+
+  # The profile match just installed for `bundle_id`. match names App Store
+  # profiles "match AppStore <bundle id>", but when it regenerates one (a
+  # `--force` run, or a new certificate) it appends a timestamp to keep the
+  # name unique on the portal — "match AppStore com.lumina.fernando.beta
+  # 1790187426" — and a hardcoded name then matches nothing, failing the
+  # archive with "No profile for team ... matching 'match AppStore ...'".
+  # match exports the real name, so read it; fall back for older runs.
+  def installed_profile_name(bundle_id)
+    ENV["sigh_#{bundle_id}_appstore_profile-name"] || "match AppStore #{bundle_id}"
   end
 
   private_lane :build_flavor do |options|
