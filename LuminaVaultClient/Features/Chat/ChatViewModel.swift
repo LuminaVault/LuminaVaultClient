@@ -1144,7 +1144,10 @@ final class ChatViewModel {
                     cancelCelebration()
                     return
                 case let .errorDetail(detail):
+                    // A refusal the user can act on (LuminaVaultShared 5.20.0):
+                    // the same buttons the HTTP path offers from its envelope.
                     drainTypewriterNow()
+                    recoveryActions = detail.cta.compactMap(ChatRecoveryAction.init(ctaToken:))
                     phase = .failed(message: detail.message)
                     cancelCelebration()
                     return
