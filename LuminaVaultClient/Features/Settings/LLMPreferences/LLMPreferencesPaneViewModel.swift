@@ -239,7 +239,14 @@ final class LLMPreferencesPaneViewModel {
                 )
             }
             let response = try await client.put(body)
-            if routerDirty, let routerClient, let profile = selectedRouterProfile {
+            if routerDirty, let routerClient, let selected = selectedRouterProfile {
+                // The preferences PUT above moves the default profile on: it
+                // bumps the revision and, on a switch to BYOK, replaces the
+                // routes. Build the write from the profile as it is now, not as
+                // it was read — the old revision answers 409, and the old
+                // routes may be the managed placeholder the pane was shown.
+                let profile = try await routerClient.profiles().profiles
+                    .first { $0.id == selected.id } ?? selected
                 let latency = max(0, 100 - Int(qualityWeight.rounded()) - Int(costWeight.rounded()))
                 let request = RouterProfileWriteRequest(
                     name: profile.name,
@@ -320,7 +327,9 @@ final class LLMPreferencesPaneViewModel {
         hasUnsavedChanges = !(
             snapshot.mode == mode &&
                 snapshot.primaryProvider == primaryProvider &&
-                snapshot.primaryModel == primaryModel &&
+                // Under managed the model is the server's, not an edit: the
+                // snapshot holds the brain label and `apply` clears it locally.
+                (mode == .managed || snapshot.primaryModel == primaryModel) &&
                 snapshot.fallbackChain == fallbackRoutes &&
                 Set(snapshot.allowedProviders) == allowedProviders &&
                 Set(snapshot.blockedProviders) == blockedProviders
@@ -368,7 +377,9 @@ final class LLMPreferencesPaneViewModel {
     private func apply(_ response: LLMPreferencesGetResponse) {
         mode = response.mode
         primaryProvider = response.primaryProvider
-        primaryModel = response.primaryModel
+        // Under managed the server sends the brain label here, not a model id.
+        // Held as the model, a switch to BYOK would send it back as one.
+        primaryModel = response.mode == .managed ? "" : response.primaryModel
         // A server snapshot replaces the chain wholesale, so rows are new
         // rows and get new ids. Identity only has to survive the edits the
         // user makes between two loads.
