@@ -235,6 +235,7 @@ struct MainTabView: View {
         )
         .task(id: notificationRouter.pendingDeepLink) {
             routePendingIngestion()
+            routePendingConversation()
         }
         .task(id: captureCoordinator?.queue == nil) {
             guard captureFailures == nil, captureCoordinator?.queue != nil else { return }
@@ -327,6 +328,22 @@ struct MainTabView: View {
         ingestionBatchID = batchID
         showingIngestionCapture = true
         _ = notificationRouter.consume()
+    }
+
+    /// Muse Stage D — a tapped proactive-chat push, a `luminavault://chat/`
+    /// URL or a tap on the agent-run Live Activity. Hands the thread to the
+    /// same `AppState.openChat(conversationID:)` path the inbox uses, which
+    /// switches to the AI tab and pushes the conversation.
+    ///
+    /// Runs from `.task(id:)` rather than `onChange` so a link parked before
+    /// this view existed (cold start, or a tap while signed out) is routed
+    /// the moment the tab view appears, not only on the next change.
+    private func routePendingConversation() {
+        guard case let .conversation(id) = notificationRouter.pendingDeepLink else { return }
+        _ = notificationRouter.consume()
+        // A sheet would sit on top of the thread and hide it.
+        showSettings = false
+        appState.openChat(conversationID: id)
     }
 
     // MARK: - Tabs

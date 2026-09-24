@@ -361,6 +361,10 @@ struct LuminaVaultClientApp: App {
                 // fresh sign-ups.
                 appDelegate.router = notificationRouter
                 appDelegate.onTokenAvailable = appState.deviceRegistration
+                // Muse Stage D — a run's Live Activity left behind by a
+                // process that was killed mid-run would otherwise claim
+                // "still working" for hours.
+                await AgentRunLiveActivity.endOrphans()
             }
             // HER-214 — warm-launch path only. If the system has already
             // granted notification permission on a previous run, APNS
@@ -397,6 +401,13 @@ struct LuminaVaultClientApp: App {
                 }
             }
             .onOpenURL { url in
+                // Muse Stage D — `luminavault://chat/<id>`: the proactive
+                // push's `deepLink` and the Live Activity's `widgetURL`.
+                // Routed like a notification tap; `MainTabView` opens it.
+                if case let .conversation(id) = NotificationRouter.deepLink(from: url) {
+                    notificationRouter.pendingDeepLink = .conversation(id: id)
+                    return
+                }
                 if handlePairingLink(url.absoluteString) { return }
                 _ = GIDSignIn.sharedInstance.handle(url)
             }

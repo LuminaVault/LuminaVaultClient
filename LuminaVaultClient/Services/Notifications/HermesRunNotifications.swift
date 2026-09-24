@@ -44,7 +44,23 @@ enum HermesRunNotifications {
     /// `didFinishLaunchingWithOptions` so an app cold-launched purely to
     /// service a notification action still knows about them.
     static var all: Set<UNNotificationCategory> {
-        [approvalCategory, runCompletedCategory]
+        [approvalCategory, runCompletedCategory, chatCategory]
+    }
+
+    /// Matches `APNSPushCategory.chat` — a proactive Hermie message. No
+    /// actions: tapping opens the thread (`NotificationRouter` →
+    /// `.conversation`). Declared so the system groups these under one
+    /// category rather than treating `aps.category` as unknown.
+    static let chatCategoryID = APNSCategory.chat.rawValue
+
+    private static var chatCategory: UNNotificationCategory {
+        UNNotificationCategory(
+            identifier: chatCategoryID,
+            actions: [],
+            intentIdentifiers: [],
+            hiddenPreviewsBodyPlaceholder: "Hermie sent you a message",
+            options: []
+        )
     }
 
     private static var approvalCategory: UNNotificationCategory {
@@ -155,7 +171,9 @@ actor HermesApprovalResponder {
         }
     }
 
-    private static func backgroundHTTPClient() -> BaseHTTPClient {
+    /// Also used by `WatchThisIntent`, which runs outside the SwiftUI tree
+    /// for the same reason.
+    static func backgroundHTTPClient() -> BaseHTTPClient {
         let keychain = KeychainService.shared
         let sharedSession = SharedSessionKeychain(accessGroup: Config.keychainAccessGroup)
         let bootstrap = BaseHTTPClient(tokenProvider: { nil })
