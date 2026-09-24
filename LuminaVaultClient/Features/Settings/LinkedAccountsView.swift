@@ -54,6 +54,14 @@ struct LinkedAccountsView: View {
             } footer: {
                 Text("Connect your calendar so Hermes knows your schedule.")
             }
+
+            // Muse Stage C — Gmail, an incremental read-only scope on the
+            // same Google grant.
+            GmailConnectionSection(
+                viewModel: GmailConnectionViewModel(
+                    client: GmailHTTPClient(client: baseHTTPClient)
+                )
+            )
         }
         .navigationTitle("Linked Accounts")
         .navigationBarTitleDisplayMode(.inline)

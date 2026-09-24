@@ -79,6 +79,9 @@ final class DataAccessViewModel {
 struct DataAccessView: View {
     @Environment(\.lvPalette) private var palette
     @State var vm: DataAccessViewModel
+    /// Muse Stage C — the kept location fix. Nil hides the row (previews,
+    /// tests that only exercise consent).
+    var locationClient: (any LastKnownLocationClientProtocol)? = nil
 
     var body: some View {
         ZStack {
@@ -108,6 +111,11 @@ struct DataAccessView: View {
                             consent: vm.consent(domain),
                             onAllowed: { vm.setAllowed(domain, $0) },
                             onWrites: { vm.setWrites(domain, $0) },
+                        )
+                    }
+                    if let locationClient {
+                        LastKnownLocationRow(
+                            viewModel: LastKnownLocationViewModel(client: locationClient)
                         )
                     }
                     footer

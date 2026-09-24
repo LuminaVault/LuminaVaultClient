@@ -44,6 +44,17 @@ final class ChatViewModel {
         /// answer — it ran without tools — and nil means unknown, which is
         /// what every turn recorded before the server persisted this says.
         var toolCallCount: Int?
+        /// Muse Stage C — `proactive` when Hermie sent this on her own (a
+        /// briefing, a standing task firing, a job confirmation) rather than
+        /// in reply. Drives the caption above the bubble; see
+        /// ``ProactiveCaption``. Snapshots written before this decode as reply.
+        var origin: ConversationMessageOrigin
+        /// Who sent a proactive message: a skill name or `job-<slug>`.
+        var sourceLabel: String?
+        /// When the message was written, where known — the wire always has it;
+        /// locally streamed turns leave it nil. Only the briefing caption
+        /// ("Briefing · 07:00") reads it.
+        var createdAt: Date?
 
         init(
             id: UUID = UUID(),
@@ -54,7 +65,10 @@ final class ChatViewModel {
             imageURLs: [URL]? = nil,
             renderedMarkdown: String? = nil,
             modelLabel: String? = nil,
-            toolCallCount: Int? = nil
+            toolCallCount: Int? = nil,
+            origin: ConversationMessageOrigin = .reply,
+            sourceLabel: String? = nil,
+            createdAt: Date? = nil
         ) {
             self.id = id
             self.role = role
@@ -65,10 +79,20 @@ final class ChatViewModel {
             self.renderedMarkdown = renderedMarkdown ?? Self.renderedMarkdown(role: role, content: content)
             self.modelLabel = modelLabel
             self.toolCallCount = toolCallCount
+            self.origin = origin
+            self.sourceLabel = sourceLabel
+            self.createdAt = createdAt
+        }
+
+        /// The caption above this bubble, or nil for an ordinary reply.
+        var proactiveCaption: String? {
+            guard role == .assistant else { return nil }
+            return ProactiveCaption.text(origin: origin, sourceLabel: sourceLabel, createdAt: createdAt)
         }
 
         enum CodingKeys: String, CodingKey {
             case id, role, content, sources, parallelExecutionID, imageURLs, renderedMarkdown, modelLabel, toolCallCount
+            case origin, sourceLabel, createdAt
         }
 
         init(from decoder: Decoder) throws {
@@ -84,6 +108,11 @@ final class ChatViewModel {
                 ?? Self.renderedMarkdown(role: role, content: content)
             modelLabel = try container.decodeIfPresent(String.self, forKey: .modelLabel)
             toolCallCount = try container.decodeIfPresent(Int.self, forKey: .toolCallCount)
+            // `try?`: a snapshot written by a newer build with an origin this
+            // build does not know should cost the caption, not the thread.
+            origin = (try? container.decodeIfPresent(ConversationMessageOrigin.self, forKey: .origin)) ?? .reply
+            sourceLabel = try container.decodeIfPresent(String.self, forKey: .sourceLabel)
+            createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
         }
 
         func encode(to encoder: Encoder) throws {
@@ -97,6 +126,9 @@ final class ChatViewModel {
             try container.encode(renderedMarkdown, forKey: .renderedMarkdown)
             try container.encodeIfPresent(modelLabel, forKey: .modelLabel)
             try container.encodeIfPresent(toolCallCount, forKey: .toolCallCount)
+            if origin != .reply { try container.encode(origin, forKey: .origin) }
+            try container.encodeIfPresent(sourceLabel, forKey: .sourceLabel)
+            try container.encodeIfPresent(createdAt, forKey: .createdAt)
         }
 
         private static func renderedMarkdown(role: ConversationMessageRole, content: String) -> String {
@@ -657,11 +689,21 @@ final class ChatViewModel {
         jobProposalAnchorID = messages.last?.id
     }
 
-    /// Create the proposed job, then clear the card and show a toast.
+    /// The card's Confirm action. The work is `createProposedJob()`; this
+    /// only gives the button a synchronous entry point.
     func confirmJob() {
+        Task { [weak self] in await self?.createProposedJob() }
+    }
+
+    /// Create the proposed job, clear the card, and — once `POST /v1/jobs`
+    /// succeeds — have Hermie say so in the transcript (Muse contract,
+    /// "Standing-task card"): "Got it — I'll watch X and ping you when Y",
+    /// captioned "Standing task". Nothing is appended on failure; a warning
+    /// toast says the job was not made.
+    func createProposedJob() async {
         guard let jobsClient, let proposal = jobProposal,
               let cron = proposal.cron, let spec = proposal.spec
-        else { jobProposal = nil; return }
+        else { jobProposal = nil; jobProposalAnchorID = nil; return }
         let request = JobCreateRequest(
             title: proposal.title ?? "Job",
             cron: cron,
@@ -671,12 +713,29 @@ final class ChatViewModel {
         )
         jobProposal = nil
         jobProposalAnchorID = nil
-        Task { [weak self] in
-            guard let self else { return }
-            if (try? await jobsClient.create(request)) != nil {
-                self.showToast(.success, "Job created — find it in the Jobs tab.")
-            }
+        do {
+            _ = try await jobsClient.create(request)
+        } catch is CancellationError {
+            return
+        } catch {
+            showToast(.warning, "Couldn't create that standing task. Try again.")
+            return
         }
+        // Local only: the server has no endpoint for a client-authored agent
+        // turn, so this lives in the on-device snapshot and is gone when the
+        // thread is reopened from the server.
+        messages.append(Message(
+            role: .assistant,
+            content: StandingTaskConfirmation.text(
+                title: proposal.title,
+                spec: proposal.spec,
+                scheduleHuman: proposal.scheduleHuman
+            ),
+            origin: .proactive,
+            sourceLabel: StandingTaskConfirmation.sourceLabel(title: proposal.title),
+            createdAt: Date()
+        ))
+        schedulePersist()
     }
 
     func dismissJob() {
@@ -1317,7 +1376,10 @@ final class ChatViewModel {
                     // stays as the fallback for turns recorded before the
                     // server persisted this.
                     modelLabel: message.model ?? local?.modelLabel,
-                    toolCallCount: message.toolCallCount
+                    toolCallCount: message.toolCallCount,
+                    origin: message.origin,
+                    sourceLabel: message.sourceLabel,
+                    createdAt: message.createdAt
                 )
             }
             lastReadMessageID = cached?.lastReadMessageID

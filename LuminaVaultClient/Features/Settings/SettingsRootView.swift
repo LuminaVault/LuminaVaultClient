@@ -163,7 +163,8 @@ struct SettingsRootView: View {
                                 DataAccessView(
                                     vm: DataAccessViewModel(
                                         client: AppleConsentHTTPClient(client: appState.makeHTTPClient())
-                                    )
+                                    ),
+                                    locationClient: LastKnownLocationHTTPClient(client: appState.makeHTTPClient())
                                 )
                             }
                         }
