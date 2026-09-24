@@ -865,6 +865,12 @@ private struct MessageRow: View {
         } else {
             // No avatar and no name label: Hermie is in the header, once.
             VStack(alignment: .leading, spacing: LVSpacing.md) {
+                // Muse Stage C — only messages Hermie sent unprompted carry
+                // one; a reply renders exactly as before.
+                if let caption = message.proactiveCaption {
+                    ProactiveCaptionView(text: caption)
+                        .padding(.bottom, -LVSpacing.xs)
+                }
                 bubble
                 // Cerberus transparency — what this turn actually did.
                 // The model alone said who answered; the tool count is
