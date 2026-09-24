@@ -447,8 +447,14 @@ final class ChatViewModel {
         /// the answer lands on reload rather than live.
         runsClient: (any HermesRunsClientProtocol)? = nil,
         telemetry: any TelemetryProtocol = LoggerTelemetry(),
+        /// Muse Stage D — builds the lock-screen Live Activity for each
+        /// escalated turn. Tests pass `{ nil }` or a recorder.
+        makeRunLiveActivity: @escaping @MainActor () -> (any AgentRunLiveActivityControlling)? = {
+            AgentRunLiveActivity()
+        },
         cloudAvailable: @escaping @MainActor @Sendable () -> Bool = { true }
     ) {
+        self.makeRunLiveActivity = makeRunLiveActivity
         self.conversationsClient = conversationsClient
         self.chatClient = chatClient
         self.memoryClient = memoryClient
@@ -495,7 +501,10 @@ final class ChatViewModel {
         let follower = ChatRunFollower(
             client: runsClient,
             runID: ref.runID,
-            sessionID: ref.sessionID
+            sessionID: ref.sessionID,
+            conversationID: conversationID,
+            title: messages.last(where: { $0.role == .user })?.content,
+            liveActivity: makeRunLiveActivity()
         )
         runFollower = follower
         phase = .delegated
@@ -563,6 +572,7 @@ final class ChatViewModel {
     }
 
     private let runsClient: (any HermesRunsClientProtocol)?
+    private let makeRunLiveActivity: @MainActor () -> (any AgentRunLiveActivityControlling)?
     /// Live agent run for the turn in flight, when one escalated.
     private(set) var runFollower: ChatRunFollower?
     private var runFollowTask: Task<Void, Never>?

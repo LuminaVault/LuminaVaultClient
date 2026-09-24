@@ -142,7 +142,14 @@ struct ThinkWithLuminaView: View {
 
     private func openPendingConversation(_ id: UUID?) {
         guard let id else { return }
-        openConversation(id)
+        if path == [.conversation(id)] {
+            // Already on screen — a proactive push for the open thread. The
+            // route's `.task` will not re-run, so pull the new message in
+            // here. `loadConversation` declines while a turn is in flight.
+            Task { await chatVM.loadConversation(id: id) }
+        } else {
+            openConversation(id)
+        }
         appState.pendingChatConversationID = nil
     }
 

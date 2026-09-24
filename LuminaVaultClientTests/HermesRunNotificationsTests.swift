@@ -26,9 +26,9 @@ struct HermesRunNotificationsTests {
     // MARK: - Categories
 
     @Test
-    func `both hermes run categories are registered`() {
+    func `both hermes run categories and the chat category are registered`() {
         let identifiers = Set(HermesRunNotifications.all.map(\.identifier))
-        #expect(identifiers == ["approval", "runCompleted"])
+        #expect(identifiers == ["approval", "runCompleted", "chat"])
     }
 
     @Test

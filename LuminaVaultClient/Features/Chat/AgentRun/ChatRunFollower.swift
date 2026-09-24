@@ -68,23 +68,83 @@ final class ChatRunFollower {
     /// Injectable so tests do not sleep through the backoff.
     private let reconnectDelays: [Double]
 
+    /// Muse Stage D — the lock-screen / Dynamic Island view of this run.
+    /// Started when following begins (the turn has just become delegated),
+    /// updated as the trail moves, ended when the run does. nil in tests and
+    /// previews that do not care.
+    private let liveActivity: (any AgentRunLiveActivityControlling)?
+    /// The thread this run answers; the activity's tap target.
+    let conversationID: UUID?
+    /// What the user asked; the activity's title line.
+    let title: String?
+
     init(
         client: any HermesRunsClientProtocol,
         runID: UUID,
         sessionID: String? = nil,
+        conversationID: UUID? = nil,
+        title: String? = nil,
+        liveActivity: (any AgentRunLiveActivityControlling)? = nil,
         reconnectDelays: [Double] = [1, 2, 5, 10]
     ) {
         self.client = client
         self.runID = runID
         self.sessionID = sessionID
+        self.conversationID = conversationID
+        self.title = title
+        self.liveActivity = liveActivity
         self.reconnectDelays = reconnectDelays
     }
+
+    /// The run as the chat header would describe it — the same derivation,
+    /// pinned to `.delegated` because that is the only phase a follower
+    /// exists in.
+    var museState: MuseChatState {
+        MuseChatState.derive(MuseChatState.Inputs(
+            phase: .delegated,
+            hasFirstToken: hasAnswer,
+            lastTrailItem: trail.last,
+            isAwaitingApproval: pendingApproval != nil
+        ))
+    }
+
+    /// What the Live Activity shows right now.
+    var activityState: AgentRunAttributes.ContentState {
+        if phase == .following {
+            return AgentRunActivityContent.running(museState, title: title)
+        }
+        // A `run.failed` / `run.cancelled` event ends the feed as
+        // `.finished` (the transcript settles the same way either way), but
+        // the lock screen must not say "has your answer" for it.
+        if phase == .finished, let terminalEvent, terminalEvent != "run.completed", !terminalEvent.hasPrefix("watcher.") {
+            return AgentRunActivityContent.finished(.failed(terminalEvent), title: title)
+        }
+        return AgentRunActivityContent.finished(phase, title: title)
+    }
+
+    /// The terminal event that ended the feed, when one did.
+    private(set) var terminalEvent: String?
 
     var isFinished: Bool { phase == .finished }
 
     /// Follows until the run is terminal, the task is cancelled, or the feed
     /// stops producing anything.
     func follow(after: Int = 0) async {
+        liveActivity?.start(runID: runID, conversationID: conversationID, state: activityState)
+        await followFeed(after: after)
+        // Every exit — terminal event, terminal status on re-read, dead feed,
+        // cancellation — ends the activity. A cancelled follow means the user
+        // left the turn (new chat, another thread): nothing is tracking the
+        // run any more, so it leaves the lock screen now rather than
+        // claiming progress it cannot see.
+        if phase == .following {
+            liveActivity?.end(AgentRunActivityContent.finished(.following, title: title), immediately: true)
+        } else {
+            liveActivity?.end(activityState, immediately: false)
+        }
+    }
+
+    private func followFeed(after: Int) async {
         cursor = max(cursor, after)
 
         // Only attempts that deliver nothing count against the budget. A feed
@@ -145,6 +205,7 @@ final class ChatRunFollower {
         defer { isAnswering = false }
         _ = try? await client.approve(runID, choice: choice)
         pendingApproval = nil
+        publishActivity()
     }
 
     /// Stops the run. The run keeps its own record; this ends our interest.
@@ -155,6 +216,9 @@ final class ChatRunFollower {
         } else {
             phase = .finished
         }
+        // `stopDelegatedRun` cancels the follow task first, which may already
+        // have ended the activity as "stopped"; `end` is idempotent.
+        liveActivity?.end(activityState, immediately: false)
     }
 
     // MARK: - Reduction
@@ -164,6 +228,7 @@ final class ChatRunFollower {
     func apply(_ event: HermesRunEventDTO) {
         guard event.seq > cursor else { return }
         cursor = event.seq
+        defer { publishActivity() }
 
         if event.event == "tool.started" {
             toolCallCount += 1
@@ -195,9 +260,17 @@ final class ChatRunFollower {
         }
 
         if Self.isTerminal(event.event) {
+            terminalEvent = event.event
             pendingApproval = nil
             phase = .finished
         }
+    }
+
+    /// Offers the current state to the activity. The controller drops
+    /// repeats and throttles the rest, so this is safe to call per event.
+    private func publishActivity() {
+        guard phase == .following else { return }
+        liveActivity?.update(activityState)
     }
 
     private func adoptTerminal(_ run: HermesRunDTO) {

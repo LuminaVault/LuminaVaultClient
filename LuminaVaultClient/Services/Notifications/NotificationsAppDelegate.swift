@@ -19,7 +19,33 @@ final class NotificationsAppDelegate: NSObject, UIApplicationDelegate, UNUserNot
     @MainActor private(set) var deviceTokenHex: String?
 
     /// MainActor-isolated bridge; set by `LuminaVaultClientApp` on launch.
-    @MainActor weak var router: NotificationRouter?
+    ///
+    /// On a cold start from a notification tap, iOS delivers the response
+    /// right after `didFinishLaunching` — before the SwiftUI root's `.task`
+    /// has run and assigned this. The link is parked in `unroutedLink` and
+    /// handed over here, so a tap that launched the app is not dropped.
+    @MainActor weak var router: NotificationRouter? {
+        didSet {
+            guard let router, let link = unroutedLink else { return }
+            unroutedLink = nil
+            router.pendingDeepLink = link
+        }
+    }
+
+    /// A tapped link that arrived before `router` was set. Exposed for tests.
+    @MainActor private(set) var unroutedLink: APNSDeepLink?
+
+    /// Hands a tapped notification's payload to the router, or parks it
+    /// until there is one.
+    @MainActor func route(userInfo: [AnyHashable: Any]) {
+        let link = (router ?? NotificationRouter()).deepLink(from: userInfo)
+        guard link != .none else { return }
+        if let router {
+            router.pendingDeepLink = link
+        } else {
+            unroutedLink = link
+        }
+    }
 
     @MainActor weak var onTokenAvailable: TokenObserver?
 
@@ -110,7 +136,11 @@ final class NotificationsAppDelegate: NSObject, UIApplicationDelegate, UNUserNot
     ) {
         let userInfo = notification.request.content.userInfo
         Task { @MainActor in
-            if let link = self.router?.deepLink(from: userInfo), link != .none {
+            // A chat push shows its banner and waits for a tap; see
+            // `NotificationRouter.routesOnForegroundDelivery`.
+            if let link = self.router?.deepLink(from: userInfo),
+               NotificationRouter.routesOnForegroundDelivery(link)
+            {
                 self.router?.pendingDeepLink = link
             }
         }
@@ -137,9 +167,7 @@ final class NotificationsAppDelegate: NSObject, UIApplicationDelegate, UNUserNot
         }
 
         Task { @MainActor in
-            if let link = self.router?.deepLink(from: userInfo), link != .none {
-                self.router?.pendingDeepLink = link
-            }
+            self.route(userInfo: userInfo)
         }
         completionHandler()
     }

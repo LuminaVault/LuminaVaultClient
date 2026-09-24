@@ -115,6 +115,7 @@
 		60WID39EXC2026080101AB /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultWidgetsExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Features/Chat/AgentRun/AgentRunAttributes.swift,
 				Services/AppGroup/SharedAppGroup.swift,
 				Services/AppGroup/WidgetSnapshotStore.swift,
 			);

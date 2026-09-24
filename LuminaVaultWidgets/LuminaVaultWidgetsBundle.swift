@@ -10,5 +10,6 @@ import WidgetKit
 struct LuminaVaultWidgetsBundle: WidgetBundle {
     var body: some Widget {
         LuminaVaultWidgets()
+        AgentRunActivityWidget()
     }
 }

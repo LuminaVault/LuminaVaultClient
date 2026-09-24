@@ -82,7 +82,21 @@
 				<string>$(X_REDIRECT_SCHEME)</string>
 			</array>
 		</dict>
+		<!-- Muse Stage D: luminavault://chat/<conversationID> (proactive push deepLink, Live Activity widgetURL). -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLName</key>
+			<string>com.lumina.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>luminavault</string>
+			</array>
+		</dict>
 	</array>
+	<!-- Muse Stage D: agent-run Live Activity (local start only, no push-to-start). -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 
 	<!-- Usage descriptions (migrated verbatim from pbxproj INFOPLIST_KEY_*). -->
 	<key>ITSAppUsesNonExemptEncryption</key>
