@@ -4,9 +4,11 @@
 // app version + brand presence + social links + Apple-HIG required
 // "Rate" entry point + Terms / Privacy / support contact.
 //
-// `@Environment(\.requestReview)` is the SwiftUI 16+ wrapper around the
-// StoreKit review prompt. Apple silently throttles past the 3/year cap
-// so we don't need to track local state — the button is always tappable.
+// Rate section: with an App Store ID configured (`AppStoreID` in Info.plist)
+// the row deep-links to the listing's write-review sheet, which always
+// works. Without one it falls back to `requestReview()`, which iOS may
+// silently ignore. The toggle opts out of the automatic prompt that
+// `ReviewPrompter` asks for after a few successful saves.
 
 import SwiftUI
 import StoreKit
@@ -14,6 +16,7 @@ import StoreKit
 struct AboutView: View {
     @Environment(\.requestReview) private var requestReview
     @Environment(\.lvPalette) private var palette
+    @AppStorage(ReviewPrompter.Keys.promptsEnabled) private var reviewPromptsEnabled = true
 
     var body: some View {
         List {
@@ -56,16 +59,25 @@ struct AboutView: View {
 
     private var rateSection: some View {
         Section {
-            Button {
-                // Apple's review action is async-callable and idempotent.
-                // No-op past the 3/year cap; safe to invoke from any tap.
-                requestReview()
-            } label: {
-                Label("Rate LuminaVault", systemImage: "star")
-                    .foregroundStyle(.primary)
+            if let writeReviewURL = Config.appStoreWriteReviewURL {
+                Link(destination: writeReviewURL) {
+                    Label("Rate LuminaVault on the App Store", systemImage: "star")
+                }
+            } else {
+                Button {
+                    // No App Store ID yet, so no listing to link to. iOS may
+                    // show nothing here (3/year cap).
+                    requestReview()
+                } label: {
+                    Label("Rate LuminaVault", systemImage: "star")
+                        .foregroundStyle(.primary)
+                }
+            }
+            Toggle(isOn: $reviewPromptsEnabled) {
+                Label("Ask me to rate LuminaVault", systemImage: "hand.wave")
             }
         } footer: {
-            Text("Apple shows the review prompt at most 3 times per year per device.")
+            Text("When on, LuminaVault may ask for a rating after a few saves to your vault, at most once every four months.")
                 .font(.caption)
         }
     }

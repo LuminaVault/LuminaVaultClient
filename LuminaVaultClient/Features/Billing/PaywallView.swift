@@ -29,9 +29,9 @@ struct PaywallView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.lvPalette) private var palette
     @Environment(\.dismiss) private var dismiss
-    /// HER-298 — SwiftUI wrapper around `SKStoreReviewController`. Apple
-    /// silently throttles past 3 prompts per device per 365 days, so we
-    /// can fire it on every successful purchase without local tracking.
+    /// HER-298 — SwiftUI wrapper around `SKStoreReviewController`. Gated by
+    /// `ReviewPrompter` so the post-purchase prompt honours the Settings
+    /// opt-out and shares the 120-day cooldown with the success prompt.
     @Environment(\.requestReview) private var requestReview
 
     /// HER-297 — latched on a successful purchase so the mascot plays its
@@ -123,7 +123,9 @@ struct PaywallView: View {
                             Task { @MainActor in
                                 await appState.billingService?.refreshFromServer()
                                 try? await Task.sleep(nanoseconds: 2_000_000_000)
-                                requestReview()
+                                if ReviewPrompter.shared.consumePurchasePrompt() {
+                                    requestReview()
+                                }
                                 dismiss()
                             }
                         }

@@ -93,6 +93,17 @@ enum Config {
         infoString("LV_SUPPORT_EMAIL") ?? "support@luminavault.fyi"
     }
 
+    /// Numeric App Store ID from the `AppStoreID` Info.plist key. Empty
+    /// until the app has a listing, so nil for now.
+    static var appStoreID: String? { infoString("AppStoreID") }
+
+    /// "Write a review" deep link on the App Store listing. Nil while no
+    /// App Store ID is configured; About then falls back to `requestReview`.
+    static var appStoreWriteReviewURL: URL? {
+        guard let appStoreID else { return nil }
+        return URL(string: "https://apps.apple.com/app/id\(appStoreID)?action=write-review")
+    }
+
     /// HER-298 — derived version string for the About pane. Reads
     /// `CFBundleShortVersionString` + `CFBundleVersion` directly from the
     /// app bundle so a single source updates every surface that shows the
