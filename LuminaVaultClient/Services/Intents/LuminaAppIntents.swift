@@ -117,7 +117,7 @@ struct LuminaShortcuts: AppShortcutsProvider {
                 "Save a note to \(.applicationName)",
                 "Copy my notes to \(.applicationName)",
             ],
-            shortTitle: "Save Apple Note",
+            shortTitle: "Save Note",
             systemImageName: "note.text"
         )
         AppShortcut(

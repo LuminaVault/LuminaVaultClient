@@ -19,9 +19,9 @@ import CryptoKit
 import Foundation
 
 struct SaveAppleNoteIntent: AppIntent {
-    static var title: LocalizedStringResource = "Save Apple Note to LuminaVault"
+    static var title: LocalizedStringResource = "Save Note to LuminaVault"
     static var description = IntentDescription(
-        "Copy a note from Apple Notes into your vault. Run it again after editing the note and the vault copy is updated, not duplicated.",
+        "Copy a note from the Notes app into your vault. Run it again after editing the note and the vault copy is updated, not duplicated.",
         categoryName: "Capture"
     )
     static var openAppWhenRun = false
