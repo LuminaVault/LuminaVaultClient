@@ -245,6 +245,10 @@ actor CaptureDrainer {
 
             try await queue.delete(id: row.id)
             log.info("drained capture id=\(row.id.uuidString) kind=\(row.kind.rawValue)")
+            // Rating-prompt success moment. Only after the delete: a row that
+            // fails to delete is retried and counted on the attempt that lands,
+            // and a deleted row can never be drained (or counted) again.
+            await ReviewPrompter.shared.recordSuccess()
         } catch {
             let nextAttempts = row.attempts + 1
             let flipToFailed = nextAttempts >= Self.maxAttempts

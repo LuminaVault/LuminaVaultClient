@@ -252,6 +252,9 @@ struct MainTabView: View {
             guard phase == .active else { return }
             Task { await captureFailures?.refresh() }
         }
+        // The shell is the one view always on screen once signed in, so the
+        // rating prompt made due by a background drain is requested here.
+        .reviewPromptPresenter()
     }
 
     // MARK: - Keyboard

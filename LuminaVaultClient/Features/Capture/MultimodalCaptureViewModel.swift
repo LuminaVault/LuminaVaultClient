@@ -22,6 +22,7 @@ final class MultimodalCaptureViewModel {
     private let capabilitiesClient: (any HermesCapabilitiesClientProtocol)?
     private let spacesClient: (any SpacesClientProtocol)?
     private let requestedBatchID: UUID?
+    private let reviewPrompter: ReviewPrompter
     private static let latestBatchKey = "lv.ingestion.latestBatch"
     private static let selectedSpaceKey = "lv.ingestion.selectedSpace"
     var selectedFiles: [URL] = []
@@ -43,13 +44,15 @@ final class MultimodalCaptureViewModel {
         capabilitiesClient: (any HermesCapabilitiesClientProtocol)? = nil,
         spacesClient: (any SpacesClientProtocol)? = nil,
         requestedBatchID: UUID? = nil,
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
+        reviewPrompter: ReviewPrompter = .shared
     ) {
         self.client = client
         self.capabilitiesClient = capabilitiesClient
         self.spacesClient = spacesClient
         self.requestedBatchID = requestedBatchID
         self.defaults = defaults
+        self.reviewPrompter = reviewPrompter
         selectedSpaceID = defaults.string(forKey: Self.selectedSpaceKey).flatMap(UUID.init(uuidString:))
         latestBatch = defaults.data(forKey: Self.latestBatchKey)
             .flatMap { try? JSONDecoder().decode(IngestionBatchDTO.self, from: $0) }
@@ -120,6 +123,9 @@ final class MultimodalCaptureViewModel {
             latestBatch = batch
             selectedFiles = []
             urlText = ""
+            // Server confirmed the batch and every upload: a rating-prompt
+            // success moment.
+            reviewPrompter.recordSuccess()
         } catch {
             errorMessage = error.localizedDescription
         }
