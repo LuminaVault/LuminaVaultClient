@@ -435,12 +435,10 @@ final class AppState {
         startRemindersSync()
         startPhotoIndex()
         startCalendarSync()
-        // PostHog: identify user so all subsequent events are attributed to them
-        // Prefer email if present; otherwise fall back to userId
-        let distinctId = response.email ?? response.userId.uuidString
-        var userProps: [String: Any] = [:]
-        userProps["email"] = response.email
-        PostHogSDK.shared.identify(distinctId, userProperties: userProps)
+        // PostHog: identify by the opaque user id, never the email. The web
+        // client and the server key their events on the same id, so one
+        // account is one person across all three surfaces.
+        PostHogSDK.shared.identify(response.userId.uuidString)
         // HER-185 — bind RC identity to the server-side user and pull the
         // authoritative billing snapshot. Service stays nil until the
         // first sign-in so cold-launch + unauthenticated paths skip RC.
@@ -612,17 +610,14 @@ final class AppState {
         do {
             let me = try await authClient.getMe()
             lastMeFetchAt = now
-            let emailChanged = (currentEmail != me.email)
             if currentUserId != me.userId {
                 currentUserId = me.userId
                 await activeVaultStore.restore(for: me.userId)
+                // Re-identify only when the account moved; otherwise we'd
+                // spam identify on every foreground.
+                PostHogSDK.shared.identify(me.userId.uuidString)
             }
-            if emailChanged { currentEmail = me.email }
-            // Re-identify with PostHog only when the email moved; otherwise
-            // we'd spam identify on every foreground.
-            if emailChanged {
-                PostHogSDK.shared.identify(me.email, userProperties: ["email": me.email])
-            }
+            if currentEmail != me.email { currentEmail = me.email }
         } catch APIError.unauthorized {
             // HER-237 interceptor already signed user out — nothing left to do.
         } catch {
