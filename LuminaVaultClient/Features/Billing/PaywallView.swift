@@ -122,7 +122,7 @@ struct PaywallView: View {
                             celebrating = true
                             Task { @MainActor in
                                 await appState.billingService?.refreshFromServer()
-                                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                                try? await Task.sleep(for: .seconds(2))
                                 if ReviewPrompter.shared.consumePurchasePrompt() {
                                     requestReview()
                                 }

@@ -66,14 +66,15 @@ struct ThinkWithLuminaView: View {
         }
         .task { await loadPreferences() }
         .onChange(of: hapticsEnabled) { _, value in chatVM.hapticsEnabled = value }
-        .onChange(of: appState.pendingChatConversationID) { _, conversationID in
-            openPendingConversation(conversationID)
+        // Runs on appear as well as on change, so a thread parked before the
+        // tab was first shown still opens.
+        .task(id: appState.pendingChatConversationID) {
+            await openPendingConversation(appState.pendingChatConversationID)
         }
         .onChange(of: appState.pendingChatPrefill) { _, prefill in
             applyPendingPrefill(prefill)
         }
         .onAppear {
-            openPendingConversation(appState.pendingChatConversationID)
             applyPendingPrefill(appState.pendingChatPrefill)
             // The tab may have been unvisited when the step opened, in which
             // case this is the first chance to act on it.
@@ -140,16 +141,20 @@ struct ThinkWithLuminaView: View {
         path = [.conversation(id)]
     }
 
-    private func openPendingConversation(_ id: UUID?) {
+    private func openPendingConversation(_ id: UUID?) async {
         guard let id else { return }
         if path == [.conversation(id)] {
             // Already on screen — a proactive push for the open thread. The
             // route's `.task` will not re-run, so pull the new message in
             // here. `loadConversation` declines while a turn is in flight.
-            Task { await chatVM.loadConversation(id: id) }
+            await chatVM.loadConversation(id: id)
         } else {
             openConversation(id)
         }
+        // Cleared last, and only if still ours: clearing changes the
+        // `.task(id:)` this runs in, which would cancel the load above, and a
+        // newer pending thread that arrived during the load must survive.
+        guard !Task.isCancelled, appState.pendingChatConversationID == id else { return }
         appState.pendingChatConversationID = nil
     }
 
