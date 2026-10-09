@@ -1,13 +1,13 @@
 import Foundation
 
-struct TeamSpaceSummary: Codable, Identifiable, Sendable, Equatable {
+nonisolated struct TeamSpaceSummary: Codable, Identifiable, Sendable, Equatable {
     let id: UUID
     let name: String
     let role: String
     let archivedAt: Date?
 }
 
-struct SharedVaultSummary: Codable, Identifiable, Sendable, Equatable {
+nonisolated struct SharedVaultSummary: Codable, Identifiable, Sendable, Equatable {
     let id: UUID
     let teamID: UUID?
     let name: String
@@ -25,7 +25,7 @@ struct SharedVaultSummary: Codable, Identifiable, Sendable, Equatable {
     }
 }
 
-struct VaultMemberSummary: Codable, Identifiable, Sendable, Hashable {
+nonisolated struct VaultMemberSummary: Codable, Identifiable, Sendable, Hashable {
     let id: UUID
     let userID: UUID
     let username: String
@@ -34,7 +34,7 @@ struct VaultMemberSummary: Codable, Identifiable, Sendable, Hashable {
     let canUseAI: Bool
 }
 
-struct VaultActivitySummary: Codable, Identifiable, Sendable, Equatable {
+nonisolated struct VaultActivitySummary: Codable, Identifiable, Sendable, Equatable {
     let id: UUID
     let vaultID: UUID
     let actorUserID: UUID?
@@ -46,7 +46,7 @@ struct VaultActivitySummary: Codable, Identifiable, Sendable, Equatable {
     let createdAt: Date
 }
 
-struct TeamInvitationSummary: Codable, Identifiable, Sendable {
+nonisolated struct TeamInvitationSummary: Codable, Identifiable, Sendable {
     let id: UUID
     let teamID: UUID
     let email: String
@@ -54,7 +54,7 @@ struct TeamInvitationSummary: Codable, Identifiable, Sendable {
     let token: String?
 }
 
-struct TeamInviteGrant: Codable, Sendable {
+nonisolated struct TeamInviteGrant: Codable, Sendable {
     let role: String
     let canUseAI: Bool
 }

@@ -18,11 +18,11 @@ import LuminaVaultShared
 import OSLog
 import UniformTypeIdentifiers
 
-private let log = Logger(subsystem: "com.luminavault", category: "spotlight")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "spotlight")
 
 /// Domain used for bulk deletion on sign-out. All LuminaVault items share it,
 /// so one call clears everything this app contributed.
-enum SpotlightDomain {
+nonisolated enum SpotlightDomain {
     static let memories = "com.lumina.fernando.memories"
     /// `NSUserActivity` / `CSSearchableItem` identifiers are prefixed so the
     /// deep-link router can tell a Spotlight open from a push open.

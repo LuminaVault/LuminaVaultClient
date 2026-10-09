@@ -17,7 +17,7 @@
 //     typed `done` case which the consumer handles as a graceful end).
 import Foundation
 
-protocol StreamingEndpoint: Sendable {
+nonisolated protocol StreamingEndpoint: Sendable {
     associatedtype Event: Decodable & Sendable
     var path: String { get }
     var method: HTTPMethod { get }
@@ -38,7 +38,7 @@ protocol StreamingEndpoint: Sendable {
     var presentsPaywallOn402: Bool { get }
 }
 
-extension StreamingEndpoint {
+nonisolated extension StreamingEndpoint {
     var requiresAuth: Bool { true }
     var body: (any Encodable & Sendable)? { nil }
     var decoder: JSONDecoder { .hvDefault }

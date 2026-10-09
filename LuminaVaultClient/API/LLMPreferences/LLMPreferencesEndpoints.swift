@@ -7,14 +7,14 @@
 import Foundation
 import LuminaVaultShared
 
-enum LLMPreferencesEndpoints {
-    struct Get: Endpoint {
+nonisolated enum LLMPreferencesEndpoints {
+    nonisolated struct Get: Endpoint {
         typealias Response = LLMPreferencesGetResponse
         var path: String { "/v1/me/preferences/llm" }
         var method: HTTPMethod { .get }
     }
 
-    struct Put: Endpoint {
+    nonisolated struct Put: Endpoint {
         typealias Response = LLMPreferencesGetResponse
         let request: LLMPreferencesPutRequest
         var path: String { "/v1/me/preferences/llm" }
@@ -23,26 +23,26 @@ enum LLMPreferencesEndpoints {
     }
 }
 
-enum RouterEndpoints {
-    struct Profiles: Endpoint {
+nonisolated enum RouterEndpoints {
+    nonisolated struct Profiles: Endpoint {
         typealias Response = RouterProfilesResponse
         var path: String { "/v1/router" }
         var method: HTTPMethod { .get }
     }
 
-    struct Catalog: Endpoint {
+    nonisolated struct Catalog: Endpoint {
         typealias Response = RouterCatalogResponse
         var path: String { "/v1/router/catalog" }
         var method: HTTPMethod { .get }
     }
 
-    struct Dashboard: Endpoint {
+    nonisolated struct Dashboard: Endpoint {
         typealias Response = RouterDashboardResponse
         var path: String { "/v1/router/dashboard" }
         var method: HTTPMethod { .get }
     }
 
-    struct UpdateProfile: Endpoint {
+    nonisolated struct UpdateProfile: Endpoint {
         typealias Response = RouterProfileDTO
         let id: UUID
         let request: RouterProfileWriteRequest
@@ -51,13 +51,13 @@ enum RouterEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct Bindings: Endpoint {
+    nonisolated struct Bindings: Endpoint {
         typealias Response = RouterBindingsResponse
         var path: String { "/v1/router/bindings" }
         var method: HTTPMethod { .get }
     }
 
-    struct PutBinding: Endpoint {
+    nonisolated struct PutBinding: Endpoint {
         typealias Response = RouterBindingDTO
         let scope: RouterBindingScope
         let scopeID: String
@@ -67,7 +67,7 @@ enum RouterEndpoints {
         var body: (any Encodable)? { RouterBindingPutRequest(profileID: profileID) }
     }
 
-    struct DeleteBinding: Endpoint {
+    nonisolated struct DeleteBinding: Endpoint {
         typealias Response = EmptyResponse
         let scope: RouterBindingScope
         let scopeID: String

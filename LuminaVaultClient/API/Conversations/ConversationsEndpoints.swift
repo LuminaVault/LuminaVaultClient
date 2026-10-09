@@ -22,8 +22,8 @@
 // decodes each body with the server's decoder to keep it that way.
 import Foundation
 
-enum ConversationsEndpoints {
-    struct Create: Endpoint {
+nonisolated enum ConversationsEndpoints {
+    nonisolated struct Create: Endpoint {
         // Chat never slides the app-root paywall over itself. The whole
         // `/v1/conversations` group is gated on `.memoryQuery`, listing
         // included, so a 402 anywhere here would throw a modal over the Chats
@@ -46,7 +46,7 @@ enum ConversationsEndpoints {
         }
     }
 
-    struct List: Endpoint {
+    nonisolated struct List: Endpoint {
         // Chat never slides the app-root paywall over itself. The whole
         // `/v1/conversations` group is gated on `.memoryQuery`, listing
         // included, so a 402 anywhere here would throw a modal over the Chats
@@ -64,7 +64,7 @@ enum ConversationsEndpoints {
         }
     }
 
-    struct Get: Endpoint {
+    nonisolated struct Get: Endpoint {
         // Chat never slides the app-root paywall over itself. The whole
         // `/v1/conversations` group is gated on `.memoryQuery`, listing
         // included, so a 402 anywhere here would throw a modal over the Chats
@@ -83,7 +83,7 @@ enum ConversationsEndpoints {
         }
     }
 
-    struct Delete: Endpoint {
+    nonisolated struct Delete: Endpoint {
         // Chat never slides the app-root paywall over itself. The whole
         // `/v1/conversations` group is gated on `.memoryQuery`, listing
         // included, so a 402 anywhere here would throw a modal over the Chats
@@ -102,7 +102,7 @@ enum ConversationsEndpoints {
         }
     }
 
-    struct Prepare: Endpoint {
+    nonisolated struct Prepare: Endpoint {
         // Chat never slides the app-root paywall over itself. The whole
         // `/v1/conversations` group is gated on `.memoryQuery`, listing
         // included, so a 402 anywhere here would throw a modal over the Chats
@@ -126,7 +126,7 @@ enum ConversationsEndpoints {
         }
     }
 
-    struct Commit: Endpoint {
+    nonisolated struct Commit: Endpoint {
         // Chat never slides the app-root paywall over itself. The whole
         // `/v1/conversations` group is gated on `.memoryQuery`, listing
         // included, so a 402 anywhere here would throw a modal over the Chats
@@ -150,7 +150,7 @@ enum ConversationsEndpoints {
         }
     }
 
-    struct CancelPreparedExecution: Endpoint {
+    nonisolated struct CancelPreparedExecution: Endpoint {
         // Chat never slides the app-root paywall over itself. The whole
         // `/v1/conversations` group is gated on `.memoryQuery`, listing
         // included, so a 402 anywhere here would throw a modal over the Chats
@@ -172,7 +172,7 @@ enum ConversationsEndpoints {
 
     /// SSE stream of `QueryStreamEvent`. Consume via
     /// `BaseHTTPClient.executeStreamWithRefresh`.
-    struct StreamReply: StreamingEndpoint {
+    nonisolated struct StreamReply: StreamingEndpoint {
         // Chat never slides the app-root paywall over itself. The whole
         // `/v1/conversations` group is gated on `.memoryQuery`, listing
         // included, so a 402 anywhere here would throw a modal over the Chats

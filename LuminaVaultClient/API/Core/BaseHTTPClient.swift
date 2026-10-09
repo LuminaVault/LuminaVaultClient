@@ -4,7 +4,7 @@ import LuminaVaultShared
 import OSLog
 import PostHog
 
-private let log = Logger(subsystem: "com.luminavault", category: "http")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "http")
 
 // (Per-endpoint encoders live on `Endpoint.encoder`. We intentionally do
 // NOT use a shared `Encodable.encoded()` helper here so each call site

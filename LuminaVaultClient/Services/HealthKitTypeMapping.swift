@@ -8,7 +8,7 @@ import Foundation
 import HealthKit
 
 /// One row of the HK ↔ server mapping table.
-struct HealthKitMetric: Sendable {
+nonisolated struct HealthKitMetric: Sendable {
     let hkSampleType: HKSampleType
     /// Server `type` field. snake_case, ≤64 chars.
     let serverType: String
@@ -20,7 +20,7 @@ struct HealthKitMetric: Sendable {
     let quantityUnit: HKUnit?
 }
 
-enum HealthKitMetricCatalog {
+nonisolated enum HealthKitMetricCatalog {
     /// Read-only types we ask permission for. Extend by adding rows here
     /// + a matching mapping in `HealthKitService.convert`. Sleep is the
     /// only category type — everything else is a quantity.

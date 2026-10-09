@@ -169,7 +169,7 @@ private struct DomainRow: View {
                     }
                 }
                 Spacer()
-                Toggle("", isOn: Binding(get: { consent.allowed }, set: onAllowed))
+                Toggle("", isOn: Binding(get: { consent.allowed }, set: { onAllowed($0) }))
                     .labelsHidden()
                     .tint(palette.primary)
             }
@@ -179,7 +179,7 @@ private struct DomainRow: View {
                     Text("Allow Hermes to make changes")
                         .font(.system(size: 13)).foregroundStyle(palette.textSecondary)
                     Spacer()
-                    Toggle("", isOn: Binding(get: { consent.allowWrites }, set: onWrites))
+                    Toggle("", isOn: Binding(get: { consent.allowWrites }, set: { onWrites($0) }))
                         .labelsHidden()
                         .tint(palette.primary)
                 }

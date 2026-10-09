@@ -8,14 +8,14 @@
 
 import Foundation
 
-enum SettingsEndpoints {
-    struct GetHermesConfig: Endpoint {
+nonisolated enum SettingsEndpoints {
+    nonisolated struct GetHermesConfig: Endpoint {
         typealias Response = HermesConfigGetResponse
         var path: String { "/v1/settings/hermes" }
         var method: HTTPMethod { .get }
     }
 
-    struct PutHermesConfig: Endpoint {
+    nonisolated struct PutHermesConfig: Endpoint {
         typealias Response = HermesConfigGetResponse
         let baseUrl: String
         let authHeader: String?
@@ -31,13 +31,13 @@ enum SettingsEndpoints {
         // "Coding key `baseUrl` not found".
     }
 
-    struct DeleteHermesConfig: Endpoint {
+    nonisolated struct DeleteHermesConfig: Endpoint {
         typealias Response = EmptyResponse
         var path: String { "/v1/settings/hermes" }
         var method: HTTPMethod { .delete }
     }
 
-    struct TestHermesConfig: Endpoint {
+    nonisolated struct TestHermesConfig: Endpoint {
         typealias Response = HermesConfigTestResponse
         var path: String { "/v1/settings/hermes/test" }
         var method: HTTPMethod { .post }

@@ -11,13 +11,13 @@ import Observation
 @MainActor
 @Observable
 final class VaultImportViewModel {
-    struct FileRef: Identifiable {
+    nonisolated struct FileRef: Identifiable, Sendable {
         let id = UUID()
         let relPath: String   // path within its top folder
         let content: String
     }
 
-    struct Folder: Identifiable {
+    nonisolated struct Folder: Identifiable, Sendable {
         let id = UUID()
         let name: String
         let files: [FileRef]
@@ -64,28 +64,8 @@ final class VaultImportViewModel {
         folders = []
         selected = []
         let maxBytes = maxFileBytes
-        let grouped: [Folder]? = await Task.detached {
-            let scoped = root.startAccessingSecurityScopedResource()
-            defer { if scoped { root.stopAccessingSecurityScopedResource() } }
-            let fm = FileManager.default
-            guard let walker = fm.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey]) else {
-                return nil
-            }
-            let rootPath = root.path.hasSuffix("/") ? root.path : root.path + "/"
-            var byTop: [String: [FileRef]] = [:]
-            for case let url as URL in walker {
-                guard url.pathExtension.lowercased() == "md" else { continue }
-                guard let data = try? Data(contentsOf: url), data.count <= maxBytes,
-                      let text = String(data: data, encoding: .utf8),
-                      !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                else { continue }
-                let rel = url.path.hasPrefix(rootPath) ? String(url.path.dropFirst(rootPath.count)) : url.lastPathComponent
-                let comps = rel.split(separator: "/").map(String.init)
-                let top = comps.count > 1 ? comps[0] : root.lastPathComponent
-                let within = comps.count > 1 ? comps.dropFirst().joined(separator: "/") : rel
-                byTop[top, default: []].append(FileRef(relPath: within, content: text))
-            }
-            return byTop.map { Folder(name: $0.key, files: $0.value) }.sorted { $0.count > $1.count }
+        let grouped = await Task.detached {
+            Self.groupMarkdown(in: root, maxBytes: maxBytes)
         }.value
 
         guard let grouped, !grouped.isEmpty else {
@@ -96,6 +76,32 @@ final class VaultImportViewModel {
         // Default-select everything except very large folders (likely noisy auto-files).
         selected = Set(grouped.filter { $0.count <= 1000 }.map(\.name))
         phase = .manifest
+    }
+
+    /// Walks `root` and groups its readable markdown by top folder.
+    /// Synchronous: `NSEnumerator` cannot be iterated from an async context.
+    nonisolated private static func groupMarkdown(in root: URL, maxBytes: Int) -> [Folder]? {
+        let scoped = root.startAccessingSecurityScopedResource()
+        defer { if scoped { root.stopAccessingSecurityScopedResource() } }
+        let fm = FileManager.default
+        guard let walker = fm.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey]) else {
+            return nil
+        }
+        let rootPath = root.path.hasSuffix("/") ? root.path : root.path + "/"
+        var byTop: [String: [FileRef]] = [:]
+        for case let url as URL in walker {
+            guard url.pathExtension.lowercased() == "md" else { continue }
+            guard let data = try? Data(contentsOf: url), data.count <= maxBytes,
+                  let text = String(data: data, encoding: .utf8),
+                  !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else { continue }
+            let rel = url.path.hasPrefix(rootPath) ? String(url.path.dropFirst(rootPath.count)) : url.lastPathComponent
+            let comps = rel.split(separator: "/").map(String.init)
+            let top = comps.count > 1 ? comps[0] : root.lastPathComponent
+            let within = comps.count > 1 ? comps.dropFirst().joined(separator: "/") : rel
+            byTop[top, default: []].append(FileRef(relPath: within, content: text))
+        }
+        return byTop.map { Folder(name: $0.key, files: $0.value) }.sorted { $0.count > $1.count }
     }
 
     func runImport() async {

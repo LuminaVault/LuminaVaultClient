@@ -8,8 +8,8 @@
 import Foundation
 import LuminaVaultShared
 
-enum MemoryGraphEndpoints {
-    struct Graph: Endpoint {
+nonisolated enum MemoryGraphEndpoints {
+    nonisolated struct Graph: Endpoint {
         typealias Response = MemoryGraphResponse
 
         /// Max nodes returned. Server clamps to `[1, 2000]`; default 500.

@@ -10,6 +10,7 @@ import SwiftUI
 struct CapturePhotosView: View {
     @Environment(\.lvPalette) private var palette
     @State private var viewModel: CapturePhotosViewModel
+    @State private var isPickingPhotos = false
 
     init(viewModel: CapturePhotosViewModel) {
         _viewModel = State(initialValue: viewModel)
@@ -39,12 +40,10 @@ struct CapturePhotosView: View {
             eyebrowTitle: "Photos",
             footer: "HEIC and JPEG both upload losslessly. Captures sync when you're online."
         ) {
-            PhotosPicker(
-                selection: $viewModel.pickerItems,
-                maxSelectionCount: 10,
-                matching: .images,
-                photoLibrary: .shared()
-            ) {
+            // A Button plus `.photosPicker` rather than `PhotosPicker`: that
+            // initializer's label closure is `@Sendable`, so it cannot read
+            // this view's main-actor state under Swift 6.
+            Button(action: pickPhotos) {
                 HStack(spacing: LVSpacing.sm) {
                     LVIconView(.plus, size: 14, tint: palette.glowPrimary)
                     Text(viewModel.loadedItems.isEmpty
@@ -59,7 +58,18 @@ struct CapturePhotosView: View {
             .buttonStyle(.plain)
             .lvGlowStroke(cornerRadius: LVRadius.pill, intensity: 0.55)
             .lvGlowPress()
+            .photosPicker(
+                isPresented: $isPickingPhotos,
+                selection: $viewModel.pickerItems,
+                maxSelectionCount: 10,
+                matching: .images,
+                photoLibrary: .shared()
+            )
         }
+    }
+
+    private func pickPhotos() {
+        isPickingPhotos = true
     }
 
     private var capturesCard: some View {

@@ -8,8 +8,8 @@
 import Foundation
 import LuminaVaultShared
 
-enum InsightsEndpoints {
-    struct List: Endpoint {
+nonisolated enum InsightsEndpoints {
+    nonisolated struct List: Endpoint {
         typealias Response = InsightListResponse
 
         let section: InsightSection?
@@ -34,7 +34,7 @@ enum InsightsEndpoints {
 
     /// HER-248 — POST /v1/insights/{id}/dismiss. Soft-dismisses the row so
     /// it stops appearing in `list`. Server returns 204 No Content.
-    struct Dismiss: Endpoint {
+    nonisolated struct Dismiss: Endpoint {
         typealias Response = EmptyResponse
 
         let id: UUID

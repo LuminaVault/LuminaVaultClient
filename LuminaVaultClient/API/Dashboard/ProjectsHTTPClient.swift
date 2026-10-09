@@ -12,15 +12,15 @@ protocol ProjectsClientProtocol: Sendable {
     func delete(id: UUID) async throws
 }
 
-enum ProjectsEndpoints {
-    struct List: Endpoint {
+nonisolated enum ProjectsEndpoints {
+    nonisolated struct List: Endpoint {
         typealias Response = ProjectListResponse
         let limit: Int?
         var path: String { limit.map { "/v1/projects?limit=\($0)" } ?? "/v1/projects" }
         var method: HTTPMethod { .get }
     }
 
-    struct Create: Endpoint {
+    nonisolated struct Create: Endpoint {
         typealias Response = ProjectDTO
         let request: ProjectCreateRequest
         var path: String { "/v1/projects" }
@@ -28,7 +28,7 @@ enum ProjectsEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct Update: Endpoint {
+    nonisolated struct Update: Endpoint {
         typealias Response = ProjectDTO
         let id: UUID
         let request: ProjectPatchRequest
@@ -37,7 +37,7 @@ enum ProjectsEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct Delete: Endpoint {
+    nonisolated struct Delete: Endpoint {
         typealias Response = EmptyResponse
         let id: UUID
         var path: String { "/v1/projects/\(id.uuidString.lowercased())" }

@@ -36,13 +36,13 @@ actor EncryptedLocalMemoryCache {
     }
 }
 
-private extension JSONEncoder {
+nonisolated private extension JSONEncoder {
     static var hybrid: JSONEncoder {
         let value = JSONEncoder(); value.dateEncodingStrategy = .iso8601; return value
     }
 }
 
-private extension JSONDecoder {
+nonisolated private extension JSONDecoder {
     static var hybrid: JSONDecoder {
         let value = JSONDecoder(); value.dateDecodingStrategy = .iso8601; return value
     }

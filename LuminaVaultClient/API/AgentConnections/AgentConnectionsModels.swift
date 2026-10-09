@@ -1,6 +1,6 @@
 import Foundation
 
-enum AgentClientKind: String, Codable, Sendable, CaseIterable {
+nonisolated enum AgentClientKind: String, Codable, Sendable, CaseIterable {
     case claudeCode = "claude_code"
     case codex
     case hermes
@@ -16,7 +16,7 @@ enum AgentClientKind: String, Codable, Sendable, CaseIterable {
     }
 }
 
-struct AgentConnectionDTO: Codable, Sendable, Identifiable, Equatable {
+nonisolated struct AgentConnectionDTO: Codable, Sendable, Identifiable, Equatable {
     let id: UUID
     let name: String
     let clientKind: AgentClientKind
@@ -41,12 +41,12 @@ struct AgentConnectionDTO: Codable, Sendable, Identifiable, Equatable {
     }
 }
 
-struct AgentConnectionIssueRequest: Codable, Sendable {
+nonisolated struct AgentConnectionIssueRequest: Codable, Sendable {
     let name: String
     let clientKind: AgentClientKind
 }
 
-struct AgentConnectionSetupDTO: Codable, Sendable, Equatable {
+nonisolated struct AgentConnectionSetupDTO: Codable, Sendable, Equatable {
     let kind: AgentClientKind
     let url: String
     let token: String
@@ -89,12 +89,12 @@ struct AgentConnectionSetupDTO: Codable, Sendable, Equatable {
     }
 }
 
-struct AgentConnectionIssuedResponse: Codable, Sendable {
+nonisolated struct AgentConnectionIssuedResponse: Codable, Sendable {
     let connection: AgentConnectionDTO
     let token: String
     let setup: AgentConnectionSetupDTO
 }
 
-struct AgentConnectionsListResponse: Codable, Sendable {
+nonisolated struct AgentConnectionsListResponse: Codable, Sendable {
     let connections: [AgentConnectionDTO]
 }

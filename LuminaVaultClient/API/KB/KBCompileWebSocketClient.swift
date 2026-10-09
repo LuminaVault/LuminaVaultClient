@@ -7,7 +7,7 @@ import Foundation
 import LuminaVaultShared
 import OSLog
 
-private let log = Logger(subsystem: "com.luminavault", category: "ws.kb-compile")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "ws.kb-compile")
 
 protocol KBCompileWebSocketClientProtocol: Sendable {
     /// Opens a per-tenant WS subscription and yields decoded events as they

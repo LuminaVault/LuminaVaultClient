@@ -1,7 +1,7 @@
 import Foundation
 
 /// Server error envelope: `{ "error": { "code", "message", "cta"? } }`.
-struct StructuredAPIError: Equatable, Sendable {
+nonisolated struct StructuredAPIError: Equatable, Sendable {
     let code: String
     let message: String
     let cta: [String]
@@ -41,7 +41,7 @@ struct StructuredAPIError: Equatable, Sendable {
     }
 }
 
-enum ChatRecoveryAction: Equatable, Sendable {
+nonisolated enum ChatRecoveryAction: Equatable, Sendable {
     case addKey
     case switchToManaged
     /// Opens the paywall — but only because the user tapped it. Chat no longer
@@ -58,7 +58,7 @@ enum ChatRecoveryAction: Equatable, Sendable {
     }
 }
 
-extension APIError {
+nonisolated extension APIError {
     var structuredError: StructuredAPIError? {
         guard case .httpError(_, let data) = self else { return nil }
         return StructuredAPIError.parse(from: data)

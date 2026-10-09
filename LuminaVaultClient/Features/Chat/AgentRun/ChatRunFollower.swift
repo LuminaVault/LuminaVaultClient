@@ -26,7 +26,7 @@ import Foundation
 import LuminaVaultShared
 import os
 
-private let log = Logger(subsystem: "com.luminavault", category: "chat-run")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "chat-run")
 
 @Observable
 @MainActor

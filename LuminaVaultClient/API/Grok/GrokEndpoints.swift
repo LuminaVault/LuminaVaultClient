@@ -5,14 +5,14 @@
 
 import Foundation
 
-enum GrokEndpoints {
+nonisolated enum GrokEndpoints {
     static var snakeCaseEncoder: JSONEncoder {
         let e = JSONEncoder()
         e.keyEncodingStrategy = .convertToSnakeCase
         return e
     }
 
-    struct Chat: Endpoint {
+    nonisolated struct Chat: Endpoint {
         typealias Response = GrokChatResponse
         let body: (any Encodable)?
         let request: GrokChatRequest
@@ -25,7 +25,7 @@ enum GrokEndpoints {
         var encoder: JSONEncoder { GrokEndpoints.snakeCaseEncoder }
     }
 
-    struct XSearch: Endpoint {
+    nonisolated struct XSearch: Endpoint {
         typealias Response = GrokXSearchResponse
         let body: (any Encodable)?
         let request: GrokXSearchRequest
@@ -38,7 +38,7 @@ enum GrokEndpoints {
         var encoder: JSONEncoder { GrokEndpoints.snakeCaseEncoder }
     }
 
-    struct Vision: Endpoint {
+    nonisolated struct Vision: Endpoint {
         typealias Response = GrokVisionResponse
         let body: (any Encodable)?
         let request: GrokVisionRequest
@@ -51,7 +51,7 @@ enum GrokEndpoints {
         var encoder: JSONEncoder { GrokEndpoints.snakeCaseEncoder }
     }
 
-    struct TTS: Endpoint {
+    nonisolated struct TTS: Endpoint {
         typealias Response = GrokTTSResponse
         let body: (any Encodable)?
         let request: GrokTTSRequest

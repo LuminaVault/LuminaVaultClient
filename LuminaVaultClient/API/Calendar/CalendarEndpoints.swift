@@ -14,32 +14,32 @@
 import Foundation
 import LuminaVaultShared
 
-enum CalendarEndpoints {
-    struct GetStatus: Endpoint {
+nonisolated enum CalendarEndpoints {
+    nonisolated struct GetStatus: Endpoint {
         typealias Response = CalendarStatusResponse
         var path: String { "/v1/calendar/status" }
         var method: HTTPMethod { .get }
     }
 
-    struct Connect: Endpoint {
+    nonisolated struct Connect: Endpoint {
         typealias Response = CalendarConnectStartResponse
         var path: String { "/v1/calendar/connect" }
         var method: HTTPMethod { .post }
     }
 
-    struct Disconnect: Endpoint {
+    nonisolated struct Disconnect: Endpoint {
         typealias Response = EmptyResponse
         var path: String { "/v1/calendar/disconnect" }
         var method: HTTPMethod { .post }
     }
 
-    struct GetEvents: Endpoint {
+    nonisolated struct GetEvents: Endpoint {
         typealias Response = CalendarEventsResponse
         var path: String { "/v1/calendar/events" }
         var method: HTTPMethod { .get }
     }
 
-    struct CreateEvent: Endpoint {
+    nonisolated struct CreateEvent: Endpoint {
         typealias Response = CalendarEventDTO
         let request: CalendarCreateEventRequest
         var path: String { "/v1/calendar/events" }

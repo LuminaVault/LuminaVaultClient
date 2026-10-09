@@ -43,7 +43,7 @@ final class HermesWorkspaceHTTPClient: HermesWorkspaceClientProtocol {
     }
 }
 
-enum HermesWorkspaceEndpoints {
+nonisolated enum HermesWorkspaceEndpoints {
     /// Percent-encodes a query value. `.urlQueryAllowed` leaves `&` and `+`
     /// intact, which would split a path with either in it into two parameters
     /// and silently point the request somewhere else.
@@ -53,7 +53,7 @@ enum HermesWorkspaceEndpoints {
         return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     }
 
-    struct Status: Endpoint {
+    nonisolated struct Status: Endpoint {
         typealias Response = HermesWorkspaceStatusDTO
         /// Named `repoPath` rather than `path` because `Endpoint` already
         /// requires a `path` for the URL, and the two would collide.
@@ -62,21 +62,21 @@ enum HermesWorkspaceEndpoints {
         var method: HTTPMethod { .get }
     }
 
-    struct Listing: Endpoint {
+    nonisolated struct Listing: Endpoint {
         typealias Response = HermesWorkspaceListingDTO
         let directory: String
         var path: String { "/v1/hermes/workspace/files?path=\(HermesWorkspaceEndpoints.escape(directory))" }
         var method: HTTPMethod { .get }
     }
 
-    struct File: Endpoint {
+    nonisolated struct File: Endpoint {
         typealias Response = HermesWorkspaceFileDTO
         let filePath: String
         var path: String { "/v1/hermes/workspace/file?path=\(HermesWorkspaceEndpoints.escape(filePath))" }
         var method: HTTPMethod { .get }
     }
 
-    struct Diff: Endpoint {
+    nonisolated struct Diff: Endpoint {
         typealias Response = HermesWorkspaceDiffDTO
         let repoPath: String
         let file: String

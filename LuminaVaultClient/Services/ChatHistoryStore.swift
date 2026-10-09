@@ -24,7 +24,7 @@
 import Foundation
 import OSLog
 
-private nonisolated(unsafe) let log = Logger(subsystem: "com.luminavault", category: "chat-history")
+private nonisolated let log = Logger(subsystem: "com.luminavault", category: "chat-history")
 
 actor ChatHistoryStore {
     static let maxTurns = 50

@@ -20,9 +20,15 @@ import Foundation
 import HealthKit
 import OSLog
 
-private let log = Logger(subsystem: "com.luminavault", category: "healthkit")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "healthkit")
 
 actor HealthKitService {
+    /// `@unchecked`: HealthKit's observer completion handler is not
+    /// Sendable, but HealthKit allows calling it from any thread.
+    nonisolated private struct ObserverCompletion: @unchecked Sendable {
+        let call: () -> Void
+    }
+
     private let healthStore: HKHealthStore
     private let httpClient: BaseHTTPClient
     private let anchorStore: AnchorStore
@@ -178,10 +184,17 @@ actor HealthKitService {
                     completion()
                     return
                 }
+                let done = ObserverCompletion(call: completion)
+                // A constant copy: a `weak` capture is a variable, which a
+                // task cannot share.
+                let service = self
                 Task {
-                    do { _ = try await self?.syncAll() }
-                    catch { log.warning("background syncAll failed: \(error.localizedDescription)") }
-                    completion()
+                    do {
+                        _ = try await service?.syncAll()
+                    } catch {
+                        log.warning("background syncAll failed: \(error.localizedDescription)")
+                    }
+                    done.call()
                 }
             }
             healthStore.execute(observer)
@@ -231,7 +244,10 @@ actor HealthKitService {
         limit: Int,
         sortDescriptors: [NSSortDescriptor]
     ) async throws -> [HKSample] {
-        try await withCheckedThrowingContinuation { cont in
+        // `nonisolated(unsafe)`: `NSPredicate` is not Sendable but is
+        // immutable once built, so handing it to HealthKit is safe.
+        nonisolated(unsafe) let predicate = predicate
+        return try await withCheckedThrowingContinuation { cont in
             let query = HKSampleQuery(
                 sampleType: type,
                 predicate: predicate,
@@ -338,7 +354,7 @@ actor HealthKitService {
     }
 }
 
-enum HealthKitError: LocalizedError {
+nonisolated enum HealthKitError: LocalizedError {
     case notAvailable
     case notAuthorized
 
@@ -356,7 +372,8 @@ enum HealthKitError: LocalizedError {
 /// queries are incremental across launches. UserDefaults is fine here —
 /// anchors aren't sensitive and survive app deletion via iCloud sync if
 /// the user's UserDefaults is replicated.
-final class AnchorStore: @unchecked Sendable {
+/// `@unchecked`: its only state is `UserDefaults`, which is thread-safe.
+nonisolated final class AnchorStore: @unchecked Sendable {
     static let shared = AnchorStore(defaults: .standard)
 
     private let defaults: UserDefaults
@@ -385,7 +402,7 @@ final class AnchorStore: @unchecked Sendable {
 
 // MARK: - Array chunking
 
-private extension Array {
+nonisolated private extension Array {
     func chunked(into size: Int) -> [[Element]] {
         stride(from: 0, to: count, by: size).map { Array(self[$0..<Swift.min($0 + size, count)]) }
     }

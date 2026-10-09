@@ -15,12 +15,12 @@
 import Foundation
 import LuminaVaultShared
 
-enum KanbanEndpoints {
+nonisolated enum KanbanEndpoints {
     private static func versionHeaders(_ version: Int64?) -> [String: String] {
         version.map { ["X-Board-Version": String($0)] } ?? [:]
     }
 
-    struct ListBoards: Endpoint {
+    nonisolated struct ListBoards: Endpoint {
         typealias Response = [BoardSummaryDTO]
         var path: String {
             "/v1/boards"
@@ -31,7 +31,7 @@ enum KanbanEndpoints {
         }
     }
 
-    struct GetBoard: Endpoint {
+    nonisolated struct GetBoard: Endpoint {
         typealias Response = BoardDTO
         let id: UUID
         var path: String {
@@ -43,7 +43,7 @@ enum KanbanEndpoints {
         }
     }
 
-    struct GetVersion: Endpoint {
+    nonisolated struct GetVersion: Endpoint {
         typealias Response = BoardVersionDTO
         let id: UUID
         var path: String {
@@ -55,7 +55,7 @@ enum KanbanEndpoints {
         }
     }
 
-    struct CreateColumn: Endpoint {
+    nonisolated struct CreateColumn: Endpoint {
         typealias Response = BoardDTO
         let boardID: UUID
         let title: String
@@ -77,7 +77,7 @@ enum KanbanEndpoints {
         }
     }
 
-    struct PatchColumn: Endpoint {
+    nonisolated struct PatchColumn: Endpoint {
         typealias Response = BoardDTO
         let boardID: UUID
         let columnID: UUID
@@ -100,7 +100,7 @@ enum KanbanEndpoints {
         }
     }
 
-    struct DeleteColumn: Endpoint {
+    nonisolated struct DeleteColumn: Endpoint {
         typealias Response = BoardDTO
         let boardID: UUID
         let columnID: UUID
@@ -118,7 +118,7 @@ enum KanbanEndpoints {
         }
     }
 
-    struct CreateCard: Endpoint {
+    nonisolated struct CreateCard: Endpoint {
         typealias Response = CardDTO
         let boardID: UUID
         let request: CardCreateRequest
@@ -140,7 +140,7 @@ enum KanbanEndpoints {
         }
     }
 
-    struct PatchCard: Endpoint {
+    nonisolated struct PatchCard: Endpoint {
         typealias Response = CardDTO
         let cardID: UUID
         let request: CardPatchRequest
@@ -162,7 +162,7 @@ enum KanbanEndpoints {
         }
     }
 
-    struct DeleteCard: Endpoint {
+    nonisolated struct DeleteCard: Endpoint {
         typealias Response = EmptyResponse
         let cardID: UUID
         let expectedVersion: Int64?
@@ -179,7 +179,7 @@ enum KanbanEndpoints {
         }
     }
 
-    struct MoveCard: Endpoint {
+    nonisolated struct MoveCard: Endpoint {
         typealias Response = CardDTO
         let cardID: UUID
         let request: CardMoveRequest
@@ -202,7 +202,7 @@ enum KanbanEndpoints {
     }
 
     ///   POST   /v1/cards/{cardID}/promote          -> SkillDTO
-    struct PromoteCard: Endpoint {
+    nonisolated struct PromoteCard: Endpoint {
         typealias Response = SkillDTO
         let cardID: UUID
         let request: CardPromoteRequest

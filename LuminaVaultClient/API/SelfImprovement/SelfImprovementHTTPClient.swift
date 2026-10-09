@@ -1,25 +1,25 @@
 import Foundation
 
-enum LVImprovementModelMode: String, Codable, CaseIterable, Sendable, Identifiable {
+nonisolated enum LVImprovementModelMode: String, Codable, CaseIterable, Sendable, Identifiable {
     case economy, main
     var id: String { rawValue }
 }
 
-enum LVImprovementAvailability: String, Codable, Sendable {
+nonisolated enum LVImprovementAvailability: String, Codable, Sendable {
     case managed
     case compatibleBYO = "compatible_byo"
     case readOnly = "read_only"
     case unavailable
 }
 
-enum LVImprovementKind: String, Codable, Sendable { case curator, soul }
-enum LVImprovementTrigger: String, Codable, Sendable { case manual, weekly, complexSession = "complex_session" }
-enum LVImprovementRunStatus: String, Codable, Sendable { case queued, running, succeeded, failed, rolledBack = "rolled_back" }
-enum LVImprovementChangeState: String, Codable, Sendable { case pending, approved, rejected, applied, stale, failed }
-enum LVImprovementResourceKind: String, Codable, Sendable { case skill, job }
-enum LVImprovementResourceState: String, Codable, Sendable { case active, stale, archived }
+nonisolated enum LVImprovementKind: String, Codable, Sendable { case curator, soul }
+nonisolated enum LVImprovementTrigger: String, Codable, Sendable { case manual, weekly, complexSession = "complex_session" }
+nonisolated enum LVImprovementRunStatus: String, Codable, Sendable { case queued, running, succeeded, failed, rolledBack = "rolled_back" }
+nonisolated enum LVImprovementChangeState: String, Codable, Sendable { case pending, approved, rejected, applied, stale, failed }
+nonisolated enum LVImprovementResourceKind: String, Codable, Sendable { case skill, job }
+nonisolated enum LVImprovementResourceState: String, Codable, Sendable { case active, stale, archived }
 
-struct LVImprovementSettings: Codable, Equatable, Sendable {
+nonisolated struct LVImprovementSettings: Codable, Equatable, Sendable {
     var enabled = true
     var curatorEnabled = true
     var intervalHours = 168
@@ -34,7 +34,7 @@ struct LVImprovementSettings: Codable, Equatable, Sendable {
     var modelMode: LVImprovementModelMode = .economy
 }
 
-struct LVImprovementStatus: Codable, Sendable {
+nonisolated struct LVImprovementStatus: Codable, Sendable {
     let settings: LVImprovementSettings
     let availability: LVImprovementAvailability
     let economyModelAvailable: Bool
@@ -45,7 +45,7 @@ struct LVImprovementStatus: Codable, Sendable {
     let message: String?
 }
 
-struct LVImprovementRun: Codable, Sendable, Identifiable {
+nonisolated struct LVImprovementRun: Codable, Sendable, Identifiable {
     let id: UUID
     let kind: LVImprovementKind
     let status: LVImprovementRunStatus
@@ -61,7 +61,7 @@ struct LVImprovementRun: Codable, Sendable, Identifiable {
     let failureReason: String?
 }
 
-struct LVImprovementChange: Codable, Sendable, Identifiable {
+nonisolated struct LVImprovementChange: Codable, Sendable, Identifiable {
     let id: UUID
     let kind: LVImprovementKind
     let state: LVImprovementChangeState
@@ -73,7 +73,7 @@ struct LVImprovementChange: Codable, Sendable, Identifiable {
     let createdAt: Date
 }
 
-struct LVImprovementResource: Codable, Sendable, Identifiable {
+nonisolated struct LVImprovementResource: Codable, Sendable, Identifiable {
     var id: String { "\(kind.rawValue):\(name)" }
     let name: String
     let title: String
@@ -84,46 +84,46 @@ struct LVImprovementResource: Codable, Sendable, Identifiable {
     let lastActivityAt: Date?
 }
 
-private struct SettingsRequest: Encodable { let settings: LVImprovementSettings }
-private struct RunRequest: Encodable { let dryRun: Bool }
-private struct RunResponse: Decodable { let run: LVImprovementRun }
-private struct RunsResponse: Decodable { let runs: [LVImprovementRun] }
-private struct ChangesResponse: Decodable { let changes: [LVImprovementChange] }
-private struct DecisionResponse: Decodable { let change: LVImprovementChange }
-private struct ResourcesResponse: Decodable { let skills: [LVImprovementResource] }
-private struct PinRequest: Encodable { let pinned: Bool }
+nonisolated private struct SettingsRequest: Encodable { let settings: LVImprovementSettings }
+nonisolated private struct RunRequest: Encodable { let dryRun: Bool }
+nonisolated private struct RunResponse: Decodable { let run: LVImprovementRun }
+nonisolated private struct RunsResponse: Decodable { let runs: [LVImprovementRun] }
+nonisolated private struct ChangesResponse: Decodable { let changes: [LVImprovementChange] }
+nonisolated private struct DecisionResponse: Decodable { let change: LVImprovementChange }
+nonisolated private struct ResourcesResponse: Decodable { let skills: [LVImprovementResource] }
+nonisolated private struct PinRequest: Encodable { let pinned: Bool }
 
-private enum SelfImprovementEndpoints {
-    struct Status: Endpoint {
+nonisolated private enum SelfImprovementEndpoints {
+    nonisolated struct Status: Endpoint {
         typealias Response = LVImprovementStatus
         let request: SettingsRequest?
         var path: String { "/v1/me/improvement" }
         var method: HTTPMethod { request == nil ? .get : .put }
         var body: (any Encodable)? { request }
     }
-    struct Curator: Endpoint {
+    nonisolated struct Curator: Endpoint {
         typealias Response = RunResponse
         let request: RunRequest
         var path: String { "/v1/me/improvement/curator/runs" }
         var method: HTTPMethod { .post }
         var body: (any Encodable)? { request }
     }
-    struct SoulReview: Endpoint {
+    nonisolated struct SoulReview: Endpoint {
         typealias Response = RunResponse
         var path: String { "/v1/me/improvement/soul/reviews" }
         var method: HTTPMethod { .post }
     }
-    struct Runs: Endpoint {
+    nonisolated struct Runs: Endpoint {
         typealias Response = RunsResponse
         var path: String { "/v1/me/improvement/runs?limit=30" }
         var method: HTTPMethod { .get }
     }
-    struct Resources: Endpoint {
+    nonisolated struct Resources: Endpoint {
         typealias Response = ResourcesResponse
         var path: String { "/v1/me/improvement/resources" }
         var method: HTTPMethod { .get }
     }
-    struct Pin: Endpoint {
+    nonisolated struct Pin: Endpoint {
         typealias Response = LVImprovementResource
         let kind: LVImprovementResourceKind
         let name: String
@@ -135,19 +135,19 @@ private enum SelfImprovementEndpoints {
         var method: HTTPMethod { .patch }
         var body: (any Encodable)? { request }
     }
-    struct Changes: Endpoint {
+    nonisolated struct Changes: Endpoint {
         typealias Response = ChangesResponse
         var path: String { "/v1/me/improvement/changes" }
         var method: HTTPMethod { .get }
     }
-    struct Decide: Endpoint {
+    nonisolated struct Decide: Endpoint {
         typealias Response = DecisionResponse
         let id: UUID
         let approve: Bool
         var path: String { "/v1/me/improvement/changes/\(id.uuidString)/\(approve ? "approve" : "reject")" }
         var method: HTTPMethod { .post }
     }
-    struct Rollback: Endpoint {
+    nonisolated struct Rollback: Endpoint {
         typealias Response = RunResponse
         let id: UUID
         var path: String { "/v1/me/improvement/runs/\(id.uuidString)/rollback" }

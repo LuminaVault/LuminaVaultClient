@@ -9,8 +9,8 @@
 import Foundation
 import LuminaVaultShared
 
-enum MemoryQueryEndpoints {
-    struct Query: Endpoint {
+nonisolated enum MemoryQueryEndpoints {
+    nonisolated struct Query: Endpoint {
         typealias Response = QueryResponse
         let query: String
         let limit: Int?

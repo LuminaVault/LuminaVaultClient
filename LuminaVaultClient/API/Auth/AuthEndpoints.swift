@@ -1,8 +1,8 @@
 // LuminaVaultClient/LuminaVaultClient/API/Auth/AuthEndpoints.swift
 import Foundation
 
-enum AuthEndpoints {
-    struct Login: Endpoint {
+nonisolated enum AuthEndpoints {
+    nonisolated struct Login: Endpoint {
         typealias Response = AuthResponse
         let email: String
         let password: String
@@ -14,7 +14,7 @@ enum AuthEndpoints {
             LoginRequest(email: email, password: password, mfaCode: mfaCode)
         }
     }
-    struct Register: Endpoint {
+    nonisolated struct Register: Endpoint {
         typealias Response = AuthResponse
         let email: String
         let username: String
@@ -26,7 +26,7 @@ enum AuthEndpoints {
             RegisterRequest(email: email, username: username, password: password)
         }
     }
-    struct ForgotPassword: Endpoint {
+    nonisolated struct ForgotPassword: Endpoint {
         typealias Response = EmptyResponse
         let email: String
         var path: String { "/v1/auth/forgot-password" }
@@ -34,7 +34,7 @@ enum AuthEndpoints {
         var requiresAuth: Bool { false }
         var body: (any Encodable)? { ForgotPasswordRequest(email: email) }
     }
-    struct ResetPassword: Endpoint {
+    nonisolated struct ResetPassword: Endpoint {
         typealias Response = EmptyResponse
         let email: String
         let code: String
@@ -46,7 +46,7 @@ enum AuthEndpoints {
             ResetPasswordRequest(email: email, code: code, newPassword: newPassword)
         }
     }
-    struct VerifyMFA: Endpoint {
+    nonisolated struct VerifyMFA: Endpoint {
         typealias Response = AuthResponse
         let challengeId: UUID
         let code: String
@@ -57,7 +57,7 @@ enum AuthEndpoints {
             MFAVerifyRequest(challengeId: challengeId, code: code)
         }
     }
-    struct OAuthExchange: Endpoint {
+    nonisolated struct OAuthExchange: Endpoint {
         typealias Response = AuthResponse
         let provider: String
         let idToken: String
@@ -70,7 +70,7 @@ enum AuthEndpoints {
     /// id_token), so the server's `/v1/auth/oauth/x/exchange` route decodes a
     /// distinct `{ accessToken }` body via `OAuthAccessTokenRequest` from
     /// `LuminaVaultShared` (matches the `openapi.yaml` schema).
-    struct OAuthAccessTokenExchange: Endpoint {
+    nonisolated struct OAuthAccessTokenExchange: Endpoint {
         typealias Response = AuthResponse
         let provider: String
         let accessToken: String
@@ -79,7 +79,7 @@ enum AuthEndpoints {
         var requiresAuth: Bool { false }
         var body: (any Encodable)? { OAuthAccessTokenRequest(accessToken: accessToken) }
     }
-    struct RefreshToken: Endpoint {
+    nonisolated struct RefreshToken: Endpoint {
         typealias Response = AuthResponse
         let token: String
         var path: String { "/v1/auth/refresh" }
@@ -87,7 +87,7 @@ enum AuthEndpoints {
         var requiresAuth: Bool { false }
         var body: (any Encodable)? { RefreshRequest(refreshToken: token) }
     }
-    struct PhoneStart: Endpoint {
+    nonisolated struct PhoneStart: Endpoint {
         typealias Response = PhoneStartResponse
         let phone: String
         var path: String { "/v1/auth/phone/start" }
@@ -95,7 +95,7 @@ enum AuthEndpoints {
         var requiresAuth: Bool { false }
         var body: (any Encodable)? { PhoneStartRequest(phone: phone) }
     }
-    struct PhoneVerify: Endpoint {
+    nonisolated struct PhoneVerify: Endpoint {
         typealias Response = AuthResponse
         let phone: String
         let code: String
@@ -104,7 +104,7 @@ enum AuthEndpoints {
         var requiresAuth: Bool { false }
         var body: (any Encodable)? { PhoneVerifyRequest(phone: phone, code: code) }
     }
-    struct EmailMagicStart: Endpoint {
+    nonisolated struct EmailMagicStart: Endpoint {
         typealias Response = EmailMagicStartResponse
         let email: String
         var path: String { "/v1/auth/email/start" }
@@ -112,7 +112,7 @@ enum AuthEndpoints {
         var requiresAuth: Bool { false }
         var body: (any Encodable)? { EmailMagicStartRequest(email: email) }
     }
-    struct EmailMagicVerify: Endpoint {
+    nonisolated struct EmailMagicVerify: Endpoint {
         typealias Response = AuthResponse
         let email: String
         let code: String
@@ -123,19 +123,19 @@ enum AuthEndpoints {
             EmailMagicVerifyRequest(email: email, code: code)
         }
     }
-    struct GetMe: Endpoint {
+    nonisolated struct GetMe: Endpoint {
         typealias Response = MeResponse
         var path: String { "/v1/auth/me" }
         var method: HTTPMethod { .get }
     }
-    struct UpdatePrivacy: Endpoint {
+    nonisolated struct UpdatePrivacy: Endpoint {
         typealias Response = MeResponse
         let request: UpdatePrivacyRequest
         var path: String { "/v1/auth/me/privacy" }
         var method: HTTPMethod { .put }
         var body: (any Encodable)? { request }
     }
-    struct Logout: Endpoint {
+    nonisolated struct Logout: Endpoint {
         typealias Response = EmptyResponse
         let refreshToken: String
         var path: String { "/v1/auth/logout" }
@@ -148,7 +148,7 @@ enum AuthEndpoints {
     /// Enrolment is authenticated — the server binds the credential to the
     /// bearer token's user, not to `username`. `requiresAuth` is left at the
     /// protocol default of `true`; sending no token here gets a 401.
-    struct WebAuthnRegisterBegin: Endpoint {
+    nonisolated struct WebAuthnRegisterBegin: Endpoint {
         typealias Response = WebAuthnBeginRegistrationResponse
         let username: String
         let displayName: String?
@@ -160,7 +160,7 @@ enum AuthEndpoints {
     }
 
     /// See `WebAuthnRegisterBegin` — authenticated.
-    struct WebAuthnRegisterFinish: Endpoint {
+    nonisolated struct WebAuthnRegisterFinish: Endpoint {
         typealias Response = WebAuthnFinishRegistrationResponse
         let request: WebAuthnFinishRegistrationRequest
         var path: String { "/v1/auth/webauthn/register/finish" }
@@ -168,7 +168,7 @@ enum AuthEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct WebAuthnAuthenticateBegin: Endpoint {
+    nonisolated struct WebAuthnAuthenticateBegin: Endpoint {
         typealias Response = WebAuthnBeginAuthenticationResponse
         let username: String
         var path: String { "/v1/auth/webauthn/authenticate/begin" }
@@ -177,7 +177,7 @@ enum AuthEndpoints {
         var body: (any Encodable)? { WebAuthnBeginAuthenticationRequest(username: username) }
     }
 
-    struct WebAuthnAuthenticateFinish: Endpoint {
+    nonisolated struct WebAuthnAuthenticateFinish: Endpoint {
         typealias Response = AuthResponse
         let request: WebAuthnFinishAuthenticationRequest
         var path: String { "/v1/auth/webauthn/authenticate/finish" }
@@ -186,13 +186,13 @@ enum AuthEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct WebAuthnListCredentials: Endpoint {
+    nonisolated struct WebAuthnListCredentials: Endpoint {
         typealias Response = WebAuthnCredentialListResponse
         var path: String { "/v1/auth/webauthn/credentials" }
         var method: HTTPMethod { .get }
     }
 
-    struct WebAuthnDeleteCredential: Endpoint {
+    nonisolated struct WebAuthnDeleteCredential: Endpoint {
         typealias Response = EmptyResponse
         let credentialID: String
         var path: String {

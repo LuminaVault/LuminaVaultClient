@@ -6,10 +6,10 @@
 // the minted token pair to the polling browser.
 import Foundation
 
-enum PairingEndpoints {
+nonisolated enum PairingEndpoints {
     /// Approve a browser pairing. JWT-authenticated: the app vouches for the
     /// browser. Returns 204 on success.
-    struct Approve: Endpoint {
+    nonisolated struct Approve: Endpoint {
         typealias Response = EmptyResponse
         let pairingId: String
         let code: String
@@ -20,6 +20,6 @@ enum PairingEndpoints {
     }
 }
 
-struct PairingApproveRequest: Encodable {
+nonisolated struct PairingApproveRequest: Encodable {
     let code: String
 }

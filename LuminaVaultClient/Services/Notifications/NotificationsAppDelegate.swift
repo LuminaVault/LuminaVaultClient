@@ -9,7 +9,7 @@ import os
 import UIKit
 import UserNotifications
 
-private let log = Logger(subsystem: "com.luminavault", category: "apns")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "apns")
 
 final class NotificationsAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     static let shared = NotificationsAppDelegate()

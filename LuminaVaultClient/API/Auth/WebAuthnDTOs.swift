@@ -12,7 +12,7 @@ import LuminaVaultShared
 
 // MARK: - Begin / Finish registration
 
-struct WebAuthnBeginRegistrationRequest: Codable, Sendable {
+nonisolated struct WebAuthnBeginRegistrationRequest: Codable, Sendable {
     let username: String
     let displayName: String?
 }
@@ -21,69 +21,69 @@ struct WebAuthnBeginRegistrationRequest: Codable, Sendable {
 /// JSON. `options` is passed through opaquely (no typed mirror of every
 /// WebAuthn spec field) — `PasskeyService` decodes only what it needs to
 /// drive `ASAuthorizationPlatformPublicKeyCredentialProvider`.
-struct WebAuthnBeginRegistrationResponse: Codable, Sendable {
+nonisolated struct WebAuthnBeginRegistrationResponse: Codable, Sendable {
     let options: AnyJSONValue
 }
 
-struct WebAuthnAttestationResponseDTO: Codable, Sendable {
+nonisolated struct WebAuthnAttestationResponseDTO: Codable, Sendable {
     let attestationObject: String // base64url
     let clientDataJSON: String    // base64url
 }
 
-struct WebAuthnRegistrationCredentialDTO: Codable, Sendable {
+nonisolated struct WebAuthnRegistrationCredentialDTO: Codable, Sendable {
     let id: String       // base64url credential ID
     let rawId: String    // base64url credential ID (raw bytes)
     let type: String     // "public-key"
     let response: WebAuthnAttestationResponseDTO
 }
 
-struct WebAuthnFinishRegistrationRequest: Codable, Sendable {
+nonisolated struct WebAuthnFinishRegistrationRequest: Codable, Sendable {
     let username: String
     let credentialCreationData: WebAuthnRegistrationCredentialDTO
 }
 
-struct WebAuthnFinishRegistrationResponse: Codable, Sendable {
+nonisolated struct WebAuthnFinishRegistrationResponse: Codable, Sendable {
     let credentialID: String
 }
 
 // MARK: - Begin / Finish authentication
 
-struct WebAuthnBeginAuthenticationRequest: Codable, Sendable {
+nonisolated struct WebAuthnBeginAuthenticationRequest: Codable, Sendable {
     let username: String
 }
 
-struct WebAuthnBeginAuthenticationResponse: Codable, Sendable {
+nonisolated struct WebAuthnBeginAuthenticationResponse: Codable, Sendable {
     let options: AnyJSONValue
 }
 
-struct WebAuthnAssertionResponseDTO: Codable, Sendable {
+nonisolated struct WebAuthnAssertionResponseDTO: Codable, Sendable {
     let authenticatorData: String // base64url
     let clientDataJSON: String    // base64url
     let signature: String         // base64url
     let userHandle: String?       // base64url, optional
 }
 
-struct WebAuthnAuthenticationCredentialDTO: Codable, Sendable {
+nonisolated struct WebAuthnAuthenticationCredentialDTO: Codable, Sendable {
     let id: String
     let rawId: String
     let type: String
     let response: WebAuthnAssertionResponseDTO
 }
 
-struct WebAuthnFinishAuthenticationRequest: Codable, Sendable {
+nonisolated struct WebAuthnFinishAuthenticationRequest: Codable, Sendable {
     let username: String
     let credential: WebAuthnAuthenticationCredentialDTO
 }
 
 // MARK: - Settings — list / revoke
 
-struct WebAuthnCredentialSummaryDTO: Codable, Sendable, Identifiable {
+nonisolated struct WebAuthnCredentialSummaryDTO: Codable, Sendable, Identifiable {
     let id: String       // base64url credential ID
     let createdAt: Date
     let lastUsedAt: Date?
     let nickname: String?
 }
 
-struct WebAuthnCredentialListResponse: Codable, Sendable {
+nonisolated struct WebAuthnCredentialListResponse: Codable, Sendable {
     let credentials: [WebAuthnCredentialSummaryDTO]
 }

@@ -5,14 +5,14 @@
 import Foundation
 import LuminaVaultShared
 
-enum APNSPrefsEndpoints {
-    struct Get: Endpoint {
+nonisolated enum APNSPrefsEndpoints {
+    nonisolated struct Get: Endpoint {
         typealias Response = APNSCategoryPrefsResponse
         var path: String { "/v1/me/apns-categories" }
         var method: HTTPMethod { .get }
     }
 
-    struct Put: Endpoint {
+    nonisolated struct Put: Endpoint {
         typealias Response = APNSCategoryPrefsResponse
         let request: APNSCategoryPrefsPutRequest
         var path: String { "/v1/me/apns-categories" }

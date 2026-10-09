@@ -320,7 +320,7 @@ final class AppState {
         return BaseHTTPClient(
             tokenProvider: { keychain.accessToken },
             vaultProvider: { [activeVaultStore] in await activeVaultStore.selectedVaultID() },
-            refreshHandler: {
+            refreshHandler: { @MainActor in
                 guard let token = keychain.refreshToken else {
                     throw APIError.unauthorized
                 }

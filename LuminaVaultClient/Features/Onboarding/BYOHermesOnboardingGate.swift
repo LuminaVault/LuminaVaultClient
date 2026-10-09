@@ -37,7 +37,7 @@ struct BYOHermesOnboardingGate: View {
             viewModel: BYOHermesPromptViewModel(
                 telemetry: LoggerTelemetry(),
                 onSetUpNow: { showSetup = true },
-                onSkip: onFinished
+                onSkip: { onFinished() }
             )
         )
         .sheet(isPresented: $showSetup) {

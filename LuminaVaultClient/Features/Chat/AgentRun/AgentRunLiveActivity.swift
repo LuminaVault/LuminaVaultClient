@@ -15,7 +15,7 @@ import ActivityKit
 import Foundation
 import os
 
-private let log = Logger(subsystem: "com.luminavault", category: "live-activity")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "live-activity")
 
 @MainActor
 final class AgentRunLiveActivity: AgentRunLiveActivityControlling {

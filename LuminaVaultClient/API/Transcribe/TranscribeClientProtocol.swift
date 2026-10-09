@@ -22,7 +22,7 @@ import Foundation
 ///
 /// `durationSeconds` arrives as `duration_seconds`; `JSONDecoder.hvDefault`
 /// converts it, so no explicit CodingKeys are needed here.
-struct TranscriptionResult: Decodable, Sendable, Equatable {
+nonisolated struct TranscriptionResult: Decodable, Sendable, Equatable {
     let id: String
     let text: String
     let language: String

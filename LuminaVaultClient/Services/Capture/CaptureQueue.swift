@@ -34,7 +34,7 @@ extension CaptureQueueProtocol {
 /// Inbound enqueue payload. Reference-types like SwiftData `@Model`
 /// instances can't cross actor boundaries, so the public API takes
 /// value-typed snapshots.
-struct CaptureSnapshot: Sendable {
+nonisolated struct CaptureSnapshot: Sendable {
     let id: UUID
     let createdAt: Date
     let captionText: String?
@@ -188,7 +188,7 @@ struct CaptureSnapshot: Sendable {
 
 /// Outbound row snapshot — what the drainer iterates. Avoids handing
 /// out the live `@Model` reference.
-struct CaptureRowSnapshot: Sendable, Identifiable {
+nonisolated struct CaptureRowSnapshot: Sendable, Identifiable {
     let id: UUID
     let createdAt: Date
     let captionText: String?
@@ -260,7 +260,7 @@ actor CaptureQueue: CaptureQueueProtocol {
 
     /// `@Model` instances cannot cross an actor boundary, so every query hands
     /// back value-typed snapshots. Shared by `pending()` and `failed()`.
-    private static func snapshot(of row: PendingCapture) -> CaptureRowSnapshot {
+    nonisolated private static func snapshot(of row: PendingCapture) -> CaptureRowSnapshot {
         CaptureRowSnapshot(
             id: row.id,
             createdAt: row.createdAt,

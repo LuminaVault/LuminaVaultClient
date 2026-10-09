@@ -7,14 +7,14 @@
 import Foundation
 import LuminaVaultShared
 
-enum OnboardingEndpoints {
-    struct Get: Endpoint {
+nonisolated enum OnboardingEndpoints {
+    nonisolated struct Get: Endpoint {
         typealias Response = OnboardingStateDTO
         var path: String { "/v1/onboarding" }
         var method: HTTPMethod { .get }
     }
 
-    struct Patch: Endpoint {
+    nonisolated struct Patch: Endpoint {
         typealias Response = OnboardingStateDTO
         let request: OnboardingPatchRequest
         var path: String { "/v1/onboarding" }

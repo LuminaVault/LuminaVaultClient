@@ -8,8 +8,8 @@
 import Foundation
 import LuminaVaultShared
 
-enum SessionsEndpoints {
-    struct List: Endpoint {
+nonisolated enum SessionsEndpoints {
+    nonisolated struct List: Endpoint {
         typealias Response = SessionListResponse
         let limit: Int?
         let workspaceID: UUID?

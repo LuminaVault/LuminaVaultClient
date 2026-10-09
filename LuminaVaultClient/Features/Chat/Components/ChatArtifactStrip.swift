@@ -9,6 +9,7 @@
 // turn escalates to a run. That is correct: a conversation that never ran an
 // agent produced no artifacts.
 
+import LuminaVaultShared
 import SwiftUI
 
 struct ChatArtifactStrip: View {

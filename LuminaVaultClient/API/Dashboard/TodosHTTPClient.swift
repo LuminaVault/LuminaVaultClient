@@ -12,14 +12,14 @@ protocol TodosClientProtocol: Sendable {
     func delete(id: UUID) async throws
 }
 
-enum TodosEndpoints {
-    struct List: Endpoint {
+nonisolated enum TodosEndpoints {
+    nonisolated struct List: Endpoint {
         typealias Response = TodoListResponse
         var path: String { "/v1/todos" }
         var method: HTTPMethod { .get }
     }
 
-    struct Create: Endpoint {
+    nonisolated struct Create: Endpoint {
         typealias Response = TodoDTO
         let request: TodoCreateRequest
         var path: String { "/v1/todos" }
@@ -27,7 +27,7 @@ enum TodosEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct Update: Endpoint {
+    nonisolated struct Update: Endpoint {
         typealias Response = TodoDTO
         let id: UUID
         let request: TodoPatchRequest
@@ -36,7 +36,7 @@ enum TodosEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct Delete: Endpoint {
+    nonisolated struct Delete: Endpoint {
         typealias Response = EmptyResponse
         let id: UUID
         var path: String { "/v1/todos/\(id.uuidString.lowercased())" }

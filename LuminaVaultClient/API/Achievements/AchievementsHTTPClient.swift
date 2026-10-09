@@ -15,14 +15,14 @@ protocol AchievementsClientProtocol: Sendable {
     func recent(limit: Int) async throws -> AchievementsRecentResponse
 }
 
-enum AchievementsEndpoints {
-    struct Get: Endpoint {
+nonisolated enum AchievementsEndpoints {
+    nonisolated struct Get: Endpoint {
         typealias Response = AchievementsListResponse
         var path: String { "/v1/achievements" }
         var method: HTTPMethod { .get }
     }
 
-    struct Recent: Endpoint {
+    nonisolated struct Recent: Endpoint {
         typealias Response = AchievementsRecentResponse
         let limit: Int
         var path: String {

@@ -4,21 +4,21 @@
 
 import Foundation
 
-enum IntegrationsEndpoints {
-    struct GetXaiStatus: Endpoint {
+nonisolated enum IntegrationsEndpoints {
+    nonisolated struct GetXaiStatus: Endpoint {
         typealias Response = XaiStatusResponse
         var path: String { "/v1/integrations/xai" }
         var method: HTTPMethod { .get }
     }
 
-    struct StartXaiConnect: Endpoint {
+    nonisolated struct StartXaiConnect: Endpoint {
         typealias Response = XaiStartResponse
         var path: String { "/v1/integrations/xai/start" }
         var method: HTTPMethod { .post }
         var body: (any Encodable)? { nil }
     }
 
-    struct CompleteXaiConnect: Endpoint {
+    nonisolated struct CompleteXaiConnect: Endpoint {
         typealias Response = XaiStatusResponse
         let sessionID: String
         let callbackURL: String
@@ -29,7 +29,7 @@ enum IntegrationsEndpoints {
         }
     }
 
-    struct DisconnectXai: Endpoint {
+    nonisolated struct DisconnectXai: Endpoint {
         typealias Response = XaiStatusResponse
         var path: String { "/v1/integrations/xai" }
         var method: HTTPMethod { .delete }
@@ -37,20 +37,20 @@ enum IntegrationsEndpoints {
 
     // MARK: - Nous Portal subscription
 
-    struct GetNousStatus: Endpoint {
+    nonisolated struct GetNousStatus: Endpoint {
         typealias Response = NousStatusResponse
         var path: String { "/v1/integrations/nous" }
         var method: HTTPMethod { .get }
     }
 
-    struct StartNousConnect: Endpoint {
+    nonisolated struct StartNousConnect: Endpoint {
         typealias Response = NousStartResponse
         var path: String { "/v1/integrations/nous/start" }
         var method: HTTPMethod { .post }
         var body: (any Encodable)? { nil }
     }
 
-    struct CompleteNousConnect: Endpoint {
+    nonisolated struct CompleteNousConnect: Endpoint {
         typealias Response = NousStatusResponse
         let sessionID: String
         var path: String { "/v1/integrations/nous/complete" }
@@ -60,7 +60,7 @@ enum IntegrationsEndpoints {
         }
     }
 
-    struct DisconnectNous: Endpoint {
+    nonisolated struct DisconnectNous: Endpoint {
         typealias Response = NousStatusResponse
         var path: String { "/v1/integrations/nous" }
         var method: HTTPMethod { .delete }

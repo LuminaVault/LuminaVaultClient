@@ -16,9 +16,9 @@
 import Foundation
 import LuminaVaultShared
 
-enum HermesRunsEndpoints {
+nonisolated enum HermesRunsEndpoints {
     /// `POST /v1/hermes/runs` — 202 with the persisted run.
-    struct Start: Endpoint {
+    nonisolated struct Start: Endpoint {
         typealias Response = HermesRunDTO
         let request: HermesRunStartRequest
         var path: String { "/v1/hermes/runs" }
@@ -27,7 +27,7 @@ enum HermesRunsEndpoints {
     }
 
     /// `GET /v1/hermes/runs?limit=` — newest first, server-capped at 50.
-    struct List: Endpoint {
+    nonisolated struct List: Endpoint {
         typealias Response = HermesRunListResponse
         let limit: Int?
         var path: String {
@@ -39,7 +39,7 @@ enum HermesRunsEndpoints {
     }
 
     /// `GET /v1/hermes/runs/{id}` — includes `pendingApproval`.
-    struct Get: Endpoint {
+    nonisolated struct Get: Endpoint {
         typealias Response = HermesRunDTO
         let runID: UUID
         var path: String { "/v1/hermes/runs/\(runID.uuidString)" }
@@ -47,7 +47,7 @@ enum HermesRunsEndpoints {
     }
 
     /// `POST /v1/hermes/runs/{id}/approval`.
-    struct Approve: Endpoint {
+    nonisolated struct Approve: Endpoint {
         typealias Response = HermesRunDTO
         let runID: UUID
         let request: HermesRunApprovalRequest
@@ -59,7 +59,7 @@ enum HermesRunsEndpoints {
     /// `POST /v1/hermes/runs/{id}/stop`. Hermes answers `stopping`, so the
     /// returned DTO may still read `running` — the terminal state lands on
     /// the event feed.
-    struct Stop: Endpoint {
+    nonisolated struct Stop: Endpoint {
         typealias Response = HermesRunDTO
         let runID: UUID
         var path: String { "/v1/hermes/runs/\(runID.uuidString)/stop" }
@@ -72,7 +72,7 @@ enum HermesRunsEndpoints {
     /// the run, or the last event it rendered). Passing it means a
     /// backgrounded app that reconnects resumes where it stopped instead of
     /// replaying the whole run, and never sees an event twice.
-    struct Events: StreamingEndpoint {
+    nonisolated struct Events: StreamingEndpoint {
         typealias Event = HermesRunEventDTO
         let runID: UUID
         let after: Int

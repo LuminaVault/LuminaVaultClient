@@ -73,8 +73,8 @@ final class IngestionHTTPClient: IngestionClientProtocol, Sendable {
     }
 }
 
-enum IngestionEndpoints {
-    struct Events: StreamingEndpoint {
+nonisolated enum IngestionEndpoints {
+    nonisolated struct Events: StreamingEndpoint {
         typealias Event = IngestionEventDTO
         let batchID: UUID
 
@@ -87,7 +87,7 @@ enum IngestionEndpoints {
         }
     }
 
-    struct Create: Endpoint {
+    nonisolated struct Create: Endpoint {
         typealias Response = IngestionBatchDTO
         let request: IngestionCreateRequest
         var path: String {
@@ -103,7 +103,7 @@ enum IngestionEndpoints {
         }
     }
 
-    struct List: Endpoint {
+    nonisolated struct List: Endpoint {
         typealias Response = IngestionBatchListDTO
         var path: String {
             "/v1/ingestions"
@@ -114,7 +114,7 @@ enum IngestionEndpoints {
         }
     }
 
-    struct Complete: Endpoint {
+    nonisolated struct Complete: Endpoint {
         typealias Response = IngestionBatchDTO
         let batchID: UUID
         let itemID: UUID
@@ -127,7 +127,7 @@ enum IngestionEndpoints {
         }
     }
 
-    struct Detail: Endpoint {
+    nonisolated struct Detail: Endpoint {
         typealias Response = IngestionBatchDTO
         let batchID: UUID
         var path: String {
@@ -139,7 +139,7 @@ enum IngestionEndpoints {
         }
     }
 
-    struct Retry: Endpoint {
+    nonisolated struct Retry: Endpoint {
         typealias Response = IngestionBatchDTO
         let batchID: UUID
         let itemID: UUID
@@ -152,7 +152,7 @@ enum IngestionEndpoints {
         }
     }
 
-    struct Cancel: Endpoint {
+    nonisolated struct Cancel: Endpoint {
         typealias Response = IngestionBatchDTO
         let batchID: UUID
         let itemID: UUID

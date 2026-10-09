@@ -12,8 +12,8 @@
 import Foundation
 import LuminaVaultShared
 
-enum KBCompileEndpoints {
-    struct Compile: Endpoint {
+nonisolated enum KBCompileEndpoints {
+    nonisolated struct Compile: Endpoint {
         typealias Response = KBCompileResponse
         let request: KBCompileRequest
         let idempotencyKey: UUID?
@@ -30,7 +30,7 @@ enum KBCompileEndpoints {
     /// "Sync & Learn" surface disables its button when nothing is pending,
     /// and the guided-start card refuses to open step 2 for the same reason.
     /// Polling on focus is fine; it does not touch the compile rate limit.
-    struct Pending: Endpoint {
+    nonisolated struct Pending: Endpoint {
         typealias Response = KBCompilePendingResponse
         var path: String { "/v1/memory-compile/pending" }
         var method: HTTPMethod { .get }

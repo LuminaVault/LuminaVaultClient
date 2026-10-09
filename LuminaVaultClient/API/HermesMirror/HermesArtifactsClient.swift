@@ -1,24 +1,5 @@
 import Foundation
-
-enum HermesArtifactKind: String, Codable, Sendable {
-    case image, file, link
-}
-
-struct HermesArtifactDTO: Codable, Sendable, Identifiable, Equatable {
-    let id: UUID
-    let kind: HermesArtifactKind
-    let value: String
-    let href: String
-    let label: String
-    let sessionID: String
-    let sessionTitle: String
-    let occurredAt: Date
-}
-
-struct HermesArtifactListResponse: Codable, Sendable, Equatable {
-    let artifacts: [HermesArtifactDTO]
-    let nextCursor: String?
-}
+import LuminaVaultShared
 
 protocol HermesArtifactsClientProtocol: Sendable {
     func list(kind: HermesArtifactKind?, query: String?) async throws -> HermesArtifactListResponse
@@ -46,8 +27,8 @@ final class HermesArtifactsHTTPClient: HermesArtifactsClientProtocol {
     }
 }
 
-enum HermesArtifactsEndpoints {
-    struct List: Endpoint {
+nonisolated enum HermesArtifactsEndpoints {
+    nonisolated struct List: Endpoint {
         typealias Response = HermesArtifactListResponse
         let kind: HermesArtifactKind?
         let query: String?
@@ -77,7 +58,7 @@ enum HermesArtifactsEndpoints {
         }
     }
 
-    struct Get: Endpoint {
+    nonisolated struct Get: Endpoint {
         typealias Response = HermesArtifactDTO
         let id: String
         var path: String { "/v1/hermes/artifacts/\(List.encode(id))" }

@@ -17,13 +17,13 @@ protocol WorkflowsClientProtocol: Sendable {
     func decide(approvalID: UUID, approved: Bool, memoryIDs: [UUID]) async throws
 }
 
-enum WorkflowsEndpoints {
-    struct List: Endpoint { typealias Response = WorkflowListResponse; var path: String {
+nonisolated enum WorkflowsEndpoints {
+    nonisolated struct List: Endpoint { typealias Response = WorkflowListResponse; var path: String {
         "/v1/workflows"
     }; var method: HTTPMethod {
         .get
     } }
-    struct Runs: Endpoint {
+    nonisolated struct Runs: Endpoint {
         typealias Response = WorkflowRunsResponse
         let workflowID: UUID?
         var path: String {
@@ -35,7 +35,7 @@ enum WorkflowsEndpoints {
         }
     }
 
-    struct Run: Endpoint {
+    nonisolated struct Run: Endpoint {
         typealias Response = WorkflowRunDTO
         let workflowID: UUID; let request: WorkflowRunRequest
         var path: String {
@@ -49,22 +49,22 @@ enum WorkflowsEndpoints {
         }
     }
 
-    struct Approvals: Endpoint { typealias Response = WorkflowApprovalsResponse; var path: String {
+    nonisolated struct Approvals: Endpoint { typealias Response = WorkflowApprovalsResponse; var path: String {
         "/v1/workflows/approvals"
     }; var method: HTTPMethod {
         .get
     } }
-    struct Templates: Endpoint { typealias Response = WorkflowTemplatesResponse; var path: String {
+    nonisolated struct Templates: Endpoint { typealias Response = WorkflowTemplatesResponse; var path: String {
         "/v1/workflow-templates"
     }; var method: HTTPMethod {
         .get
     } }
-    struct Limits: Endpoint { typealias Response = WorkflowLimitsDTO; var path: String {
+    nonisolated struct Limits: Endpoint { typealias Response = WorkflowLimitsDTO; var path: String {
         "/v1/workflows/limits"
     }; var method: HTTPMethod {
         .get
     } }
-    struct RunDetail: Endpoint {
+    nonisolated struct RunDetail: Endpoint {
         typealias Response = WorkflowRunDTO
         let runID: UUID
         var path: String {
@@ -76,7 +76,7 @@ enum WorkflowsEndpoints {
         }
     }
 
-    struct Events: StreamingEndpoint {
+    nonisolated struct Events: StreamingEndpoint {
         typealias Event = WorkflowRunEventDTO
         let runID: UUID
         var path: String {
@@ -88,7 +88,7 @@ enum WorkflowsEndpoints {
         }
     }
 
-    struct RunTemplate: Endpoint {
+    nonisolated struct RunTemplate: Endpoint {
         typealias Response = WorkflowRunDTO
         let templateID: String
         var path: String {
@@ -104,7 +104,7 @@ enum WorkflowsEndpoints {
         }
     }
 
-    struct RunAction: Endpoint {
+    nonisolated struct RunAction: Endpoint {
         typealias Response = WorkflowRunDTO
         let runID: UUID
         let action: String
@@ -117,7 +117,7 @@ enum WorkflowsEndpoints {
         }
     }
 
-    struct Cancel: Endpoint {
+    nonisolated struct Cancel: Endpoint {
         typealias Response = EmptyResponse
         let runID: UUID
         var path: String {
@@ -129,7 +129,7 @@ enum WorkflowsEndpoints {
         }
     }
 
-    struct Decide: Endpoint {
+    nonisolated struct Decide: Endpoint {
         typealias Response = EmptyResponse
         let approvalID: UUID; let request: WorkflowApprovalDecisionRequest
         var path: String {

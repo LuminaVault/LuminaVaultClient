@@ -12,14 +12,14 @@
 // JSON response.
 import Foundation
 
-enum ChatEndpoints {
+nonisolated enum ChatEndpoints {
     private static var snakeCaseEncoder: JSONEncoder {
         let e = JSONEncoder()
         e.keyEncodingStrategy = .convertToSnakeCase
         return e
     }
 
-    struct Completions: Endpoint {
+    nonisolated struct Completions: Endpoint {
         // Chat never slides the app-root paywall over itself. The whole
         // `/v1/conversations` group is gated on `.memoryQuery`, listing
         // included, so a 402 anywhere here would throw a modal over the Chats

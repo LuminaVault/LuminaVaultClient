@@ -15,8 +15,8 @@
 import Foundation
 import LuminaVaultShared
 
-enum AppleRemindersEndpoints {
-    struct Sync: Endpoint {
+nonisolated enum AppleRemindersEndpoints {
+    nonisolated struct Sync: Endpoint {
         typealias Response = AppleSyncResponse
         let reminders: [AppleReminderInput]
 

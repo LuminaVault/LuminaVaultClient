@@ -6,22 +6,22 @@
 //   GET  /v1/me/connections/events
 import Foundation
 
-enum ConnectionsEndpoints {
-    struct Summary: Endpoint {
+nonisolated enum ConnectionsEndpoints {
+    nonisolated struct Summary: Endpoint {
         typealias Response = ConnectionsSummaryResponse
 
         var path: String { "/v1/me/connections" }
         var method: HTTPMethod { .get }
     }
 
-    struct TestAll: Endpoint {
+    nonisolated struct TestAll: Endpoint {
         typealias Response = ConnectionsTestAllResponse
 
         var path: String { "/v1/me/connections/test-all" }
         var method: HTTPMethod { .post }
     }
 
-    struct Events: Endpoint {
+    nonisolated struct Events: Endpoint {
         typealias Response = ConnectionDiagnosticEventsResponse
         let limit: Int
 

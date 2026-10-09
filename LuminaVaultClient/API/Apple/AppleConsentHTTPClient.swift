@@ -11,14 +11,14 @@ protocol AppleConsentClientProtocol: Sendable {
     func update(_ request: AppleConsentUpdateRequest) async throws -> AppleConsentResponse
 }
 
-enum AppleConsentEndpoints {
-    struct Get: Endpoint {
+nonisolated enum AppleConsentEndpoints {
+    nonisolated struct Get: Endpoint {
         typealias Response = AppleConsentResponse
         var path: String { "/v1/apple/consent" }
         var method: HTTPMethod { .get }
     }
 
-    struct Put: Endpoint {
+    nonisolated struct Put: Endpoint {
         typealias Response = AppleConsentResponse
         let request: AppleConsentUpdateRequest
         var path: String { "/v1/apple/consent" }

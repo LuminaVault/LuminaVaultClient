@@ -31,7 +31,7 @@ import os
 import UIKit
 import UserNotifications
 
-private let log = Logger(subsystem: "com.luminavault", category: "hermes-run-push")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "hermes-run-push")
 
 enum HermesRunNotifications {
     /// Matches `APNSPushCategory.approval` on the server.
@@ -150,9 +150,10 @@ struct HermesApprovalPush: Equatable, Sendable {
 actor HermesApprovalResponder {
     static let shared = HermesApprovalResponder()
 
-    private let makeClient: @Sendable () -> any HermesRunsClientProtocol
+    /// Main actor: the HTTP clients it builds are main-actor types.
+    private let makeClient: @Sendable @MainActor () -> any HermesRunsClientProtocol
 
-    init(makeClient: (@Sendable () -> any HermesRunsClientProtocol)? = nil) {
+    init(makeClient: (@Sendable @MainActor () -> any HermesRunsClientProtocol)? = nil) {
         self.makeClient = makeClient ?? { HermesRunsHTTPClient(client: Self.backgroundHTTPClient()) }
     }
 
@@ -173,6 +174,7 @@ actor HermesApprovalResponder {
 
     /// Also used by `WatchThisIntent`, which runs outside the SwiftUI tree
     /// for the same reason.
+    @MainActor
     static func backgroundHTTPClient() -> BaseHTTPClient {
         let keychain = KeychainService.shared
         let sharedSession = SharedSessionKeychain(accessGroup: Config.keychainAccessGroup)
@@ -180,7 +182,7 @@ actor HermesApprovalResponder {
         let auth = AuthHTTPClient(client: bootstrap)
         return BaseHTTPClient(
             tokenProvider: { keychain.accessToken },
-            refreshHandler: {
+            refreshHandler: { @MainActor in
                 guard let token = keychain.refreshToken else { throw APIError.unauthorized }
                 let response = try await auth.refreshToken(token)
                 keychain.accessToken = response.accessToken

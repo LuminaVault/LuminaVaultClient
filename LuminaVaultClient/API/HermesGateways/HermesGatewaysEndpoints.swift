@@ -10,21 +10,21 @@
 import Foundation
 import LuminaVaultShared
 
-enum HermesGatewaysEndpoints {
-    struct List: Endpoint {
+nonisolated enum HermesGatewaysEndpoints {
+    nonisolated struct List: Endpoint {
         typealias Response = HermesGatewaysListResponse
         var path: String { "/v1/me/hermes-gateways" }
         var method: HTTPMethod { .get }
     }
 
-    struct Get: Endpoint {
+    nonisolated struct Get: Endpoint {
         typealias Response = HermesGatewayCatalogEntry
         let id: HermesGatewayID
         var path: String { "/v1/me/hermes-gateways/\(id.rawValue)" }
         var method: HTTPMethod { .get }
     }
 
-    struct Put: Endpoint {
+    nonisolated struct Put: Endpoint {
         typealias Response = HermesGatewayCatalogEntry
         let id: HermesGatewayID
         let request: HermesGatewayPutRequest
@@ -33,14 +33,14 @@ enum HermesGatewaysEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct Delete: Endpoint {
+    nonisolated struct Delete: Endpoint {
         typealias Response = EmptyResponse
         let id: HermesGatewayID
         var path: String { "/v1/me/hermes-gateways/\(id.rawValue)" }
         var method: HTTPMethod { .delete }
     }
 
-    struct Test: Endpoint {
+    nonisolated struct Test: Endpoint {
         typealias Response = HermesGatewayTestResponse
         let id: HermesGatewayID
         var path: String { "/v1/me/hermes-gateways/\(id.rawValue)/test" }
@@ -52,20 +52,20 @@ enum HermesGatewaysEndpoints {
     //   GET  /v1/me/hermes-gateways/apply/{jobID}      -> HermesGatewayApplyJobStatus (poll)
     //   GET  /v1/me/hermes-gateways/apply/{jobID}/stream  (SSE HermesGatewayApplyEvent)
 
-    struct Apply: Endpoint {
+    nonisolated struct Apply: Endpoint {
         typealias Response = StartHermesGatewayApplyResponse
         var path: String { "/v1/me/hermes-gateways/apply" }
         var method: HTTPMethod { .post }
     }
 
-    struct ApplyStatus: Endpoint {
+    nonisolated struct ApplyStatus: Endpoint {
         typealias Response = HermesGatewayApplyJobStatus
         let jobID: UUID
         var path: String { "/v1/me/hermes-gateways/apply/\(jobID.uuidString.lowercased())" }
         var method: HTTPMethod { .get }
     }
 
-    struct ApplyStream: StreamingEndpoint {
+    nonisolated struct ApplyStream: StreamingEndpoint {
         typealias Event = HermesGatewayApplyEvent
         let jobID: UUID
         var path: String { "/v1/me/hermes-gateways/apply/\(jobID.uuidString.lowercased())/stream" }
@@ -81,13 +81,13 @@ enum HermesGatewaysEndpoints {
     //   GET    /v1/me/hermes-gateways/whatsapp/pair/{sessionID}/stream  (SSE HermesWhatsAppPairEvent)
     //   DELETE /v1/me/hermes-gateways/whatsapp/session                -> HermesGatewayCatalogEntry
 
-    struct StartWhatsAppPair: Endpoint {
+    nonisolated struct StartWhatsAppPair: Endpoint {
         typealias Response = StartWhatsAppPairResponse
         var path: String { "/v1/me/hermes-gateways/whatsapp/pair" }
         var method: HTTPMethod { .post }
     }
 
-    struct WhatsAppPairStream: StreamingEndpoint {
+    nonisolated struct WhatsAppPairStream: StreamingEndpoint {
         typealias Event = HermesWhatsAppPairEvent
         let sessionID: UUID
         var path: String { "/v1/me/hermes-gateways/whatsapp/pair/\(sessionID.uuidString.lowercased())/stream" }
@@ -97,7 +97,7 @@ enum HermesGatewaysEndpoints {
         var streamTimeout: TimeInterval { 300 }
     }
 
-    struct DeleteWhatsAppSession: Endpoint {
+    nonisolated struct DeleteWhatsAppSession: Endpoint {
         typealias Response = HermesGatewayCatalogEntry
         var path: String { "/v1/me/hermes-gateways/whatsapp/session" }
         var method: HTTPMethod { .delete }
@@ -108,13 +108,13 @@ enum HermesGatewaysEndpoints {
     //   POST   /v1/me/hermes-gateways/photon/setup/{sessionID}/phone
     //   GET    /v1/me/hermes-gateways/photon/setup/{sessionID}/stream  (SSE HermesPhotonSetupEvent)
 
-    struct StartPhotonSetup: Endpoint {
+    nonisolated struct StartPhotonSetup: Endpoint {
         typealias Response = StartPhotonSetupResponse
         var path: String { "/v1/me/hermes-gateways/photon/setup" }
         var method: HTTPMethod { .post }
     }
 
-    struct SubmitPhotonPhone: Endpoint {
+    nonisolated struct SubmitPhotonPhone: Endpoint {
         typealias Response = EmptyResponse
         let sessionID: UUID
         let phone: String
@@ -123,7 +123,7 @@ enum HermesGatewaysEndpoints {
         var body: (any Encodable)? { ["phone": phone] }
     }
 
-    struct PhotonSetupStream: StreamingEndpoint {
+    nonisolated struct PhotonSetupStream: StreamingEndpoint {
         typealias Event = HermesPhotonSetupEvent
         let sessionID: UUID
         var path: String { "/v1/me/hermes-gateways/photon/setup/\(sessionID.uuidString.lowercased())/stream" }

@@ -15,7 +15,7 @@
 import Foundation
 import LuminaVaultShared
 
-struct DailyReviewDigest: Codable, Sendable, Equatable {
+nonisolated struct DailyReviewDigest: Codable, Sendable, Equatable {
     let date: Date
     /// Memory rows representing this week's memos. Uses the existing
     /// `QueryHitDTO` shape (id + content + distance + createdAt) — the
@@ -57,7 +57,7 @@ struct DailyReviewDigest: Codable, Sendable, Equatable {
 /// Mirrors `AchievementDTO` fields used by the digest; the full
 /// `AchievementsResponse` lives in `LuminaVaultShared` already and can
 /// replace this once the full DTO surfaces here.
-struct DailyReviewAchievement: Codable, Sendable, Equatable, Identifiable {
+nonisolated struct DailyReviewAchievement: Codable, Sendable, Equatable, Identifiable {
     let id: String
     let title: String
     let unlockedAt: Date?

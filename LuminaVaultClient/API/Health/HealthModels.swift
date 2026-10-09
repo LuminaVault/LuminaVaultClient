@@ -14,11 +14,11 @@ typealias HealthListResponse = LuminaVaultShared.HealthListResponse
 typealias HealthDayAggregateDTO = LuminaVaultShared.HealthDayAggregateDTO
 typealias HealthDailyResponse = LuminaVaultShared.HealthDailyResponse
 
-struct HealthIngestRequest: Codable, Sendable {
+nonisolated struct HealthIngestRequest: Codable, Sendable {
     let events: [HealthEventInput]
 }
 
-extension JSONEncoder {
+nonisolated extension JSONEncoder {
     /// Server expects ISO-8601 timestamps and camelCase keys: it decodes
     /// `HealthIngestRequest` with Hummingbird's default decoder. This used to
     /// set `.convertToSnakeCase`, which sent `recorded_at` and made every
@@ -30,7 +30,7 @@ extension JSONEncoder {
     }()
 }
 
-extension JSONDecoder {
+nonisolated extension JSONDecoder {
     /// Server emits snake_case; flip on the way in.
     static let lvHealth: JSONDecoder = {
         let d = JSONDecoder()

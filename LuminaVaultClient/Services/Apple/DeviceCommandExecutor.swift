@@ -20,10 +20,10 @@ import UIKit
 import UniformTypeIdentifiers
 import Vision
 
-private let log = Logger(subsystem: "com.luminavault", category: "apple.device-rpc")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "apple.device-rpc")
 
-enum DeviceCommandEndpoints {
-    struct PostResult: Endpoint {
+nonisolated enum DeviceCommandEndpoints {
+    nonisolated struct PostResult: Endpoint {
         typealias Response = EmptyResponse
         let result: DeviceCommandResult
         var path: String { "/v1/devices/command/\(result.id.uuidString)/result" }
@@ -349,16 +349,18 @@ actor DeviceCommandExecutor {
             return DeviceCommandResult(id: command.id, ok: false, error: "Reminders permission not granted")
         }
         let predicate = store.predicateForIncompleteReminders(withDueDateStarting: nil, ending: nil, calendars: nil)
-        let reminders: [EKReminder] = await withCheckedContinuation { cont in
-            store.fetchReminders(matching: predicate) { cont.resume(returning: $0 ?? []) }
-        }
-        let iso = ISO8601DateFormatter()
-        let items = reminders.prefix(100).map { reminder -> [String: String] in
-            var due = ""
-            if let comps = reminder.dueDateComponents, let date = Calendar.current.date(from: comps) {
-                due = iso.string(from: date)
+        // Mapped in EventKit's callback: `EKReminder` is not Sendable.
+        let items: [[String: String]] = await withCheckedContinuation { cont in
+            store.fetchReminders(matching: predicate) { reminders in
+                let iso = ISO8601DateFormatter()
+                cont.resume(returning: (reminders ?? []).prefix(100).map { reminder in
+                    var due = ""
+                    if let comps = reminder.dueDateComponents, let date = Calendar.current.date(from: comps) {
+                        due = iso.string(from: date)
+                    }
+                    return ["title": reminder.title ?? "", "due": due, "notes": reminder.notes ?? ""]
+                })
             }
-            return ["title": reminder.title ?? "", "due": due, "notes": reminder.notes ?? ""]
         }
         return Self.encodeItems(command.id, items)
     }

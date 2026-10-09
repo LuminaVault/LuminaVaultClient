@@ -8,7 +8,7 @@
 
 import Foundation
 
-enum BackendMode: String, CaseIterable, Identifiable, Sendable {
+nonisolated enum BackendMode: String, CaseIterable, Identifiable, Sendable {
     case hosted
     case byo
     case tailscale
@@ -52,7 +52,7 @@ enum BackendMode: String, CaseIterable, Identifiable, Sendable {
 /// server) mode. The URL is not a secret, so UserDefaults is sufficient —
 /// the bearer token earned by logging in against that server still lives in
 /// the keychain like any other session.
-enum BYOServerStore {
+nonisolated enum BYOServerStore {
     static let userDefaultsKey = "lv.serverConnection.byoBaseURL"
 
     static var url: URL? {
@@ -75,7 +75,7 @@ enum BYOServerStore {
 /// secrecy rationale as `BYOServerStore`: the URL is not a secret, the session
 /// bearer stays in the keychain. WireGuard provides transport encryption, so
 /// plain `http://` over the tailnet is acceptable here.
-enum TailscaleServerStore {
+nonisolated enum TailscaleServerStore {
     static let userDefaultsKey = "lv.serverConnection.tailscaleBaseURL"
 
     static var url: URL? {
@@ -91,7 +91,7 @@ enum TailscaleServerStore {
     }
 }
 
-enum BackendModeStore {
+nonisolated enum BackendModeStore {
     static let userDefaultsKey = "lv.serverConnection.backendMode"
 
     /// HER-262 — posted by `ServerConnectionViewModel.setMode`. Active

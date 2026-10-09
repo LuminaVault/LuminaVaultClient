@@ -15,7 +15,7 @@ import Foundation
 import LuminaVaultShared
 import os
 
-private let log = Logger(subsystem: "com.luminavault", category: "workspace")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "workspace")
 
 /// The code the server sends when a tenant has no remote Hermes.
 ///

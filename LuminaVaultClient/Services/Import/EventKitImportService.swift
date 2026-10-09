@@ -14,7 +14,7 @@ import EventKit
 import Foundation
 
 /// A vault-ready note rendered from a device source.
-struct ImportableNote: Sendable {
+nonisolated struct ImportableNote: Sendable {
     let fileName: String       // e.g. "reminder-call-dentist-3f9a2b1c.md"
     let markdown: String
     let contentType: String    // "text/markdown"
@@ -32,10 +32,10 @@ actor EventKitImportService {
         let predicate = store.predicateForIncompleteReminders(
             withDueDateStarting: nil, ending: nil, calendars: nil,
         )
-        let reminders: [EKReminder] = await withCheckedContinuation { cont in
-            store.fetchReminders(matching: predicate) { cont.resume(returning: $0 ?? []) }
+        // Mapped in EventKit's callback: `EKReminder` is not Sendable.
+        return await withCheckedContinuation { cont in
+            store.fetchReminders(matching: predicate) { cont.resume(returning: ($0 ?? []).map(Self.note(from:))) }
         }
-        return reminders.map { Self.note(from: $0) }
     }
 
     /// Fetch calendar events in a window (default: last 30 → next 90 days) →
@@ -57,7 +57,7 @@ actor EventKitImportService {
         return f
     }()
 
-    private static func note(from r: EKReminder) -> ImportableNote {
+    nonisolated private static func note(from r: EKReminder) -> ImportableNote {
         let title = r.title ?? "Reminder"
         var md = "# Reminder: \(title)\n\n"
         if let due = r.dueDateComponents?.date {

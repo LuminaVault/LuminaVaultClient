@@ -6,18 +6,18 @@
 import Foundation
 import LuminaVaultShared
 
-enum BillingEndpoints {
+nonisolated enum BillingEndpoints {
     /// Authoritative tier + trial snapshot for the current user. Returned
     /// shape matches `MeBillingResponse` in `LuminaVaultShared` and the
     /// `MeBillingResponse` schema in the server's `openapi.yaml`.
-    struct GetMeBilling: Endpoint {
+    nonisolated struct GetMeBilling: Endpoint {
         typealias Response = MeBillingResponse
         var path: String { "/v1/auth/me/billing" }
         var method: HTTPMethod { .get }
     }
 
     /// Metrics-only usage summary for Settings → Subscription.
-    struct GetMeUsage: Endpoint {
+    nonisolated struct GetMeUsage: Endpoint {
         typealias Response = MeUsageResponse
         var path: String { "/v1/auth/me/usage" }
         var method: HTTPMethod { .get }

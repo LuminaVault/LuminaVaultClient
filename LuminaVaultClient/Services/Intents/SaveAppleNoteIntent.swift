@@ -19,12 +19,12 @@ import CryptoKit
 import Foundation
 
 struct SaveAppleNoteIntent: AppIntent {
-    static var title: LocalizedStringResource = "Save Note to LuminaVault"
-    static var description = IntentDescription(
+    static let title: LocalizedStringResource = "Save Note to LuminaVault"
+    static let description = IntentDescription(
         "Copy a note from the Notes app into your vault. Run it again after editing the note and the vault copy is updated, not duplicated.",
         categoryName: "Capture"
     )
-    static var openAppWhenRun = false
+    static let openAppWhenRun = false
 
     @Parameter(title: "Title")
     var noteTitle: String
@@ -46,6 +46,7 @@ struct SaveAppleNoteIntent: AppIntent {
         }
     }
 
+    @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let note = AppleNoteImport(title: noteTitle, body: body, created: created, modified: modified)
         guard !note.isEmpty else {

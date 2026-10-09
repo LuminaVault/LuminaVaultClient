@@ -11,8 +11,8 @@ protocol ActivityFeedClientProtocol: Sendable {
     func activity(limit: Int) async throws -> ActivityFeedResponse
 }
 
-enum ActivityFeedEndpoints {
-    struct Get: Endpoint {
+nonisolated enum ActivityFeedEndpoints {
+    nonisolated struct Get: Endpoint {
         typealias Response = ActivityFeedResponse
         let limit: Int
         var path: String { "/v1/dashboard/activity?limit=\(limit)" }

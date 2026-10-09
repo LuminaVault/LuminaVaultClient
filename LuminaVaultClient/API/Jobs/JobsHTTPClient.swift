@@ -12,8 +12,8 @@ protocol JobsClientProtocol: Sendable {
     func create(_ request: JobCreateRequest) async throws -> LuminaVaultShared.SkillDTO
 }
 
-enum JobsEndpoints {
-    struct Detect: Endpoint {
+nonisolated enum JobsEndpoints {
+    nonisolated struct Detect: Endpoint {
         typealias Response = JobProposalDTO
         let text: String
         var path: String { "/v1/jobs/detect" }
@@ -21,7 +21,7 @@ enum JobsEndpoints {
         var body: (any Encodable)? { ["text": text] }
     }
 
-    struct Create: Endpoint {
+    nonisolated struct Create: Endpoint {
         typealias Response = LuminaVaultShared.SkillDTO
         let request: JobCreateRequest
         var path: String { "/v1/jobs" }

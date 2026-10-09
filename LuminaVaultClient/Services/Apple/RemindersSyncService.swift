@@ -23,7 +23,7 @@ import Foundation
 import LuminaVaultShared
 import OSLog
 
-private let log = Logger(subsystem: "com.luminavault", category: "reminders.sync")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "reminders.sync")
 
 actor RemindersSyncService {
     private let store: EKEventStore
@@ -74,8 +74,8 @@ actor RemindersSyncService {
         let completedSince = anchor.lastSyncAt ?? now.addingTimeInterval(-Self.completedLookbackFallback)
         let completed = await fetchCompleted(since: completedSince, until: now)
 
-        var inputs = incomplete.map(Self.map)
-        inputs.append(contentsOf: completed.map(Self.map))
+        var inputs = incomplete
+        inputs.append(contentsOf: completed)
 
         guard !inputs.isEmpty else {
             log.info("no reminders to sync")
@@ -97,23 +97,26 @@ actor RemindersSyncService {
 
     // MARK: - EventKit fetch
 
-    private func fetchIncomplete() async -> [EKReminder] {
+    // Each fetch maps in EventKit's callback: `EKReminder` is not Sendable,
+    // so only the mapped values cross back to this actor.
+
+    private func fetchIncomplete() async -> [AppleReminderInput] {
         let predicate = store.predicateForIncompleteReminders(withDueDateStarting: nil, ending: nil, calendars: nil)
         return await withCheckedContinuation { cont in
-            store.fetchReminders(matching: predicate) { cont.resume(returning: $0 ?? []) }
+            store.fetchReminders(matching: predicate) { cont.resume(returning: ($0 ?? []).map(Self.map)) }
         }
     }
 
-    private func fetchCompleted(since: Date, until: Date) async -> [EKReminder] {
+    private func fetchCompleted(since: Date, until: Date) async -> [AppleReminderInput] {
         let predicate = store.predicateForCompletedReminders(withCompletionDateStarting: since, ending: until, calendars: nil)
         return await withCheckedContinuation { cont in
-            store.fetchReminders(matching: predicate) { cont.resume(returning: $0 ?? []) }
+            store.fetchReminders(matching: predicate) { cont.resume(returning: ($0 ?? []).map(Self.map)) }
         }
     }
 
     // MARK: - Mapping
 
-    private static func map(_ reminder: EKReminder) -> AppleReminderInput {
+    nonisolated private static func map(_ reminder: EKReminder) -> AppleReminderInput {
         var dueAt: Date?
         if let comps = reminder.dueDateComponents {
             dueAt = Calendar.current.date(from: comps)
@@ -148,7 +151,8 @@ enum RemindersSyncError: LocalizedError {
 /// Persists the last successful sync timestamp so the completed-reminders
 /// window stays anchored across launches. UserDefaults is fine — the value is
 /// not sensitive. Mirrors `AnchorStore` (HealthKit).
-final class RemindersSyncAnchor: @unchecked Sendable {
+/// `@unchecked`: its only state is `UserDefaults`, which is thread-safe.
+nonisolated final class RemindersSyncAnchor: @unchecked Sendable {
     static let shared = RemindersSyncAnchor(defaults: .standard)
 
     private let defaults: UserDefaults
@@ -175,7 +179,7 @@ final class RemindersSyncAnchor: @unchecked Sendable {
 
 // MARK: - Array chunking
 
-private extension Array {
+nonisolated private extension Array {
     func chunked(into size: Int) -> [[Element]] {
         stride(from: 0, to: count, by: size).map { Array(self[$0 ..< Swift.min($0 + size, count)]) }
     }

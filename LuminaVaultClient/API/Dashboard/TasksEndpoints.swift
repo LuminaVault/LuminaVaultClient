@@ -7,8 +7,8 @@
 import Foundation
 import LuminaVaultShared
 
-enum TasksEndpoints {
-    struct List: Endpoint {
+nonisolated enum TasksEndpoints {
+    nonisolated struct List: Endpoint {
         typealias Response = TaskListResponse
 
         let state: TaskState?

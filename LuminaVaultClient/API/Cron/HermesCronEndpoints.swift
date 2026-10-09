@@ -6,7 +6,7 @@
 
 import Foundation
 
-struct HermesCronJobDTO: Decodable, Identifiable {
+nonisolated struct HermesCronJobDTO: Decodable, Identifiable {
     let id: String
     let name: String?
     let schedule: String?
@@ -16,12 +16,12 @@ struct HermesCronJobDTO: Decodable, Identifiable {
     let mode: String?   // "agent" | "script"
 }
 
-struct HermesCronListDTO: Decodable {
+nonisolated struct HermesCronListDTO: Decodable {
     let source: String   // "managed" | "byo"
     let jobs: [HermesCronJobDTO]
 }
 
-struct CronSpecDTO: Codable {
+nonisolated struct CronSpecDTO: Codable {
     let schedule: String
     let prompt: String?
     let name: String?
@@ -29,15 +29,15 @@ struct CronSpecDTO: Codable {
     let skills: [String]?
 }
 
-enum HermesCronEndpoints {
-    struct List: Endpoint {
+nonisolated enum HermesCronEndpoints {
+    nonisolated struct List: Endpoint {
         typealias Response = HermesCronListDTO
         var path: String { "/v1/me/hermes/cron" }
         var method: HTTPMethod { .get }
     }
 
     /// Natural language → a cron spec for confirmation (no write).
-    struct Preview: Endpoint {
+    nonisolated struct Preview: Endpoint {
         typealias Response = CronSpecDTO
         let text: String
         var path: String { "/v1/me/hermes/cron/preview" }
@@ -45,7 +45,7 @@ enum HermesCronEndpoints {
         var body: (any Encodable)? { ["text": text] }
     }
 
-    struct Create: Endpoint {
+    nonisolated struct Create: Endpoint {
         typealias Response = HermesCronListDTO
         let spec: CronSpecDTO
         var path: String { "/v1/me/hermes/cron" }

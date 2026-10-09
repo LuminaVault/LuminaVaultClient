@@ -14,10 +14,10 @@
 import Foundation
 import OSLog
 
-private nonisolated(unsafe) let log = Logger(subsystem: "com.luminavault", category: "widget-snapshot")
+private nonisolated let log = Logger(subsystem: "com.luminavault", category: "widget-snapshot")
 
 /// One row rendered by the widget.
-struct WidgetCaptureItem: Codable, Sendable, Identifiable, Equatable {
+nonisolated struct WidgetCaptureItem: Codable, Sendable, Identifiable, Equatable {
     let id: UUID
     let title: String
     let createdAt: Date
@@ -33,7 +33,7 @@ struct WidgetCaptureItem: Codable, Sendable, Identifiable, Equatable {
 }
 
 /// What the app publishes for the widget to render.
-struct WidgetSnapshot: Codable, Sendable, Equatable {
+nonisolated struct WidgetSnapshot: Codable, Sendable, Equatable {
     /// Newest first, already trimmed to `maxItems`.
     let items: [WidgetCaptureItem]
     /// Total memories the user has, for the count line. Not `items.count` —
@@ -44,7 +44,7 @@ struct WidgetSnapshot: Codable, Sendable, Equatable {
     static let empty = WidgetSnapshot(items: [], totalCount: 0, updatedAt: .distantPast)
 }
 
-enum WidgetSnapshotStore {
+nonisolated enum WidgetSnapshotStore {
     /// A widget shows a handful of rows at most; writing more is wasted I/O on
     /// every capture.
     static let maxItems = 5

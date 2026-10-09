@@ -17,7 +17,7 @@
 import Foundation
 import OSLog
 
-private nonisolated(unsafe) let log = Logger(subsystem: "com.luminavault", category: "location")
+private nonisolated let log = Logger(subsystem: "com.luminavault", category: "location")
 
 protocol LocationServiceProtocol: Sendable {
     func requestFix() async -> LocationFix?

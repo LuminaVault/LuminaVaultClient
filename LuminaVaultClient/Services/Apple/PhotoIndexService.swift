@@ -18,7 +18,7 @@ import Photos
 import UIKit
 import Vision
 
-private let log = Logger(subsystem: "com.luminavault", category: "photos.index")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "photos.index")
 
 actor PhotoIndexService {
     private let client: BaseHTTPClient

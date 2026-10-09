@@ -10,8 +10,8 @@
 import Foundation
 import LuminaVaultShared
 
-enum HermesCapabilitiesEndpoints {
-    struct Get: Endpoint {
+nonisolated enum HermesCapabilitiesEndpoints {
+    nonisolated struct Get: Endpoint {
         typealias Response = HermesCapabilitiesResponse
         var refresh: Bool = false
         var path: String { refresh ? "/v1/me/hermes/capabilities?refresh=true" : "/v1/me/hermes/capabilities" }

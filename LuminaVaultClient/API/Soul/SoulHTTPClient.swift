@@ -8,14 +8,14 @@
 import Foundation
 import LuminaVaultShared
 
-enum SoulEndpoints {
-    struct Get: Endpoint {
+nonisolated enum SoulEndpoints {
+    nonisolated struct Get: Endpoint {
         typealias Response = SoulResponse
         var path: String { "/v1/soul" }
         var method: HTTPMethod { .get }
     }
 
-    struct Put: Endpoint {
+    nonisolated struct Put: Endpoint {
         typealias Response = SoulResponse
         let request: SoulPutRequest
         var path: String { "/v1/soul" }
@@ -23,13 +23,13 @@ enum SoulEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct Delete: Endpoint {
+    nonisolated struct Delete: Endpoint {
         typealias Response = EmptyResponse
         var path: String { "/v1/soul" }
         var method: HTTPMethod { .delete }
     }
 
-    struct Compose: Endpoint {
+    nonisolated struct Compose: Endpoint {
         typealias Response = SoulResponse
         let request: SoulComposeRequest
         var path: String { "/v1/soul/compose" }

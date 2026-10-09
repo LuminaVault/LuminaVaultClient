@@ -19,7 +19,7 @@
 import Foundation
 import OSLog
 
-private let log = Logger(subsystem: "com.luminavault", category: "chat")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "chat")
 
 @Observable
 @MainActor
