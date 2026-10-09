@@ -95,7 +95,7 @@ final class AgentRunLiveActivity: AgentRunLiveActivityControlling {
             ? .immediate
             : .after(Date.now.addingTimeInterval(Self.lingerAfterEnd))
         let final = ActivityContent(state: state, staleDate: nil)
-        Task { await activity.end(final, dismissalPolicy: policy) }
+        Task { @MainActor in await activity.end(final, dismissalPolicy: policy) }
     }
 
     /// Ends activities no live follower owns — left by a process that was
@@ -110,7 +110,7 @@ final class AgentRunLiveActivity: AgentRunLiveActivityControlling {
     private func push(_ state: AgentRunAttributes.ContentState) {
         guard let activity else { return }
         let next = content(state)
-        Task { await activity.update(next) }
+        Task { @MainActor in await activity.update(next) }
     }
 
     private func content(_ state: AgentRunAttributes.ContentState) -> ActivityContent<AgentRunAttributes.ContentState> {
