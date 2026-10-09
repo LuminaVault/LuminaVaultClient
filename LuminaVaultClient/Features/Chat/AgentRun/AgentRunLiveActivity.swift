@@ -95,7 +95,8 @@ final class AgentRunLiveActivity: AgentRunLiveActivityControlling {
             ? .immediate
             : .after(Date.now.addingTimeInterval(Self.lingerAfterEnd))
         let final = ActivityContent(state: state, staleDate: nil)
-        Task { @MainActor in await activity.end(final, dismissalPolicy: policy) }
+        let id = activity.id
+        Task { await Self.endActivity(id: id, final, dismissalPolicy: policy) }
     }
 
     /// Ends activities no live follower owns — left by a process that was
@@ -110,7 +111,30 @@ final class AgentRunLiveActivity: AgentRunLiveActivityControlling {
     private func push(_ state: AgentRunAttributes.ContentState) {
         guard let activity else { return }
         let next = content(state)
-        Task { @MainActor in await activity.update(next) }
+        let id = activity.id
+        Task { await Self.updateActivity(id: id, next) }
+    }
+
+    // `Activity` is not Sendable, and `end` / `update` are nonisolated, so
+    // calling them on the stored activity from the main actor sends it off
+    // the actor. These look the activity up by id on the nonisolated side
+    // instead, so it never crosses.
+
+    nonisolated private static func endActivity(
+        id: String,
+        _ content: ActivityContent<AgentRunAttributes.ContentState>,
+        dismissalPolicy: ActivityUIDismissalPolicy
+    ) async {
+        guard let activity = Activity<AgentRunAttributes>.activities.first(where: { $0.id == id }) else { return }
+        await activity.end(content, dismissalPolicy: dismissalPolicy)
+    }
+
+    nonisolated private static func updateActivity(
+        id: String,
+        _ content: ActivityContent<AgentRunAttributes.ContentState>
+    ) async {
+        guard let activity = Activity<AgentRunAttributes>.activities.first(where: { $0.id == id }) else { return }
+        await activity.update(content)
     }
 
     private func content(_ state: AgentRunAttributes.ContentState) -> ActivityContent<AgentRunAttributes.ContentState> {
