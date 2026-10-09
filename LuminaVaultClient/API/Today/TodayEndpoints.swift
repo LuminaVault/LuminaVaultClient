@@ -5,8 +5,8 @@
 import Foundation
 import LuminaVaultShared
 
-enum TodayEndpoints {
-    struct Outputs: Endpoint {
+nonisolated enum TodayEndpoints {
+    nonisolated struct Outputs: Endpoint {
         typealias Response = SkillOutputListResponse
         let since: Date?
         /// Phase 2 — exclusive upper bound for paging backwards. The server
@@ -36,10 +36,12 @@ enum TodayEndpoints {
 
         var method: HTTPMethod { .get }
 
-        private static let iso: ISO8601DateFormatter = {
+        /// Built per use: `ISO8601DateFormatter` is not Sendable, and a
+        /// shared static one is global mutable state under Swift 6.
+        private static var iso: ISO8601DateFormatter {
             let f = ISO8601DateFormatter()
             f.formatOptions = [.withInternetDateTime]
             return f
-        }()
+        }
     }
 }

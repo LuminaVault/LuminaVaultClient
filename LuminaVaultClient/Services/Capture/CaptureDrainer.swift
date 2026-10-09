@@ -14,10 +14,10 @@ import LuminaVaultShared
 import Network
 import OSLog
 
-// `Logger` is Sendable; the `nonisolated(unsafe)` opt-out keeps the file-
-// scope binding usable from this actor under the project's default
-// MainActor isolation.
-private nonisolated(unsafe) let log = Logger(subsystem: "com.luminavault", category: "capture-drainer")
+// `nonisolated` keeps the file-scope binding usable from this actor under
+// the project's default MainActor isolation. `Logger` is Sendable, so no
+// `(unsafe)` is needed.
+private nonisolated let log = Logger(subsystem: "com.luminavault", category: "capture-drainer")
 
 actor CaptureDrainer {
     static let maxAttempts = 6

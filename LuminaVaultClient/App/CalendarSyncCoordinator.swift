@@ -13,7 +13,7 @@
 import Foundation
 import OSLog
 
-private let log = Logger(subsystem: "com.luminavault", category: "calendar.coordinator")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "calendar.coordinator")
 
 @MainActor
 final class CalendarSyncCoordinator {

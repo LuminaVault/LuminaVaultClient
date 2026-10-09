@@ -93,11 +93,14 @@ struct AccountPrivacyView: View {
     }
 
     private func binding(
-        get: @escaping () -> Bool,
-        set: @escaping (Bool) async -> Void
+        get: @escaping @MainActor @Sendable () -> Bool,
+        set: @escaping @MainActor @Sendable (Bool) async -> Void
     ) -> Binding<Bool> {
+        // `get` is wrapped in a closure literal rather than passed straight
+        // through: converting the function value to `Binding`'s
+        // `@isolated(any)` parameter crashes the Swift 6.2.3 compiler in IRGen.
         Binding(
-            get: get,
+            get: { get() },
             set: { value in
                 Task { await set(value) }
             }

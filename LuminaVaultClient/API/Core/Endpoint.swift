@@ -1,7 +1,7 @@
 // LuminaVaultClient/LuminaVaultClient/API/Core/Endpoint.swift
 import Foundation
 
-protocol Endpoint {
+nonisolated protocol Endpoint {
     associatedtype Response: Decodable
     var path: String { get }
     var method: HTTPMethod { get }
@@ -38,7 +38,7 @@ protocol Endpoint {
     var presentsPaywallOn402: Bool { get }
 }
 
-extension Endpoint {
+nonisolated extension Endpoint {
     var requiresAuth: Bool { true }
     var body: (any Encodable)? { nil }
     var decoder: JSONDecoder { .hvDefault }
@@ -52,17 +52,17 @@ extension Endpoint {
 /// Type-erasing wrapper so a JSONEncoder can encode an `any Encodable`
 /// value (Encodable existentials don't satisfy `T: Encodable` constraints
 /// at the call site).
-struct AnyEncodable: Encodable {
-    private let _encode: @Sendable (Encoder) throws -> Void
+nonisolated struct AnyEncodable: Encodable {
+    private let wrapped: any Encodable
     init(_ wrapped: any Encodable) {
-        self._encode = { try wrapped.encode(to: $0) }
+        self.wrapped = wrapped
     }
     func encode(to encoder: Encoder) throws {
-        try _encode(encoder)
+        try wrapped.encode(to: encoder)
     }
 }
 
-extension JSONDecoder {
+nonisolated extension JSONDecoder {
     static let hvDefault: JSONDecoder = {
         let d = JSONDecoder()
         d.keyDecodingStrategy = .convertFromSnakeCase

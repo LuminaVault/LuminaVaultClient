@@ -14,7 +14,7 @@ import AVFoundation
 import Foundation
 import OSLog
 
-private let log = Logger(subsystem: "com.luminavault", category: "voice-recorder")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "voice-recorder")
 
 @MainActor
 @Observable

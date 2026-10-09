@@ -21,7 +21,7 @@ import Foundation
 import LuminaVaultShared
 import OSLog
 
-private let log = Logger(subsystem: "com.luminavault", category: "reminders.coordinator")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "reminders.coordinator")
 
 @MainActor
 final class RemindersSyncCoordinator {

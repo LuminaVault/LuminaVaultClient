@@ -12,14 +12,14 @@
 import Foundation
 import LuminaVaultShared
 
-enum HermesMirrorJobsEndpoints {
-    struct List: Endpoint {
+nonisolated enum HermesMirrorJobsEndpoints {
+    nonisolated struct List: Endpoint {
         typealias Response = HermesMirroredJobsResponse
         var path: String { "/v1/hermes/mirror/jobs" }
         var method: HTTPMethod { .get }
     }
 
-    struct Create: Endpoint {
+    nonisolated struct Create: Endpoint {
         typealias Response = HermesMirroredJobDTO
         let request: HermesJobCreateRequest
         var path: String { "/v1/hermes/mirror/jobs" }
@@ -27,7 +27,7 @@ enum HermesMirrorJobsEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct Update: Endpoint {
+    nonisolated struct Update: Endpoint {
         typealias Response = HermesMirroredJobDTO
         let jobID: String
         let request: HermesJobUpdateRequest
@@ -38,7 +38,7 @@ enum HermesMirrorJobsEndpoints {
 
     /// `pause`, `resume` and `trigger` share a shape: no body, the updated
     /// job back.
-    struct Control: Endpoint {
+    nonisolated struct Control: Endpoint {
         enum Action: String {
             case pause, resume, trigger
         }
@@ -53,7 +53,7 @@ enum HermesMirrorJobsEndpoints {
         var method: HTTPMethod { .post }
     }
 
-    struct Delete: Endpoint {
+    nonisolated struct Delete: Endpoint {
         typealias Response = EmptyResponse
         let jobID: String
         var path: String { "/v1/hermes/mirror/jobs/\(HermesMirrorJobsEndpoints.escape(jobID))" }
@@ -62,7 +62,7 @@ enum HermesMirrorJobsEndpoints {
 
     /// `GET /v1/hermes/mirror/jobs/{id}/runs?limit=` — newest first. The
     /// server clamps `limit` to 1...200 and defaults to 50.
-    struct Runs: Endpoint {
+    nonisolated struct Runs: Endpoint {
         typealias Response = HermesJobRunsResponse
         let jobID: String
         let limit: Int?
@@ -78,7 +78,7 @@ enum HermesMirrorJobsEndpoints {
     /// Pulls this job's finished runs now rather than waiting for the
     /// collector tick. Idempotent — already-collected runs are skipped by
     /// run key.
-    struct Collect: Endpoint {
+    nonisolated struct Collect: Endpoint {
         typealias Response = HermesJobCollectResultDTO
         let jobID: String
         var path: String { "/v1/hermes/mirror/jobs/\(HermesMirrorJobsEndpoints.escape(jobID))/collect" }

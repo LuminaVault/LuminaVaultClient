@@ -7,17 +7,17 @@
 
 import Foundation
 
-struct VaultBulkFile: Encodable {
+nonisolated struct VaultBulkFile: Encodable {
     let path: String
     let content: String
 }
 
-struct VaultBulkRequest: Encodable {
+nonisolated struct VaultBulkRequest: Encodable {
     let space: String
     let files: [VaultBulkFile]
 }
 
-struct VaultBulkResponse: Decodable {
+nonisolated struct VaultBulkResponse: Decodable {
     let spaceID: String
     let spaceSlug: String
     let imported: Int
@@ -25,8 +25,8 @@ struct VaultBulkResponse: Decodable {
     let failed: Int
 }
 
-enum VaultImportEndpoints {
-    struct Bulk: Endpoint {
+nonisolated enum VaultImportEndpoints {
+    nonisolated struct Bulk: Endpoint {
         typealias Response = VaultBulkResponse
         let request: VaultBulkRequest
         var path: String { "/v1/import/vault-bulk" }

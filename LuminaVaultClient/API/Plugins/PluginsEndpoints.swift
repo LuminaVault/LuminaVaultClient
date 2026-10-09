@@ -11,8 +11,8 @@
 import Foundation
 import LuminaVaultShared
 
-enum PluginsEndpoints {
-    struct Catalog: Endpoint {
+nonisolated enum PluginsEndpoints {
+    nonisolated struct Catalog: Endpoint {
         typealias Response = PluginCatalogListResponse
         var category: PluginCategory? = nil
         var featured: Bool? = nil
@@ -36,7 +36,7 @@ enum PluginsEndpoints {
         }
     }
 
-    struct HermesSkills: Endpoint {
+    nonisolated struct HermesSkills: Endpoint {
         typealias Response = PluginCatalogListResponse
         var path: String {
             "/v1/plugins/hermes-skills"
@@ -47,7 +47,7 @@ enum PluginsEndpoints {
         }
     }
 
-    struct HermesSkillInstall: Endpoint {
+    nonisolated struct HermesSkillInstall: Endpoint {
         typealias Response = PluginCatalogListResponse
         let id: String
         var path: String {
@@ -60,7 +60,7 @@ enum PluginsEndpoints {
         }
     }
 
-    struct HermesSkillUninstall: Endpoint {
+    nonisolated struct HermesSkillUninstall: Endpoint {
         typealias Response = PluginCatalogListResponse
         let name: String
         var path: String {
@@ -73,7 +73,7 @@ enum PluginsEndpoints {
         }
     }
 
-    struct Installs: Endpoint {
+    nonisolated struct Installs: Endpoint {
         typealias Response = PluginInstallsListResponse
         var path: String {
             "/v1/plugins/installs"
@@ -84,7 +84,7 @@ enum PluginsEndpoints {
         }
     }
 
-    struct Install: Endpoint {
+    nonisolated struct Install: Endpoint {
         typealias Response = PluginInstallDTO
         let request: InstallPluginRequest
         var path: String {
@@ -100,7 +100,7 @@ enum PluginsEndpoints {
         }
     }
 
-    struct Update: Endpoint {
+    nonisolated struct Update: Endpoint {
         typealias Response = PluginInstallDTO
         let id: UUID
         let request: UpdatePluginInstallRequest
@@ -117,7 +117,7 @@ enum PluginsEndpoints {
         }
     }
 
-    struct Delete: Endpoint {
+    nonisolated struct Delete: Endpoint {
         typealias Response = EmptyResponse
         let id: UUID
         var path: String {
@@ -129,7 +129,7 @@ enum PluginsEndpoints {
         }
     }
 
-    struct Sync: Endpoint {
+    nonisolated struct Sync: Endpoint {
         typealias Response = PluginSyncResponse
         let id: UUID
         var path: String {
@@ -141,7 +141,7 @@ enum PluginsEndpoints {
         }
     }
 
-    struct Marketplace: Endpoint {
+    nonisolated struct Marketplace: Endpoint {
         typealias Response = MarketplaceListResponse
         let query: String?
         let category: PluginCategory?
@@ -160,7 +160,7 @@ enum PluginsEndpoints {
         }
     }
 
-    struct MarketplaceDetail: Endpoint {
+    nonisolated struct MarketplaceDetail: Endpoint {
         typealias Response = MarketplacePluginDTO
         let slug: String
         var path: String {
@@ -172,7 +172,7 @@ enum PluginsEndpoints {
         }
     }
 
-    struct MarketplaceReviews: Endpoint {
+    nonisolated struct MarketplaceReviews: Endpoint {
         typealias Response = MarketplaceReviewsResponse
         let slug: String
         var path: String {
@@ -184,7 +184,7 @@ enum PluginsEndpoints {
         }
     }
 
-    struct MarketplaceInstall: Endpoint {
+    nonisolated struct MarketplaceInstall: Endpoint {
         typealias Response = PluginInstallDTO
         let slug: String
         let request: MarketplaceInstallRequest
@@ -201,7 +201,7 @@ enum PluginsEndpoints {
         }
     }
 
-    struct MarketplaceUpgrade: Endpoint {
+    nonisolated struct MarketplaceUpgrade: Endpoint {
         typealias Response = PluginInstallDTO
         let slug: String
         let request: MarketplaceUpgradeRequest
@@ -218,7 +218,7 @@ enum PluginsEndpoints {
         }
     }
 
-    struct MarketplaceRating: Endpoint {
+    nonisolated struct MarketplaceRating: Endpoint {
         typealias Response = MarketplaceReviewDTO
         let slug: String
         let request: MarketplaceRatingRequest

@@ -10,14 +10,14 @@ actor SyncQueueStore {
     /// Inserts a pending operation. Caller is responsible for persisting
     /// any body blob (vault upload bytes) via `LocalVaultManager` beforehand
     /// — this store owns the row metadata only.
-    func enqueue(_ op: SyncOperation) throws {
+    func enqueue(_ op: sending SyncOperation) throws {
         modelContext.insert(op)
         try modelContext.save()
     }
 
     /// Returns the next eligible row for the tenant: state == .pending and
     /// `nextEligibleAt` either nil or in the past. Older rows win ties.
-    func nextEligible(for tenantID: UUID, now: Date = Date()) throws -> SyncOperation? {
+    func nextEligible(for tenantID: UUID, now: Date = Date()) throws -> SyncOperationSnapshot? {
         var descriptor = FetchDescriptor<SyncOperation>(
             predicate: #Predicate { $0.tenantID == tenantID },
             sortBy: [SortDescriptor(\.createdAt, order: .forward)]
@@ -26,7 +26,16 @@ actor SyncQueueStore {
         let candidates = try modelContext.fetch(descriptor)
         for op in candidates where op.state == .pending {
             if let eligibleAt = op.nextEligibleAt, eligibleAt > now { continue }
-            return op
+            return SyncOperationSnapshot(
+                id: op.id,
+                tenantID: op.tenantID,
+                type: op.type,
+                pathInVault: op.pathInVault,
+                bodyRelativePath: op.bodyRelativePath,
+                metadataJSON: op.metadataJSON,
+                idempotencyKey: op.idempotencyKey,
+                attempts: op.attempts
+            )
         }
         return nil
     }

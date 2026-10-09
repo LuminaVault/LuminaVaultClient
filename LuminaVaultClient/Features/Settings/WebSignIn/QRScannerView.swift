@@ -24,6 +24,14 @@ struct QRScannerView: UIViewControllerRepresentable {
         var onError: ((String) -> Void)?
 
         private let session = AVCaptureSession()
+
+        /// `@unchecked`: `AVCaptureSession` is not Sendable, but Apple
+        /// documents calling `startRunning()` from a background thread, and
+        /// nothing else touches the session while it starts.
+        nonisolated private struct SessionStarter: @unchecked Sendable {
+            let session: AVCaptureSession
+            func start() { session.startRunning() }
+        }
         private lazy var previewLayer = AVCaptureVideoPreviewLayer(session: session)
         private var hasScanned = false
 
@@ -76,8 +84,9 @@ struct QRScannerView: UIViewControllerRepresentable {
         private func startSession() {
             guard !session.isRunning else { return }
             // `startRunning()` blocks; hop off the main thread.
-            Task.detached { [session] in
-                session.startRunning()
+            let starter = SessionStarter(session: session)
+            Task.detached {
+                starter.start()
             }
         }
 

@@ -1,21 +1,21 @@
 import Foundation
 import LuminaVaultShared
 
-enum AgentConnectionsEndpoints {
-    struct List: Endpoint {
+nonisolated enum AgentConnectionsEndpoints {
+    nonisolated struct List: Endpoint {
         typealias Response = AgentConnectionsListResponse
         var path: String { "/v1/me/agent-connections" }
         var method: HTTPMethod { .get }
     }
 
-    struct Preview: Endpoint {
+    nonisolated struct Preview: Endpoint {
         typealias Response = AgentConnectionSetupDTO
         let clientKind: AgentClientKind
         var path: String { "/v1/me/agent-connections/preview?clientKind=\(clientKind.rawValue)" }
         var method: HTTPMethod { .get }
     }
 
-    struct Issue: Endpoint {
+    nonisolated struct Issue: Endpoint {
         typealias Response = AgentConnectionIssuedResponse
         let name: String
         let clientKind: AgentClientKind
@@ -26,7 +26,7 @@ enum AgentConnectionsEndpoints {
         }
     }
 
-    struct Revoke: Endpoint {
+    nonisolated struct Revoke: Endpoint {
         typealias Response = EmptyResponse
         let id: UUID
         var path: String { "/v1/me/agent-connections/\(id.uuidString)" }

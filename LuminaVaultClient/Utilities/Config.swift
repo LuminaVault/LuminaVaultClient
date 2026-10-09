@@ -1,7 +1,7 @@
 // LuminaVaultClient/LuminaVaultClient/Utilities/Config.swift
 import Foundation
 
-enum Config {
+nonisolated enum Config {
     /// HER-262 — `BackendMode` is the user-facing selection persisted by
     /// the Settings → Server Connection screen. Re-read on every access
     /// so flipping the mode hot-swaps the URL the next HTTP call uses.

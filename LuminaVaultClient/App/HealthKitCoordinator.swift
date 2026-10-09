@@ -16,7 +16,7 @@ import Foundation
 import HealthKit
 import OSLog
 
-private let log = Logger(subsystem: "com.luminavault", category: "healthkit.coordinator")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "healthkit.coordinator")
 
 @MainActor
 final class HealthKitCoordinator {

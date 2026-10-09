@@ -15,7 +15,7 @@ import OSLog
 /// visible error anywhere: chat rendered the user's message and never replied,
 /// the inbox showed "No chats yet", and the Brain tab span forever. A pin
 /// rejection is a hard failure and must never be classified as a cancel.
-enum PinningFailureLog {
+nonisolated enum PinningFailureLog {
     struct Failure: Sendable {
         let host: String
         let at: Date
@@ -96,7 +96,7 @@ enum PinningFailureLog {
 /// Add the new pin **before** removing the old one, push `pinsValidUntil`
 /// forward, and update `CertificatePinningTests` — that test compares the pin
 /// set against the live chain and is what catches the next rotation.
-final class CertificatePinningDelegate: NSObject, URLSessionDelegate {
+nonisolated final class CertificatePinningDelegate: NSObject, URLSessionDelegate {
     /// Resolves the host that must present a pinned CA, evaluated **per
     /// challenge**.
     ///
@@ -281,7 +281,7 @@ final class CertificatePinningDelegate: NSObject, URLSessionDelegate {
     }
 }
 
-extension URLSession {
+nonisolated extension URLSession {
     /// The one host these Let's Encrypt pins are valid for. Pinning applies ONLY
     /// when the app is actually targeting it — debug/localhost and BYO/self-host
     /// users (different host, often a non-LE cert) fall through to default trust

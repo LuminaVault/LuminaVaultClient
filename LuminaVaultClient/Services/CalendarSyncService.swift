@@ -21,7 +21,7 @@ import Foundation
 import LuminaVaultShared
 import OSLog
 
-private let log = Logger(subsystem: "com.luminavault", category: "calendar.sync")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "calendar.sync")
 
 actor CalendarSyncService {
     private let store: EKEventStore
@@ -59,7 +59,7 @@ actor CalendarSyncService {
     /// Recurring events share one `eventIdentifier` across every occurrence, so
     /// the upsert key must include the occurrence start to keep each instance a
     /// distinct row. Stable + collision-free for non-recurring events too.
-    private static let occurrenceFormatter = ISO8601DateFormatter()
+    private let occurrenceFormatter = ISO8601DateFormatter()
 
     var lastSyncedAt: Date? {
         defaults.object(forKey: anchorKey) as? Date
@@ -89,7 +89,7 @@ actor CalendarSyncService {
             // instance of a recurring series into one server row. A moved
             // single occurrence can orphan its old row (at most one phantom
             // per series; ages out of the window) — acceptable vs. a migration.
-            let externalID = "\(base)|\(Self.occurrenceFormatter.string(from: event.startDate))"
+            let externalID = "\(base)|\(occurrenceFormatter.string(from: event.startDate))"
             return AppleCalendarEventInput(
                 externalID: externalID,
                 calendarID: event.calendar?.calendarIdentifier,
@@ -158,7 +158,7 @@ actor CalendarSyncService {
 
 // MARK: - Array chunking
 
-private extension Array {
+nonisolated private extension Array {
     func chunked(into size: Int) -> [[Element]] {
         stride(from: 0, to: count, by: size).map { Array(self[$0 ..< Swift.min($0 + size, count)]) }
     }

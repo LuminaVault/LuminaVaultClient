@@ -6,7 +6,7 @@
 
 import Foundation
 
-struct SharedSessionKeychain: Sendable {
+nonisolated struct SharedSessionKeychain: Sendable {
     private static let service = "com.luminavault.shared-session"
 
     private let keychain: KeychainService?

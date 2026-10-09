@@ -16,7 +16,7 @@ import Foundation
 import LuminaVaultShared
 import os
 
-private let log = Logger(subsystem: "com.luminavault", category: "hermes-runs")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "hermes-runs")
 
 @Observable
 @MainActor

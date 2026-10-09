@@ -15,15 +15,15 @@ protocol RemindersClientProtocol: Sendable {
     func detect(text: String) async throws -> ReminderProposalDTO
 }
 
-enum RemindersEndpoints {
-    struct List: Endpoint {
+nonisolated enum RemindersEndpoints {
+    nonisolated struct List: Endpoint {
         typealias Response = ReminderListResponse
         let limit: Int?
         var path: String { limit.map { "/v1/reminders?limit=\($0)" } ?? "/v1/reminders" }
         var method: HTTPMethod { .get }
     }
 
-    struct Create: Endpoint {
+    nonisolated struct Create: Endpoint {
         typealias Response = ReminderDTO
         let request: ReminderCreateRequest
         var path: String { "/v1/reminders" }
@@ -31,7 +31,7 @@ enum RemindersEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct Update: Endpoint {
+    nonisolated struct Update: Endpoint {
         typealias Response = ReminderDTO
         let id: UUID
         let request: ReminderPatchRequest
@@ -40,14 +40,14 @@ enum RemindersEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct Delete: Endpoint {
+    nonisolated struct Delete: Endpoint {
         typealias Response = EmptyResponse
         let id: UUID
         var path: String { "/v1/reminders/\(id.uuidString.lowercased())" }
         var method: HTTPMethod { .delete }
     }
 
-    struct Detect: Endpoint {
+    nonisolated struct Detect: Endpoint {
         typealias Response = ReminderProposalDTO
         let text: String
         var path: String { "/v1/reminders/detect" }

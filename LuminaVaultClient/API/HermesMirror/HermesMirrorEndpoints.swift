@@ -8,9 +8,9 @@
 import Foundation
 import LuminaVaultShared
 
-enum HermesMirrorEndpoints {
+nonisolated enum HermesMirrorEndpoints {
     /// `GET /v1/hermes/mirror/status` — counts, last sync, vault state.
-    struct Status: Endpoint {
+    nonisolated struct Status: Endpoint {
         typealias Response = HermesMirrorStatusDTO
         var path: String { "/v1/hermes/mirror/status" }
         var method: HTTPMethod { .get }
@@ -23,7 +23,7 @@ enum HermesMirrorEndpoints {
     ///
     /// Returns the same status shape, so the card can render the result
     /// without a second round trip.
-    struct Sync: Endpoint {
+    nonisolated struct Sync: Endpoint {
         typealias Response = HermesMirrorStatusDTO
         let scope: [HermesMirrorSyncScope]?
         var path: String { "/v1/hermes/mirror/sync" }

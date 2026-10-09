@@ -11,7 +11,7 @@ import OSLog
 import SwiftData
 import SwiftUI
 
-private let log = Logger(subsystem: "com.luminavault", category: "capture.coordinator")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "capture.coordinator")
 
 @MainActor
 final class CaptureCoordinator {

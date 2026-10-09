@@ -8,12 +8,12 @@
 import Foundation
 import LuminaVaultShared
 
-enum CalendarSyncEndpoints {
+nonisolated enum CalendarSyncEndpoints {
     /// `POST /v1/calendar/sync` — batch-upsert EventKit event deltas.
     /// Server consent-gates on the `calendar` domain, upserts by
     /// `(tenant_id, source, external_id)` with last-writer-wins on
     /// `remoteUpdatedAt`, and tombstones cancelled events.
-    struct Sync: Endpoint {
+    nonisolated struct Sync: Endpoint {
         typealias Response = AppleSyncResponse
         let events: [AppleCalendarEventInput]
 
@@ -26,7 +26,7 @@ enum CalendarSyncEndpoints {
     }
 }
 
-extension JSONEncoder {
+nonisolated extension JSONEncoder {
     /// ISO8601 dates to match the server's decoder (the `calendar_events`
     /// timestamps round-trip as RFC3339). No key conversion — the shared
     /// DTOs already use the exact wire field names.
@@ -37,7 +37,7 @@ extension JSONEncoder {
     }()
 }
 
-extension JSONDecoder {
+nonisolated extension JSONDecoder {
     static let lvCalendar: JSONDecoder = {
         let d = JSONDecoder()
         d.dateDecodingStrategy = .iso8601

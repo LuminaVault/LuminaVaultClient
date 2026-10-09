@@ -2,7 +2,7 @@
 
 import Foundation
 
-enum ShareExtensionConfig {
+nonisolated enum ShareExtensionConfig {
     static var apiBaseURL: URL {
         URL(string: infoString("API_BASE_URL") ?? "https://api.luminavault.com")!
     }

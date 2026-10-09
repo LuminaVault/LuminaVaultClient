@@ -19,20 +19,20 @@ protocol GmailClientProtocol: Sendable {
     func disconnect() async throws
 }
 
-enum GmailEndpoints {
-    struct GetStatus: Endpoint {
+nonisolated enum GmailEndpoints {
+    nonisolated struct GetStatus: Endpoint {
         typealias Response = GmailStatusResponse
         var path: String { "/v1/mail/gmail/status" }
         var method: HTTPMethod { .get }
     }
 
-    struct Connect: Endpoint {
+    nonisolated struct Connect: Endpoint {
         typealias Response = CalendarConnectStartResponse
         var path: String { "/v1/mail/gmail/connect" }
         var method: HTTPMethod { .post }
     }
 
-    struct Disconnect: Endpoint {
+    nonisolated struct Disconnect: Endpoint {
         typealias Response = EmptyResponse
         var path: String { "/v1/mail/gmail/disconnect" }
         var method: HTTPMethod { .post }

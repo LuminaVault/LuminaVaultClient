@@ -8,7 +8,7 @@
 import Foundation
 import LuminaVaultShared
 
-enum SystemHermesEndpoints {
+nonisolated enum SystemHermesEndpoints {
     /// Builds the `X-Admin-Token` header dict from the stored secret, or empty
     /// when none is set (server then returns 401 → UI prompts for it).
     private static func adminHeaders() -> [String: String] {
@@ -18,17 +18,17 @@ enum SystemHermesEndpoints {
 
     /// Thin wire envelopes. The meaningful DTOs live in `LuminaVaultShared`;
     /// these single-field wrappers mirror the server's response shape.
-    struct VersionResponse: Decodable { let info: HermesVersionInfo }
-    struct JobStatusResponse: Decodable { let status: HermesUpdateJobStatus }
+    nonisolated struct VersionResponse: Decodable { let info: HermesVersionInfo }
+    nonisolated struct JobStatusResponse: Decodable { let status: HermesUpdateJobStatus }
 
-    struct Version: Endpoint {
+    nonisolated struct Version: Endpoint {
         typealias Response = VersionResponse
         var path: String { "/v1/system/hermes/version" }
         var method: HTTPMethod { .get }
         var additionalHeaders: [String: String] { adminHeaders() }
     }
 
-    struct Start: Endpoint {
+    nonisolated struct Start: Endpoint {
         typealias Response = StartHermesUpdateResponse
         let request: StartHermesUpdateRequest
         var path: String { "/v1/system/hermes/update" }
@@ -37,14 +37,14 @@ enum SystemHermesEndpoints {
         var additionalHeaders: [String: String] { adminHeaders() }
     }
 
-    struct Current: Endpoint {
+    nonisolated struct Current: Endpoint {
         typealias Response = JobStatusResponse
         var path: String { "/v1/system/hermes/update/current" }
         var method: HTTPMethod { .get }
         var additionalHeaders: [String: String] { adminHeaders() }
     }
 
-    struct Status: Endpoint {
+    nonisolated struct Status: Endpoint {
         typealias Response = JobStatusResponse
         let jobID: UUID
         var path: String { "/v1/system/hermes/update/\(jobID.uuidString.lowercased())" }
@@ -52,7 +52,7 @@ enum SystemHermesEndpoints {
         var additionalHeaders: [String: String] { adminHeaders() }
     }
 
-    struct Rollback: Endpoint {
+    nonisolated struct Rollback: Endpoint {
         typealias Response = StartHermesUpdateResponse
         let jobID: UUID
         var path: String { "/v1/system/hermes/update/\(jobID.uuidString.lowercased())/rollback" }
@@ -60,7 +60,7 @@ enum SystemHermesEndpoints {
         var additionalHeaders: [String: String] { adminHeaders() }
     }
 
-    struct Stream: StreamingEndpoint {
+    nonisolated struct Stream: StreamingEndpoint {
         typealias Event = HermesUpdateEvent
         let jobID: UUID
         var path: String { "/v1/system/hermes/update/\(jobID.uuidString.lowercased())/stream" }

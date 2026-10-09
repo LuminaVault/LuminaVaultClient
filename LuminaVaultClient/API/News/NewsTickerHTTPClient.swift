@@ -12,8 +12,8 @@ protocol NewsTickerClientProtocol: Sendable {
     func ticker(limit: Int) async throws -> NewsTickerResponse
 }
 
-enum NewsTickerEndpoints {
-    struct Get: Endpoint {
+nonisolated enum NewsTickerEndpoints {
+    nonisolated struct Get: Endpoint {
         typealias Response = NewsTickerResponse
         let limit: Int
         var path: String { "/v1/news/ticker?limit=\(limit)" }

@@ -72,14 +72,14 @@ final class SyncOperation {
     }
 }
 
-enum OperationType: String, Codable, Sendable, CaseIterable {
+nonisolated enum OperationType: String, Codable, Sendable, CaseIterable {
     case uploadFile
     case deleteFile
     case moveFile
     case triggerCompile
 }
 
-enum PendingState: String, Codable, Sendable, CaseIterable {
+nonisolated enum PendingState: String, Codable, Sendable, CaseIterable {
     case pending
     case inFlight
     case failed

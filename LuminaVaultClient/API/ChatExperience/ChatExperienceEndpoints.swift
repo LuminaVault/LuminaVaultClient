@@ -6,8 +6,8 @@
 //   PUT /v1/me/chat-preferences
 import Foundation
 
-enum ChatExperienceEndpoints {
-    struct Inbox: Endpoint {
+nonisolated enum ChatExperienceEndpoints {
+    nonisolated struct Inbox: Endpoint {
         typealias Response = ChatInboxResponse
         let limit: Int
 
@@ -20,7 +20,7 @@ enum ChatExperienceEndpoints {
         }
     }
 
-    struct GetPreferences: Endpoint {
+    nonisolated struct GetPreferences: Endpoint {
         typealias Response = ChatPreferencesGetResponse
 
         var path: String {
@@ -32,7 +32,7 @@ enum ChatExperienceEndpoints {
         }
     }
 
-    struct PutPreferences: Endpoint {
+    nonisolated struct PutPreferences: Endpoint {
         typealias Response = ChatPreferencesGetResponse
         let preferences: ChatPreferencesDTO
 
@@ -49,7 +49,7 @@ enum ChatExperienceEndpoints {
         }
     }
 
-    struct GetHybridPreferences: Endpoint {
+    nonisolated struct GetHybridPreferences: Endpoint {
         typealias Response = HybridRoutingPreferencesDTO
         var path: String {
             "/v1/me/preferences/hybrid-execution"
@@ -60,7 +60,7 @@ enum ChatExperienceEndpoints {
         }
     }
 
-    struct PutHybridPreferences: Endpoint {
+    nonisolated struct PutHybridPreferences: Endpoint {
         typealias Response = HybridRoutingPreferencesDTO
         let preferences: HybridRoutingPreferencesDTO
         var path: String {

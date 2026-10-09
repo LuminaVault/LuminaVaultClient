@@ -16,7 +16,7 @@
 
 import Foundation
 
-enum HermesRunsFailure: Equatable, Sendable {
+nonisolated enum HermesRunsFailure: Equatable, Sendable {
     /// 501 — this tenant's Hermes predates `/v1/runs`. Retrying cannot help.
     case unsupported
     /// 410 — Hermes dropped the run from its 300 s in-memory store. The

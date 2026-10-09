@@ -11,8 +11,8 @@ protocol HomeSummaryClientProtocol: Sendable {
     func summary(period: DashboardPeriod) async throws -> HomeSummaryResponse
 }
 
-enum HomeSummaryEndpoints {
-    struct Get: Endpoint {
+nonisolated enum HomeSummaryEndpoints {
+    nonisolated struct Get: Endpoint {
         typealias Response = HomeSummaryResponse
         let period: DashboardPeriod
         var path: String { "/v1/dashboard/home?period=\(period.rawValue)" }

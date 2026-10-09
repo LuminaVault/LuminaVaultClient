@@ -1,14 +1,14 @@
 import Foundation
 import OSLog
 
-private let backgroundUploadLog = Logger(subsystem: "com.luminavault", category: "ingestion.background")
+nonisolated private let backgroundUploadLog = Logger(subsystem: "com.luminavault", category: "ingestion.background")
 
 @MainActor
 final class BackgroundIngestionUploader: NSObject, URLSessionTaskDelegate, URLSessionDelegate {
     static let shared = BackgroundIngestionUploader()
     static let sessionIdentifier = "com.luminavault.ingestion.uploads"
 
-    struct Job: Codable, Sendable, Identifiable {
+    nonisolated struct Job: Codable, Sendable, Identifiable {
         enum Phase: String, Codable, Sendable { case chunks, completing }
 
         let id: UUID
@@ -111,7 +111,9 @@ final class BackgroundIngestionUploader: NSObject, URLSessionTaskDelegate, URLSe
                 return
             }
             let length = min(Int64(job.chunkSize), job.size - job.offset)
-            uploadFile = try await Task.detached(priority: .utility) {
+            // `[job]`: the detached copy, so `job` (a `var`) is not shared
+            // with the reads below.
+            uploadFile = try await Task.detached(priority: .utility) { [job] in
                 try Self.restoreStagedFileIfNeeded(job: job)
                 return try Self.makeChunk(job: job, length: Int(length))
             }.value

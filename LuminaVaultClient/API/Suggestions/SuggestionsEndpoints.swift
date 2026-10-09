@@ -2,8 +2,8 @@
 // HER-37: GET /v1/me/suggestions.
 import Foundation
 
-enum SuggestionsEndpoints {
-    struct List: Endpoint {
+nonisolated enum SuggestionsEndpoints {
+    nonisolated struct List: Endpoint {
         typealias Response = SuggestionsResponse
         var path: String { "/v1/me/suggestions" }
         var method: HTTPMethod { .get }

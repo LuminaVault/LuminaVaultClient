@@ -12,7 +12,7 @@
 // only the server's `error.message` or a coding path.
 import Foundation
 
-struct APIRequestFailure: Equatable, Sendable {
+nonisolated struct APIRequestFailure: Equatable, Sendable {
     enum Kind: String, Sendable {
         /// Non-2xx status. `detail` is the server's `error.message` when the
         /// body carried the standard envelope, otherwise empty.
@@ -58,7 +58,7 @@ struct APIRequestFailure: Equatable, Sendable {
     }
 }
 
-extension DecodingError {
+nonisolated extension DecodingError {
     /// Short, log-safe description of where decoding gave up:
     /// "missing `pinnedMemoryIDs`", "type mismatch at `events[0].recordedAt`".
     var lvSummary: String {

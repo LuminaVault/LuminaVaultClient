@@ -9,8 +9,8 @@
 // `.convertFromSnakeCase`.
 import Foundation
 
-enum DailyReviewEndpoints {
-    struct GetToday: Endpoint {
+nonisolated enum DailyReviewEndpoints {
+    nonisolated struct GetToday: Endpoint {
         typealias Response = DailyReviewDigest
         var path: String { "/v1/me/today" }
         var method: HTTPMethod { .get }

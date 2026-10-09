@@ -17,7 +17,7 @@ import Foundation
 import LuminaVaultShared
 import OSLog
 
-private let log = Logger(subsystem: "com.luminavault", category: "photos.coordinator")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "photos.coordinator")
 
 @MainActor
 final class PhotoIndexCoordinator {

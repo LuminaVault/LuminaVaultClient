@@ -22,34 +22,34 @@ protocol UsageIntelligenceClientProtocol: Sendable {
     func updateRecommendation(_ request: AnalyticsRecommendationStateRequest) async throws
 }
 
-enum AnalyticsEndpoints {
-    struct UsageSummary: Endpoint {
+nonisolated enum AnalyticsEndpoints {
+    nonisolated struct UsageSummary: Endpoint {
         typealias Response = UsageSummaryResponse
         var path: String { "/v1/analytics/usage-summary" }
         var method: HTTPMethod { .get }
     }
 
-    struct RetrievalHealth: Endpoint {
+    nonisolated struct RetrievalHealth: Endpoint {
         typealias Response = RetrievalHealthResponse
         var path: String { "/v1/analytics/retrieval-health" }
         var method: HTTPMethod { .get }
     }
 
-    struct Overview: Endpoint {
+    nonisolated struct Overview: Endpoint {
         typealias Response = AnalyticsOverviewResponse
         let range: AnalyticsRange
         var path: String { "/v1/analytics/overview?range=\(range.rawValue)&scope=personal" }
         var method: HTTPMethod { .get }
     }
 
-    struct Models: Endpoint {
+    nonisolated struct Models: Endpoint {
         typealias Response = ModelEffectivenessResponse
         let range: AnalyticsRange
         var path: String { "/v1/analytics/models?range=\(range.rawValue)&scope=personal" }
         var method: HTTPMethod { .get }
     }
 
-    struct RecordEvent: Endpoint {
+    nonisolated struct RecordEvent: Endpoint {
         typealias Response = AnalyticsMutationResponse
         let request: AnalyticsEventRequest
         var path: String { "/v1/analytics/events?scope=personal" }
@@ -57,7 +57,7 @@ enum AnalyticsEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct RecommendationState: Endpoint {
+    nonisolated struct RecommendationState: Endpoint {
         typealias Response = AnalyticsMutationResponse
         let request: AnalyticsRecommendationStateRequest
         var path: String { "/v1/analytics/recommendations?scope=personal" }
@@ -65,7 +65,7 @@ enum AnalyticsEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct ModelFeedback: Endpoint {
+    nonisolated struct ModelFeedback: Endpoint {
         typealias Response = AnalyticsMutationResponse
         let request: ModelFeedbackRequest
         var path: String { "/v1/analytics/model-feedback?scope=personal" }

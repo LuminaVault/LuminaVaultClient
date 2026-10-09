@@ -12,7 +12,7 @@ import LuminaVaultShared
 /// GET /v1/integrations/xai — current state of the tenant's xAI Grok OAuth
 /// connection. `tier` mirrors the server User row's tier column
 /// (`trial` | `pro` | `ultimate` | `lapsed` | `archived`).
-struct XaiStatusResponse: Codable, Sendable, Equatable {
+nonisolated struct XaiStatusResponse: Codable, Sendable, Equatable {
     let connected: Bool
     let tier: String
     let xaiConnectedAt: Date?
@@ -21,7 +21,7 @@ struct XaiStatusResponse: Codable, Sendable, Equatable {
 /// POST /v1/integrations/xai/start — server returns the upstream authorize
 /// URL the client opens in a `WKWebView`. `sessionID` is opaque and echoed
 /// back on `complete`. Server-side TTL: 10 minutes.
-struct XaiStartResponse: Codable, Sendable, Equatable {
+nonisolated struct XaiStartResponse: Codable, Sendable, Equatable {
     let sessionID: String
     let authorizeURL: String
 }
@@ -29,7 +29,7 @@ struct XaiStartResponse: Codable, Sendable, Equatable {
 /// POST /v1/integrations/xai/complete — client posts the captured
 /// loopback callback URL (host `127.0.0.1`, port `56121`, path
 /// `/callback`, query `?code=…&state=…`).
-struct XaiCompleteRequest: Codable, Sendable, Equatable {
+nonisolated struct XaiCompleteRequest: Codable, Sendable, Equatable {
     let sessionID: String
     let callbackURL: String
 }

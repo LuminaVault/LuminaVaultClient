@@ -17,9 +17,9 @@
 import Foundation
 import OSLog
 
-private nonisolated(unsafe) let log = Logger(subsystem: "com.luminavault", category: "shared-app-group")
+private nonisolated let log = Logger(subsystem: "com.luminavault", category: "shared-app-group")
 
-enum SharedAppGroup {
+nonisolated enum SharedAppGroup {
     /// Identifier of the App Group entitlement. Both `LuminaVaultClient`
     /// and `LuminaVaultShareExtension` must list this in their
     /// entitlements file (`com.apple.security.application-groups`).

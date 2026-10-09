@@ -2,7 +2,7 @@
 import Foundation
 import LuminaVaultShared
 
-enum APIError: Error, LocalizedError {
+nonisolated enum APIError: Error, LocalizedError {
     case invalidURL
     case encodingFailed(Error)
     case networkFailure(Error)
@@ -105,7 +105,7 @@ enum APIError: Error, LocalizedError {
     }
 }
 
-extension APIError {
+nonisolated extension APIError {
     /// Stable snake_case label for analytics properties — never the
     /// associated values, which may carry a body.
     var telemetryKind: String {
@@ -129,7 +129,7 @@ extension APIError {
     }
 }
 
-extension Error {
+nonisolated extension Error {
     /// Convenience for call sites that catch `any Error`.
     var isBenignCancellation: Bool {
         APIError.isBenignCancellation(self)
@@ -140,7 +140,7 @@ extension Error {
 /// names use the camelCase form that `JSONDecoder.hvDefault.keyDecodingStrategy
 /// = .convertFromSnakeCase` produces from snake-case JSON keys. Any missing
 /// key is tolerated so a bare 402 still produces a `.paymentRequired(nil, nil)`.
-struct PaymentRequiredBody: Decodable {
+nonisolated struct PaymentRequiredBody: Decodable {
     let paywallID: String?
     let requiredTier: UserTier?
 

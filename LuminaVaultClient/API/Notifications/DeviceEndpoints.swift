@@ -7,8 +7,8 @@
 import Foundation
 import LuminaVaultShared
 
-enum DeviceEndpoints {
-    struct Register: Endpoint {
+nonisolated enum DeviceEndpoints {
+    nonisolated struct Register: Endpoint {
         typealias Response = DeviceRegistrationResponse
         let request: DeviceRegistrationRequest
         var path: String { "/v1/devices" }
@@ -16,7 +16,7 @@ enum DeviceEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct Unregister: Endpoint {
+    nonisolated struct Unregister: Endpoint {
         typealias Response = EmptyResponse
         let token: String
         var path: String {

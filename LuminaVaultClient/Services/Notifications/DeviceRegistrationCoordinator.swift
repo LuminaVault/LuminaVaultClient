@@ -25,7 +25,7 @@ import Foundation
 import LuminaVaultShared
 import os
 
-private let log = Logger(subsystem: "com.luminavault", category: "device-registration")
+nonisolated private let log = Logger(subsystem: "com.luminavault", category: "device-registration")
 
 @MainActor
 final class DeviceRegistrationCoordinator: TokenObserver {

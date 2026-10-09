@@ -1,8 +1,8 @@
 import Foundation
 import LuminaVaultShared
 
-enum KnowledgeGraphEndpoints {
-    struct Graph: Endpoint {
+nonisolated enum KnowledgeGraphEndpoints {
+    nonisolated struct Graph: Endpoint {
         typealias Response = KnowledgeGraphResponse
         let limit: Int
         let minimumConfidence: Double
@@ -21,7 +21,7 @@ enum KnowledgeGraphEndpoints {
         var presentsPaywallOn402: Bool { false }
     }
 
-    struct Reason: Endpoint {
+    nonisolated struct Reason: Endpoint {
         typealias Response = ReasoningQueryResponse
         let request: ReasoningQueryRequest
         var path: String {
@@ -37,7 +37,7 @@ enum KnowledgeGraphEndpoints {
         }
     }
 
-    struct ReasonStream: StreamingEndpoint {
+    nonisolated struct ReasonStream: StreamingEndpoint {
         typealias Event = ReasoningStreamEventDTO
         let request: ReasoningQueryRequest
         var path: String {
@@ -53,7 +53,7 @@ enum KnowledgeGraphEndpoints {
         }
     }
 
-    struct Explain: Endpoint {
+    nonisolated struct Explain: Endpoint {
         typealias Response = ConnectionExplanationResponse
         let request: ConnectionExplanationRequest
         var path: String {
@@ -69,7 +69,7 @@ enum KnowledgeGraphEndpoints {
         }
     }
 
-    struct Review: Endpoint {
+    nonisolated struct Review: Endpoint {
         typealias Response = KnowledgeEdgeDTO
         let edgeID: UUID
         let action: KnowledgeReviewAction

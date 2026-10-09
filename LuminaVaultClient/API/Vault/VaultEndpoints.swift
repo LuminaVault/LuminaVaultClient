@@ -8,15 +8,15 @@
 // `BaseHTTPClient.fetchBytes`.
 import Foundation
 
-enum VaultEndpoints {
-    struct Create: Endpoint {
+nonisolated enum VaultEndpoints {
+    nonisolated struct Create: Endpoint {
         typealias Response = VaultStatusResponse
         var path: String { "/v1/vault/create" }
         var method: HTTPMethod { .post }
         var body: (any Encodable)? { VaultCreateRequest() }
     }
 
-    struct Status: Endpoint {
+    nonisolated struct Status: Endpoint {
         typealias Response = VaultStatusResponse
         var path: String { "/v1/vault/status" }
         var method: HTTPMethod { .get }
@@ -26,7 +26,7 @@ enum VaultEndpoints {
 
     /// Paginated vault file list with optional space slug, filename
     /// substring (`q`), and createdAt cursor.
-    struct ListFiles: Endpoint {
+    nonisolated struct ListFiles: Endpoint {
         typealias Response = VaultFileListResponse
         let spaceSlug: String?
         let q: String?
@@ -49,7 +49,7 @@ enum VaultEndpoints {
         var method: HTTPMethod { .get }
     }
 
-    struct DeleteFile: Endpoint {
+    nonisolated struct DeleteFile: Endpoint {
         typealias Response = EmptyResponse
         let relativePath: String
         let idempotencyKey: UUID?
@@ -69,7 +69,7 @@ enum VaultEndpoints {
         }
     }
 
-    struct MoveFile: Endpoint {
+    nonisolated struct MoveFile: Endpoint {
         typealias Response = VaultFileDTO
         let from: String
         let to: String

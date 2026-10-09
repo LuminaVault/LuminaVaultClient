@@ -15,14 +15,14 @@ protocol LastKnownLocationClientProtocol: Sendable {
     func forget() async throws
 }
 
-enum LastKnownLocationEndpoints {
-    struct Get: Endpoint {
+nonisolated enum LastKnownLocationEndpoints {
+    nonisolated struct Get: Endpoint {
         typealias Response = LastKnownLocationResponse
         var path: String { "/v1/me/location" }
         var method: HTTPMethod { .get }
     }
 
-    struct Forget: Endpoint {
+    nonisolated struct Forget: Endpoint {
         typealias Response = EmptyResponse
         var path: String { "/v1/me/location" }
         var method: HTTPMethod { .delete }

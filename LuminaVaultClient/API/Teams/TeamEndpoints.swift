@@ -1,13 +1,13 @@
 import Foundation
 
-enum TeamEndpoints {
-    struct ListTeams: Endpoint {
+nonisolated enum TeamEndpoints {
+    nonisolated struct ListTeams: Endpoint {
         typealias Response = [TeamSpaceSummary]
         let path = "/v1/teams"
         let method = HTTPMethod.get
     }
 
-    struct CreateTeam: Endpoint {
+    nonisolated struct CreateTeam: Endpoint {
         typealias Response = TeamSpaceSummary
         let name: String
         let path = "/v1/teams"
@@ -19,13 +19,13 @@ enum TeamEndpoints {
         private struct Body: Encodable { let name: String }
     }
 
-    struct ListVaults: Endpoint {
+    nonisolated struct ListVaults: Endpoint {
         typealias Response = [SharedVaultSummary]
         let path = "/v1/vaults"
         let method = HTTPMethod.get
     }
 
-    struct CreateVault: Endpoint {
+    nonisolated struct CreateVault: Endpoint {
         typealias Response = SharedVaultSummary
         let teamID: UUID
         let name: String
@@ -41,7 +41,7 @@ enum TeamEndpoints {
         private struct Body: Encodable { let name: String }
     }
 
-    struct Members: Endpoint {
+    nonisolated struct Members: Endpoint {
         typealias Response = [VaultMemberSummary]
         let vaultID: UUID
         var path: String {
@@ -51,7 +51,7 @@ enum TeamEndpoints {
         let method = HTTPMethod.get
     }
 
-    struct UpdateMember: Endpoint {
+    nonisolated struct UpdateMember: Endpoint {
         typealias Response = VaultMemberSummary
         let vaultID: UUID
         let userID: UUID
@@ -69,7 +69,7 @@ enum TeamEndpoints {
         private struct Body: Encodable { let role: String; let canUseAI: Bool }
     }
 
-    struct Invite: Endpoint {
+    nonisolated struct Invite: Endpoint {
         typealias Response = TeamInvitationSummary
         let teamID: UUID
         let email: String
@@ -89,7 +89,7 @@ enum TeamEndpoints {
         }
     }
 
-    struct Invitations: Endpoint {
+    nonisolated struct Invitations: Endpoint {
         typealias Response = [TeamInvitationSummary]
         let teamID: UUID
         var path: String {
@@ -99,7 +99,7 @@ enum TeamEndpoints {
         let method = HTTPMethod.get
     }
 
-    struct ResendInvitation: Endpoint {
+    nonisolated struct ResendInvitation: Endpoint {
         typealias Response = TeamInvitationSummary
         let teamID: UUID
         let invitationID: UUID
@@ -110,7 +110,7 @@ enum TeamEndpoints {
         let method = HTTPMethod.post
     }
 
-    struct RevokeInvitation: Endpoint {
+    nonisolated struct RevokeInvitation: Endpoint {
         typealias Response = EmptyResponse
         let teamID: UUID
         let invitationID: UUID
@@ -121,7 +121,7 @@ enum TeamEndpoints {
         let method = HTTPMethod.delete
     }
 
-    struct Activity: Endpoint {
+    nonisolated struct Activity: Endpoint {
         typealias Response = [VaultActivitySummary]
         let vaultID: UUID
         var path: String {
@@ -131,7 +131,7 @@ enum TeamEndpoints {
         let method = HTTPMethod.get
     }
 
-    struct ArchiveTeam: Endpoint {
+    nonisolated struct ArchiveTeam: Endpoint {
         typealias Response = TeamSpaceSummary
         let teamID: UUID
         var path: String {
@@ -141,7 +141,7 @@ enum TeamEndpoints {
         let method = HTTPMethod.post
     }
 
-    struct RestoreTeam: Endpoint {
+    nonisolated struct RestoreTeam: Endpoint {
         typealias Response = TeamSpaceSummary
         let teamID: UUID
         var path: String {
@@ -151,7 +151,7 @@ enum TeamEndpoints {
         let method = HTTPMethod.post
     }
 
-    struct LeaveTeam: Endpoint {
+    nonisolated struct LeaveTeam: Endpoint {
         typealias Response = EmptyResponse
         let teamID: UUID
         var path: String {
@@ -161,7 +161,7 @@ enum TeamEndpoints {
         let method = HTTPMethod.post
     }
 
-    struct RemoveMember: Endpoint {
+    nonisolated struct RemoveMember: Endpoint {
         typealias Response = EmptyResponse
         let vaultID: UUID
         let userID: UUID

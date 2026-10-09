@@ -72,13 +72,15 @@ final class VaultRepository {
                 // Network dropped after the reachability check — enqueue
                 // so a future drain finishes the job.
                 let op = try makeCompileOp(request: request, tenantID: tenantID, idempotencyKey: key)
+                let id = op.id
                 try await syncManager.enqueue(op)
-                return .queued(operationID: op.id)
+                return .queued(operationID: id)
             }
         } else {
             let op = try makeCompileOp(request: request, tenantID: tenantID, idempotencyKey: UUID())
+            let id = op.id
             try await syncManager.enqueue(op)
-            return .queued(operationID: op.id)
+            return .queued(operationID: id)
         }
     }
 
@@ -98,8 +100,9 @@ final class VaultRepository {
             type: .deleteFile,
             pathInVault: path
         )
+        let id = op.id
         try await syncManager.enqueue(op)
-        return op.id
+        return id
     }
 
     @discardableResult
@@ -115,8 +118,9 @@ final class VaultRepository {
             pathInVault: oldPath,
             metadataJSON: metadata
         )
+        let id = op.id
         try await syncManager.enqueue(op)
-        return op.id
+        return id
     }
 
     // MARK: - Reads (Phase E)
@@ -236,7 +240,7 @@ final class VaultRepository {
         return try modelContainer.mainContext.fetch(descriptor).first
     }
 
-    private func makeCompileOp(request: KBCompileRequest, tenantID: UUID, idempotencyKey: UUID) throws -> SyncOperation {
+    nonisolated private func makeCompileOp(request: KBCompileRequest, tenantID: UUID, idempotencyKey: UUID) throws -> SyncOperation {
         let metadata = try JSONEncoder().encode(request)
         return SyncOperation(
             tenantID: tenantID,

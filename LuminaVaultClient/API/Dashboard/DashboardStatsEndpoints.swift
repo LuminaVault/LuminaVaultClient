@@ -7,8 +7,8 @@
 import Foundation
 import LuminaVaultShared
 
-enum DashboardStatsEndpoints {
-    struct Get: Endpoint {
+nonisolated enum DashboardStatsEndpoints {
+    nonisolated struct Get: Endpoint {
         typealias Response = DashboardStatsResponse
 
         var path: String { "/v1/dashboard/stats" }

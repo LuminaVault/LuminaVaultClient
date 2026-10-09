@@ -1,3 +1,4 @@
+import LuminaVaultShared
 import SwiftUI
 
 @Observable

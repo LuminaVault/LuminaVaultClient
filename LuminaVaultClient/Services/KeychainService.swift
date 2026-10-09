@@ -2,7 +2,7 @@
 import Foundation
 import Security
 
-final class KeychainService: Sendable {
+nonisolated final class KeychainService: Sendable {
     static let shared = KeychainService()
 
     private let service: String
@@ -151,7 +151,8 @@ final class KeychainService: Sendable {
 
 /// Test-only backing store for simulator environments where unsigned unit-test
 /// bundles cannot write to Security.framework keychain items.
-private final class InMemoryKeychainStore: @unchecked Sendable {
+/// `@unchecked`: `lock` guards every access to `values`.
+nonisolated private final class InMemoryKeychainStore: @unchecked Sendable {
     private let lock = NSLock()
     private var values: [String: String] = [:]
 

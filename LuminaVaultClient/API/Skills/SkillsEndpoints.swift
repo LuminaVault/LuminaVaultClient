@@ -5,14 +5,14 @@
 import Foundation
 import LuminaVaultShared
 
-enum SkillsEndpoints {
-    struct List: Endpoint {
+nonisolated enum SkillsEndpoints {
+    nonisolated struct List: Endpoint {
         typealias Response = SkillListResponse
         var path: String { "/v1/skills" }
         var method: HTTPMethod { .get }
     }
 
-    struct Patch: Endpoint {
+    nonisolated struct Patch: Endpoint {
         typealias Response = LuminaVaultShared.SkillDTO
         let name: String
         let request: SkillPatchRequest
@@ -21,7 +21,7 @@ enum SkillsEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct Runs: Endpoint {
+    nonisolated struct Runs: Endpoint {
         typealias Response = SkillRunsResponse
         let name: String
         let limit: Int?
@@ -37,7 +37,7 @@ enum SkillsEndpoints {
     /// to the vault so the Reflect UI can preview the rendered output
     /// and let the user decide whether to Save (cached upload — no
     /// second LLM call).
-    struct Run: Endpoint {
+    nonisolated struct Run: Endpoint {
         typealias Response = LuminaVaultShared.SkillRunResponse
         let name: String
         let request: SkillRunRequest

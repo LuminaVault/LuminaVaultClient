@@ -6,8 +6,8 @@
 import Foundation
 import LuminaVaultShared
 
-enum MemoryEndpoints {
-    struct Get: Endpoint {
+nonisolated enum MemoryEndpoints {
+    nonisolated struct Get: Endpoint {
         typealias Response = MemoryDTO
         let id: UUID
 
@@ -20,7 +20,7 @@ enum MemoryEndpoints {
         }
     }
 
-    struct Upsert: Endpoint {
+    nonisolated struct Upsert: Endpoint {
         typealias Response = MemoryUpsertResponse
         let request: MemoryUpsertRequest
         /// HER-105 — optional Space to file the memory into. Sent as the
@@ -49,7 +49,7 @@ enum MemoryEndpoints {
 
     /// HER-290 — PATCH `/v1/memory/{id}` with `reviewState` body. Server
     /// validates only `pending → approved` / `pending → rejected`.
-    struct Patch: Endpoint {
+    nonisolated struct Patch: Endpoint {
         typealias Response = MemoryDTO
         let id: UUID
         let request: MemoryPatchRequest
@@ -68,7 +68,7 @@ enum MemoryEndpoints {
     }
 
     /// GET `/v1/memory?limit=&offset=` — paged memory list for the browser.
-    struct List: Endpoint {
+    nonisolated struct List: Endpoint {
         typealias Response = MemoryListResponse
         let limit: Int
         let offset: Int
@@ -88,7 +88,7 @@ enum MemoryEndpoints {
     }
 
     /// POST `/v1/memory/search` — semantic search over the tenant's memories.
-    struct Search: Endpoint {
+    nonisolated struct Search: Endpoint {
         typealias Response = MemorySearchResponse
         let request: MemorySearchRequest
 
@@ -106,7 +106,7 @@ enum MemoryEndpoints {
     }
 
     /// DELETE `/v1/memory/{id}` — removes a memory (server returns 204).
-    struct Delete: Endpoint {
+    nonisolated struct Delete: Endpoint {
         typealias Response = EmptyResponse
         let id: UUID
 
@@ -119,7 +119,7 @@ enum MemoryEndpoints {
         }
     }
 
-    struct Provenance: Endpoint {
+    nonisolated struct Provenance: Endpoint {
         typealias Response = MemoryProvenanceResponse
         let id: UUID
         var path: String {
@@ -131,7 +131,7 @@ enum MemoryEndpoints {
         }
     }
 
-    struct Facets: Endpoint {
+    nonisolated struct Facets: Endpoint {
         typealias Response = MemoryFacetsResponse
         var path: String {
             "/v1/memory/facets"
@@ -142,7 +142,7 @@ enum MemoryEndpoints {
         }
     }
 
-    struct LocalSync: Endpoint {
+    nonisolated struct LocalSync: Endpoint {
         typealias Response = LocalMemorySyncResponse
         let cursor: String?
         let limit: Int

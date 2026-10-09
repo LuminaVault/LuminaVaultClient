@@ -55,12 +55,14 @@ actor SyncManager {
     /// Enqueue a new operation. Caller has already persisted any body
     /// payload via `LocalVaultManager` and supplied the relative path on
     /// the `SyncOperation`.
-    func enqueue(_ op: SyncOperation) async throws {
+    func enqueue(_ op: sending SyncOperation) async throws {
+        // Read before the row is sent to the queue's context.
+        let tenantID = op.tenantID
         try await queue.enqueue(op)
-        await refreshState(for: op.tenantID)
+        await refreshState(for: tenantID)
         // Kick the drain — runs in the background; non-blocking for the
         // caller. If offline, the drain returns quickly without effect.
-        Task { await self.runUntilDrained(tenantID: op.tenantID) }
+        Task { await self.runUntilDrained(tenantID: tenantID) }
     }
 
     /// Drain pending operations until the queue is empty or the network
@@ -90,7 +92,7 @@ actor SyncManager {
                 return
             }
 
-            let op: SyncOperation?
+            let op: SyncOperationSnapshot?
             do {
                 op = try await queue.nextEligible(for: tenantID)
             } catch {
@@ -155,7 +157,7 @@ actor SyncManager {
         await updateState(.idle)
     }
 
-    private func execute(_ op: SyncOperation, tenantID: UUID) async throws {
+    private func execute(_ op: SyncOperationSnapshot, tenantID: UUID) async throws {
         switch op.type {
         case .uploadFile:
             // HER-39: capture flows that emit uploads land in a follow-up
@@ -245,6 +247,6 @@ actor SyncManager {
 
 /// Body payload for `OperationType.moveFile`. Stored as JSON in
 /// `SyncOperation.metadataJSON`.
-struct MoveMetadata: Codable, Sendable {
+nonisolated struct MoveMetadata: Codable, Sendable {
     let newPath: String
 }

@@ -9,14 +9,14 @@
 import Foundation
 import LuminaVaultShared
 
-enum ProvidersEndpoints {
-    struct List: Endpoint {
+nonisolated enum ProvidersEndpoints {
+    nonisolated struct List: Endpoint {
         typealias Response = ProviderCredentialsListResponse
         var path: String { "/v1/me/providers" }
         var method: HTTPMethod { .get }
     }
 
-    struct Put: Endpoint {
+    nonisolated struct Put: Endpoint {
         typealias Response = ProviderCredentialDTO
         let provider: ProviderID
         let request: ProviderCredentialPutRequest
@@ -25,14 +25,14 @@ enum ProvidersEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct Delete: Endpoint {
+    nonisolated struct Delete: Endpoint {
         typealias Response = EmptyResponse
         let provider: ProviderID
         var path: String { "/v1/me/providers/\(provider.rawValue)" }
         var method: HTTPMethod { .delete }
     }
 
-    struct Test: Endpoint {
+    nonisolated struct Test: Endpoint {
         typealias Response = ProviderTestResponse
         let provider: ProviderID
         var path: String { "/v1/me/providers/\(provider.rawValue)/test" }
@@ -41,7 +41,7 @@ enum ProvidersEndpoints {
 
     /// Live model list — fetched from the provider's `/v1/models` when the
     /// provider is OpenAI-compatible, else the offline catalog. Always 200.
-    struct Models: Endpoint {
+    nonisolated struct Models: Endpoint {
         typealias Response = ProviderModelsResponse
         let provider: ProviderID
         var path: String { "/v1/me/providers/\(provider.rawValue)/models" }
@@ -49,14 +49,14 @@ enum ProvidersEndpoints {
     }
 
     // Round-robin credential pool.
-    struct ListPool: Endpoint {
+    nonisolated struct ListPool: Endpoint {
         typealias Response = ProviderPoolListResponse
         let provider: ProviderID
         var path: String { "/v1/me/providers/\(provider.rawValue)/pool" }
         var method: HTTPMethod { .get }
     }
 
-    struct AddPool: Endpoint {
+    nonisolated struct AddPool: Endpoint {
         typealias Response = ProviderPoolKeyDTO
         let provider: ProviderID
         let request: ProviderPoolAddRequest
@@ -65,7 +65,7 @@ enum ProvidersEndpoints {
         var body: (any Encodable)? { request }
     }
 
-    struct DeletePool: Endpoint {
+    nonisolated struct DeletePool: Endpoint {
         typealias Response = EmptyResponse
         let provider: ProviderID
         let keyID: UUID

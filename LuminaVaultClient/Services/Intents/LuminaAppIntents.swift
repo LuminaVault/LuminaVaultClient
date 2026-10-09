@@ -24,18 +24,19 @@ import SwiftUI
 
 /// Capture a thought without opening the app.
 struct CaptureToLuminaIntent: AppIntent {
-    static var title: LocalizedStringResource = "Capture to LuminaVault"
-    static var description = IntentDescription(
+    static let title: LocalizedStringResource = "Capture to LuminaVault"
+    static let description = IntentDescription(
         "Save a note straight to your vault. Works offline — it syncs when you're back online.",
         categoryName: "Capture"
     )
     /// Runs without foregrounding the app: the whole point is a frictionless
     /// capture from Siri or the lock screen.
-    static var openAppWhenRun = false
+    static let openAppWhenRun = false
 
     @Parameter(title: "Note", requestValueDialog: "What do you want to remember?")
     var text: String
 
+    @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty else {
@@ -54,14 +55,14 @@ struct CaptureToLuminaIntent: AppIntent {
 
 /// Jump into a chat with the question already typed.
 struct AskLuminaIntent: AppIntent {
-    static var title: LocalizedStringResource = "Ask my brain"
-    static var description = IntentDescription(
+    static let title: LocalizedStringResource = "Ask my brain"
+    static let description = IntentDescription(
         "Open LuminaVault and ask your second brain a question.",
         categoryName: "Chat"
     )
     // Answering needs auth + streaming + routing; hand off to the app instead
     // of trying to do it inside the intent's execution budget.
-    static var openAppWhenRun = true
+    static let openAppWhenRun = true
 
     @Parameter(title: "Question", requestValueDialog: "What do you want to ask?")
     var question: String

@@ -13,7 +13,7 @@
 import Foundation
 import LuminaVaultShared
 
-extension JSONEncoder {
+nonisolated extension JSONEncoder {
     /// Photos ingest encoder — camelCase keys (server decodes DTO names
     /// verbatim) + ISO8601 dates (matches `takenAt` server-side).
     static let lvPhotos: JSONEncoder = {
@@ -23,7 +23,7 @@ extension JSONEncoder {
     }()
 }
 
-extension JSONDecoder {
+nonisolated extension JSONDecoder {
     /// Photos ingest decoder — `AppleSyncResponse` is plain Ints, but the
     /// shared response decoder convention keeps ISO8601 dates available.
     static let lvPhotos: JSONDecoder = {
@@ -33,10 +33,10 @@ extension JSONDecoder {
     }()
 }
 
-enum PhotoIndexEndpoints {
+nonisolated enum PhotoIndexEndpoints {
     /// `POST /v1/photos/index` — batch ingest derived OCR text + scene tags +
     /// metadata. Consent-gated server-side on the `photos` domain.
-    struct Index: Endpoint {
+    nonisolated struct Index: Endpoint {
         typealias Response = AppleSyncResponse
         let items: [PhotoIndexInput]
 

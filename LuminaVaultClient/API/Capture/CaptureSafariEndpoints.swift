@@ -10,7 +10,7 @@
 import Foundation
 
 /// Wire request — matches openapi.yaml `CaptureSafariRequest`.
-struct CaptureSafariRequest: Codable, Sendable {
+nonisolated struct CaptureSafariRequest: Codable, Sendable {
     let url: String
     let notes: String?
     let spaceId: UUID?
@@ -20,16 +20,16 @@ struct CaptureSafariRequest: Codable, Sendable {
 }
 
 /// Wire response — matches openapi.yaml `CaptureSafariResponse`.
-struct CaptureSafariResponse: Codable, Sendable {
-    enum EnrichmentStatus: String, Codable, Sendable {
+nonisolated struct CaptureSafariResponse: Codable, Sendable {
+    nonisolated enum EnrichmentStatus: String, Codable, Sendable {
         case pending, complete, failed
     }
     let vaultFileId: UUID
     let enrichmentStatus: EnrichmentStatus?
 }
 
-enum CaptureSafariEndpoints {
-    struct Capture: Endpoint {
+nonisolated enum CaptureSafariEndpoints {
+    nonisolated struct Capture: Endpoint {
         typealias Response = CaptureSafariResponse
         let request: CaptureSafariRequest
 

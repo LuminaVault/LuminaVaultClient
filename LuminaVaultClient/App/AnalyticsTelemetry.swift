@@ -35,7 +35,7 @@ struct AnalyticsTelemetry: TelemetryProtocol {
     }
 }
 
-enum RequestFailureBreadcrumbs {
+nonisolated enum RequestFailureBreadcrumbs {
     static func record(_ failure: APIRequestFailure) {
         let crumb = Breadcrumb(level: .error, category: "http")
         crumb.type = "http"
