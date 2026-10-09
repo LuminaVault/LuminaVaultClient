@@ -328,6 +328,7 @@
 				6088C4F12FAE1184006F894F /* Resources */,
 				605690362FBF20FF0059C355 /* Embed Foundation Extensions */,
 				A53E5752B5D24598A86BD3CA /* Upload Debug Symbols to Sentry */,
+				295F8A13234B118468194E30 /* SwiftLint */,
 			);
 			buildRules = (
 			);
@@ -402,6 +403,21 @@
 		};
 /* End PBXNativeTarget section */
 
+/* Begin PBXAggregateTarget section */
+		48F81C52295F8A13234B1184 /* Periphery */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = F81C52295F8A13234B118468 /* Build configuration list for PBXAggregateTarget "Periphery" */;
+			buildPhases = (
+				1C52295F8A13234B11846819 /* Periphery */,
+			);
+			dependencies = (
+			);
+			name = Periphery;
+			productName = Periphery;
+		};
+/* End PBXAggregateTarget section */
+
+
 /* Begin PBXProject section */
 		6088C4EB2FAE1184006F894F /* Project object */ = {
 			isa = PBXProject;
@@ -460,6 +476,7 @@
 				6088C5092FAE1186006F894F /* LuminaVaultClientUITests */,
 				605690252FBF20FE0059C355 /* LuminaVaultShareExtension */,
 				603DC5AD301E09CF00EE0BC4 /* LuminaVaultWidgetsExtension */,
+				48F81C52295F8A13234B1184 /* Periphery */,
 			);
 		};
 /* End PBXProject section */
@@ -518,6 +535,36 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# This script is responsible for uploading debug symbols and source context for Sentry.\nif which sentry-cli >/dev/null; then\n  export SENTRY_ORG=fernando-lda\n  export SENTRY_PROJECT=luminavault\n  ERROR=$(sentry-cli debug-files upload --include-sources \"$DWARF_DSYM_FOLDER_PATH\" 2>&1 >/dev/null)\n  if [ ! $? -eq 0 ]; then\n    echo \"warning: sentry-cli - $ERROR\"\n  fi\nelse\n  echo \"warning: sentry-cli not installed, download from https://github.com/getsentry/sentry-cli/releases\"\nfi\n";
+		};
+		1C52295F8A13234B11846819 /* Periphery */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = Periphery;
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "export PATH=\"$PATH:/opt/homebrew/bin\"\nROOT=\"${PROJECT_DIR}\"\nif [ ! -f \"${ROOT}/.periphery.yml\" ] && [ -f \"${ROOT}/../.periphery.yml\" ]; then\n  ROOT=\"${ROOT}/..\"\nfi\ncd \"${ROOT}\"\nperiphery scan --format xcode\n";
+		};
+		295F8A13234B118468194E30 /* SwiftLint */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = SwiftLint;
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "export PATH=\"$PATH:/opt/homebrew/bin\"\nROOT=\"${PROJECT_DIR}\"\nif [ ! -f \"${ROOT}/.swiftlint.yml\" ] && [ -f \"${ROOT}/../.swiftlint.yml\" ]; then\n  ROOT=\"${ROOT}/..\"\nfi\ncd \"${ROOT}\"\nif which swiftlint >/dev/null; then\n  swiftlint\nelse\n  echo \"warning: SwiftLint not installed\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -1220,6 +1267,20 @@
 			};
 			name = Beta;
 		};
+		8A13234B118468194E30F47C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		234B118468194E30F47CCBBE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1279,6 +1340,15 @@
 				6088C51B2FAE1186006F894F /* Debug */,
 				6088C51C2FAE1186006F894F /* Release */,
 				60BE7A042FAE1186006F894F /* Beta */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F81C52295F8A13234B118468 /* Build configuration list for PBXAggregateTarget "Periphery" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8A13234B118468194E30F47C /* Debug */,
+				234B118468194E30F47CCBBE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
