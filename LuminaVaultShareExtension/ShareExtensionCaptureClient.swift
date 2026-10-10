@@ -65,7 +65,7 @@ struct ShareExtensionCaptureClient: Sendable {
             contentType: "text/markdown",
             spaceID: spaceID,
         )
-        try await upsertMemory(id: id, content: text)
+        try await upsertMemory(id: id, content: text, spaceID: spaceID)
     }
 
     private func captureImage(
@@ -83,15 +83,23 @@ struct ShareExtensionCaptureClient: Sendable {
             contentType: contentType,
             spaceID: spaceID,
         )
-        try await upsertMemory(id: id, content: note?.nilIfEmpty ?? "Image capture")
+        try await upsertMemory(id: id, content: note?.nilIfEmpty ?? "Image capture", spaceID: spaceID)
     }
 
-    private func upsertMemory(id: UUID, content: String) async throws {
+    /// The memory gets the same Space as its file. Without `space_id` it
+    /// lands unfiled while the file sits in the chosen Space, so Space-scoped
+    /// search can't find what the user just filed there.
+    private func upsertMemory(id: UUID, content: String, spaceID: UUID?) async throws {
         struct Body: Encodable {
             let content: String
         }
+        var components = URLComponents()
+        components.path = "/v1/memory/upsert"
+        if let spaceID {
+            components.queryItems = [URLQueryItem(name: "space_id", value: spaceID.uuidString)]
+        }
         try await executeJSON(
-            path: "/v1/memory/upsert",
+            path: components.string ?? "/v1/memory/upsert",
             idempotencyKey: id,
             body: Body(content: content),
         )
