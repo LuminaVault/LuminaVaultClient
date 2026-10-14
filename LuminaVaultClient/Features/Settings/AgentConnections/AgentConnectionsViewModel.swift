@@ -8,6 +8,10 @@ final class AgentConnectionsViewModel {
     var issued: AgentConnectionIssuedResponse?
     var nameInput = ""
     var selectedKind: AgentClientKind = .claudeCode
+    /// Grants for the next key. Both start off: a new key can search and read
+    /// the vault and nothing more until the user says otherwise.
+    var allowPersonalData = false
+    var allowWrites = false
     var isLoading = false
     var isWorking = false
     var errorMessage: String?
@@ -51,10 +55,37 @@ final class AgentConnectionsViewModel {
         errorMessage = nil
         defer { isWorking = false }
         do {
-            let issued = try await client.issue(name: name, clientKind: selectedKind)
+            let issued = try await client.issue(
+                name: name,
+                clientKind: selectedKind,
+                allowPersonalData: allowPersonalData,
+                access: allowWrites ? .readWrite : .read
+            )
             self.issued = issued
             nameInput = ""
+            allowPersonalData = false
+            allowWrites = false
             connections = try await client.list()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func setPersonalData(_ connection: AgentConnectionDTO, allowed: Bool) async {
+        await update(connection, AgentConnectionUpdateRequest(allowPersonalData: allowed))
+    }
+
+    func setAccess(_ connection: AgentConnectionDTO, _ access: AgentConnectionAccess) async {
+        await update(connection, AgentConnectionUpdateRequest(access: access))
+    }
+
+    private func update(_ connection: AgentConnectionDTO, _ request: AgentConnectionUpdateRequest) async {
+        isWorking = true
+        errorMessage = nil
+        defer { isWorking = false }
+        do {
+            let updated = try await client.update(id: connection.id, request: request)
+            connections = connections.map { $0.id == updated.id ? updated : $0 }
         } catch {
             errorMessage = error.localizedDescription
         }

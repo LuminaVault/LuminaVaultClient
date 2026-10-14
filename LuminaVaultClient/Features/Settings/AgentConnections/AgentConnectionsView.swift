@@ -12,7 +12,7 @@ struct AgentConnectionsView: View {
     var body: some View {
         List {
             Section {
-                Text("Create a key, then paste the snippet into Claude Code, Codex, Hermes, or any MCP client. The key is shown once.")
+                Text("Create a key, then paste the snippet into Claude Code, Codex, Hermes, or any MCP client. A new key can only search and read until you allow changes. The key is shown once.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -31,6 +31,8 @@ struct AgentConnectionsView: View {
                 .onChange(of: viewModel.selectedKind) { _, kind in
                     Task { await viewModel.selectKind(kind) }
                 }
+                Toggle("Health, Calendar & Reminders", isOn: $viewModel.allowPersonalData)
+                Toggle("Allow changes", isOn: $viewModel.allowWrites)
                 Button("Create connection") {
                     Task { await viewModel.create() }
                 }
@@ -38,7 +40,7 @@ struct AgentConnectionsView: View {
             } header: {
                 Text("New connection")
             } footer: {
-                Text("Name it after the machine the key will live on. If you lose the key, revoke it and make another.")
+                Text("Name it after the machine the key will live on. Health, Calendar & Reminders lets the agent read the Apple data you allowed. Allow changes lets it save memories, rebuild your search index, and add calendar events or reminders. If you lose the key, revoke it and make another.")
             }
 
             if let preview = viewModel.preview, viewModel.issued == nil {
@@ -70,7 +72,12 @@ struct AgentConnectionsView: View {
                             Text(connection.lastUsedAt == nil ? "Never used" : "Last used \(connection.lastUsedAt!.formatted(.relative(presentation: .named)))")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
+                            Toggle("Health, Calendar & Reminders", isOn: personalDataBinding(connection))
+                                .font(.caption)
+                            Toggle("Allow changes", isOn: accessBinding(connection))
+                                .font(.caption)
                         }
+                        .disabled(viewModel.isWorking)
                         .swipeActions {
                             Button("Revoke", role: .destructive) {
                                 Task { await viewModel.revoke(connection) }
@@ -91,6 +98,20 @@ struct AgentConnectionsView: View {
         .navigationTitle("Agent connections")
         .navigationBarTitleDisplayMode(.inline)
         .task { await viewModel.load() }
+    }
+
+    private func personalDataBinding(_ connection: AgentConnectionDTO) -> Binding<Bool> {
+        Binding(
+            get: { connection.allowPersonalData },
+            set: { allowed in Task { await viewModel.setPersonalData(connection, allowed: allowed) } }
+        )
+    }
+
+    private func accessBinding(_ connection: AgentConnectionDTO) -> Binding<Bool> {
+        Binding(
+            get: { connection.access == .readWrite },
+            set: { allowed in Task { await viewModel.setAccess(connection, allowed ? .readWrite : .read) } }
+        )
     }
 
     @ViewBuilder

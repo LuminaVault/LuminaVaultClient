@@ -42,6 +42,73 @@ final class AgentConnectionsViewModelTests: XCTestCase {
         XCTAssertTrue(sut.connections.isEmpty)
     }
 
+    func testANewKeyIsReadOnlyWithoutPersonalDataUnlessTheUserTurnsThemOn() async {
+        let client = MockAgentConnectionsClient()
+        client.issueResult = Self.sampleIssued()
+        let sut = AgentConnectionsViewModel(client: client)
+
+        sut.nameInput = "laptop"
+        await sut.create()
+        XCTAssertEqual(client.issueCalls.last?.2, false)
+        XCTAssertEqual(client.issueCalls.last?.3, .read)
+
+        sut.nameInput = "desktop"
+        sut.allowPersonalData = true
+        sut.allowWrites = true
+        await sut.create()
+        XCTAssertEqual(client.issueCalls.last?.2, true)
+        XCTAssertEqual(client.issueCalls.last?.3, .readWrite)
+        // The grants do not carry over to the next key.
+        XCTAssertFalse(sut.allowPersonalData)
+        XCTAssertFalse(sut.allowWrites)
+    }
+
+    func testChangingAccessSendsOnlyAccessAndReplacesTheRow() async {
+        let client = MockAgentConnectionsClient()
+        let original = Self.sampleIssued().connection
+        let updated = AgentConnectionDTO(
+            id: original.id, name: original.name, clientKind: original.clientKind,
+            tokenPrefix: original.tokenPrefix, createdAt: original.createdAt,
+            allowPersonalData: original.allowPersonalData, access: .readWrite
+        )
+        client.updateResult = updated
+        let sut = AgentConnectionsViewModel(client: client)
+        sut.connections = [original]
+
+        await sut.setAccess(original, .readWrite)
+
+        XCTAssertEqual(client.updateCalls.count, 1)
+        XCTAssertEqual(client.updateCalls.first?.1.access, .readWrite)
+        XCTAssertNil(client.updateCalls.first?.1.allowPersonalData)
+        XCTAssertEqual(sut.connections.first?.access, .readWrite)
+        XCTAssertNil(sut.errorMessage)
+    }
+
+    func testChangingPersonalDataSendsOnlyThatGrant() async {
+        let client = MockAgentConnectionsClient()
+        let original = Self.sampleIssued().connection
+        client.updateResult = original
+        let sut = AgentConnectionsViewModel(client: client)
+        sut.connections = [original]
+
+        await sut.setPersonalData(original, allowed: true)
+
+        XCTAssertEqual(client.updateCalls.first?.1.allowPersonalData, true)
+        XCTAssertNil(client.updateCalls.first?.1.access)
+    }
+
+    func testAFailedUpdateKeepsTheRowAndShowsTheError() async {
+        let client = MockAgentConnectionsClient()
+        let original = Self.sampleIssued().connection
+        let sut = AgentConnectionsViewModel(client: client)
+        sut.connections = [original]
+
+        await sut.setAccess(original, .readWrite)
+
+        XCTAssertEqual(sut.connections.first?.access, original.access)
+        XCTAssertNotNil(sut.errorMessage)
+    }
+
     private static func sampleIssued() -> AgentConnectionIssuedResponse {
         let connection = AgentConnectionDTO(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
@@ -75,7 +142,9 @@ final class MockAgentConnectionsClient: AgentConnectionsClientProtocol, @uncheck
         prompt: "preview"
     )
     var issueResult: AgentConnectionIssuedResponse?
-    var issueCalls: [(String, AgentClientKind)] = []
+    var issueCalls: [(String, AgentClientKind, Bool, AgentConnectionAccess)] = []
+    var updateCalls: [(UUID, AgentConnectionUpdateRequest)] = []
+    var updateResult: AgentConnectionDTO?
     var revokedIDs: [UUID] = []
 
     func list() async throws -> [AgentConnectionDTO] { listResult }
@@ -84,9 +153,20 @@ final class MockAgentConnectionsClient: AgentConnectionsClientProtocol, @uncheck
         previewResult
     }
 
-    func issue(name: String, clientKind: AgentClientKind) async throws -> AgentConnectionIssuedResponse {
-        issueCalls.append((name, clientKind))
+    func issue(
+        name: String,
+        clientKind: AgentClientKind,
+        allowPersonalData: Bool,
+        access: AgentConnectionAccess
+    ) async throws -> AgentConnectionIssuedResponse {
+        issueCalls.append((name, clientKind, allowPersonalData, access))
         if let issueResult { return issueResult }
+        throw URLError(.badServerResponse)
+    }
+
+    func update(id: UUID, request: AgentConnectionUpdateRequest) async throws -> AgentConnectionDTO {
+        updateCalls.append((id, request))
+        if let updateResult { return updateResult }
         throw URLError(.badServerResponse)
     }
 
