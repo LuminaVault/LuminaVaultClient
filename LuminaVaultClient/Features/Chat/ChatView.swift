@@ -1203,28 +1203,42 @@ private struct StreamingCaret: View {
     }
 }
 
+/// The memories an answer was grounded on. Tapping one shows the whole
+/// memory — the chip only has room for its first words.
 private struct SourceChipRow: View {
     @Environment(\.lvPalette) private var palette
     let sources: [QueryHitDTO]
+    @State private var shown: MemoryDTO?
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: LVSpacing.sm) {
                 ForEach(sources) { hit in
-                    Text(hit.content.prefix(40))
-                        .lvFont(.microTag)
-                        .foregroundStyle(palette.textSecondary)
-                        .lineLimit(1)
-                        .padding(.horizontal, LVSpacing.sm)
-                        .padding(.vertical, LVSpacing.xs)
-                        .background(
-                            Capsule().fill(palette.surface)
-                        )
-                        .overlay {
-                            Capsule()
-                                .stroke(palette.glowPrimary.opacity(0.25), lineWidth: 1)
-                        }
+                    Button {
+                        shown = MemoryDTO(id: hit.id, content: hit.content, tags: [], createdAt: hit.createdAt)
+                    } label: {
+                        Text(hit.content.prefix(40))
+                            .lvFont(.microTag)
+                            .foregroundStyle(palette.textSecondary)
+                            .lineLimit(1)
+                            .padding(.horizontal, LVSpacing.sm)
+                            .padding(.vertical, LVSpacing.xs)
+                            .background(
+                                Capsule().fill(palette.surface)
+                            )
+                            .overlay {
+                                Capsule()
+                                    .stroke(palette.glowPrimary.opacity(0.25), lineWidth: 1)
+                            }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Source: \(hit.content.prefix(80))")
+                    .accessibilityHint("Shows the whole memory")
                 }
             }
+        }
+        .sheet(item: $shown) { memory in
+            MemoryWikilinkSheet(memory: memory)
         }
     }
 }

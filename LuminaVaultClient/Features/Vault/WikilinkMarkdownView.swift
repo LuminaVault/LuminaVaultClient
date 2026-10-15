@@ -187,7 +187,9 @@ enum WikilinkResolver {
     }
 }
 
-private struct MemoryWikilinkSheet: View {
+/// Read-only view of one memory: a `[[memory:…]]` link in an answer, or a
+/// source chip under it.
+struct MemoryWikilinkSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.lvPalette) private var palette
 
