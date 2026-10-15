@@ -63,6 +63,8 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
     case checkmarkSealFill
     case clock
     case clockBadgeCheckmark
+    case listBulletRectangle
+    case rectangleSplit3x1
     case clockBadgeExclamationmark
     case clockFill
     case exclamationmarkTriangle
@@ -186,6 +188,8 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
         case .checkmarkSealFill:                return "checkmark.seal.fill"
         case .clock:                            return "clock"
         case .clockBadgeCheckmark:              return "clock.badge.checkmark"
+        case .listBulletRectangle:              return "list.bullet.rectangle"
+        case .rectangleSplit3x1:                return "rectangle.split.3x1"
         case .clockBadgeExclamationmark:        return "clock.badge.exclamationmark"
         case .clockFill:                        return "clock.fill"
         case .exclamationmarkTriangle:          return "exclamationmark.triangle"
