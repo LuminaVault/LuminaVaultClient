@@ -28,6 +28,10 @@ struct RecentSavesFeed: View {
     let onLoadMore: () -> Void
     let onRetry: (PendingSaveUIModel) -> Void
     let onDiscard: (PendingSaveUIModel) -> Void
+    /// A server suggestion for an unfiled save, offered as its own row so the
+    /// tap never lands on the file's navigation link.
+    var suggestedSpace: (VaultFileDTO) -> SpaceDTO? = { _ in nil }
+    var onFile: (VaultFileDTO, SpaceDTO) -> Void = { _, _ in }
 
     var body: some View {
         Group {
@@ -44,6 +48,13 @@ struct RecentSavesFeed: View {
                     )
                 } label: {
                     VaultFileRow(file: file, spaceName: spaceName(file.spaceId))
+                }
+                if let space = suggestedSpace(file) {
+                    Button("File in \(space.name)?", systemImage: "folder.badge.plus") {
+                        onFile(file, space)
+                    }
+                    .font(.footnote)
+                    .accessibilityHint("Suggested from what the note says. Moves it into that Space.")
                 }
             }
 

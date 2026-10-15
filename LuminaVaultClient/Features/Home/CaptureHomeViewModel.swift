@@ -70,6 +70,20 @@ final class CaptureHomeViewModel {
         return availableSpaces?.first(where: { $0.id == id })?.name
     }
 
+    /// A Space the server suggested for an unfiled save, if the user has it.
+    /// The server only sends a suggestion while the file is unfiled.
+    func suggestedSpace(for file: VaultFileDTO) -> SpaceDTO? {
+        guard file.spaceId == nil, let suggested = file.metadata?.suggestedSpaceId else { return nil }
+        return availableSpaces?.first { $0.id == suggested }
+    }
+
+    /// Takes a suggestion: the same move as filing by hand, into the Space's
+    /// folder, which re-files the note and its memory together.
+    func file(_ file: VaultFileDTO, in space: SpaceDTO) async {
+        let name = (file.path as NSString).lastPathComponent
+        await files.move(file: file, newPath: "\(space.slug)/\(name)")
+    }
+
     /// Recording state, so the composer can show a mic that is visibly live.
     let recorder = VoiceRecorder()
     var isRecording: Bool { recorder.isRecording }

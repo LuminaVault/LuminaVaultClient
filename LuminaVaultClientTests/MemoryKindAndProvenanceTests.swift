@@ -51,6 +51,18 @@ final class MemoryKindAndProvenanceTests: XCTestCase {
         XCTAssertEqual(sut.kindFilter, .decision)
     }
 
+    func testMovingSendsTheSpaceAndUnfilingSendsNull() async {
+        let client = RecordingMemoryClient()
+        let sut = MemoryBrowserViewModel(client: client)
+        let space = UUID()
+        let memory = UUID()
+        let moved = await sut.move(id: memory, toSpace: space)
+        let unfiled = await sut.move(id: memory, toSpace: nil)
+        XCTAssertTrue(moved)
+        XCTAssertTrue(unfiled)
+        XCTAssertEqual(client.patchedSpaces, [.space(space), .unfiled])
+    }
+
     func testSavingSendsTheKind() async {
         let client = RecordingMemoryClient()
         let sut = MemoryBrowserViewModel(client: client)
@@ -63,6 +75,7 @@ final class MemoryKindAndProvenanceTests: XCTestCase {
 private final class RecordingMemoryClient: MemoryClientProtocol, @unchecked Sendable {
     var listedKinds: [MemoryKindDTO?] = []
     var patchedKinds: [MemoryKindDTO?] = []
+    var patchedSpaces: [MemorySpaceAssignment?] = []
 
     func upsert(_: MemoryUpsertRequest) async throws -> MemoryUpsertResponse {
         throw APIError.unauthorized
@@ -74,7 +87,9 @@ private final class RecordingMemoryClient: MemoryClientProtocol, @unchecked Send
 
     func patch(id: UUID, _ request: MemoryPatchRequest) async throws -> MemoryDTO {
         patchedKinds.append(request.kind)
-        return MemoryDTO(id: id, content: request.content ?? "", tags: request.tags ?? [], kind: request.kind)
+        patchedSpaces.append(request.spaceId)
+        let spaceID: UUID? = if case let .space(id) = request.spaceId { id } else { nil }
+        return MemoryDTO(id: id, content: request.content ?? "", tags: request.tags ?? [], kind: request.kind, spaceId: spaceID)
     }
 
     func list(limit _: Int, offset _: Int) async throws -> MemoryListResponse {

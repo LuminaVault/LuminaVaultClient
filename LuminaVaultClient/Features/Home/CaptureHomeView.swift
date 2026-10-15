@@ -151,7 +151,9 @@ struct CaptureHomeView: View {
                     spaceName: { vm.spaceName(for: $0) },
                     onLoadMore: { Task { await vm.files.loadMore() } },
                     onRetry: { row in Task { await vm.retry(row) } },
-                    onDiscard: { row in Task { await vm.discard(row) } }
+                    onDiscard: { row in Task { await vm.discard(row) } },
+                    suggestedSpace: { vm.suggestedSpace(for: $0) },
+                    onFile: { file, space in Task { await vm.file(file, in: space) } }
                 )
             }
         }
