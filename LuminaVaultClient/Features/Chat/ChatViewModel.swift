@@ -719,7 +719,9 @@ final class ChatViewModel {
             cron: cron,
             domain: proposal.domain,
             spec: spec,
-            spaceId: nil
+            spaceId: nil,
+            // The job links back to the chat it was proposed in.
+            conversationId: conversationID
         )
         jobProposal = nil
         jobProposalAnchorID = nil

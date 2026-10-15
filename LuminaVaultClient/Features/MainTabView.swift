@@ -163,6 +163,9 @@ struct MainTabView: View {
         }
         .onChange(of: appState.pendingChatConversationID) { _, conversationID in
             guard conversationID != nil else { return }
+            // Opening a chat from inside Settings (a job's "Created from a
+            // chat") would otherwise switch tabs underneath the sheet.
+            showSettings = false
             selection = .think
         }
         .onChange(of: appState.pendingChatPrefill) { _, prefill in

@@ -9,6 +9,7 @@ import SwiftUI
 struct AutomationsView: View {
 
     @Environment(\.lvPalette) private var palette
+    @Environment(AppState.self) private var appState
 
     @State var vm: AutomationsViewModel
 
@@ -43,6 +44,27 @@ struct AutomationsView: View {
         }
     }
 
+    /// Where a job came from, when the server knows: the chat it was proposed
+    /// in (tappable) or the board card it was promoted from.
+    @ViewBuilder
+    private func origin(_ skill: LuminaVaultShared.SkillDTO) -> some View {
+        switch skill.origin?.kind {
+        case .conversation:
+            if let id = skill.origin?.id {
+                Button("Created from a chat — open it") { appState.openChat(conversationID: id) }
+                    .font(LVTypography.caption.font)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(palette.primary)
+            }
+        case .card:
+            Text("Promoted from a board card")
+                .font(LVTypography.caption.font)
+                .foregroundStyle(palette.textSecondary)
+        case .unknown, nil:
+            EmptyView()
+        }
+    }
+
     private func skillRow(_ skill: LuminaVaultShared.SkillDTO) -> some View {
         VStack(alignment: .leading, spacing: LVSpacing.sm) {
             HStack(spacing: LVSpacing.md) {
@@ -65,6 +87,8 @@ struct AutomationsView: View {
                 .labelsHidden()
                 .tint(palette.primary)
             }
+
+            origin(skill)
 
             if skill.enabled, skill.schedule != nil || skill.scheduleOverride != nil {
                 Menu {
