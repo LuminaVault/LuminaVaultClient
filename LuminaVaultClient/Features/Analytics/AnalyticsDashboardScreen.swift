@@ -28,7 +28,8 @@ struct AnalyticsDashboardScreen: View {
                         client: MemoryHTTPClient(client: httpClient),
                         routerClient: RouterHTTPClient(client: httpClient),
                         conversationsClient: ConversationsHTTPClient(client: httpClient),
-                        healthFilter: filter
+                        healthFilter: filter,
+                        spacesClient: SpacesHTTPClient(client: httpClient)
                     )
                 case .models:
                     ModelEffectivenessDetailView(

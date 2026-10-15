@@ -122,7 +122,8 @@ struct SettingsRootView: View {
                                     client: memoryClient,
                                     routerClient: appState.makeRouterClient(),
                                     conversationsClient: appState.makeConversationsClient(),
-                                    spotlight: appState.spotlightIndexer
+                                    spotlight: appState.spotlightIndexer,
+                                    spacesClient: SpacesHTTPClient(client: appState.makeHTTPClient())
                                 )
                             }
                             LVSettingsDivider()

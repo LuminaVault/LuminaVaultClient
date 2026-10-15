@@ -24,6 +24,10 @@ final class MemoryBrowserViewModel {
     /// content is findable from iOS Search. Best-effort and non-blocking —
     /// indexing must never delay or fail a list load.
     private let spotlight: SpotlightIndexer?
+    private let spacesClient: (any SpacesClientProtocol)?
+    /// For the Space picker and the Space name on each row. Empty without a
+    /// Spaces client, which hides the picker.
+    private(set) var spaces: [SpaceDTO] = []
     let healthFilter: MemoryHealthFilter?
     /// Narrows the list to one kind; nil shows everything.
     private(set) var kindFilter: MemoryKindDTO?
@@ -48,16 +52,45 @@ final class MemoryBrowserViewModel {
         routerClient: (any RouterClientProtocol)? = nil,
         conversationsClient: (any ConversationsClientProtocol)? = nil,
         spotlight: SpotlightIndexer? = nil,
-        healthFilter: MemoryHealthFilter? = nil
+        healthFilter: MemoryHealthFilter? = nil,
+        spacesClient: (any SpacesClientProtocol)? = nil
     ) {
         self.client = client
         self.routerClient = routerClient
         self.conversationsClient = conversationsClient
         self.spotlight = spotlight
         self.healthFilter = healthFilter
+        self.spacesClient = spacesClient
+    }
+
+    func spaceName(_ id: UUID?) -> String? {
+        guard let id else { return nil }
+        return spaces.first { $0.id == id }?.name
+    }
+
+    /// Files a memory in a Space, or (nil) takes it out of every Space. A
+    /// memory that came from a note moves with its note — the server does
+    /// that, so the note never ends up in a different Space from its memory.
+    func move(id: UUID, toSpace spaceID: UUID?) async -> Bool {
+        do {
+            let updated = try await client.patch(
+                id: id,
+                MemoryPatchRequest(spaceId: spaceID.map { .space($0) } ?? .unfiled)
+            )
+            if let idx = memories.firstIndex(where: { $0.id == id }) {
+                memories[idx] = updated
+            }
+            return true
+        } catch {
+            actionError = "Couldn't move that memory."
+            return false
+        }
     }
 
     func load() async {
+        if spaces.isEmpty, let spacesClient {
+            spaces = (try? await spacesClient.list()) ?? []
+        }
         state = .loading
         offset = 0
         isSearching = false

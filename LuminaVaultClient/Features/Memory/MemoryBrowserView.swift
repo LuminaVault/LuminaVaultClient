@@ -14,14 +14,16 @@ struct MemoryBrowserView: View {
         routerClient: (any RouterClientProtocol)? = nil,
         conversationsClient: (any ConversationsClientProtocol)? = nil,
         spotlight: SpotlightIndexer? = nil,
-        healthFilter: MemoryHealthFilter? = nil
+        healthFilter: MemoryHealthFilter? = nil,
+        spacesClient: (any SpacesClientProtocol)? = nil
     ) {
         _viewModel = State(initialValue: MemoryBrowserViewModel(
             client: client,
             routerClient: routerClient,
             conversationsClient: conversationsClient,
             spotlight: spotlight,
-            healthFilter: healthFilter
+            healthFilter: healthFilter,
+            spacesClient: spacesClient
         ))
     }
 
@@ -120,6 +122,10 @@ struct MemoryBrowserView: View {
                 .lineLimit(2)
                 .font(.body)
             HStack(spacing: 8) {
+                if let space = viewModel.spaceName(memory.spaceId) {
+                    Label(space, systemImage: "folder")
+                        .lineLimit(1)
+                }
                 if let kind = memory.kind {
                     Text(kind.label)
                         .padding(.horizontal, 6)
@@ -154,6 +160,8 @@ private struct MemoryEditView: View {
     @State private var content: String
     @State private var tagsText: String
     @State private var kind: MemoryKindDTO?
+    @State private var spaceID: UUID?
+    @State private var isMoving = false
     @State private var isSaving = false
     @State private var isShowingModelPicker = false
 
@@ -163,6 +171,7 @@ private struct MemoryEditView: View {
         _content = State(initialValue: memory.content)
         _tagsText = State(initialValue: memory.tags.joined(separator: ", "))
         _kind = State(initialValue: memory.kind)
+        _spaceID = State(initialValue: memory.spaceId)
     }
 
     var body: some View {
@@ -175,6 +184,29 @@ private struct MemoryEditView: View {
             Section("Tags") {
                 TextField("comma, separated, tags", text: $tagsText)
                     .disabled(isSaving)
+            }
+            if !viewModel.spaces.isEmpty {
+                Section {
+                    Picker("Space", selection: $spaceID) {
+                        Text("Inbox").tag(UUID?.none)
+                        ForEach(viewModel.spaces, id: \.id) { space in
+                            Text(space.name).tag(UUID?.some(space.id))
+                        }
+                    }
+                    .disabled(isSaving || isMoving)
+                    .onChange(of: spaceID) { old, new in
+                        guard new != memory.spaceId else { return }
+                        Task {
+                            isMoving = true
+                            if await !viewModel.move(id: memory.id, toSpace: new) {
+                                spaceID = old
+                            }
+                            isMoving = false
+                        }
+                    }
+                } footer: {
+                    Text("A memory that came from a note moves with its note.")
+                }
             }
             Section {
                 Picker("Kind", selection: $kind) {
