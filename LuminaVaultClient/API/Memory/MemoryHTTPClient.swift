@@ -33,10 +33,20 @@ final class MemoryHTTPClient: MemoryClientProtocol {
     }
 
     func list(limit: Int, offset: Int, healthFilter: MemoryHealthFilter?) async throws -> MemoryListResponse {
+        try await list(limit: limit, offset: offset, healthFilter: healthFilter, kind: nil)
+    }
+
+    func list(
+        limit: Int,
+        offset: Int,
+        healthFilter: MemoryHealthFilter?,
+        kind: MemoryKindDTO?
+    ) async throws -> MemoryListResponse {
         try await client.execute(MemoryEndpoints.List(
             limit: limit,
             offset: offset,
-            healthFilter: healthFilter
+            healthFilter: healthFilter,
+            kind: kind
         ))
     }
 

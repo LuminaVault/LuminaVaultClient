@@ -73,11 +73,15 @@ nonisolated enum MemoryEndpoints {
         let limit: Int
         let offset: Int
         var healthFilter: MemoryHealthFilter?
+        var kind: MemoryKindDTO?
 
         var path: String {
             var path = "/v1/memory?limit=\(limit)&offset=\(offset)"
             if let healthFilter {
                 path += "&healthFilter=\(healthFilter.rawValue)"
+            }
+            if let kind {
+                path += "&kind=\(kind.rawValue)"
             }
             return path
         }

@@ -44,12 +44,38 @@ struct MemoryBrowserView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $viewModel.query, prompt: "Search memories")
         .onSubmit(of: .search) { Task { await viewModel.runSearch() } }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Picker("Kind", selection: kindFilterBinding) {
+                        Text("All").tag(MemoryKindDTO?.none)
+                        ForEach(MemoryKindDTO.allCases, id: \.self) { kind in
+                            Text(kind.pluralLabel).tag(MemoryKindDTO?.some(kind))
+                        }
+                    }
+                } label: {
+                    Label(
+                        viewModel.kindFilter?.pluralLabel ?? "Filter by kind",
+                        systemImage: viewModel.kindFilter == nil
+                            ? "line.3.horizontal.decrease.circle"
+                            : "line.3.horizontal.decrease.circle.fill"
+                    )
+                }
+            }
+        }
         .onChange(of: viewModel.query) { _, newValue in
             if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, viewModel.isSearching {
                 Task { await viewModel.load() }
             }
         }
         .task { await viewModel.load() }
+    }
+
+    private var kindFilterBinding: Binding<MemoryKindDTO?> {
+        Binding(
+            get: { viewModel.kindFilter },
+            set: { kind in Task { await viewModel.setKindFilter(kind) } }
+        )
     }
 
     @ViewBuilder private var listContent: some View {
@@ -94,8 +120,14 @@ struct MemoryBrowserView: View {
                 .lineLimit(2)
                 .font(.body)
             HStack(spacing: 8) {
+                if let kind = memory.kind {
+                    Text(kind.label)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(.quaternary, in: Capsule())
+                }
                 if let contribution = memory.provenance?.createdBy {
-                    Label(contribution.model?.model ?? contribution.actor.rawValue.capitalized, systemImage: "person.crop.circle.badge.checkmark")
+                    Text(MemoryProvenanceText.describe(contribution))
                         .lineLimit(1)
                 }
                 if let created = memory.createdAt {
@@ -121,6 +153,7 @@ private struct MemoryEditView: View {
     @Environment(AppState.self) private var appState
     @State private var content: String
     @State private var tagsText: String
+    @State private var kind: MemoryKindDTO?
     @State private var isSaving = false
     @State private var isShowingModelPicker = false
 
@@ -129,6 +162,7 @@ private struct MemoryEditView: View {
         self.memory = memory
         _content = State(initialValue: memory.content)
         _tagsText = State(initialValue: memory.tags.joined(separator: ", "))
+        _kind = State(initialValue: memory.kind)
     }
 
     var body: some View {
@@ -141,6 +175,19 @@ private struct MemoryEditView: View {
             Section("Tags") {
                 TextField("comma, separated, tags", text: $tagsText)
                     .disabled(isSaving)
+            }
+            Section {
+                Picker("Kind", selection: $kind) {
+                    // The server cannot unclassify, so Unclassified is only
+                    // offered while the memory has no kind yet.
+                    if memory.kind == nil {
+                        Text("Unclassified").tag(MemoryKindDTO?.none)
+                    }
+                    ForEach(MemoryKindDTO.allCases, id: \.self) { kind in
+                        Text(kind.label).tag(MemoryKindDTO?.some(kind))
+                    }
+                }
+                .disabled(isSaving)
             }
             if let created = memory.createdAt {
                 Section {
@@ -166,7 +213,7 @@ private struct MemoryEditView: View {
                 Button("Save") {
                     Task {
                         isSaving = true
-                        let ok = await viewModel.save(id: memory.id, content: content, tags: parsedTags)
+                        let ok = await viewModel.save(id: memory.id, content: content, tags: parsedTags, kind: kind)
                         isSaving = false
                         if ok { dismiss() }
                     }
