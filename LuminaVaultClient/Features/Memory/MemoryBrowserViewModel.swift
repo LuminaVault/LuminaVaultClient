@@ -25,6 +25,8 @@ final class MemoryBrowserViewModel {
     /// indexing must never delay or fail a list load.
     private let spotlight: SpotlightIndexer?
     let healthFilter: MemoryHealthFilter?
+    /// Narrows the list to one kind; nil shows everything.
+    private(set) var kindFilter: MemoryKindDTO?
     private let pageSize = 50
 
     var state: LoadState = .loading
@@ -61,7 +63,7 @@ final class MemoryBrowserViewModel {
         isSearching = false
         actionError = nil
         do {
-            let response = try await client.list(limit: pageSize, offset: 0, healthFilter: healthFilter)
+            let response = try await client.list(limit: pageSize, offset: 0, healthFilter: healthFilter, kind: kindFilter)
             memories = response.memories
             offset = response.memories.count
             canLoadMore = response.memories.count == pageSize
@@ -76,7 +78,7 @@ final class MemoryBrowserViewModel {
     func loadMore() async {
         guard canLoadMore, !isSearching, state == .ready else { return }
         do {
-            let response = try await client.list(limit: pageSize, offset: offset, healthFilter: healthFilter)
+            let response = try await client.list(limit: pageSize, offset: offset, healthFilter: healthFilter, kind: kindFilter)
             memories.append(contentsOf: response.memories)
             offset += response.memories.count
             canLoadMore = response.memories.count == pageSize
@@ -84,6 +86,13 @@ final class MemoryBrowserViewModel {
         } catch {
             actionError = "Couldn't load more."
         }
+    }
+
+    func setKindFilter(_ kind: MemoryKindDTO?) async {
+        guard kind != kindFilter else { return }
+        kindFilter = kind
+        query = ""
+        await load()
     }
 
     func runSearch() async {
@@ -158,12 +167,13 @@ final class MemoryBrowserViewModel {
         }
     }
 
-    /// Saves an edited memory (content + tags) and replaces the local copy.
-    func save(id: UUID, content: String, tags: [String]) async -> Bool {
+    /// Saves an edited memory (content, tags, kind) and replaces the local
+    /// copy. A nil kind sends nothing: the server has no "unclassify".
+    func save(id: UUID, content: String, tags: [String], kind: MemoryKindDTO? = nil) async -> Bool {
         do {
             let updated = try await client.patch(
                 id: id,
-                MemoryPatchRequest(content: content, tags: tags)
+                MemoryPatchRequest(content: content, tags: tags, kind: kind)
             )
             if let idx = memories.firstIndex(where: { $0.id == id }) {
                 memories[idx] = updated
