@@ -285,6 +285,20 @@ struct SettingsRootView: View {
                                 AutomationsView(vm: AutomationsViewModel(client: skillsClient))
                             }
                             LVSettingsDivider()
+                            // Workflow runs and gateway jobs: running, queued,
+                            // done, failed. Web has had this at /tasks.
+                            LVSettingsRow("Tasks", icon: .listBulletRectangle) {
+                                TasksListView(
+                                    vm: TasksListViewModel(client: TasksHTTPClient(client: appState.makeHTTPClient()))
+                                )
+                            }
+                            LVSettingsDivider()
+                            // The Kanban board; a card can be promoted to a
+                            // scheduled job. Web has it at /teams/boards.
+                            LVSettingsRow("Boards", icon: .rectangleSplit3x1) {
+                                KanbanEntryView(client: KanbanHTTPClient(client: appState.makeHTTPClient()))
+                            }
+                            LVSettingsDivider()
                             // Studio is not a tab. It is where the automations
                             // above are built and watched, so it lives beside
                             // them; the subtitle names what it holds.
