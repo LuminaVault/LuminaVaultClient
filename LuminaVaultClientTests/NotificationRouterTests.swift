@@ -113,4 +113,37 @@ struct NotificationRouterTests {
             "hermesRunID": "run_ab12",
         ]) == .none)
     }
+
+    @Test
+    func `a memory URL opens that memory`() throws {
+        let memoryID = UUID()
+        let url = try #require(URL(string: "luminavault://memory/\(memoryID.uuidString)"))
+
+        #expect(NotificationRouter.deepLink(from: url) == .memory(id: memoryID))
+    }
+
+    @Test
+    func `a memory URL is matched case-insensitively and takes a lowercased id`() throws {
+        let memoryID = UUID()
+        let url = try #require(URL(string: "LuminaVault://Memory/\(memoryID.uuidString.lowercased())"))
+
+        #expect(NotificationRouter.deepLink(from: url) == .memory(id: memoryID))
+    }
+
+    @Test(arguments: [
+        "luminavault://memory/not-a-uuid",
+        "luminavault://memory",
+        "luminavault://memory/7C0E0B53-9A51-4F43-9B0C-2C1E6B0E0001/extra",
+        "https://memory/7C0E0B53-9A51-4F43-9B0C-2C1E6B0E0001",
+        "luminavault://memories/7C0E0B53-9A51-4F43-9B0C-2C1E6B0E0001",
+    ])
+    func `malformed memory URLs are not routed`(raw: String) throws {
+        let url = try #require(URL(string: raw))
+        #expect(NotificationRouter.deepLink(from: url) == .none)
+    }
+
+    @Test
+    func `a memory link is routed when the app is open`() {
+        #expect(NotificationRouter.routesOnForegroundDelivery(.memory(id: UUID())))
+    }
 }

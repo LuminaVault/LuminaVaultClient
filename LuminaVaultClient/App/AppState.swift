@@ -392,6 +392,11 @@ final class AppState {
         DailyReviewHTTPClient(client: makeHTTPClient())
     }
 
+    /// GET /v1/me/recap — Home's "Your week" strip and the recap sheet.
+    func makeRecapClient() -> any RecapClientProtocol {
+        RecapHTTPClient(client: makeHTTPClient())
+    }
+
     /// HER-293 / HER-108 — memory-compile HTTP client (POST
     /// `/v1/memory-compile` and `GET /v1/memory-compile/pending`; HER-240
     /// renamed both from `/v1/kb-compile`). Used by `SyncAndLearnViewModel`

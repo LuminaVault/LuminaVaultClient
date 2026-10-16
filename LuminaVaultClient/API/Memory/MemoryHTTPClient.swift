@@ -62,6 +62,10 @@ final class MemoryHTTPClient: MemoryClientProtocol {
         try await client.execute(MemoryEndpoints.Provenance(id: id))
     }
 
+    func related(id: UUID, limit: Int) async throws -> MemoryRelatedResponse {
+        try await client.execute(MemoryEndpoints.Related(id: id, limit: limit))
+    }
+
     func facets() async throws -> MemoryFacetsResponse {
         try await client.execute(MemoryEndpoints.Facets())
     }

@@ -21,6 +21,9 @@ enum APNSDeepLink: Sendable, Equatable {
     /// `conversationID`), a `luminavault://chat/<id>` URL, or a tap on the
     /// agent-run Live Activity. Opens that thread in the AI tab.
     case conversation(id: UUID)
+    /// `luminavault://memory/<id>` — one memory, opened as a sheet over
+    /// whatever is on screen.
+    case memory(id: UUID)
     case none
 }
 
@@ -98,17 +101,24 @@ final class NotificationRouter {
         }
     }
 
-    /// Parse an app URL. Only `luminavault://chat/<conversationID>` is
-    /// recognised — the `deepLink` the server puts on a proactive chat push
-    /// and the `widgetURL` of the agent-run Live Activity. Everything else is
-    /// `.none`, so `onOpenURL` can fall through to its other handlers.
+    /// Parse an app URL. Two are recognised:
+    ///
+    /// * `luminavault://chat/<conversationID>` — the `deepLink` the server
+    ///   puts on a proactive chat push and the `widgetURL` of the agent-run
+    ///   Live Activity.
+    /// * `luminavault://memory/<memoryID>` — one memory.
+    ///
+    /// Everything else is `.none`, so `onOpenURL` can fall through to its
+    /// other handlers.
     static func deepLink(from url: URL) -> APNSDeepLink {
-        guard url.scheme?.lowercased() == "luminavault",
-              url.host?.lowercased() == "chat"
-        else { return .none }
+        guard url.scheme?.lowercased() == "luminavault" else { return .none }
         let segments = url.pathComponents.filter { $0 != "/" }
         guard segments.count == 1, let id = UUID(uuidString: segments[0]) else { return .none }
-        return .conversation(id: id)
+        switch url.host?.lowercased() {
+        case "chat": return .conversation(id: id)
+        case "memory": return .memory(id: id)
+        default: return .none
+        }
     }
 
     /// Whether a notification that arrives while the app is open should

@@ -132,4 +132,50 @@ final class HomeGlanceViewModelTests: XCTestCase {
         await sut.load()
         XCTAssertEqual(summaryClient.lastPeriod, .today)
     }
+
+    // MARK: - Your week
+
+    private func makeRecapSUT(_ result: Result<MeRecapResponse, Error>?) -> (HomeGlanceViewModel, MockRecapClient?) {
+        let recapClient = result.map { result -> MockRecapClient in
+            let client = MockRecapClient()
+            client.results[.week] = result
+            return client
+        }
+        let sut = HomeGlanceViewModel(
+            homeClient: MockHomeSummaryClient(),
+            dailyReviewClient: MockDailyReviewClient(),
+            pendingClient: MockKBCompileClient(),
+            recapClient: recapClient
+        )
+        return (sut, recapClient)
+    }
+
+    func testTheWeekStripLoadsTheSevenDayRecap() async {
+        let (sut, client) = makeRecapSUT(.success(.fixture()))
+        XCTAssertNil(sut.recap.value, "redacted until it lands")
+        XCTAssertFalse(sut.recap.isFailed)
+        await sut.load()
+        XCTAssertEqual(sut.recap.value?.totals.captures, 12)
+        XCTAssertEqual(client?.requestedRanges, [.week])
+    }
+
+    func testAFailedRecapHidesTheStripButNotTheTiles() async {
+        let (sut, _) = makeRecapSUT(.failure(Boom()))
+        await sut.load()
+        XCTAssertTrue(sut.recap.isFailed)
+        XCTAssertFalse(sut.allFailed, "the week strip is not one of the glance tiles")
+    }
+
+    func testARefreshThatFailsKeepsTheWeekOnScreen() async {
+        let (sut, client) = makeRecapSUT(.success(.fixture()))
+        await sut.load()
+        client?.results[.week] = .failure(Boom())
+        await sut.load()
+        XCTAssertEqual(sut.recap.value?.totals.captures, 12)
+    }
+
+    func testNoRecapClientMeansNoStrip() async {
+        let (sut, _) = makeRecapSUT(nil)
+        XCTAssertTrue(sut.recap.isFailed, "previews and older snapshot suites render Home as before")
+    }
 }
