@@ -731,7 +731,9 @@
 		};
 		605690322FBF20FF0059C355 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 60HER143CFGDBG0000000001 /* Config.Debug.xcconfig */;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = LuminaVaultShareExtension/LuminaVaultShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 84X9WYBF36;
@@ -759,7 +761,9 @@
 		};
 		605690332FBF20FF0059C355 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 60HER143CFGREL0000000001 /* Config.Release.xcconfig */;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = LuminaVaultShareExtension/LuminaVaultShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 84X9WYBF36;
@@ -787,7 +791,9 @@
 		};
 		605690342FBF20FF0059C355 /* Beta */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 60HER143CFGBTA0000000001 /* Config.Beta.xcconfig */;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = LuminaVaultShareExtension/LuminaVaultShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 84X9WYBF36;
