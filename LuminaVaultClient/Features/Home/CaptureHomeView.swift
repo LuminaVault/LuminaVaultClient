@@ -241,7 +241,8 @@ struct CaptureHomeView: View {
                     initial: glance?.recap.value
                 ),
                 memoryClient: memoryClient,
-                spacesClient: spacesClient
+                spacesClient: spacesClient,
+                periodRecapClient: appState.makePeriodRecapClient()
             )
         }
         .sheet(item: $openConnections) { connections in
