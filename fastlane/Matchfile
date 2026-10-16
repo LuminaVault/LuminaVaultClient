@@ -1,15 +1,19 @@
-# The team's shared match repo — the same one Norviq signs from.
+# The team's shared match repo — the one Khepri, Aaru and ScanItNow sign from.
 #
 # One Apple Distribution certificate signs every app in team 84X9WYBF36, and
-# Apple caps how many a team may hold. When LuminaVault and Norviq each kept
-# their own match repo, each could create (and push out) the other's
-# certificate; LuminaVault's was invalidated around 2026-09-20 and every
-# TestFlight build failed from then on. Sharing one repo means match reuses
-# the one certificate and only adds this app's provisioning profiles.
+# Apple caps how many a team may hold, so a second match repo for the team can
+# only fail to create its own. LuminaVault's was invalidated around 2026-09-20
+# and every TestFlight build failed from then on. Sharing this repo means match
+# reuses its certificate and only adds this app's provisioning profiles.
+# (Norviq still keeps its own repo and certificate.)
+#
+# The repo's only branch is main; match's default (master) finds nothing there
+# and tries to create a certificate, which Apple refuses at the cap.
 #
 # CI overrides with the MATCH_GIT_URL secret; MATCH_PASSWORD is that repo's
 # password and MATCH_GIT_BASIC_AUTHORIZATION must be able to read it.
-git_url(ENV["MATCH_GIT_URL"] || "https://github.com/FinancePlanner/norviq-certificates.git")
+git_url(ENV["MATCH_GIT_URL"] || "https://github.com/NorthAIProject/north-ios-certificates.git")
+git_branch("main")
 
 storage_mode("git")
 
