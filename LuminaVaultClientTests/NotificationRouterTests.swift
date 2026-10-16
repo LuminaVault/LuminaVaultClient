@@ -142,8 +142,11 @@ struct NotificationRouterTests {
         #expect(NotificationRouter.deepLink(from: url) == .none)
     }
 
+    /// A memory push is a resurfaced memory coming due; like a chat push,
+    /// its banner is the news, and only a tap opens it. (A memory *URL* —
+    /// a widget tap, a link — goes through `onOpenURL`, not this check.)
     @Test
-    func `a memory link is routed when the app is open`() {
-        #expect(NotificationRouter.routesOnForegroundDelivery(.memory(id: UUID())))
+    func `a memory push waits for a tap when the app is open`() {
+        #expect(!NotificationRouter.routesOnForegroundDelivery(.memory(id: UUID())))
     }
 }

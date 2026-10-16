@@ -96,6 +96,7 @@
 		5269C20E41A0D2C9D8A9B4E6 /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultShareExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Services/AppGroup/ExtensionAPIConfig.swift,
 				Services/AppGroup/PendingShare.swift,
 				Services/AppGroup/SharedAppGroup.swift,
 				Services/AppGroup/SharedCapturePreferences.swift,
@@ -116,8 +117,12 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Features/Chat/AgentRun/AgentRunAttributes.swift,
+				Services/AppGroup/ExtensionAPIConfig.swift,
+				Services/AppGroup/ResurfaceWidgetSnapshot.swift,
 				Services/AppGroup/SharedAppGroup.swift,
+				Services/AppGroup/SharedSessionKeychain.swift,
 				Services/AppGroup/WidgetSnapshotStore.swift,
+				Services/KeychainService.swift,
 			);
 			target = 603DC5AD301E09CF00EE0BC4 /* LuminaVaultWidgetsExtension */;
 		};
@@ -635,6 +640,7 @@
 /* Begin XCBuildConfiguration section */
 		603DC5C3301E09D100EE0BC4 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 60HER143CFGDBG0000000001 /* Config.Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
@@ -667,6 +673,7 @@
 		};
 		603DC5C4301E09D100EE0BC4 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 60HER143CFGREL0000000001 /* Config.Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
@@ -699,6 +706,7 @@
 		};
 		603DC5C5301E09D100EE0BC4 /* Beta */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 60HER143CFGBTA0000000001 /* Config.Beta.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
@@ -1367,7 +1375,7 @@
 			repositoryURL = "https://github.com/LuminaVault/LuminaVaultShared.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 5.26.0;
+				minimumVersion = 5.27.0;
 			};
 		};
 		60GRP000C2FAE1200006F894F /* XCRemoteSwiftPackageReference "Grape" */ = {

@@ -36,6 +36,39 @@ final class DeviceRegistrationCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testRegisterSendsTheBundleID() async {
+        let mock = MockDeviceClient()
+        let coord = DeviceRegistrationCoordinator(
+            client: mock,
+            defaults: defaults,
+            bundleID: "com.lumina.fernando.beta"
+        )
+
+        await coord.register(tokenHex: "abcdef")
+
+        XCTAssertEqual(mock.registerCalls.first?.bundleId, "com.lumina.fernando.beta")
+    }
+
+    /// A token registered before the server took bundle ids is sent once
+    /// more, so the server learns which topic to push it on.
+    @MainActor
+    func testRegisterRePostsAKnownTokenThatNeverCarriedABundleID() async {
+        defaults.set("abcdef", forKey: "her214.lastRegisteredDeviceTokenHex")
+        let mock = MockDeviceClient()
+        let coord = DeviceRegistrationCoordinator(
+            client: mock,
+            defaults: defaults,
+            bundleID: "com.lumina.fernando"
+        )
+
+        await coord.register(tokenHex: "abcdef")
+        await coord.register(tokenHex: "abcdef")
+
+        XCTAssertEqual(mock.registerCalls.count, 1)
+        XCTAssertEqual(mock.registerCalls.first?.bundleId, "com.lumina.fernando")
+    }
+
+    @MainActor
     func testRegisterSkipsWhenTokenUnchanged() async {
         let mock = MockDeviceClient()
         let coord = DeviceRegistrationCoordinator(client: mock, defaults: defaults)

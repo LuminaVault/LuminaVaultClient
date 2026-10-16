@@ -32,20 +32,30 @@ final class DeviceRegistrationCoordinator: TokenObserver {
     private let client: any DeviceClientProtocol
     private let defaults: UserDefaults
     private let platform: DevicePlatform
+    /// Sent with the token so the server pushes on this app's own APNs topic
+    /// — a TestFlight or debug build has a different bundle id from the App
+    /// Store one, and APNs drops a push sent to the wrong topic.
+    private let bundleID: String?
 
     /// Persisted under this key so a fresh launch (or a sign-out from a
     /// different code path) can still look up "what did we last tell the
     /// server about". The value is the hex-encoded device token.
     private static let storageKey = "her214.lastRegisteredDeviceTokenHex"
+    /// The bundle id that last registration carried. A token registered
+    /// before the server learned bundle ids has none here, so it is sent
+    /// once more rather than being skipped as already known.
+    private static let bundleIDStorageKey = "her214.lastRegisteredBundleID"
 
     init(
         client: any DeviceClientProtocol,
         defaults: UserDefaults = .standard,
-        platform: DevicePlatform = .ios
+        platform: DevicePlatform = .ios,
+        bundleID: String? = Bundle.main.bundleIdentifier
     ) {
         self.client = client
         self.defaults = defaults
         self.platform = platform
+        self.bundleID = bundleID
     }
 
     /// HER-214 — last token successfully POSTed to `/v1/devices`. `nil`
@@ -74,12 +84,17 @@ final class DeviceRegistrationCoordinator: TokenObserver {
     /// is a no-op (the server already knows about it).
     func register(tokenHex: String) async {
         guard !tokenHex.isEmpty else { return }
-        if tokenHex == lastRegisteredTokenHex { return }
+        if tokenHex == lastRegisteredTokenHex,
+           defaults.string(forKey: Self.bundleIDStorageKey) == bundleID
+        {
+            return
+        }
         do {
             _ = try await client.register(
-                DeviceRegistrationRequest(token: tokenHex, platform: platform)
+                DeviceRegistrationRequest(token: tokenHex, platform: platform, bundleId: bundleID)
             )
             defaults.set(tokenHex, forKey: Self.storageKey)
+            defaults.set(bundleID, forKey: Self.bundleIDStorageKey)
             log.info("device.register.ok len=\(tokenHex.count, privacy: .public)")
         } catch {
             // Don't persist — next launch (or rotation) will retry. The
@@ -95,7 +110,10 @@ final class DeviceRegistrationCoordinator: TokenObserver {
     /// token can't be replayed on next sign-in.
     func unregisterCurrentToken() async {
         guard let tokenHex = lastRegisteredTokenHex else { return }
-        defer { defaults.removeObject(forKey: Self.storageKey) }
+        defer {
+            defaults.removeObject(forKey: Self.storageKey)
+            defaults.removeObject(forKey: Self.bundleIDStorageKey)
+        }
         do {
             try await client.unregister(token: tokenHex)
             log.info("device.unregister.ok")

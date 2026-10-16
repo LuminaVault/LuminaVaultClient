@@ -2,11 +2,11 @@
 //
 // The App Group file the widget reads.
 //
-// A widget extension is a separate process with its own sandbox: it cannot
-// read the host app's keychain, so it has no bearer token and cannot make an
-// authenticated API call. It also gets a very short execution budget. So the
-// widget never touches the network — the app writes a small snapshot here on
-// capture/load, and the timeline provider reads it.
+// A widget extension is a separate process with its own sandbox and a very
+// short execution budget. It cannot read the host app's private keychain (only
+// the access token mirrored into the shared group, with no refresh token), so
+// rendering never touches the network — the app writes a small snapshot here
+// on capture/load, and the timeline provider reads it.
 //
 // This file is compiled into BOTH targets (main app + widget extension). Keep
 // it dependency-free: Foundation only, no LuminaVaultShared, no API types.
