@@ -6,6 +6,20 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXAggregateTarget section */
+		48F81C52295F8A13234B1184 /* Periphery */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = F81C52295F8A13234B118468 /* Build configuration list for PBXAggregateTarget "Periphery" */;
+			buildPhases = (
+				1C52295F8A13234B11846819 /* Periphery */,
+			);
+			dependencies = (
+			);
+			name = Periphery;
+			productName = Periphery;
+		};
+/* End PBXAggregateTarget section */
+
 /* Begin PBXBuildFile section */
 		0B4FB7CF9004FCB964362A5C /* SharedAppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28D751509558FA472F19A1E9 /* SharedAppGroup.swift */; };
 		36898169B542419BA32DA510 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = F8D79674B58849A9A00C4538 /* Sentry-Dynamic */; };
@@ -113,19 +127,6 @@
 			);
 			target = 603DC5AD301E09CF00EE0BC4 /* LuminaVaultWidgetsExtension */;
 		};
-		60WID39EXC2026080101AB /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultWidgetsExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Features/Chat/AgentRun/AgentRunAttributes.swift,
-				Services/AppGroup/ExtensionAPIConfig.swift,
-				Services/AppGroup/ResurfaceWidgetSnapshot.swift,
-				Services/AppGroup/SharedAppGroup.swift,
-				Services/AppGroup/SharedSessionKeychain.swift,
-				Services/AppGroup/WidgetSnapshotStore.swift,
-				Services/KeychainService.swift,
-			);
-			target = 603DC5AD301E09CF00EE0BC4 /* LuminaVaultWidgetsExtension */;
-		};
 		605690352FBF20FF0059C355 /* Exceptions for "LuminaVaultShareExtension" folder in "LuminaVaultShareExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -139,9 +140,21 @@
 				Config/Info.plist,
 				Config/README.md,
 				Resources/Hermie/README.md,
-				Resources/README.md,
 			);
 			target = 6088C4F22FAE1184006F894F /* LuminaVaultClient */;
+		};
+		60WID39EXC2026080101AB /* Exceptions for "LuminaVaultClient" folder in "LuminaVaultWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Features/Chat/AgentRun/AgentRunAttributes.swift,
+				Services/AppGroup/ExtensionAPIConfig.swift,
+				Services/AppGroup/ResurfaceWidgetSnapshot.swift,
+				Services/AppGroup/SharedAppGroup.swift,
+				Services/AppGroup/SharedSessionKeychain.swift,
+				Services/AppGroup/WidgetSnapshotStore.swift,
+				Services/KeychainService.swift,
+			);
+			target = 603DC5AD301E09CF00EE0BC4 /* LuminaVaultWidgetsExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -408,21 +421,6 @@
 		};
 /* End PBXNativeTarget section */
 
-/* Begin PBXAggregateTarget section */
-		48F81C52295F8A13234B1184 /* Periphery */ = {
-			isa = PBXAggregateTarget;
-			buildConfigurationList = F81C52295F8A13234B118468 /* Build configuration list for PBXAggregateTarget "Periphery" */;
-			buildPhases = (
-				1C52295F8A13234B11846819 /* Periphery */,
-			);
-			dependencies = (
-			);
-			name = Periphery;
-			productName = Periphery;
-		};
-/* End PBXAggregateTarget section */
-
-
 /* Begin PBXProject section */
 		6088C4EB2FAE1184006F894F /* Project object */ = {
 			isa = PBXProject;
@@ -525,22 +523,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		A53E5752B5D24598A86BD3CA /* Upload Debug Symbols to Sentry */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
-			);
-			name = "Upload Debug Symbols to Sentry";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This script is responsible for uploading debug symbols and source context for Sentry.\nif which sentry-cli >/dev/null; then\n  export SENTRY_ORG=fernando-lda\n  export SENTRY_PROJECT=luminavault\n  ERROR=$(sentry-cli debug-files upload --include-sources \"$DWARF_DSYM_FOLDER_PATH\" 2>&1 >/dev/null)\n  if [ ! $? -eq 0 ]; then\n    echo \"warning: sentry-cli - $ERROR\"\n  fi\nelse\n  echo \"warning: sentry-cli not installed, download from https://github.com/getsentry/sentry-cli/releases\"\nfi\n";
-		};
 		1C52295F8A13234B11846819 /* Periphery */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -570,6 +552,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "export PATH=\"$PATH:/opt/homebrew/bin\"\nROOT=\"${PROJECT_DIR}\"\nif [ ! -f \"${ROOT}/.swiftlint.yml\" ] && [ -f \"${ROOT}/../.swiftlint.yml\" ]; then\n  ROOT=\"${ROOT}/..\"\nfi\ncd \"${ROOT}\"\nif which swiftlint >/dev/null; then\n  swiftlint\nelse\n  echo \"warning: SwiftLint not installed\"\nfi\n";
+		};
+		A53E5752B5D24598A86BD3CA /* Upload Debug Symbols to Sentry */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
+			);
+			name = "Upload Debug Symbols to Sentry";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script is responsible for uploading debug symbols and source context for Sentry.\nif which sentry-cli >/dev/null; then\n  export SENTRY_ORG=fernando-lda\n  export SENTRY_PROJECT=luminavault\n  ERROR=$(sentry-cli debug-files upload --include-sources \"$DWARF_DSYM_FOLDER_PATH\" 2>&1 >/dev/null)\n  if [ ! $? -eq 0 ]; then\n    echo \"warning: sentry-cli - $ERROR\"\n  fi\nelse\n  echo \"warning: sentry-cli not installed, download from https://github.com/getsentry/sentry-cli/releases\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -638,6 +636,20 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		0DB28CFB3082B2D3007567FA /* Beta */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = Periphery;
+			};
+			name = Beta;
+		};
+		234B118468194E30F47CCBBE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		603DC5C3301E09D100EE0BC4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 60HER143CFGDBG0000000001 /* Config.Debug.xcconfig */;
@@ -961,7 +973,7 @@
 				BUILD_NUMBER = 1;
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultClient/LuminaVaultClient.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				CURRENT_PROJECT_VERSION = 149;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				ENABLE_PREVIEWS = YES;
@@ -1009,7 +1021,7 @@
 				BUILD_NUMBER = 1;
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultClient/LuminaVaultClient.Release.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				ENABLE_PREVIEWS = YES;
@@ -1200,7 +1212,7 @@
 				BUILD_NUMBER = 1;
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultClient/LuminaVaultClient.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
+				CURRENT_PROJECT_VERSION = 149;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				ENABLE_PREVIEWS = YES;
@@ -1288,13 +1300,6 @@
 			};
 			name = Debug;
 		};
-		234B118468194E30F47CCBBE /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1363,6 +1368,7 @@
 			buildConfigurations = (
 				8A13234B118468194E30F47C /* Debug */,
 				234B118468194E30F47CCBBE /* Release */,
+				0DB28CFB3082B2D3007567FA /* Beta */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
