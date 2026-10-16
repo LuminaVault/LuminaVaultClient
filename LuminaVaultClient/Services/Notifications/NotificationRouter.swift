@@ -41,7 +41,8 @@ final class NotificationRouter {
     /// Parse a `UNNotificationContent.userInfo` dict produced by the
     /// server-side `APNSNotificationService`.
     func deepLink(from userInfo: [AnyHashable: Any]) -> APNSDeepLink {
-        guard let categoryRaw = userInfo["category"] as? String else {
+        let aps = userInfo["aps"] as? [String: Any]
+        guard let categoryRaw = (userInfo["category"] as? String) ?? (aps?["category"] as? String) else {
             return .none
         }
         if categoryRaw == "ingestion" {
@@ -59,10 +60,18 @@ final class NotificationRouter {
         {
             return .workflow(runID: runID)
         }
+        if let push = ResurfacePush(userInfo: userInfo) {
+            return .memory(id: push.memoryID)
+        }
         guard
             let category = APNSCategory(rawValue: categoryRaw)
         else {
-            return .none
+            // A category this build has no case for (`learned`, `brief`,
+            // `meeting`, …) still opens wherever its deep link points.
+            guard let raw = userInfo["deepLink"] as? String, let url = URL(string: raw) else {
+                return .none
+            }
+            return Self.deepLink(from: url)
         }
         switch category {
         case .digest:
@@ -127,6 +136,9 @@ final class NotificationRouter {
     /// the opposite of a companion. Only a tap routes it.
     static func routesOnForegroundDelivery(_ link: APNSDeepLink) -> Bool {
         if case .conversation = link { return false }
+        // Same for a resurfaced memory: popping a sheet over what the user is
+        // doing because a memory came due is the opposite of a gentle nudge.
+        if case .memory = link { return false }
         return link != .none
     }
 }

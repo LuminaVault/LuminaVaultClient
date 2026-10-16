@@ -5,10 +5,11 @@
 //  Recent captures on the home screen.
 //
 //  Reads `WidgetSnapshotStore` from the shared App Group container and never
-//  touches the network. A widget extension is a separate process with its own
-//  sandbox: it cannot read the host app's keychain, so it holds no bearer token
-//  and cannot make an authenticated API call. It also runs on a very short
-//  budget. The app publishes a snapshot on capture; this just renders it.
+//  touches the network. A widget runs on a very short budget, and the only
+//  credential it can see is the access token the app mirrors into the shared
+//  keychain group — no refresh token — so rendering never depends on a call.
+//  The app publishes a snapshot on capture; this just renders it. (The one
+//  network call in this extension is a button: `ResurfaceActionIntent`.)
 //
 
 import SwiftUI

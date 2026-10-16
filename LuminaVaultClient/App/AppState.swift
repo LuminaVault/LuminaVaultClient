@@ -385,11 +385,10 @@ final class AppState {
         ChatHTTPClient(client: makeHTTPClient())
     }
 
-    /// HER-154 — daily review digest client (GET /v1/me/today). Pull-
-    /// to-refresh and tab-appear consumers go through this factory so
-    /// they share the bearer + 401 refresh coordinator.
-    func makeDailyReviewClient() -> any DailyReviewClientProtocol {
-        DailyReviewHTTPClient(client: makeHTTPClient())
+    /// GET /v1/me/resurface — the "to revisit" queue behind Home's card,
+    /// its tile and the Daily review list.
+    func makeResurfaceClient() -> any ResurfaceClientProtocol {
+        ResurfaceHTTPClient(client: makeHTTPClient())
     }
 
     /// GET /v1/me/recap — Home's "Your week" strip and the recap sheet.
@@ -486,6 +485,8 @@ final class AppState {
         // show one user's note titles to whoever signs in next.
         WidgetSnapshotStore.clear()
         WidgetCenter.shared.reloadTimelines(ofKind: "LuminaVaultWidgets")
+        ResurfaceWidgetStore.shared.clear()
+        WidgetCenter.shared.reloadTimelines(ofKind: ResurfaceWidgetStore.widgetKind)
         sharedSessionKeychain.clear()
         keychain.clearAll()
         currentUserId = nil

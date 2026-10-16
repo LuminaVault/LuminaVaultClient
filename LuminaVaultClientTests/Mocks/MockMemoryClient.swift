@@ -16,6 +16,8 @@ final class MockMemoryClient: MemoryClientProtocol, @unchecked Sendable {
     var relatedResult: Result<MemoryRelatedResponse, Error> = .failure(APIError.unauthorized)
     var provenanceResult: Result<MemoryProvenanceResponse, Error> = .failure(APIError.unauthorized)
     var deleteError: Error?
+    var reviewResult: Result<MemoryReviewResponse, Error> = .failure(APIError.unauthorized)
+    private(set) var reviewCalls: [(id: UUID, action: MemoryReviewAction?)] = []
 
     private(set) var getCalls: [UUID] = []
     private(set) var relatedCalls: [(id: UUID, limit: Int)] = []
@@ -38,6 +40,11 @@ final class MockMemoryClient: MemoryClientProtocol, @unchecked Sendable {
     func delete(id: UUID) async throws {
         deleteCalls.append(id)
         if let deleteError { throw deleteError }
+    }
+
+    func review(id: UUID, action: MemoryReviewAction?) async throws -> MemoryReviewResponse {
+        reviewCalls.append((id, action))
+        return try reviewResult.get()
     }
 
     func upsert(_: MemoryUpsertRequest) async throws -> MemoryUpsertResponse {

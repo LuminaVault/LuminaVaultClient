@@ -1,248 +1,93 @@
 // LuminaVaultClient/LuminaVaultClient/Features/DailyReview/DailyReviewView.swift
 //
-// HER-154 scaffold — daily review surface:
-//   - empty-state hero with mascot (.idle)
-//   - streak counter pill
-//   - "Hermes' reflection of the day" card
-//   - this-week memos list with per-row ShareLink
-//   - suggested actions row
-//   - pull-to-refresh wired to VM
+// Daily review: every memory in today's resurface queue, each with why it is
+// back and the same four answers as the Home card.
 //
-// Sections render only when the corresponding fields are populated;
-// the view degrades gracefully when the server omits any of them
-// (digest is the source of truth).
+// It runs on Home's own `ResurfaceQueueViewModel`, not a copy of it, so an
+// answer given here has already moved the Home card and its tile on by the
+// time Back is tapped.
+
+import LuminaVaultShared
 import SwiftUI
 
 struct DailyReviewView: View {
-    @State var vm: DailyReviewViewModel
+    let queue: ResurfaceQueueViewModel
+    let memoryClient: any MemoryClientProtocol
+    var spacesClient: (any SpacesClientProtocol)?
+
+    @State private var openMemory: ResurfaceItemDTO?
 
     var body: some View {
         // No `NavigationStack` here: Home pushes this view, so owning one
         // would draw a second navigation bar under the first.
-        ScrollView {
+        List {
             content
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
         }
-        .refreshable { await vm.refresh() }
-        .background(Color(.systemGroupedBackground))
-        .navigationTitle("Today")
+        .listStyle(.insetGrouped)
+        .refreshable { await queue.load() }
+        .navigationTitle("Daily review")
         .navigationBarTitleDisplayMode(.large)
-        .task { await vm.loadIfNeeded() }
+        .sheet(item: $openMemory) { item in
+            MemoryDetailSheet(
+                memoryID: item.memoryId,
+                client: memoryClient,
+                spacesClient: spacesClient
+            )
+        }
     }
 
     @ViewBuilder
     private var content: some View {
-        switch vm.phase {
-        case .empty, .loading:
-            EmptyHero(mascotState: vm.mascotState)
-        case .loaded(let digest):
-            LoadedSections(digest: digest)
-        case .failed(let message):
-            ErrorRow(message: message)
-        }
-    }
-}
-
-// MARK: - Empty / loading
-
-private struct EmptyHero: View {
-    let mascotState: HermieMascotState
-    var body: some View {
-        VStack(spacing: 16) {
-            HermieMascotView(state: mascotState, size: 140, fallbackImageName: "OnboardingMascot")
-            Text("Lumina's getting today ready.")
-                .font(.title3)
-                .multilineTextAlignment(.center)
-            Text("Your reflection, this week's memos, and your streak will show up here.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.vertical, 32)
-        .frame(maxWidth: .infinity)
-    }
-}
-
-private struct ErrorRow: View {
-    let message: String
-    var body: some View {
-        HStack(spacing: 8) {
-            LVIconView(.exclamationmarkTriangleFill, tint: .orange)
-            Text(message)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(.rect(cornerRadius: 10))
-    }
-}
-
-// MARK: - Loaded sections
-
-private struct LoadedSections: View {
-    let digest: DailyReviewDigest
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            if let streak = digest.streakDays, streak > 0 {
-                StreakPill(days: streak)
+        switch queue.phase {
+        case .loading where queue.items.isEmpty:
+            Section {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
             }
-            if let reflection = digest.reflection, !reflection.isEmpty {
-                ReflectionCard(text: reflection)
+        case .failed(let message) where queue.items.isEmpty:
+            Section {
+                Label(message, systemImage: "exclamationmark.triangle.fill")
+                    .lvFont(.footnote)
+                    .foregroundStyle(.secondary)
             }
-            if !digest.memories.isEmpty {
-                MemoryList(memories: digest.memories)
-            }
-            if !digest.suggestedActions.isEmpty {
-                SuggestedActions(actions: digest.suggestedActions)
-            }
-        }
-    }
-}
-
-private struct StreakPill: View {
-    let days: Int
-    var body: some View {
-        HStack(spacing: 8) {
-            LVIconView(.flameFill, tint: .orange)
-            Text("\(days)-day streak")
-                .font(.subheadline.weight(.medium))
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(.capsule)
-    }
-}
-
-private struct ReflectionCard: View {
-    let text: String
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Hermes' reflection")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-            Text(text)
-                .font(.body)
-                .multilineTextAlignment(.leading)
-            HStack {
-                Spacer(minLength: 0)
-                ShareLink(item: text) {
-                    LVIconView(.squareAndArrowUp, size: 15, tint: .secondary)
+        default:
+            if queue.items.isEmpty {
+                Section {
+                    ContentUnavailableView(
+                        "Nothing to revisit today",
+                        systemImage: "checkmark.circle",
+                        description: Text(queue.confirmation ?? "New memories come back here when they are worth another look.")
+                    )
                 }
-                .accessibilityLabel("Share reflection")
-            }
-        }
-        .padding(16)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(.rect(cornerRadius: 12))
-    }
-}
-
-private struct MemoryList: View {
-    let memories: [QueryHitDTO]
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("This week")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-            VStack(spacing: 0) {
-                ForEach(memories) { memory in
-                    MemoryRow(memory: memory)
-                    if memory.id != memories.last?.id {
-                        Divider().padding(.leading, 16)
+            } else {
+                Section {
+                    ForEach(queue.items) { item in
+                        ResurfaceCard(
+                            item: item,
+                            remaining: 0,
+                            confirmation: nil,
+                            isPending: queue.pendingMemoryID == item.memoryId,
+                            errorMessage: nil,
+                            onOpen: { openMemory = $0 },
+                            onAction: { action, item in Task { await queue.perform(action, on: item) } },
+                            onConfirmationShown: {},
+                            showsHeader: false
+                        )
+                    }
+                } footer: {
+                    if let confirmation = queue.confirmation {
+                        Label(confirmation, systemImage: "checkmark.circle.fill")
+                    } else if let error = queue.actionError {
+                        Label(error, systemImage: "exclamationmark.triangle.fill")
                     }
                 }
-            }
-            .background(Color(.secondarySystemBackground))
-            .clipShape(.rect(cornerRadius: 10))
-        }
-    }
-}
-
-private struct MemoryRow: View {
-    let memory: QueryHitDTO
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(memory.content)
-                    .font(.subheadline)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                if let createdAt = memory.createdAt {
-                    Text(createdAt, format: .relative(presentation: .named))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer(minLength: 0)
-            ShareLink(item: memory.content) {
-                LVIconView(.squareAndArrowUp, size: 15, tint: .secondary)
-            }
-            .accessibilityLabel("Share memo")
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-    }
-}
-
-private struct SuggestedActions: View {
-    let actions: [String]
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Suggested next")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(actions, id: \.self) { action in
-                        Text(action)
-                            .font(.footnote)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color(.secondarySystemBackground))
-                            .clipShape(.capsule)
-                    }
+                .task(id: queue.confirmation) {
+                    guard queue.confirmation != nil else { return }
+                    try? await Task.sleep(for: .seconds(2.5))
+                    guard !Task.isCancelled else { return }
+                    queue.clearConfirmation()
                 }
             }
         }
     }
 }
-
-#if DEBUG
-#Preview("Loaded") {
-    let digest = DailyReviewDigest(
-        date: Date(),
-        memories: [
-            QueryHitDTO(id: UUID(), content: "Read Hyperion. Finally understand the Shrike.", distance: 0.1, createdAt: Date()),
-            QueryHitDTO(id: UUID(), content: "Vault structure feels right when memo precedes capture.", distance: 0.2, createdAt: Date().addingTimeInterval(-86_400)),
-        ],
-        achievements: [],
-        soulExcerpt: "",
-        suggestedActions: ["Go deeper on Hyperion", "Capture a thought", "Open last week"],
-        streakDays: 7,
-        reflection: "You noticed a pattern this week — vault structure follows your thinking, not the other way around. That's the kind of observation worth keeping.",
-    )
-    return DailyReviewView(vm: DailyReviewViewModel(client: PreviewClient(digest: digest)))
-}
-
-#Preview("Empty") {
-    DailyReviewView(vm: DailyReviewViewModel(client: PreviewClient(digest: nil)))
-}
-
-private struct PreviewClient: DailyReviewClientProtocol {
-    let digest: DailyReviewDigest?
-    func fetchToday() async throws -> DailyReviewDigest {
-        if let digest { return digest }
-        try await Task.sleep(for: .seconds(1))
-        return DailyReviewDigest(date: Date())
-    }
-}
-#endif
