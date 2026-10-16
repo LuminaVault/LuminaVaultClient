@@ -50,9 +50,9 @@ Do **not** re-collapse beta into the production bundle ID without updating Fastl
 cd LuminaVaultClient
 bundle install
 
-# 1. Ensure match certs repo exists (private) and MATCH_PASSWORD is set.
-export MATCH_PASSWORD='…'
-export MATCH_GIT_URL='git@github.com:LuminaVault/LuminaVaultIOSSecrets.git'  # optional override
+# 1. The match repo is the team's shared north-ios-certificates (branch main,
+#    see fastlane/Matchfile). match prompts for its password and keeps it in
+#    the login keychain.
 
 # 2. Seed TestFlight signing (host + share extension)
 bundle exec fastlane sync_signing

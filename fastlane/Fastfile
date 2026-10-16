@@ -13,7 +13,7 @@ default_platform(:ios)
 #   .LuminaVaultShareExtension on each host bundle ID.
 #
 # Prereqs (one-time):
-# 1. The team's shared match repo (see Matchfile git_url), also used by Norviq.
+# 1. The team's shared match repo (see Matchfile git_url), shared with Khepri, Aaru and ScanItNow.
 # 2. Seed beta signing (TestFlight app already exists):
 #      bundle exec fastlane sync_signing
 # 3. After the production App Store Connect app + App IDs exist:

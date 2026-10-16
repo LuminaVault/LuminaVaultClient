@@ -59,8 +59,8 @@ jobs:
       # with on a runner, and org policy disables deploy keys — so match reads
       # the certs repo over HTTPS with a PAT instead.
       MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
-      # base64 of "x-access-token:<PAT>", PAT needs Contents:Read on
-      # LuminaVault/LuminaVaultIOSSecrets. Without this, match cannot clone the
+      # base64 of "<user>:<PAT>", PAT needs Contents:Read on
+      # NorthAIProject/north-ios-certificates. Without this, match cannot clone the
       # certs repo and the lane dies at signing.
       MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
       APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
