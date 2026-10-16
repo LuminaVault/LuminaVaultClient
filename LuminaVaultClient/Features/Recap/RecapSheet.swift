@@ -17,22 +17,27 @@ struct RecapSheet: View {
     @State private var pickerRange: AnalyticsRange
     @State private var openMemory: RecapMemoryLink?
     @State private var sharePayload: RecapSharePayload?
+    @State private var periodRecap: PeriodRecapRequest?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.lvPalette) private var palette
 
     private let memoryClient: any MemoryClientProtocol
     private let spacesClient: (any SpacesClientProtocol)?
+    /// Nil hides the "Year in review" button.
+    private let periodRecapClient: (any PeriodRecapClientProtocol)?
 
     init(
         viewModel: RecapViewModel,
         memoryClient: any MemoryClientProtocol,
-        spacesClient: (any SpacesClientProtocol)? = nil
+        spacesClient: (any SpacesClientProtocol)? = nil,
+        periodRecapClient: (any PeriodRecapClientProtocol)? = nil
     ) {
         _vm = State(initialValue: viewModel)
         _pickerRange = State(initialValue: viewModel.range)
         self.memoryClient = memoryClient
         self.spacesClient = spacesClient
+        self.periodRecapClient = periodRecapClient
     }
 
     var body: some View {
@@ -62,6 +67,16 @@ struct RecapSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
+                if periodRecapClient != nil {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            periodRecap = .current(.year)
+                        } label: {
+                            Label("Year in review", systemImage: "sparkles.rectangle.stack")
+                        }
+                        .accessibilityHint("Plays your year in Lumina as a story.")
+                    }
+                }
             }
             .task(id: pickerRange) {
                 if pickerRange == vm.range {
@@ -76,6 +91,17 @@ struct RecapSheet: View {
             .sheet(item: $sharePayload) { payload in
                 TodayShareSheet(activityItems: payload.activityItems)
                     .presentationDetents([.medium, .large])
+            }
+            .fullScreenCover(item: $periodRecap) { request in
+                if let periodRecapClient {
+                    PeriodRecapStoryView(model: PeriodRecapPlayerModel(
+                        client: periodRecapClient,
+                        request: request,
+                        telemetry: AnalyticsTelemetry()
+                    ))
+                    // A cover is a new presentation root; carry the theme over.
+                    .environment(\.lvPalette, palette)
+                }
             }
         }
     }
