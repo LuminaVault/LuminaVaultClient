@@ -135,6 +135,27 @@ nonisolated enum MemoryEndpoints {
         }
     }
 
+    /// GET `/v1/memory/{id}/related?limit=` — the memories nearest this one
+    /// by embedding, most similar first. Passive: a 402 here must not open
+    /// the paywall over a save banner or a detail sheet.
+    nonisolated struct Related: Endpoint {
+        typealias Response = MemoryRelatedResponse
+        let id: UUID
+        let limit: Int
+
+        var path: String {
+            "/v1/memory/\(id.uuidString.lowercased())/related?limit=\(limit)"
+        }
+
+        var method: HTTPMethod {
+            .get
+        }
+
+        var presentsPaywallOn402: Bool {
+            false
+        }
+    }
+
     nonisolated struct Facets: Endpoint {
         typealias Response = MemoryFacetsResponse
         var path: String {

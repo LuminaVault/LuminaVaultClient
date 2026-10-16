@@ -206,6 +206,12 @@ struct LoadedItem: Identifiable, Equatable, Sendable {
 /// surface). The app wires this to `CaptureDrainer.tick`.
 struct CaptureDrainerHandle: Sendable {
     let kick: @Sendable () async -> Void
+    /// Captures as they land, with the memory each became. Defaults to a
+    /// stream that ends at once, which is what `.noop` and every existing
+    /// fixture want: nothing ever lands.
+    var outcomes: @Sendable () -> AsyncStream<CaptureOutcome> = {
+        AsyncStream { $0.finish() }
+    }
 
     static let noop = CaptureDrainerHandle(kick: {})
 }

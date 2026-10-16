@@ -25,6 +25,9 @@ struct CaptureHomeView: View {
     @State private var sheetMode: CaptureSheet.Mode = .photo
     @State private var showingSyncAndLearn = false
     @State private var showingCaptureReview = false
+    @State private var showingRecap = false
+    /// The "Connects to" list, opened from the banner after a save.
+    @State private var openConnections: CaptureConnectionsUIModel?
 
     private let vaultClient: VaultClientProtocol
     private let memoryClient: MemoryClientProtocol
@@ -121,6 +124,14 @@ struct CaptureHomeView: View {
                                 toRevisit: glance.toRevisit
                             )
                         }
+                        // The way into the recap. Redacted while it loads,
+                        // gone if it fails: a week strip that cannot open
+                        // its recap is a promise it cannot keep.
+                        if !glance.recap.isFailed {
+                            YourWeekStrip(recap: glance.recap.value) {
+                                showingRecap = true
+                            }
+                        }
                     } else {
                         HomeGlanceStrip(
                             memoriesToday: .loading,
@@ -165,7 +176,14 @@ struct CaptureHomeView: View {
             }
         }
         .safeAreaInset(edge: .top) {
-            if let toast = vm.toast {
+            // One banner at a time: a failure first, because it is the only
+            // sign a capture did not happen; then what a save connects to;
+            // then the plain "Saved".
+            if let toast = vm.toast, case .failed = toast {
+                statusBanner(toast)
+            } else if let connections = vm.connections {
+                connectionsBanner(connections)
+            } else if let toast = vm.toast {
                 statusBanner(toast)
             }
         }
@@ -180,6 +198,7 @@ struct CaptureHomeView: View {
             await glance?.load()
         }
         .task { await vm.loadFeed() }
+        .task { await vm.observeCaptureOutcomes() }
         .task { await vm.loadSpacesIfNeeded() }
         // The glance is loaded once on appear and on pull-to-refresh, so by
         // the time step 2 opens its counts are older than the capture that
@@ -214,6 +233,23 @@ struct CaptureHomeView: View {
                     )
                 )
             }
+        }
+        .sheet(isPresented: $showingRecap) {
+            RecapSheet(
+                viewModel: RecapViewModel(
+                    client: appState.makeRecapClient(),
+                    initial: glance?.recap.value
+                ),
+                memoryClient: memoryClient,
+                spacesClient: spacesClient
+            )
+        }
+        .sheet(item: $openConnections) { connections in
+            RelatedMemoriesSheet(
+                items: connections.items,
+                client: memoryClient,
+                spacesClient: spacesClient
+            )
         }
         .sheet(isPresented: $showingCaptureReview) {
             if let captureFailures {
@@ -329,8 +365,15 @@ struct CaptureHomeView: View {
         HomeGlanceViewModel(
             homeClient: HomeSummaryHTTPClient(client: appState.makeHTTPClient()),
             dailyReviewClient: appState.makeDailyReviewClient(),
-            pendingClient: appState.makeKBCompileClient()
+            pendingClient: appState.makeKBCompileClient(),
+            recapClient: appState.makeRecapClient()
         )
+    }
+
+    /// For the Space names on a memory opened from Home. Built per use like
+    /// the other clients here; nothing is fetched until a sheet asks.
+    private var spacesClient: any SpacesClientProtocol {
+        SpacesHTTPClient(client: appState.makeHTTPClient())
     }
 
     // MARK: - Toast
@@ -357,6 +400,44 @@ struct CaptureHomeView: View {
             guard !failed else { return }
             try? await Task.sleep(for: .seconds(3))
             vm.toast = nil
+        }
+    }
+
+    /// "Connects to 3 memories ›" — a save landed next to things already in
+    /// the vault. Up for six seconds, twice the plain "Saved", because it is
+    /// something to act on rather than a receipt.
+    private func connectionsBanner(_ connections: CaptureConnectionsUIModel) -> some View {
+        HStack(spacing: 8) {
+            Button {
+                openConnections = connections
+                vm.connections = nil
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "point.3.connected.trianglepath.dotted")
+                        .foregroundStyle(.tint)
+                    Text("Connects to ^[\(connections.count) memory](inflect: true)")
+                        .font(.footnote)
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Shows the related memories")
+            Button("Dismiss") { vm.connections = nil }
+                .font(.footnote)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.regularMaterial)
+        .task(id: connections.memoryID) {
+            try? await Task.sleep(for: .seconds(6))
+            guard !Task.isCancelled else { return }
+            if vm.connections?.memoryID == connections.memoryID {
+                vm.connections = nil
+            }
         }
     }
 

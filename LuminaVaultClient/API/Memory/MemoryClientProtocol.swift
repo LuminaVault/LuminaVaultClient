@@ -46,6 +46,10 @@ protocol MemoryClientProtocol: Sendable {
     /// Append-only creator/updater history.
     func provenance(id: UUID) async throws -> MemoryProvenanceResponse
 
+    /// GET /v1/memory/{id}/related — what a memory connects to. `limit` is
+    /// clamped server-side.
+    func related(id: UUID, limit: Int) async throws -> MemoryRelatedResponse
+
     /// Provider/model/source counts used by provenance filters.
     func facets() async throws -> MemoryFacetsResponse
     func localSync(cursor: String?, limit: Int) async throws -> LocalMemorySyncResponse
@@ -75,6 +79,12 @@ extension MemoryClientProtocol {
 
     func facets() async throws -> MemoryFacetsResponse {
         throw MemoryClientCapabilityError.unsupported
+    }
+
+    /// Stubs that predate the endpoint connect to nothing, which is what an
+    /// older server answers too — the "Connects to" banner simply stays away.
+    func related(id: UUID, limit _: Int) async throws -> MemoryRelatedResponse {
+        MemoryRelatedResponse(memoryId: id, items: [])
     }
 
     func localSync(cursor _: String?, limit _: Int) async throws -> LocalMemorySyncResponse {

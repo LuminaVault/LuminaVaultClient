@@ -404,9 +404,17 @@ struct LuminaVaultClientApp: App {
                 // Muse Stage D — `luminavault://chat/<id>`: the proactive
                 // push's `deepLink` and the Live Activity's `widgetURL`.
                 // Routed like a notification tap; `MainTabView` opens it.
-                if case let .conversation(id) = NotificationRouter.deepLink(from: url) {
+                // `luminavault://memory/<id>` is routed the same way and
+                // `MainTabView` presents the memory as a sheet.
+                switch NotificationRouter.deepLink(from: url) {
+                case let .conversation(id):
                     notificationRouter.pendingDeepLink = .conversation(id: id)
                     return
+                case let .memory(id):
+                    notificationRouter.pendingDeepLink = .memory(id: id)
+                    return
+                default:
+                    break
                 }
                 if handlePairingLink(url.absoluteString) { return }
                 _ = GIDSignIn.sharedInstance.handle(url)

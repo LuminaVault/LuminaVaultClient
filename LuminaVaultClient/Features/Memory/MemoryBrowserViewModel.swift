@@ -87,10 +87,15 @@ final class MemoryBrowserViewModel {
         }
     }
 
+    /// The Space list on its own, for an editor opened outside the browser
+    /// (the memory detail sheet), which has no page of memories to load.
+    func loadSpacesIfNeeded() async {
+        guard spaces.isEmpty, let spacesClient else { return }
+        spaces = (try? await spacesClient.list()) ?? []
+    }
+
     func load() async {
-        if spaces.isEmpty, let spacesClient {
-            spaces = (try? await spacesClient.list()) ?? []
-        }
+        await loadSpacesIfNeeded()
         state = .loading
         offset = 0
         isSearching = false

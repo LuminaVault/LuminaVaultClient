@@ -50,6 +50,10 @@ final class HomeGlanceViewModel {
     private(set) var streakDays: CardState<Int> = .loading
     private(set) var toRevisit: CardState<Int> = .loading
     private(set) var pendingFiles: CardState<Int> = .loading
+    /// The last seven days, for the "Your week" strip. Independent of the
+    /// three tiles: it hides on failure and never counts towards `allFailed`,
+    /// because the strip above it is the glance and this is a way into more.
+    private(set) var recap: CardState<MeRecapResponse>
 
     /// Nothing loaded at all — the strip hides rather than showing three
     /// dashes and pretending it is a report.
@@ -66,15 +70,21 @@ final class HomeGlanceViewModel {
     private let homeClient: any HomeSummaryClientProtocol
     private let dailyReviewClient: any DailyReviewClientProtocol
     private let pendingClient: any KBCompileClientProtocol
+    /// Nil leaves the week strip off entirely — previews and snapshot suites
+    /// that predate it render Home exactly as before.
+    private let recapClient: (any RecapClientProtocol)?
 
     init(
         homeClient: any HomeSummaryClientProtocol,
         dailyReviewClient: any DailyReviewClientProtocol,
-        pendingClient: any KBCompileClientProtocol
+        pendingClient: any KBCompileClientProtocol,
+        recapClient: (any RecapClientProtocol)? = nil
     ) {
         self.homeClient = homeClient
         self.dailyReviewClient = dailyReviewClient
         self.pendingClient = pendingClient
+        self.recapClient = recapClient
+        recap = recapClient == nil ? .failed(message: "Not configured") : .loading
     }
 
     func load() async {
@@ -95,6 +105,23 @@ final class HomeGlanceViewModel {
         }
         toRevisit = revisit
         pendingFiles = pending
+
+        // After the tiles rather than beside them: the strip sits below them,
+        // so it settling a beat later is invisible.
+        let newRecap = await loadRecap()
+        // A refresh keeps the strip that is on screen if the new call fails:
+        // last week's numbers do not stop being true because a pull dropped.
+        if case .failed = newRecap, recap.value != nil { return }
+        recap = newRecap
+    }
+
+    private func loadRecap() async -> CardState<MeRecapResponse> {
+        guard let recapClient else { return .failed(message: "Not configured") }
+        do {
+            return .loaded(try await recapClient.recap(range: .week))
+        } catch {
+            return .failed(message: error.localizedDescription)
+        }
     }
 
     private func loadSummary() async -> CardState<HomeSummaryResponse> {

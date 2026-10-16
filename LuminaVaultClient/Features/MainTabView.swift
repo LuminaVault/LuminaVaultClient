@@ -39,6 +39,11 @@ struct MainTabView: View {
     /// until Settings has finished dismissing and is presented from its
     /// `onDismiss`.
     @State private var workflowAfterSettings: WorkflowPresentation?
+    /// Non-nil while a `luminavault://memory/<id>` link is being shown.
+    @State private var pendingMemory: MemoryPresentation?
+    /// A memory link that arrived while Settings was up; presented from
+    /// Settings' `onDismiss`, the same hand-over the workflow push uses.
+    @State private var memoryAfterSettings: MemoryPresentation?
     @State private var showSettings = false
     @AppStorage("lv.chat.hapticsEnabled") private var hapticsEnabled = true
     @State private var tabHapticTrigger = 0
@@ -221,9 +226,20 @@ struct MainTabView: View {
                 )
             }
         }
+        .sheet(item: $pendingMemory) { presentation in
+            MemoryDetailSheet(
+                memoryID: presentation.id,
+                client: memoryUpsertClient,
+                spacesClient: spacesClient
+            )
+        }
         .sheet(isPresented: $showSettings) {
             // A workflow push that arrived while Settings was up closed it and
             // parked itself here; present it now that the slot is free.
+            if let memory = memoryAfterSettings {
+                memoryAfterSettings = nil
+                pendingMemory = memory
+            }
             guard let presentation = workflowAfterSettings else { return }
             workflowAfterSettings = nil
             pendingWorkflow = presentation
@@ -239,6 +255,7 @@ struct MainTabView: View {
         .task(id: notificationRouter.pendingDeepLink) {
             routePendingIngestion()
             routePendingConversation()
+            routePendingMemory()
         }
         .task(id: captureCoordinator?.queue == nil) {
             guard captureFailures == nil, captureCoordinator?.queue != nil else { return }
@@ -352,6 +369,22 @@ struct MainTabView: View {
         appState.openChat(conversationID: id)
     }
 
+    /// `luminavault://memory/<id>`. A sheet over whatever tab is up: a
+    /// memory is something you look at and put back, not a place to go.
+    /// Like a conversation link it routes from `.task(id:)`, so a link that
+    /// cold-launched the app is shown once the shell exists.
+    private func routePendingMemory() {
+        guard case let .memory(id) = notificationRouter.pendingDeepLink else { return }
+        _ = notificationRouter.consume()
+        let presentation = MemoryPresentation(id: id)
+        if showSettings {
+            memoryAfterSettings = presentation
+            showSettings = false
+        } else {
+            pendingMemory = presentation
+        }
+    }
+
     // MARK: - Tabs
 
     /// The Home tab. Wrapped in a `NavigationStack` so a feed row can push
@@ -366,7 +399,9 @@ struct MainTabView: View {
                     queue: captureCoordinator?.queue,
                     drainer: captureCoordinator?.drainerHandle ?? .noop,
                     vaultClient: vaultClient,
-                    spacesClient: captureCoordinator?.spacesClient
+                    spacesClient: captureCoordinator?.spacesClient,
+                    // Asks what a landed capture connects to.
+                    memoryClient: memoryUpsertClient
                 ),
                 vaultClient: vaultClient,
                 // The reader edits notes, so it needs the upsert face of the
@@ -561,6 +596,11 @@ struct MainTabView: View {
 
 /// `.sheet(item:)` fodder for a workflow run arriving by push.
 private struct WorkflowPresentation: Identifiable, Equatable {
+    let id: UUID
+}
+
+/// `.sheet(item:)` fodder for a memory link.
+private struct MemoryPresentation: Identifiable, Equatable {
     let id: UUID
 }
 

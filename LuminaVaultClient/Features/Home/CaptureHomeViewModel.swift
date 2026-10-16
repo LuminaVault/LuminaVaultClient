@@ -30,6 +30,18 @@ struct PendingSaveUIModel: Identifiable, Equatable, Sendable {
     var hasFailed: Bool { failure != nil }
 }
 
+/// What a save just landed next to, for the "Connects to N memories" banner.
+/// UI-only: the items are the shared `RelatedMemoryDTO`, the wrapper is not a
+/// wire type.
+struct CaptureConnectionsUIModel: Identifiable, Equatable, Sendable {
+    /// The memory the save became.
+    let memoryID: UUID
+    let items: [RelatedMemoryDTO]
+
+    var id: UUID { memoryID }
+    var count: Int { items.count }
+}
+
 @MainActor
 @Observable
 final class CaptureHomeViewModel {
@@ -84,6 +96,10 @@ final class CaptureHomeViewModel {
         await files.move(file: file, newPath: "\(space.slug)/\(name)")
     }
 
+    /// Set when a capture lands next to at least one other memory; nil when
+    /// it connects to nothing, which shows nothing rather than "0".
+    var connections: CaptureConnectionsUIModel?
+
     /// Recording state, so the composer can show a mic that is visibly live.
     let recorder = VoiceRecorder()
     var isRecording: Bool { recorder.isRecording }
@@ -100,16 +116,20 @@ final class CaptureHomeViewModel {
     private let queue: CaptureQueueProtocol?
     private let drainer: CaptureDrainerHandle
     private let spacesClient: (any SpacesClientProtocol)?
+    /// Asks what a landed capture connects to. Nil turns the banner off.
+    private let memoryClient: (any MemoryClientProtocol)?
 
     init(
         queue: CaptureQueueProtocol?,
         drainer: CaptureDrainerHandle,
         vaultClient: VaultClientProtocol,
-        spacesClient: (any SpacesClientProtocol)? = nil
+        spacesClient: (any SpacesClientProtocol)? = nil,
+        memoryClient: (any MemoryClientProtocol)? = nil
     ) {
         self.queue = queue
         self.drainer = drainer
         self.spacesClient = spacesClient
+        self.memoryClient = memoryClient
         self.files = VaultFilesViewModel(vaultClient: vaultClient, spaceSlug: nil)
 
         // Reaching the two-minute cap finishes a note; it does not discard one.
@@ -254,6 +274,36 @@ final class CaptureHomeViewModel {
         } catch {
             toast = .failed(error.localizedDescription)
         }
+    }
+
+    // MARK: - What a save connects to
+
+    /// How many related memories to ask for. The banner says a number and
+    /// the sheet lists them; five is a glance, not a search.
+    static let connectionsLimit = 5
+
+    /// Listens for captures landing until the calling task is cancelled.
+    /// Started from the view's `.task`, so it lives exactly as long as Home.
+    func observeCaptureOutcomes() async {
+        for await outcome in drainer.outcomes() {
+            await noteOutcome(outcome)
+        }
+    }
+
+    /// One landed capture. A link has no memory yet (the server enriches it
+    /// later) and a failed lookup is not worth a word, so both show nothing.
+    func noteOutcome(_ outcome: CaptureOutcome) async {
+        guard let memoryID = outcome.memoryID, let memoryClient else { return }
+        guard let response = try? await memoryClient.related(id: memoryID, limit: Self.connectionsLimit) else {
+            return
+        }
+        let items = response.items.filter { $0.id != memoryID }
+        guard !items.isEmpty else { return }
+        connections = CaptureConnectionsUIModel(memoryID: memoryID, items: items)
+        // "Saved to your vault." has been said by now; the connection is the
+        // better news and only one banner fits. A failure is never replaced.
+        if case .failed = toast { return }
+        toast = nil
     }
 
     // MARK: - Feed

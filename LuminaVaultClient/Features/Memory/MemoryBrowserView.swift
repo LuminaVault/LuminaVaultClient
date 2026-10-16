@@ -150,8 +150,9 @@ struct MemoryBrowserView: View {
     }
 }
 
-/// Edit a single memory's content + tags.
-private struct MemoryEditView: View {
+/// Edit a single memory's content + tags. Internal so the memory detail sheet
+/// can push the same editor the browser does.
+struct MemoryEditView: View {
     let viewModel: MemoryBrowserViewModel
     let memory: MemoryDTO
 

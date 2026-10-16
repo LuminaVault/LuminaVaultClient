@@ -34,6 +34,10 @@ actor CaptureDrainer {
     /// client is dropped rather than retried forever.
     private let transcribeClient: (any TranscribeClientProtocol)?
     private let pathPrefix: String
+    /// Where each landed capture is announced, with the memory it became.
+    /// `nonisolated` because the broadcaster is its own lock: subscribers on
+    /// the main actor must not have to hop onto this actor to listen.
+    nonisolated let outcomes: CaptureOutcomeBroadcaster
 
     private var draining = false
     private var pathMonitor: NWPathMonitor?
@@ -45,7 +49,8 @@ actor CaptureDrainer {
         memoryClient: MemoryClientProtocol,
         safariClient: (any CaptureSafariClientProtocol)? = nil,
         transcribeClient: (any TranscribeClientProtocol)? = nil,
-        pathPrefix: String = "raw/captures"
+        pathPrefix: String = "raw/captures",
+        outcomes: CaptureOutcomeBroadcaster = CaptureOutcomeBroadcaster()
     ) {
         self.queue = queue
         self.vaultUploader = vaultUploader
@@ -53,6 +58,7 @@ actor CaptureDrainer {
         self.safariClient = safariClient
         self.transcribeClient = transcribeClient
         self.pathPrefix = pathPrefix
+        self.outcomes = outcomes
     }
 
     /// Begin watching `NWPathMonitor` and trigger a drain on each
@@ -113,6 +119,9 @@ actor CaptureDrainer {
 
     private func drainOne(_ row: CaptureRowSnapshot) async {
         do {
+            // The memory this capture became, when the server says. Read
+            // off responses that used to be discarded.
+            var memoryID: UUID?
             switch row.kind {
             case .photo:
                 let relativePath = "\(pathPrefix)/\(row.id.uuidString).\(row.fileExtension)"
@@ -123,13 +132,13 @@ actor CaptureDrainer {
                     spaceID: row.spaceID,
                 )
                 let memoryContent = row.captionText?.nilIfEmpty ?? "Photo capture"
-                _ = try await memoryClient.upsert(MemoryUpsertRequest(
+                memoryID = try await memoryClient.upsert(MemoryUpsertRequest(
                     content: memoryContent,
                     lat: row.lat,
                     lng: row.lng,
                     accuracyM: row.accuracyM,
                     placeName: row.placeName,
-                ), spaceID: row.spaceID)
+                ), spaceID: row.spaceID).memoryId
 
             case .text:
                 // HER-256 — written note. Empty bodies were already filtered by
@@ -154,13 +163,13 @@ actor CaptureDrainer {
                     return
                 }
                 let relativePath = "\(pathPrefix)/\(row.id.uuidString).md"
-                _ = try await vaultUploader.uploadNote(
+                memoryID = try await vaultUploader.uploadNote(
                     data: data,
                     contentType: "text/markdown",
                     relativePath: relativePath,
                     spaceID: row.spaceID,
                     metadata: nil,
-                )
+                ).memoryId
 
             case .textFile:
                 guard let body = row.captionText?.nilIfEmpty else {
@@ -175,13 +184,13 @@ actor CaptureDrainer {
                     relativePath: relativePath,
                     spaceID: row.spaceID,
                 )
-                _ = try await memoryClient.upsert(MemoryUpsertRequest(
+                memoryID = try await memoryClient.upsert(MemoryUpsertRequest(
                     content: body,
                     lat: row.lat,
                     lng: row.lng,
                     accuracyM: row.accuracyM,
                     placeName: row.placeName,
-                ), spaceID: row.spaceID)
+                ), spaceID: row.spaceID).memoryId
 
             case .url:
                 // HER-257 — URL capture: hand off to /v1/capture/safari.
@@ -234,17 +243,20 @@ actor CaptureDrainer {
                 // Stored as an ordinary note, so it is searchable and
                 // groundable in chat like anything else you type. The audio is
                 // not uploaded; it goes away with the queue row.
-                _ = try await vaultUploader.uploadNote(
+                memoryID = try await vaultUploader.uploadNote(
                     data: body,
                     contentType: "text/markdown",
                     relativePath: "\(pathPrefix)/\(row.id.uuidString).md",
                     spaceID: row.spaceID,
                     metadata: nil,
-                )
+                ).memoryId
             }
 
             try await queue.delete(id: row.id)
             log.info("drained capture id=\(row.id.uuidString) kind=\(row.kind.rawValue)")
+            // Announced only once the row is gone, so a listener never hears
+            // about a capture that is about to be retried.
+            outcomes.publish(CaptureOutcome(localID: row.id, memoryID: memoryID))
             // Rating-prompt success moment. Only after the delete: a row that
             // fails to delete is retried and counted on the attempt that lands,
             // and a deleted row can never be drained (or counted) again.

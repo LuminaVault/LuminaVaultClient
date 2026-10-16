@@ -23,6 +23,9 @@ final class CaptureCoordinator {
     private(set) var ingestionClient: (any IngestionClientProtocol)?
     private(set) var hermesCapabilitiesClient: (any HermesCapabilitiesClientProtocol)?
     private var container: ModelContainer?
+    /// Outlives any one drainer, so a screen that subscribed before sign-in
+    /// finished (or across a sign-out/sign-in) keeps hearing outcomes.
+    let outcomes = CaptureOutcomeBroadcaster()
 
     private let tokenProvider: @Sendable () async -> String?
     private let providedHTTPClient: BaseHTTPClient?
@@ -62,7 +65,8 @@ final class CaptureCoordinator {
                 vaultUploader: uploader,
                 memoryClient: memory,
                 safariClient: safari,
-                transcribeClient: transcribe
+                transcribeClient: transcribe,
+                outcomes: outcomes
             )
             self.drainer = drainer
             await drainer.start()
@@ -155,9 +159,12 @@ final class CaptureCoordinator {
     /// save. Held weak via the `Sendable` closure indirection so the VM
     /// doesn't extend the coordinator's lifetime.
     var drainerHandle: CaptureDrainerHandle {
-        CaptureDrainerHandle(kick: { [weak drainer] in
-            await drainer?.tick()
-        })
+        CaptureDrainerHandle(
+            kick: { [weak drainer] in
+                await drainer?.tick()
+            },
+            outcomes: { [outcomes] in outcomes.subscribe() }
+        )
     }
 }
 
