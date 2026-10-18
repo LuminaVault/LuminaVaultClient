@@ -50,6 +50,11 @@ protocol MemoryClientProtocol: Sendable {
     /// clamped server-side.
     func related(id: UUID, limit: Int) async throws -> MemoryRelatedResponse
 
+    /// POST /v1/memory/{id}/review — mark it seen again. `action` schedules
+    /// the next resurfacing (`soon`, `later`), mutes it (`never`) or just
+    /// keeps it (`kept`); nil sends no body, the plain "reviewed" mark.
+    func review(id: UUID, action: MemoryReviewAction?) async throws -> MemoryReviewResponse
+
     /// Provider/model/source counts used by provenance filters.
     func facets() async throws -> MemoryFacetsResponse
     func localSync(cursor: String?, limit: Int) async throws -> LocalMemorySyncResponse
@@ -78,6 +83,10 @@ extension MemoryClientProtocol {
     }
 
     func facets() async throws -> MemoryFacetsResponse {
+        throw MemoryClientCapabilityError.unsupported
+    }
+
+    func review(id _: UUID, action _: MemoryReviewAction?) async throws -> MemoryReviewResponse {
         throw MemoryClientCapabilityError.unsupported
     }
 

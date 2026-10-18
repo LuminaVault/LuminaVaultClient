@@ -40,7 +40,7 @@ final class HomeGlanceViewModel {
     enum Recommendation: Equatable, Sendable {
         /// Captures are in the vault but not yet in the brain.
         case syncAndLearn(Int)
-        /// Memos from the last few days worth re-reading.
+        /// Memories the resurface queue says are worth seeing again.
         case dailyReview(Int)
     }
 
@@ -48,7 +48,6 @@ final class HomeGlanceViewModel {
     /// settle together and fail together.
     private(set) var memoriesToday: CardState<Int> = .loading
     private(set) var streakDays: CardState<Int> = .loading
-    private(set) var toRevisit: CardState<Int> = .loading
     private(set) var pendingFiles: CardState<Int> = .loading
     /// The last seven days, for the "Your week" strip. Independent of the
     /// three tiles: it hides on failure and never counts towards `allFailed`,
@@ -61,6 +60,17 @@ final class HomeGlanceViewModel {
         memoriesToday.isFailed && toRevisit.isFailed && pendingFiles.isFailed
     }
 
+    /// The resurface queue's length, live: answering the Home card takes
+    /// one off this count straight away rather than at the next refresh.
+    var toRevisit: CardState<Int> {
+        guard let resurface else { return .failed(message: "Not configured") }
+        switch resurface.phase {
+        case .loading: return .loading
+        case .loaded: return .loaded(resurface.items.count)
+        case .failed(let message): return .failed(message: message)
+        }
+    }
+
     var recommendation: Recommendation? {
         if let pending = pendingFiles.value, pending > 0 { return .syncAndLearn(pending) }
         if let revisit = toRevisit.value, revisit > 0 { return .dailyReview(revisit) }
@@ -68,7 +78,9 @@ final class HomeGlanceViewModel {
     }
 
     private let homeClient: any HomeSummaryClientProtocol
-    private let dailyReviewClient: any DailyReviewClientProtocol
+    /// The "to revisit" queue behind the tile, the Home card and the Daily
+    /// review list. Nil leaves all three off.
+    let resurface: ResurfaceQueueViewModel?
     private let pendingClient: any KBCompileClientProtocol
     /// Nil leaves the week strip off entirely — previews and snapshot suites
     /// that predate it render Home exactly as before.
@@ -76,12 +88,12 @@ final class HomeGlanceViewModel {
 
     init(
         homeClient: any HomeSummaryClientProtocol,
-        dailyReviewClient: any DailyReviewClientProtocol,
+        resurface: ResurfaceQueueViewModel?,
         pendingClient: any KBCompileClientProtocol,
         recapClient: (any RecapClientProtocol)? = nil
     ) {
         self.homeClient = homeClient
-        self.dailyReviewClient = dailyReviewClient
+        self.resurface = resurface
         self.pendingClient = pendingClient
         self.recapClient = recapClient
         recap = recapClient == nil ? .failed(message: "Not configured") : .loading
@@ -89,9 +101,11 @@ final class HomeGlanceViewModel {
 
     func load() async {
         async let summaryState = loadSummary()
-        async let toRevisitState = loadToRevisit()
         async let pendingState = loadPending()
-        let (summary, revisit, pending) = await (summaryState, toRevisitState, pendingState)
+        // Its own call alongside the two above rather than a third `async
+        // let`: the queue settles its own state, and the tile reads it live.
+        async let revisitLoaded: Void = loadResurface()
+        let (summary, pending, _) = await (summaryState, pendingState, revisitLoaded)
 
         switch summary {
         case .loading:
@@ -103,7 +117,6 @@ final class HomeGlanceViewModel {
             memoriesToday = .failed(message: message)
             streakDays = .failed(message: message)
         }
-        toRevisit = revisit
         pendingFiles = pending
 
         // After the tiles rather than beside them: the strip sits below them,
@@ -132,12 +145,8 @@ final class HomeGlanceViewModel {
         }
     }
 
-    private func loadToRevisit() async -> CardState<Int> {
-        do {
-            return .loaded(try await dailyReviewClient.fetchToday().memories.count)
-        } catch {
-            return .failed(message: error.localizedDescription)
-        }
+    private func loadResurface() async {
+        await resurface?.load()
     }
 
     private func loadPending() async -> CardState<Int> {

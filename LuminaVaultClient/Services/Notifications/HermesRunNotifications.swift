@@ -44,7 +44,8 @@ enum HermesRunNotifications {
     /// `didFinishLaunchingWithOptions` so an app cold-launched purely to
     /// service a notification action still knows about them.
     static var all: Set<UNNotificationCategory> {
-        [approvalCategory, runCompletedCategory, chatCategory]
+        Set([approvalCategory, runCompletedCategory, chatCategory])
+            .union(ResurfaceNotifications.categories)
     }
 
     /// Matches `APNSPushCategory.chat` — a proactive Hermie message. No

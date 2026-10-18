@@ -156,6 +156,33 @@ nonisolated enum MemoryEndpoints {
         }
     }
 
+    /// POST `/v1/memory/{id}/review` — the user looked at it again. With an
+    /// action the server also schedules (or mutes) its next resurfacing;
+    /// without one it is a plain "reviewed" mark and no body is sent.
+    /// Passive like `Related`: answered from a Home card, a notification
+    /// action or a widget, none of which is a place for a paywall.
+    nonisolated struct Review: Endpoint {
+        typealias Response = MemoryReviewResponse
+        let id: UUID
+        var action: MemoryReviewAction?
+
+        var path: String {
+            "/v1/memory/\(id.uuidString.lowercased())/review"
+        }
+
+        var method: HTTPMethod {
+            .post
+        }
+
+        var body: (any Encodable)? {
+            action.map(MemoryReviewRequest.init(action:))
+        }
+
+        var presentsPaywallOn402: Bool {
+            false
+        }
+    }
+
     nonisolated struct Facets: Endpoint {
         typealias Response = MemoryFacetsResponse
         var path: String {

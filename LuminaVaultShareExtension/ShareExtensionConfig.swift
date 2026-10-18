@@ -1,21 +1,16 @@
 // LuminaVaultShareExtension/ShareExtensionConfig.swift
+//
+// Kept as the share extension's name for `ExtensionAPIConfig`, which the
+// widget extension reads too.
 
 import Foundation
 
 nonisolated enum ShareExtensionConfig {
     static var apiBaseURL: URL {
-        URL(string: infoString("API_BASE_URL") ?? "https://api.luminavault.com")!
+        ExtensionAPIConfig.apiBaseURL
     }
 
     static var keychainAccessGroup: String? {
-        infoString("KEYCHAIN_ACCESS_GROUP")
-    }
-
-    private static func infoString(_ key: String) -> String? {
-        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String,
-              !value.isEmpty,
-              !value.hasPrefix("$("),
-              !value.hasPrefix("REPLACE_WITH_") else { return nil }
-        return value
+        ExtensionAPIConfig.keychainAccessGroup
     }
 }

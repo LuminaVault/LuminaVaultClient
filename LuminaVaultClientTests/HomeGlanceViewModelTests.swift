@@ -38,8 +38,7 @@ final class HomeGlanceViewModelTests: XCTestCase {
             )
         }
 
-        let dailyReviewClient = MockDailyReviewClient(memories: toRevisit)
-        if todayFails { dailyReviewClient.result = .failure(Boom()) }
+        let resurface = ResurfaceQueueViewModel.stub(count: toRevisit, fails: todayFails)
 
         let kbClient = MockKBCompileClient()
         kbClient.pendingResult = pendingFails
@@ -48,7 +47,7 @@ final class HomeGlanceViewModelTests: XCTestCase {
 
         return HomeGlanceViewModel(
             homeClient: summaryClient,
-            dailyReviewClient: dailyReviewClient,
+            resurface: resurface,
             pendingClient: kbClient
         )
     }
@@ -122,11 +121,37 @@ final class HomeGlanceViewModelTests: XCTestCase {
         XCTAssertEqual(sut.recommendation, .dailyReview(3))
     }
 
+    func testAnsweringTheCardTakesOneOffTheTile() async {
+        let memoryClient = MockMemoryClient()
+        memoryClient.reviewResult = .success(MemoryReviewResponse(memoryId: UUID(), reviewedAt: .now, reviewCount: 1))
+        let queue = ResurfaceQueueViewModel.stub(count: 2, memoryClient: memoryClient)
+        let sut = HomeGlanceViewModel(
+            homeClient: MockHomeSummaryClient(),
+            resurface: queue,
+            pendingClient: MockKBCompileClient()
+        )
+        await sut.load()
+        XCTAssertEqual(sut.toRevisit.value, 2)
+        await queue.perform(.kept, on: queue.items[0])
+        XCTAssertEqual(sut.toRevisit.value, 1)
+        XCTAssertEqual(sut.recommendation, .dailyReview(1))
+    }
+
+    func testNoQueueMeansNoTile() async {
+        let sut = HomeGlanceViewModel(
+            homeClient: MockHomeSummaryClient(),
+            resurface: nil,
+            pendingClient: MockKBCompileClient()
+        )
+        await sut.load()
+        XCTAssertTrue(sut.toRevisit.isFailed)
+    }
+
     func testSummaryIsAskedForToday() async {
         let summaryClient = MockHomeSummaryClient()
         let sut = HomeGlanceViewModel(
             homeClient: summaryClient,
-            dailyReviewClient: MockDailyReviewClient(),
+            resurface: .stub(),
             pendingClient: MockKBCompileClient()
         )
         await sut.load()
@@ -143,7 +168,7 @@ final class HomeGlanceViewModelTests: XCTestCase {
         }
         let sut = HomeGlanceViewModel(
             homeClient: MockHomeSummaryClient(),
-            dailyReviewClient: MockDailyReviewClient(),
+            resurface: .stub(),
             pendingClient: MockKBCompileClient(),
             recapClient: recapClient
         )

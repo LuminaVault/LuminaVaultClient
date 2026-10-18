@@ -5,6 +5,7 @@
 // to the shared NotificationRouter.
 
 import Foundation
+import LuminaVaultShared
 import os
 import UIKit
 import UserNotifications
@@ -166,6 +167,15 @@ final class NotificationsAppDelegate: NSObject, UIApplicationDelegate, UNUserNot
             return
         }
 
+        // Keep / Soon / Later / Never on a resurfaced memory. Background
+        // actions too, so the same assertion-until-the-POST-lands applies.
+        if let push = ResurfacePush(userInfo: userInfo),
+           let action = ResurfacePush.action(forActionIdentifier: response.actionIdentifier)
+        {
+            Self.answerResurface(push: push, action: action, completionHandler: completionHandler)
+            return
+        }
+
         Task { @MainActor in
             self.route(userInfo: userInfo)
         }
@@ -191,6 +201,34 @@ final class NotificationsAppDelegate: NSObject, UIApplicationDelegate, UNUserNot
             let accepted = await HermesApprovalResponder.shared.answer(runID: push.runID, choice: choice)
             if !accepted {
                 shared.router?.pendingDeepLink = .hermesRun(runID: push.runID)
+            }
+            if assertion != .invalid {
+                application.endBackgroundTask(assertion)
+            }
+            completionHandler()
+        }
+    }
+}
+
+extension NotificationsAppDelegate {
+    /// Posts the review, keeping the process alive for the round trip. On
+    /// failure the memory is queued as a deep link, so the next foreground
+    /// shows the memory the user thought they had answered.
+    fileprivate static func answerResurface(
+        push: ResurfacePush,
+        action: MemoryReviewAction,
+        completionHandler: @escaping () -> Void
+    ) {
+        Task { @MainActor in
+            let application = UIApplication.shared
+            var assertion = UIBackgroundTaskIdentifier.invalid
+            assertion = application.beginBackgroundTask(withName: "resurface.review") {
+                application.endBackgroundTask(assertion)
+                assertion = .invalid
+            }
+            let accepted = await ResurfaceReviewResponder.shared.review(memoryID: push.memoryID, action: action)
+            if !accepted {
+                shared.router?.pendingDeepLink = .memory(id: push.memoryID)
             }
             if assertion != .invalid {
                 application.endBackgroundTask(assertion)

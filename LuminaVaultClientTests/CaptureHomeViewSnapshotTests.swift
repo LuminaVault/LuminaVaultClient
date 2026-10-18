@@ -84,7 +84,7 @@ final class CaptureHomeViewSnapshotTests: XCTestCase {
 
         let vm = HomeGlanceViewModel(
             homeClient: summaryClient,
-            dailyReviewClient: MockDailyReviewClient(memories: toRevisit),
+            resurface: .stub(count: toRevisit),
             pendingClient: kbClient
         )
         await vm.load()

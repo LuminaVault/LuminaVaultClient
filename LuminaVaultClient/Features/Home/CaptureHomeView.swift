@@ -28,6 +28,8 @@ struct CaptureHomeView: View {
     @State private var showingRecap = false
     /// The "Connects to" list, opened from the banner after a save.
     @State private var openConnections: CaptureConnectionsUIModel?
+    /// A memory opened from the "To revisit" card.
+    @State private var openResurfaced: ResurfaceItemDTO?
 
     private let vaultClient: VaultClientProtocol
     private let memoryClient: MemoryClientProtocol
@@ -131,6 +133,11 @@ struct CaptureHomeView: View {
                             YourWeekStrip(recap: glance.recap.value) {
                                 showingRecap = true
                             }
+                        }
+                        // One memory worth seeing again. Absent until the
+                        // queue has something, gone once it is answered out.
+                        if let queue = glance.resurface, queue.showsCard {
+                            resurfaceCard(queue)
                         }
                     } else {
                         HomeGlanceStrip(
@@ -245,6 +252,13 @@ struct CaptureHomeView: View {
                 periodRecapClient: appState.makePeriodRecapClient()
             )
         }
+        .sheet(item: $openResurfaced) { item in
+            MemoryDetailSheet(
+                memoryID: item.memoryId,
+                client: memoryClient,
+                spacesClient: spacesClient
+            )
+        }
         .sheet(item: $openConnections) { connections in
             RelatedMemoriesSheet(
                 items: connections.items,
@@ -330,9 +344,13 @@ struct CaptureHomeView: View {
                 syncAndLearnRow(count: count)
             case .dailyReview(let count):
                 NavigationLink {
-                    DailyReviewView(
-                        vm: DailyReviewViewModel(client: appState.makeDailyReviewClient())
-                    )
+                    if let queue = glance?.resurface {
+                        DailyReviewView(
+                            queue: queue,
+                            memoryClient: memoryClient,
+                            spacesClient: spacesClient
+                        )
+                    }
                 } label: {
                     HomeRecommendationLabel(
                         title: "Daily review",
@@ -355,6 +373,19 @@ struct CaptureHomeView: View {
         }
     }
 
+    private func resurfaceCard(_ queue: ResurfaceQueueViewModel) -> some View {
+        ResurfaceCard(
+            item: queue.current,
+            remaining: queue.items.count,
+            confirmation: queue.confirmation,
+            isPending: queue.pendingMemoryID != nil,
+            errorMessage: queue.actionError,
+            onOpen: { openResurfaced = $0 },
+            onAction: { action, item in Task { await queue.perform(action, on: item) } },
+            onConfirmationShown: { queue.clearConfirmation() }
+        )
+    }
+
     private func makeTickerViewModel() -> NewsTickerViewModel {
         NewsTickerViewModel(
             client: NewsTickerHTTPClient(client: appState.makeHTTPClient()),
@@ -365,7 +396,10 @@ struct CaptureHomeView: View {
     private func makeGlanceViewModel() -> HomeGlanceViewModel {
         HomeGlanceViewModel(
             homeClient: HomeSummaryHTTPClient(client: appState.makeHTTPClient()),
-            dailyReviewClient: appState.makeDailyReviewClient(),
+            resurface: ResurfaceQueueViewModel(
+                resurfaceClient: appState.makeResurfaceClient(),
+                memoryClient: memoryClient
+            ),
             pendingClient: appState.makeKBCompileClient(),
             recapClient: appState.makeRecapClient()
         )
