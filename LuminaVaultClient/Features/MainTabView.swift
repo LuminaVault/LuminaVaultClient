@@ -65,6 +65,13 @@ struct MainTabView: View {
     /// so it opens from the palette's `onDismiss`, the same hand-over the
     /// workflow push uses with Settings.
     @State private var settingsAfterPalette = false
+    /// Community chosen from the palette; opens on the palette's dismiss,
+    /// the same hand-over Settings uses.
+    @State private var communityAfterPalette = false
+    @State private var showCommunity = false
+    /// From `GET /v1/community/me`. The palette offers Community only when
+    /// the board is on — there is no tab for it.
+    @State private var communityEnabled = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -114,11 +121,16 @@ struct MainTabView: View {
         .environment(shellActivity)
         .background { keyboardShortcuts }
         .sheet(isPresented: $showCommandPalette, onDismiss: {
+            if communityAfterPalette {
+                communityAfterPalette = false
+                showCommunity = true
+                return
+            }
             guard settingsAfterPalette else { return }
             settingsAfterPalette = false
             showSettings = true
         }, content: {
-            CommandPaletteView(entries: Self.paletteEntries) { entry in
+            CommandPaletteView(entries: Self.paletteEntries(communityEnabled: communityEnabled)) { entry in
                 runPaletteEntry(entry)
             }
         })
@@ -246,6 +258,19 @@ struct MainTabView: View {
         } content: {
             SettingsRootView()
         }
+        .sheet(isPresented: $showCommunity) {
+            NavigationStack {
+                CommunityBoardView(vm: CommunityBoardViewModel(client: appState.makeCommunityClient()))
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { showCommunity = false }
+                        }
+                    }
+            }
+        }
+        .task {
+            communityEnabled = (try? await appState.makeCommunityClient().me().enabled) ?? false
+        }
         .sensoryFeedback(.selection, trigger: tabHapticTrigger)
         .captureSheet(
             isPresented: $showingIngestionCapture,
@@ -290,9 +315,23 @@ struct MainTabView: View {
         .init(id: "settings", label: "Settings", group: "App", keywords: ["preferences", "theme", "account"]),
     ]
 
+    /// The Community board. Not a tab: it opens as a sheet, and only when
+    /// `/v1/community/me` says the board is on.
+    static let communityPaletteEntry = CommandPaletteMatcher.Entry(
+        id: "community", label: "Community", group: "App", keywords: ["board", "daily post", "forum", "members"]
+    )
+
+    static func paletteEntries(communityEnabled: Bool) -> [CommandPaletteMatcher.Entry] {
+        communityEnabled ? paletteEntries + [communityPaletteEntry] : paletteEntries
+    }
+
     private func runPaletteEntry(_ entry: CommandPaletteMatcher.Entry) {
         if entry.id == "settings" {
             settingsAfterPalette = true
+            return
+        }
+        if entry.id == Self.communityPaletteEntry.id {
+            communityAfterPalette = true
             return
         }
         let raw = entry.id.replacingOccurrences(of: "tab.", with: "")
