@@ -16,6 +16,7 @@
 //
 // Mirrors `HealthKitService` (actor, async/await, structured POST batching).
 
+import Algorithms
 import EventKit
 import Foundation
 import LuminaVaultShared
@@ -112,8 +113,8 @@ actor CalendarSyncService {
         }
 
         var touched = 0
-        for chunk in inputs.chunked(into: chunkSize) {
-            let response = try await httpClient.execute(CalendarSyncEndpoints.Sync(events: chunk))
+        for chunk in inputs.chunks(ofCount: chunkSize) {
+            let response = try await httpClient.execute(CalendarSyncEndpoints.Sync(events: Array(chunk)))
             touched += response.inserted + response.updated
             log.info("calendar sync inserted=\(response.inserted) updated=\(response.updated) skipped=\(response.skipped)")
         }
@@ -153,13 +154,5 @@ actor CalendarSyncService {
     private func cancelDebounce() {
         debounceTask?.cancel()
         debounceTask = nil
-    }
-}
-
-// MARK: - Array chunking
-
-nonisolated private extension Array {
-    func chunked(into size: Int) -> [[Element]] {
-        stride(from: 0, to: count, by: size).map { Array(self[$0 ..< Swift.min($0 + size, count)]) }
     }
 }

@@ -16,6 +16,7 @@
 // Add a metric: extend `HealthKitMetricCatalog.quantityMetrics`. Sleep
 // and mindful are special-cased because they're category samples.
 
+import Algorithms
 import Foundation
 import HealthKit
 import OSLog
@@ -140,8 +141,8 @@ actor HealthKitService {
 
         // Server caps batch at 1000 events; chunk if we have more.
         var pushed = 0
-        for chunk in batch.chunked(into: 500) {
-            let response = try await httpClient.execute(HealthEndpoints.Ingest(events: chunk))
+        for chunk in batch.chunks(ofCount: 500) {
+            let response = try await httpClient.execute(HealthEndpoints.Ingest(events: Array(chunk)))
             pushed += response.inserted
             log.info("synced \(response.inserted) events (\(response.skipped) skipped)")
         }
@@ -397,13 +398,5 @@ nonisolated final class AnchorStore: @unchecked Sendable {
         for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
             defaults.removeObject(forKey: key)
         }
-    }
-}
-
-// MARK: - Array chunking
-
-nonisolated private extension Array {
-    func chunked(into size: Int) -> [[Element]] {
-        stride(from: 0, to: count, by: size).map { Array(self[$0..<Swift.min($0 + size, count)]) }
     }
 }

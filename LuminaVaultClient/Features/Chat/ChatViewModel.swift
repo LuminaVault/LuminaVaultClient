@@ -16,6 +16,7 @@
 //      `pendingAssistant` into `messages`. `.error` aborts.
 //   3. `cancel()` tears down the live stream Task. UI keeps any partial
 //      text already streamed.
+import Algorithms
 import Foundation
 import OSLog
 
@@ -154,8 +155,7 @@ final class ChatViewModel {
             }
             scan(#"!\[[^\]]*\]\((https?://[^\s)]+)\)"#, group: 1)
             scan(#"(?<!\()(https?://[^\s)]+\.(?:png|jpe?g|gif|webp))"#, group: 1)
-            var seen = Set<String>()
-            return urls.filter { seen.insert($0.absoluteString).inserted }
+            return urls.uniqued(on: \.absoluteString)
         }
     }
 

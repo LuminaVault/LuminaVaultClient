@@ -1,6 +1,7 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Vault/WikilinkMarkdownView.swift
 // Markdown reader body with tappable Obsidian wikilinks.
 
+import Algorithms
 import MarkdownUI
 import SwiftUI
 
@@ -232,7 +233,7 @@ struct MemoryWikilinkSheet: View {
         FlowLayout(spacing: 8) {
             // De-duplicated: `id: \.self` needs unique elements, and a memory
             // can carry the same tag twice.
-            ForEach(memory.tags.lvUnique(), id: \.self) { tag in
+            ForEach(Array(memory.tags.uniqued()), id: \.self) { tag in
                 Text(tag)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(palette.primary)

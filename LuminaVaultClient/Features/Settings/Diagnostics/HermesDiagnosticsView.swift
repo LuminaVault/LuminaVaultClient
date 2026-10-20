@@ -5,6 +5,7 @@
 // chain, provider credential health, Nous Portal link, and (for BYO-Hermes)
 // an on-demand reachability probe.
 
+import Algorithms
 import LuminaVaultShared
 import SwiftUI
 
@@ -167,7 +168,7 @@ struct HermesDiagnosticsView: View {
             // from both `.task` and `.refreshable` and suspends four times, so
             // two overlapping runs can append the same line twice. Rendering
             // one failure twice is wrong however it is keyed.
-            ForEach(viewModel.sectionErrors.lvUnique(), id: \.self) { err in
+            ForEach(Array(viewModel.sectionErrors.uniqued()), id: \.self) { err in
                 Text(err).font(.caption).foregroundStyle(.secondary)
             }
         }

@@ -21,6 +21,7 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		4DC7F4D4EBCF3C8EEE5CBF20 /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = 50A33C04850CA3BAFE1CC78F /* Algorithms */; };
 		0B4FB7CF9004FCB964362A5C /* SharedAppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28D751509558FA472F19A1E9 /* SharedAppGroup.swift */; };
 		36898169B542419BA32DA510 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = F8D79674B58849A9A00C4538 /* Sentry-Dynamic */; };
 		4DF5595360F1E690E952EEC5 /* SharedShareQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC806D8A50D60DFFD23095C1 /* SharedShareQueue.swift */; };
@@ -228,6 +229,7 @@
 				36898169B542419BA32DA510 /* Sentry-Dynamic in Frameworks */,
 				AF9870ACC004473D2F65EB8D /* RevenueCat in Frameworks */,
 				597D439B97706F0F59CC1976 /* RevenueCatUI in Frameworks */,
+				4DC7F4D4EBCF3C8EEE5CBF20 /* Algorithms in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -369,6 +371,7 @@
 				F8D79674B58849A9A00C4538 /* Sentry-Dynamic */,
 				41CABE5B9E8F10B98C99DA63 /* RevenueCat */,
 				D7B92A4C1DB72A55FF1DE968 /* RevenueCatUI */,
+				50A33C04850CA3BAFE1CC78F /* Algorithms */,
 			);
 			productName = LuminaVaultClient;
 			productReference = 6088C4F32FAE1184006F894F /* LuminaVaultClient.app */;
@@ -468,6 +471,7 @@
 				60PHG00032FAE1200006F894F /* XCRemoteSwiftPackageReference "posthog-ios" */,
 				63C9812D8F0349FC8A4481E2 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
 				CA876A02B2394950741A9E30 /* XCRemoteSwiftPackageReference "purchases-ios" */,
+				986B4BB37FFF68E793463058 /* XCRemoteSwiftPackageReference "swift-algorithms" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6088C4F42FAE1184006F894F /* Products */;
@@ -1376,6 +1380,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		986B4BB37FFF68E793463058 /* XCRemoteSwiftPackageReference "swift-algorithms" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-algorithms";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
 		609817382FB8BE2500414C79 /* XCRemoteSwiftPackageReference "LuminaVaultShared" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/LuminaVault/LuminaVaultShared.git";
@@ -1459,6 +1471,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		50A33C04850CA3BAFE1CC78F /* Algorithms */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 986B4BB37FFF68E793463058 /* XCRemoteSwiftPackageReference "swift-algorithms" */;
+			productName = Algorithms;
+		};
 		41CABE5B9E8F10B98C99DA63 /* RevenueCat */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = CA876A02B2394950741A9E30 /* XCRemoteSwiftPackageReference "purchases-ios" */;

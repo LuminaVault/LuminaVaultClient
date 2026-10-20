@@ -6,6 +6,7 @@
 // the body, set a title + tags, promote to a smart todo (done + due date
 // with a local reminder), and delete. Saving re-PUTs the note so the server
 // re-embeds its recall memory in place (no separate memory call).
+import Algorithms
 import LuminaVaultShared
 import SwiftUI
 
@@ -150,7 +151,7 @@ struct MarkdownReaderView: View {
         // `ForEach(tags, id: \.self)` below needs unique elements; note
         // frontmatter can repeat a tag, and rendering "#work #work" is a bug
         // regardless of how it is keyed.
-        let tags = (file.metadata?.tags ?? []).lvUnique()
+        let tags = Array((file.metadata?.tags ?? []).uniqued())
         if !tags.isEmpty || file.metadata?.dueAt != nil {
             HStack(spacing: 8) {
                 if let due = file.metadata?.dueAt {

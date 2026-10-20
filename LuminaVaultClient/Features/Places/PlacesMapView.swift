@@ -7,6 +7,7 @@
 // asks for a location fix. Capture-time location remains opt-in per capture via
 // the toggle wired to `LocationService`.
 
+import Algorithms
 import LuminaVaultShared
 import MapKit
 import SwiftUI
@@ -44,19 +45,17 @@ final class PlacesViewModel {
     /// A region that frames every pin, or nil when there is nothing to show.
     var boundingRegion: MKCoordinateRegion? {
         guard !pins.isEmpty else { return nil }
-        let lats = pins.map(\.coordinate.latitude)
-        let lngs = pins.map(\.coordinate.longitude)
-        guard let minLat = lats.min(), let maxLat = lats.max(),
-              let minLng = lngs.min(), let maxLng = lngs.max() else { return nil }
+        guard let lat = pins.map(\.coordinate.latitude).minAndMax(),
+              let lng = pins.map(\.coordinate.longitude).minAndMax() else { return nil }
         let center = CLLocationCoordinate2D(
-            latitude: (minLat + maxLat) / 2,
-            longitude: (minLng + maxLng) / 2
+            latitude: (lat.min + lat.max) / 2,
+            longitude: (lng.min + lng.max) / 2
         )
         // 1.4× padding so edge pins aren't flush against the frame, with a
         // floor so a single pin (zero span) still renders at a sane zoom.
         let span = MKCoordinateSpan(
-            latitudeDelta: max(0.01, (maxLat - minLat) * 1.4),
-            longitudeDelta: max(0.01, (maxLng - minLng) * 1.4)
+            latitudeDelta: max(0.01, (lat.max - lat.min) * 1.4),
+            longitudeDelta: max(0.01, (lng.max - lng.min) * 1.4)
         )
         return MKCoordinateRegion(center: center, span: span)
     }

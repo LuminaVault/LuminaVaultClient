@@ -18,6 +18,7 @@
 //
 // Reuses the EventKit full-access auth pattern from `DeviceCommandExecutor`.
 
+import Algorithms
 import EventKit
 import Foundation
 import LuminaVaultShared
@@ -84,8 +85,8 @@ actor RemindersSyncService {
         }
 
         var pushed = 0
-        for chunk in inputs.chunked(into: min(500, Self.maxBatchSize)) {
-            let response = try await httpClient.execute(AppleRemindersEndpoints.Sync(reminders: chunk))
+        for chunk in inputs.chunks(ofCount: min(500, Self.maxBatchSize)) {
+            let response = try await httpClient.execute(AppleRemindersEndpoints.Sync(reminders: Array(chunk)))
             pushed += response.inserted + response.updated
             log.info("synced reminders inserted=\(response.inserted) updated=\(response.updated) skipped=\(response.skipped)")
         }
@@ -175,12 +176,4 @@ nonisolated final class RemindersSyncAnchor: @unchecked Sendable {
     }
 
     func reset() { defaults.removeObject(forKey: key) }
-}
-
-// MARK: - Array chunking
-
-nonisolated private extension Array {
-    func chunked(into size: Int) -> [[Element]] {
-        stride(from: 0, to: count, by: size).map { Array(self[$0 ..< Swift.min($0 + size, count)]) }
-    }
 }

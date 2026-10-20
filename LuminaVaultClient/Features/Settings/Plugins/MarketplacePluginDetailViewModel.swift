@@ -1,3 +1,4 @@
+import Algorithms
 import Foundation
 import LuminaVaultShared
 
@@ -42,11 +43,11 @@ final class MarketplacePluginDetailViewModel {
     /// rows backed by the same `Set` member, which is nonsense on a screen
     /// whose whole job is per-permission consent.
     var screenshots: [String] {
-        plugin.screenshots.lvUnique()
+        Array(plugin.screenshots.uniqued())
     }
 
     var requestedPermissions: [PluginPermission] {
-        plugin.latestVersion.permissions.lvUnique()
+        Array(plugin.latestVersion.permissions.uniqued())
     }
 
     var hasAllPermissions: Bool {
