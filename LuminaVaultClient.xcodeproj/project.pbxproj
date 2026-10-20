@@ -662,7 +662,8 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				BUILD_NUMBER = 1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LuminaVaultWidgets/Info.plist;
@@ -695,7 +696,8 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				BUILD_NUMBER = 1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LuminaVaultWidgets/Info.plist;
@@ -728,7 +730,8 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				BUILD_NUMBER = 1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LuminaVaultWidgets/Info.plist;
@@ -759,7 +762,8 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultShareExtension/LuminaVaultShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				BUILD_NUMBER = 1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LuminaVaultShareExtension/Info.plist;
@@ -789,7 +793,8 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultShareExtension/LuminaVaultShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				BUILD_NUMBER = 1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LuminaVaultShareExtension/Info.plist;
@@ -819,7 +824,8 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultShareExtension/LuminaVaultShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				BUILD_NUMBER = 1;
+				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LuminaVaultShareExtension/Info.plist;
@@ -977,7 +983,6 @@
 				BUILD_NUMBER = 1;
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultClient/LuminaVaultClient.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				BUILD_NUMBER = 1;
 				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
@@ -1026,7 +1031,6 @@
 				BUILD_NUMBER = 1;
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultClient/LuminaVaultClient.Release.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				BUILD_NUMBER = 1;
 				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
@@ -1218,7 +1222,6 @@
 				BUILD_NUMBER = 1;
 				CODE_SIGN_ENTITLEMENTS = LuminaVaultClient/LuminaVaultClient.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				BUILD_NUMBER = 1;
 				CURRENT_PROJECT_VERSION = "$(BUILD_NUMBER)";
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 84X9WYBF36;
