@@ -3,10 +3,8 @@
 // "What I learned this week": the sheet with both sections, its empty
 // state, and Home's "Confirm what I learned" row, light and dark.
 //
-// New suite, so its cases are quarantined until CI's `record-snapshots`
-// workflow (`.github/workflows/ci.yml`, workflow_dispatch) has recorded the
-// baselines on its iPhone 16 Pro / iOS 26.4 renderer — see
-// `SnapshotQuarantine`.
+// Baselines are recorded on CI's iPhone 16 Pro / iOS 26.4 renderer by the
+// `record-snapshots` workflow (`.github/workflows/ci.yml`), never locally.
 
 import SnapshotTesting
 import SwiftUI
@@ -58,21 +56,18 @@ final class LearnedThisWeekSnapshotTests: XCTestCase {
     }
 
     func testSheet() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
         let view = LearnedThisWeekSheet(viewModel: await loadedViewModel(.fixture()), memoryClient: MockMemoryClient())
         snap(view, "learned-sheet-light", dark: false, layout: .device(config: .iPhone13Pro))
         snap(view, "learned-sheet-dark", dark: true, layout: .device(config: .iPhone13Pro))
     }
 
     func testEmptySheet() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
         let view = LearnedThisWeekSheet(viewModel: await loadedViewModel(.empty), memoryClient: MockMemoryClient())
         snap(view, "learned-sheet-empty-light", dark: false, layout: .device(config: .iPhone13Pro))
         snap(view, "learned-sheet-empty-dark", dark: true, layout: .device(config: .iPhone13Pro))
     }
 
     func testHomeRow() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
         let view = List {
             Section("Today") {
                 LearnedHomeRow(count: 4, onOpen: {})
