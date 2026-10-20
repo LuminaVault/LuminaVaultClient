@@ -391,6 +391,12 @@ final class AppState {
         ResurfaceHTTPClient(client: makeHTTPClient())
     }
 
+    /// `/v1/community` — the global board, the AI Daily Post on Home and the
+    /// palette's "Community" entry.
+    func makeCommunityClient() -> any CommunityClientProtocol {
+        CommunityHTTPClient(client: makeHTTPClient())
+    }
+
     /// GET /v1/me/recap — Home's "Your week" strip and the recap sheet.
     func makeRecapClient() -> any RecapClientProtocol {
         RecapHTTPClient(client: makeHTTPClient())

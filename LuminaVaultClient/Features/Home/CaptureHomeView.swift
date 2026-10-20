@@ -20,6 +20,9 @@ struct CaptureHomeView: View {
     @State private var vm: CaptureHomeViewModel
     @State private var glance: HomeGlanceViewModel?
     @State private var ticker: NewsTickerViewModel?
+    /// Today's AI Daily Post from the Community board. Nil until `.task`.
+    @State private var dailyPost: HomeDailyPostViewModel?
+    @State private var showingCommunity = false
     @FocusState private var composerFocused: Bool
     @State private var sheetPresented = false
     @State private var sheetMode: CaptureSheet.Mode = .photo
@@ -154,6 +157,12 @@ struct CaptureHomeView: View {
                     if let ticker, !isGuidedCardVisible {
                         HomeNewsTickerStrip(viewModel: ticker)
                     }
+                    // The Community board's AI Daily Post. Hidden when the
+                    // board is off or nothing is published yet today, and —
+                    // like the ticker — while the get-started card is up.
+                    if let dailyPost, let post = dailyPost.post, !dailyPost.isHidden, !isGuidedCardVisible {
+                        HomeDailyPostRow(post: post) { showingCommunity = true }
+                    }
                     recommendationRows
                 }
             }
@@ -198,11 +207,19 @@ struct CaptureHomeView: View {
             await vm.loadFeed()
             await glance?.load()
             await ticker?.refresh()
+            await dailyPost?.load()
         }
         .task {
             if glance == nil { glance = makeGlanceViewModel() }
             if ticker == nil { ticker = makeTickerViewModel() }
             await glance?.load()
+        }
+        .task {
+            if dailyPost == nil { dailyPost = HomeDailyPostViewModel(client: appState.makeCommunityClient()) }
+            await dailyPost?.load()
+        }
+        .navigationDestination(isPresented: $showingCommunity) {
+            CommunityBoardView(vm: CommunityBoardViewModel(client: appState.makeCommunityClient()))
         }
         .task { await vm.loadFeed() }
         .task { await vm.observeCaptureOutcomes() }
