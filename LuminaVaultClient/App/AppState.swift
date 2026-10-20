@@ -406,6 +406,18 @@ final class AppState {
         PeriodRecapHTTPClient(client: makeHTTPClient())
     }
 
+    /// GET /v1/me/learned — Home's "Confirm what I learned" row and the
+    /// "What I learned this week" sheet.
+    func makeLearnedClient() -> any LearnedClientProtocol {
+        LearnedHTTPClient(client: makeHTTPClient())
+    }
+
+    /// `/v1/me/improvement` — the SOUL changes' Keep / Forget in "What I
+    /// learned this week" (approve / reject a pending change).
+    func makeSelfImprovementClient() -> any SelfImprovementClientProtocol {
+        SelfImprovementHTTPClient(client: makeHTTPClient())
+    }
+
     /// HER-293 / HER-108 — memory-compile HTTP client (POST
     /// `/v1/memory-compile` and `GET /v1/memory-compile/pending`; HER-240
     /// renamed both from `/v1/kb-compile`). Used by `SyncAndLearnViewModel`

@@ -24,6 +24,10 @@ enum APNSDeepLink: Sendable, Equatable {
     /// `luminavault://memory/<id>` — one memory, opened as a sheet over
     /// whatever is on screen.
     case memory(id: UUID)
+    /// `luminavault://learned` — "What I learned this week", opened as a
+    /// sheet. The `learned` push carries it as its `deepLink`, so both a
+    /// plain tap and its "Review" action land here.
+    case learned
     case none
 }
 
@@ -110,18 +114,22 @@ final class NotificationRouter {
         }
     }
 
-    /// Parse an app URL. Two are recognised:
+    /// Parse an app URL. Three are recognised:
     ///
     /// * `luminavault://chat/<conversationID>` — the `deepLink` the server
     ///   puts on a proactive chat push and the `widgetURL` of the agent-run
     ///   Live Activity.
     /// * `luminavault://memory/<memoryID>` — one memory.
+    /// * `luminavault://learned` — "What I learned this week".
     ///
     /// Everything else is `.none`, so `onOpenURL` can fall through to its
     /// other handlers.
     static func deepLink(from url: URL) -> APNSDeepLink {
         guard url.scheme?.lowercased() == "luminavault" else { return .none }
         let segments = url.pathComponents.filter { $0 != "/" }
+        if url.host?.lowercased() == "learned" {
+            return segments.isEmpty ? .learned : .none
+        }
         guard segments.count == 1, let id = UUID(uuidString: segments[0]) else { return .none }
         switch url.host?.lowercased() {
         case "chat": return .conversation(id: id)
@@ -139,6 +147,8 @@ final class NotificationRouter {
         // Same for a resurfaced memory: popping a sheet over what the user is
         // doing because a memory came due is the opposite of a gentle nudge.
         if case .memory = link { return false }
+        // And for the weekly "what I learned": the banner is the invitation.
+        if case .learned = link { return false }
         return link != .none
     }
 }
