@@ -6,6 +6,7 @@
 // surface — each source is fetched concurrently and tolerates partial
 // failure so one dead endpoint doesn't blank the screen.
 
+import Algorithms
 import Foundation
 import LuminaVaultShared
 
@@ -63,7 +64,7 @@ final class HermesDiagnosticsViewModel {
     /// rows by `ProviderID`), so a repeated provider is a bad response, not a
     /// second row worth showing.
     var credentialedProviders: [ProviderCredentialDTO] {
-        providers.filter(\.hasCredential).lvUnique(by: \.provider)
+        providers.filter(\.hasCredential).uniqued(on: \.provider)
     }
 
     func load() async {

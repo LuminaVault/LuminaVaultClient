@@ -13,6 +13,7 @@
 // SceneKit's `camera.bloomIntensity`). The glow here is emissive
 // `UnlitMaterial` cores + a larger, low-opacity additive halo sphere per node.
 
+import Algorithms
 import LuminaVaultShared
 import RealityKit
 import SwiftUI
@@ -135,7 +136,7 @@ struct BrainGraphRealityView: View {
         }
 
         // Edges: cap for perf on dense clouds; strongest weights win.
-        let capped = graph.edges.sorted { $0.weight > $1.weight }.prefix(1200)
+        let capped = graph.edges.min(count: 1200, sortedBy: { $0.weight > $1.weight })
         for edge in capped {
             guard let a = positions[edge.from], let b = positions[edge.to] else { continue }
             root.addChild(makeEdgeEntity(from: a, to: b, kind: edge.kind, weight: Float(edge.weight)))

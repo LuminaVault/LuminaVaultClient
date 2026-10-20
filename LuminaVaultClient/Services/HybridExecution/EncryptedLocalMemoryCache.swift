@@ -1,3 +1,4 @@
+import Algorithms
 import CryptoKit
 import Foundation
 import LuminaVaultShared
@@ -32,7 +33,7 @@ actor EncryptedLocalMemoryCache {
         return try load().map { item in
             let words = Set(item.content.lowercased().split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init))
             return (item, terms.intersection(words).count)
-        }.filter { $0.1 > 0 }.sorted { $0.1 > $1.1 }.prefix(limit).map(\.0)
+        }.filter { $0.1 > 0 }.min(count: limit, sortedBy: { $0.1 > $1.1 }).map(\.0)
     }
 }
 
