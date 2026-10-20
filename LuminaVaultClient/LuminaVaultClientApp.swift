@@ -413,6 +413,11 @@ struct LuminaVaultClientApp: App {
                 case let .memory(id):
                     notificationRouter.pendingDeepLink = .memory(id: id)
                     return
+                case .learned:
+                    // `luminavault://learned` — `MainTabView` presents the
+                    // "What I learned this week" sheet.
+                    notificationRouter.pendingDeepLink = .learned
+                    return
                 default:
                     break
                 }

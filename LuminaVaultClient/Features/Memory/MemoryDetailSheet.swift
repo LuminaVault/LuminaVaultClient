@@ -15,6 +15,9 @@ struct MemoryDetailSheet: View {
     var spacesClient: (any SpacesClientProtocol)?
     /// Called after a delete, before the sheet closes.
     var onDeleted: (() -> Void)?
+    /// Opens straight into the editor once the memory has loaded — the
+    /// "Edit" on a row that is not this screen.
+    var startsEditing = false
 
     @Environment(\.dismiss) private var dismiss
 
@@ -24,7 +27,8 @@ struct MemoryDetailSheet: View {
                 memoryID: memoryID,
                 client: client,
                 spacesClient: spacesClient,
-                onDeleted: onDeleted
+                onDeleted: onDeleted,
+                startsEditing: startsEditing
             )
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -44,6 +48,8 @@ struct MemoryDetailView: View {
     @State private var confirmingDelete = false
     /// Bumped when the editor closes, so the memory is re-read.
     @State private var reloadToken = 0
+    /// Still owed the automatic trip into the editor (`startsEditing`).
+    @State private var opensEditorOnLoad: Bool
     @Environment(\.dismiss) private var dismiss
     @Environment(\.lvPalette) private var palette
 
@@ -55,8 +61,10 @@ struct MemoryDetailView: View {
         memoryID: UUID,
         client: any MemoryClientProtocol,
         spacesClient: (any SpacesClientProtocol)? = nil,
-        onDeleted: (() -> Void)? = nil
+        onDeleted: (() -> Void)? = nil,
+        startsEditing: Bool = false
     ) {
+        _opensEditorOnLoad = State(initialValue: startsEditing)
         _vm = State(initialValue: MemoryDetailViewModel(
             memoryID: memoryID,
             client: client,
@@ -95,6 +103,12 @@ struct MemoryDetailView: View {
                     await vm.load()
                 } else {
                     await vm.reload()
+                }
+                // Once only: coming back from the editor lands on the memory.
+                if opensEditorOnLoad, vm.memory != nil {
+                    opensEditorOnLoad = false
+                    if editor == nil { editor = vm.makeEditor() }
+                    isEditing = true
                 }
             }
             .confirmationDialog(

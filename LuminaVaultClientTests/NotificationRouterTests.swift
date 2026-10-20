@@ -149,4 +149,45 @@ struct NotificationRouterTests {
     func `a memory push waits for a tap when the app is open`() {
         #expect(!NotificationRouter.routesOnForegroundDelivery(.memory(id: UUID())))
     }
+
+    // MARK: - What I learned this week
+
+    @Test
+    func `the learned URL routes to the weekly sheet`() throws {
+        let url = try #require(URL(string: "luminavault://learned"))
+        #expect(NotificationRouter.deepLink(from: url) == .learned)
+        let trailing = try #require(URL(string: "luminavault://learned/"))
+        #expect(NotificationRouter.deepLink(from: trailing) == .learned)
+    }
+
+    @Test(arguments: [
+        "luminavault://learned/7C0E0B53-9A51-4F43-9B0C-2C1E6B0E0001",
+        "https://learned",
+        "luminavault://learnt",
+    ])
+    func `malformed learned URLs are not routed`(raw: String) throws {
+        let url = try #require(URL(string: raw))
+        #expect(NotificationRouter.deepLink(from: url) == .none)
+    }
+
+    /// The `learned` push is not an `APNSCategory`; its tap and its "Review"
+    /// action both route through the payload's `deepLink`.
+    @Test
+    func `a learned push opens wherever its deep link points`() {
+        let router = NotificationRouter()
+        #expect(router.deepLink(from: [
+            "category": "learned",
+            "deepLink": "luminavault://learned",
+        ]) == .learned)
+        #expect(router.deepLink(from: [
+            "aps": ["category": "learned"],
+            "deepLink": "luminavault://learned",
+        ]) == .learned)
+        #expect(router.deepLink(from: ["category": "learned"]) == .none)
+    }
+
+    @Test
+    func `a learned push waits for a tap when the app is open`() {
+        #expect(!NotificationRouter.routesOnForegroundDelivery(.learned))
+    }
 }

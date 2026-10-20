@@ -18,6 +18,9 @@ final class MockMemoryClient: MemoryClientProtocol, @unchecked Sendable {
     var deleteError: Error?
     var reviewResult: Result<MemoryReviewResponse, Error> = .failure(APIError.unauthorized)
     private(set) var reviewCalls: [(id: UUID, action: MemoryReviewAction?)] = []
+    /// Throws by default, as it always did; script a success to use it.
+    var patchResult: Result<MemoryDTO, Error> = .failure(APIError.unauthorized)
+    private(set) var patchCalls: [(id: UUID, request: MemoryPatchRequest)] = []
 
     private(set) var getCalls: [UUID] = []
     private(set) var relatedCalls: [(id: UUID, limit: Int)] = []
@@ -51,8 +54,9 @@ final class MockMemoryClient: MemoryClientProtocol, @unchecked Sendable {
         throw APIError.unauthorized
     }
 
-    func patch(id _: UUID, _: MemoryPatchRequest) async throws -> MemoryDTO {
-        throw APIError.unauthorized
+    func patch(id: UUID, _ request: MemoryPatchRequest) async throws -> MemoryDTO {
+        patchCalls.append((id, request))
+        return try patchResult.get()
     }
 
     func list(limit _: Int, offset _: Int) async throws -> MemoryListResponse {

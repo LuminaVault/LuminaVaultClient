@@ -44,6 +44,10 @@ struct MainTabView: View {
     /// A memory link that arrived while Settings was up; presented from
     /// Settings' `onDismiss`, the same hand-over the workflow push uses.
     @State private var memoryAfterSettings: MemoryPresentation?
+    /// True while a `luminavault://learned` link is being shown.
+    @State private var showingLearned = false
+    /// A learned link that arrived while Settings was up; same hand-over.
+    @State private var learnedAfterSettings = false
     @State private var showSettings = false
     @AppStorage("lv.chat.hapticsEnabled") private var hapticsEnabled = true
     @State private var tabHapticTrigger = 0
@@ -245,12 +249,27 @@ struct MainTabView: View {
                 spacesClient: spacesClient
             )
         }
+        .sheet(isPresented: $showingLearned) {
+            LearnedThisWeekSheet(
+                viewModel: LearnedThisWeekViewModel(
+                    client: appState.makeLearnedClient(),
+                    memoryClient: memoryUpsertClient,
+                    improvementClient: appState.makeSelfImprovementClient()
+                ),
+                memoryClient: memoryUpsertClient,
+                spacesClient: spacesClient
+            )
+        }
         .sheet(isPresented: $showSettings) {
             // A workflow push that arrived while Settings was up closed it and
             // parked itself here; present it now that the slot is free.
             if let memory = memoryAfterSettings {
                 memoryAfterSettings = nil
                 pendingMemory = memory
+            }
+            if learnedAfterSettings {
+                learnedAfterSettings = false
+                showingLearned = true
             }
             guard let presentation = workflowAfterSettings else { return }
             workflowAfterSettings = nil
@@ -281,6 +300,7 @@ struct MainTabView: View {
             routePendingIngestion()
             routePendingConversation()
             routePendingMemory()
+            routePendingLearned()
         }
         .task(id: captureCoordinator?.queue == nil) {
             guard captureFailures == nil, captureCoordinator?.queue != nil else { return }
@@ -421,6 +441,20 @@ struct MainTabView: View {
             showSettings = false
         } else {
             pendingMemory = presentation
+        }
+    }
+
+    /// `luminavault://learned` — the weekly "What I learned" push, its
+    /// Review action, or the URL. A sheet over whatever tab is up, like a
+    /// memory, and routed from `.task(id:)` for the same cold-start reason.
+    private func routePendingLearned() {
+        guard case .learned = notificationRouter.pendingDeepLink else { return }
+        _ = notificationRouter.consume()
+        if showSettings {
+            learnedAfterSettings = true
+            showSettings = false
+        } else {
+            showingLearned = true
         }
     }
 

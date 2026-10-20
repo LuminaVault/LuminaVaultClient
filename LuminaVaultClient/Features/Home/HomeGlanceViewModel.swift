@@ -85,17 +85,29 @@ final class HomeGlanceViewModel {
     /// Nil leaves the week strip off entirely — previews and snapshot suites
     /// that predate it render Home exactly as before.
     private let recapClient: (any RecapClientProtocol)?
+    /// "What I learned this week" — behind the "Confirm what I learned" row
+    /// and the sheet it opens. Nil leaves the row off, as above.
+    let learned: LearnedThisWeekViewModel?
+
+    /// Unconfirmed things Lumina learned, live: answering one in the sheet
+    /// takes it off the row at once. Zero hides the row.
+    var learnedCount: Int {
+        guard let learned, learned.phase == .loaded else { return 0 }
+        return learned.count
+    }
 
     init(
         homeClient: any HomeSummaryClientProtocol,
         resurface: ResurfaceQueueViewModel?,
         pendingClient: any KBCompileClientProtocol,
-        recapClient: (any RecapClientProtocol)? = nil
+        recapClient: (any RecapClientProtocol)? = nil,
+        learned: LearnedThisWeekViewModel? = nil
     ) {
         self.homeClient = homeClient
         self.resurface = resurface
         self.pendingClient = pendingClient
         self.recapClient = recapClient
+        self.learned = learned
         recap = recapClient == nil ? .failed(message: "Not configured") : .loading
     }
 
@@ -124,8 +136,14 @@ final class HomeGlanceViewModel {
         let newRecap = await loadRecap()
         // A refresh keeps the strip that is on screen if the new call fails:
         // last week's numbers do not stop being true because a pull dropped.
-        if case .failed = newRecap, recap.value != nil { return }
-        recap = newRecap
+        if !(newRecap.isFailed && recap.value != nil) {
+            recap = newRecap
+        }
+
+        // Sequenced after the recap, not a fourth `async let` beside the
+        // three above: the row sits further down still, and it keeps its own
+        // state (a failed refresh leaves what is on screen).
+        await learned?.load()
     }
 
     private func loadRecap() async -> CardState<MeRecapResponse> {

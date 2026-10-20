@@ -29,6 +29,8 @@ struct CaptureHomeView: View {
     @State private var showingSyncAndLearn = false
     @State private var showingCaptureReview = false
     @State private var showingRecap = false
+    /// "What I learned this week", opened from its row.
+    @State private var showingLearned = false
     /// The "Connects to" list, opened from the banner after a save.
     @State private var openConnections: CaptureConnectionsUIModel?
     /// A memory opened from the "To revisit" card.
@@ -141,6 +143,14 @@ struct CaptureHomeView: View {
                         // queue has something, gone once it is answered out.
                         if let queue = glance.resurface, queue.showsCard {
                             resurfaceCard(queue)
+                        }
+                        // What Lumina picked up and wants confirmed. Only
+                        // while something is waiting; answering the last
+                        // one in the sheet takes the row away.
+                        if glance.learnedCount > 0 {
+                            // The sheet runs on the same view model, so its
+                            // answers come straight back to this count.
+                            LearnedHomeRow(count: glance.learnedCount) { showingLearned = true }
                         }
                     } else {
                         HomeGlanceStrip(
@@ -269,6 +279,15 @@ struct CaptureHomeView: View {
                 periodRecapClient: appState.makePeriodRecapClient()
             )
         }
+        .sheet(isPresented: $showingLearned) {
+            if let learned = glance?.learned {
+                LearnedThisWeekSheet(
+                    viewModel: learned,
+                    memoryClient: memoryClient,
+                    spacesClient: spacesClient
+                )
+            }
+        }
         .sheet(item: $openResurfaced) { item in
             MemoryDetailSheet(
                 memoryID: item.memoryId,
@@ -309,6 +328,7 @@ struct CaptureHomeView: View {
         if isGuidedCardVisible { return true }
         guard let glance else { return true }
         return !glance.allFailed || glance.recommendation != nil || failedCaptureCount > 0
+            || glance.learnedCount > 0
     }
 
     /// True when step 2 is open and the glance heuristic is not already
@@ -418,7 +438,12 @@ struct CaptureHomeView: View {
                 memoryClient: memoryClient
             ),
             pendingClient: appState.makeKBCompileClient(),
-            recapClient: appState.makeRecapClient()
+            recapClient: appState.makeRecapClient(),
+            learned: LearnedThisWeekViewModel(
+                client: appState.makeLearnedClient(),
+                memoryClient: memoryClient,
+                improvementClient: appState.makeSelfImprovementClient()
+            )
         )
     }
 
