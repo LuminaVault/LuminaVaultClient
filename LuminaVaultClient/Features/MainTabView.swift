@@ -48,6 +48,10 @@ struct MainTabView: View {
     @State private var showingLearned = false
     /// A learned link that arrived while Settings was up; same hand-over.
     @State private var learnedAfterSettings = false
+    /// True while a `luminavault://brief` link is being shown.
+    @State private var showingBrief = false
+    /// A brief link that arrived while Settings was up; same hand-over.
+    @State private var briefAfterSettings = false
     @State private var showSettings = false
     @AppStorage("lv.chat.hapticsEnabled") private var hapticsEnabled = true
     @State private var tabHapticTrigger = 0
@@ -249,12 +253,28 @@ struct MainTabView: View {
                 spacesClient: spacesClient
             )
         }
+        // Both of these run on their own view models, not Home's, so Home's
+        // rows for them are re-read when they close.
         .sheet(isPresented: $showingLearned) {
+            appState.homeGlanceRefreshToken += 1
+        } content: {
             LearnedThisWeekSheet(
                 viewModel: LearnedThisWeekViewModel(
                     client: appState.makeLearnedClient(),
                     memoryClient: memoryUpsertClient,
                     improvementClient: appState.makeSelfImprovementClient()
+                ),
+                memoryClient: memoryUpsertClient,
+                spacesClient: spacesClient
+            )
+        }
+        .sheet(isPresented: $showingBrief) {
+            appState.homeGlanceRefreshToken += 1
+        } content: {
+            BriefView(
+                viewModel: BriefViewModel(
+                    client: appState.makeBriefClient(),
+                    commitmentsClient: appState.makeCommitmentsClient()
                 ),
                 memoryClient: memoryUpsertClient,
                 spacesClient: spacesClient
@@ -270,6 +290,10 @@ struct MainTabView: View {
             if learnedAfterSettings {
                 learnedAfterSettings = false
                 showingLearned = true
+            }
+            if briefAfterSettings {
+                briefAfterSettings = false
+                showingBrief = true
             }
             guard let presentation = workflowAfterSettings else { return }
             workflowAfterSettings = nil
@@ -301,6 +325,7 @@ struct MainTabView: View {
             routePendingConversation()
             routePendingMemory()
             routePendingLearned()
+            routePendingBrief()
         }
         .task(id: captureCoordinator?.queue == nil) {
             guard captureFailures == nil, captureCoordinator?.queue != nil else { return }
@@ -455,6 +480,21 @@ struct MainTabView: View {
             showSettings = false
         } else {
             showingLearned = true
+        }
+    }
+
+    /// `luminavault://brief` — the daily brief's push (a tap or its "Open"
+    /// action), the link in its one-line chat message, or the URL. A sheet
+    /// over whatever tab is up, routed from `.task(id:)` for the same
+    /// cold-start reason as a memory.
+    private func routePendingBrief() {
+        guard case .brief = notificationRouter.pendingDeepLink else { return }
+        _ = notificationRouter.consume()
+        if showSettings {
+            briefAfterSettings = true
+            showSettings = false
+        } else {
+            showingBrief = true
         }
     }
 

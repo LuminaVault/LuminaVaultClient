@@ -203,4 +203,95 @@ final class HomeGlanceViewModelTests: XCTestCase {
         let (sut, _) = makeRecapSUT(nil)
         XCTAssertTrue(sut.recap.isFailed, "previews and older snapshot suites render Home as before")
     }
+
+    // MARK: - Your brief
+
+    private func makeBriefSUT(_ brief: BriefDTO?) throws -> (HomeGlanceViewModel, MockBriefClient, MockCommitmentsClient) {
+        let client = MockBriefClient(brief)
+        let commitments = MockCommitmentsClient()
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
+        let sut = HomeGlanceViewModel(
+            homeClient: MockHomeSummaryClient(),
+            resurface: nil,
+            pendingClient: MockKBCompileClient(),
+            brief: BriefViewModel(client: client, commitmentsClient: commitments),
+            calendar: utc
+        )
+        return (sut, client, commitments)
+    }
+
+    /// 2026-10-20 at the given UTC hour and minute.
+    private func at(_ hour: Int, _ minute: Int = 0) -> Date {
+        Date(timeIntervalSince1970: 1_792_454_400 + TimeInterval(hour * 3600 + minute * 60))
+    }
+
+    func testTheBriefRowShowsItsCardsInTheMorning() async throws {
+        let (sut, client, commitments) = try makeBriefSUT(.fixture())
+        await sut.load()
+        XCTAssertEqual(sut.briefCardCount(at: at(7)), 4)
+        XCTAssertEqual(sut.briefCardCount(at: at(11, 59)), 4)
+        XCTAssertEqual(client.requestedDates, [nil], "today, in the user's timezone")
+        XCTAssertTrue(commitments.requestedStates.isEmpty, "Home only needs the count")
+    }
+
+    func testTheBriefRowIsGoneAtNoon() async throws {
+        let (sut, _, _) = try makeBriefSUT(.fixture())
+        await sut.load()
+        XCTAssertNil(sut.briefCardCount(at: at(12)))
+        XCTAssertNil(sut.briefCardCount(at: at(18)))
+    }
+
+    func testNoBriefYetMeansNoRow() async throws {
+        let (sut, _, _) = try makeBriefSUT(nil)
+        await sut.load()
+        XCTAssertNil(sut.briefCardCount(at: at(8)))
+    }
+
+    func testABriefWithEveryCardDismissedHasNoRow() async throws {
+        let (sut, _, _) = try makeBriefSUT(.fixture(cards: []))
+        await sut.load()
+        XCTAssertNil(sut.briefCardCount(at: at(8)))
+    }
+
+    func testADismissInTheSheetTakesOneOffTheRow() async throws {
+        let (sut, _, _) = try makeBriefSUT(.fixture())
+        await sut.load()
+        let brief = try XCTUnwrap(sut.brief)
+        await brief.dismiss(try XCTUnwrap(brief.cards.first))
+        XCTAssertEqual(sut.briefCardCount(at: at(9)), 3)
+    }
+
+    /// The gap #208 left: a sheet opened from a deep link runs on its own
+    /// view model, so Home re-reads when it closes.
+    func testClosingADeepLinkedSheetRereadsTheBriefAndLearnedRows() async throws {
+        let (sut, client, _) = try makeBriefSUT(nil)
+        await sut.load()
+        XCTAssertNil(sut.briefCardCount(at: at(8)))
+        client.result = .success(MeBriefResponse(brief: .fixture()))
+        await sut.refreshSheetBackedRows()
+        XCTAssertEqual(sut.briefCardCount(at: at(8)), 4)
+        XCTAssertEqual(client.requestedDates.count, 2)
+    }
+
+    func testLearnedIsRereadToo() async throws {
+        let learnedClient = MockLearnedClient(.fixture())
+        let learned = LearnedThisWeekViewModel(
+            client: learnedClient,
+            memoryClient: MockMemoryClient(),
+            improvementClient: MockSelfImprovementClient()
+        )
+        let sut = HomeGlanceViewModel(
+            homeClient: MockHomeSummaryClient(),
+            resurface: nil,
+            pendingClient: MockKBCompileClient(),
+            learned: learned
+        )
+        await sut.load()
+        XCTAssertEqual(sut.learnedCount, 4)
+        learnedClient.result = .success(.fixture(soulChanges: [], memories: [.fixture()]))
+        await sut.refreshSheetBackedRows()
+        XCTAssertEqual(sut.learnedCount, 1, "answered in the deep-linked sheet, so one is left")
+        XCTAssertEqual(learnedClient.requestedSince.count, 2)
+    }
 }

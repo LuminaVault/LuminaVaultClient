@@ -71,7 +71,7 @@ final class LearnedThisWeekSnapshotTests: XCTestCase {
         snap(view, "learned-sheet-empty-dark", dark: true, layout: .device(config: .iPhone13Pro))
     }
 
-    func testHomeRow() throws {
+    func testHomeRow() async throws {
         try SnapshotQuarantine.skipUnlessRecording()
         let view = List {
             Section("Today") {
