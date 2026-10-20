@@ -58,7 +58,6 @@ final class BriefSnapshotTests: XCTestCase {
     }
 
     func testBriefWithCards() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
         let vm = await loadedBrief(.fixture())
         // One reaction already in, so the chosen state is in the picture.
         if let weather = vm.cards.first(where: { $0.id == "weather" }) {
@@ -70,7 +69,6 @@ final class BriefSnapshotTests: XCTestCase {
     }
 
     func testBriefEmpty() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
         let vm = await loadedBrief(nil)
         let view = BriefView(viewModel: vm, memoryClient: MockMemoryClient(), now: { CommitmentDTO.fixtureNow })
         snap(view, "brief-empty-light", dark: false, layout: .device(config: .iPhone13Pro))
@@ -78,7 +76,6 @@ final class BriefSnapshotTests: XCTestCase {
     }
 
     func testHomeRow() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
         let view = List {
             Section("Today") {
                 BriefHomeRow(count: 4, onOpen: {})
@@ -90,7 +87,6 @@ final class BriefSnapshotTests: XCTestCase {
     }
 
     func testCommitmentsListOpen() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
         let vm = CommitmentsListViewModel(client: MockCommitmentsClient())
         await vm.load()
         let view = NavigationStack {
@@ -101,7 +97,6 @@ final class BriefSnapshotTests: XCTestCase {
     }
 
     func testCommitmentsListDone() async throws {
-        try SnapshotQuarantine.skipUnlessRecording()
         let client = MockCommitmentsClient()
         client.results[.done] = .success(CommitmentsResponse(items: [
             .fixture(text: "Book the dentist", state: .done, doneAt: Date(timeIntervalSince1970: 1_792_324_800)),

@@ -369,7 +369,7 @@ private struct BriefLoopRow: View {
         VStack(alignment: .leading, spacing: LVSpacing.sm) {
             CommitmentRow(commitment: commitment, detail: detail, errorMessage: errorMessage)
             HStack(spacing: LVSpacing.sm) {
-                Button("Done", systemImage: "checkmark", action: onDone)
+                Button("Done", action: onDone)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                     .accessibilityLabel("Mark done: \(commitment.text)")
