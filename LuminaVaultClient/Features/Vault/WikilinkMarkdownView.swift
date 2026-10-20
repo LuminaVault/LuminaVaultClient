@@ -7,6 +7,10 @@ import SwiftUI
 
 struct WikilinkMarkdownView: View {
     @Environment(\.lvPalette) private var palette
+    /// Routes the app's own links (`luminavault://brief`, `…/memory/<id>`)
+    /// in place. Optional: a preview or a reader outside the signed-in shell
+    /// has none, and those links then go to the system as before.
+    @Environment(NotificationRouter.self) private var notificationRouter: NotificationRouter?
 
     let markdown: String
     let renderedMarkdownOverride: String?
@@ -45,9 +49,21 @@ struct WikilinkMarkdownView: View {
         }
         .background(navigationLink)
         .environment(\.openURL, OpenURLAction { url in
-            guard let link = WikilinkParser.link(from: url) else { return .systemAction }
-            Task { await open(link) }
-            return .handled
+            if let link = WikilinkParser.link(from: url) {
+                Task { await open(link) }
+                return .handled
+            }
+            // An app link in a message — the daily brief's "[Your brief is
+            // ready — 4 cards](luminavault://brief)" above all — opens here,
+            // through the same router a push tap uses, instead of a round
+            // trip through the system that lands on `onOpenURL` anyway.
+            if let router = notificationRouter,
+               let appLink = Self.inAppLink(for: url)
+            {
+                Task { @MainActor in router.pendingDeepLink = appLink }
+                return .handled
+            }
+            return .systemAction
         })
         .confirmationDialog(
             "Choose note",
@@ -81,6 +97,13 @@ struct WikilinkMarkdownView: View {
         } message: {
             Text(linkError ?? "")
         }
+    }
+
+    /// The deep link an app URL in a message stands for, or nil for
+    /// anything the router does not know (web links, other schemes).
+    static func inAppLink(for url: URL) -> APNSDeepLink? {
+        let link = NotificationRouter.deepLink(from: url)
+        return link == .none ? nil : link
     }
 
     // Full GitHub-flavored block rendering via MarkdownUI. Wikilinks are

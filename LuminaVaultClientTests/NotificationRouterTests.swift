@@ -190,4 +190,74 @@ struct NotificationRouterTests {
     func `a learned push waits for a tap when the app is open`() {
         #expect(!NotificationRouter.routesOnForegroundDelivery(.learned))
     }
+
+    // MARK: - Daily brief
+
+    @Test
+    func `the brief URL routes to the brief`() throws {
+        let url = try #require(URL(string: "luminavault://brief"))
+        #expect(NotificationRouter.deepLink(from: url) == .brief)
+        let trailing = try #require(URL(string: "luminavault://brief/"))
+        #expect(NotificationRouter.deepLink(from: trailing) == .brief)
+        let shouting = try #require(URL(string: "LuminaVault://BRIEF"))
+        #expect(NotificationRouter.deepLink(from: shouting) == .brief)
+    }
+
+    @Test(arguments: [
+        "luminavault://brief/today",
+        "https://brief",
+        "luminavault://briefs",
+    ])
+    func `malformed brief URLs are not routed`(raw: String) throws {
+        let url = try #require(URL(string: raw))
+        #expect(NotificationRouter.deepLink(from: url) == .none)
+    }
+
+    /// The brief's push is a `chat` push to the server (so the chat opt-out
+    /// gates it) with `aps.category` `brief` and the thread its message
+    /// landed in. A tap — and its "Open" action, which routes the same
+    /// `userInfo` — must open the cards, not the thread.
+    @Test
+    func `the brief push opens the brief, not its chat thread`() {
+        let router = NotificationRouter()
+        #expect(router.deepLink(from: [
+            "category": "chat",
+            "aps": ["category": "brief"],
+            "conversationID": UUID().uuidString,
+            "origin": "proactive",
+            "deepLink": "luminavault://brief",
+        ]) == .brief)
+        #expect(router.deepLink(from: [
+            "aps": ["category": "brief"],
+            "deepLink": "luminavault://brief",
+        ]) == .brief)
+    }
+
+    @Test
+    func `a chat push without the brief link still opens its thread`() {
+        let id = UUID()
+        let router = NotificationRouter()
+        #expect(router.deepLink(from: [
+            "category": "chat",
+            "conversationID": id.uuidString,
+            "deepLink": "luminavault://chat/\(id.uuidString)",
+        ]) == .conversation(id: id))
+    }
+
+    @Test
+    func `a brief push waits for a tap when the app is open`() {
+        #expect(!NotificationRouter.routesOnForegroundDelivery(.brief))
+    }
+
+    /// The chat's "[Your brief is ready — 4 cards](luminavault://brief)"
+    /// opens in the app; a web link still goes to the system.
+    @Test
+    func `app links in a chat message route in the app`() throws {
+        let brief = try #require(URL(string: "luminavault://brief"))
+        #expect(WikilinkMarkdownView.inAppLink(for: brief) == .brief)
+        let web = try #require(URL(string: "https://luminavault.app/brief"))
+        #expect(WikilinkMarkdownView.inAppLink(for: web) == nil)
+        let wikilink = try #require(URL(string: "luminavault-wikilink://note?target=a&label=a"))
+        #expect(WikilinkMarkdownView.inAppLink(for: wikilink) == nil)
+    }
 }

@@ -418,6 +418,11 @@ struct LuminaVaultClientApp: App {
                     // "What I learned this week" sheet.
                     notificationRouter.pendingDeepLink = .learned
                     return
+                case .brief:
+                    // `luminavault://brief` — the daily brief's chat link and
+                    // push. `MainTabView` presents `BriefView`.
+                    notificationRouter.pendingDeepLink = .brief
+                    return
                 default:
                     break
                 }

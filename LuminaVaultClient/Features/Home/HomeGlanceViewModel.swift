@@ -96,18 +96,39 @@ final class HomeGlanceViewModel {
         return learned.count
     }
 
+    /// Today's brief — behind the "Your brief" row and the sheet it opens.
+    /// Nil leaves the row off, as above.
+    let brief: BriefViewModel?
+    private let calendar: Calendar
+
+    /// The cards left in today's brief, while it is worth a row: before
+    /// noon, local time, and only once the brief exists. Nil hides the row.
+    /// Live, like `learnedCount`: a dismiss in the sheet takes one off.
+    func briefCardCount(at now: Date) -> Int? {
+        guard let brief, brief.phase == .loaded, brief.brief != nil, !brief.cards.isEmpty else { return nil }
+        guard calendar.component(.hour, from: now) < Self.briefRowCutoffHour else { return nil }
+        return brief.count
+    }
+
+    /// The row goes at 12:00: by the afternoon a morning brief is old news.
+    nonisolated static let briefRowCutoffHour = 12
+
     init(
         homeClient: any HomeSummaryClientProtocol,
         resurface: ResurfaceQueueViewModel?,
         pendingClient: any KBCompileClientProtocol,
         recapClient: (any RecapClientProtocol)? = nil,
-        learned: LearnedThisWeekViewModel? = nil
+        learned: LearnedThisWeekViewModel? = nil,
+        brief: BriefViewModel? = nil,
+        calendar: Calendar = .autoupdatingCurrent
     ) {
         self.homeClient = homeClient
         self.resurface = resurface
         self.pendingClient = pendingClient
         self.recapClient = recapClient
         self.learned = learned
+        self.brief = brief
+        self.calendar = calendar
         recap = recapClient == nil ? .failed(message: "Not configured") : .loading
     }
 
@@ -144,6 +165,19 @@ final class HomeGlanceViewModel {
         // three above: the row sits further down still, and it keeps its own
         // state (a failed refresh leaves what is on screen).
         await learned?.load()
+
+        // Last, for the same reason: one more `async let` up top crashed the
+        // runtime before (see the recap above). Home only needs the count,
+        // so the commitments behind Open loops wait for the sheet.
+        await brief?.load(includeCommitments: false)
+    }
+
+    /// The rows a sheet presented outside Home can change — "What I
+    /// learned" and the brief, opened from a deep link on their own view
+    /// models. Re-read when such a sheet closes; the tiles are untouched.
+    func refreshSheetBackedRows() async {
+        await learned?.load()
+        await brief?.load(includeCommitments: false)
     }
 
     private func loadRecap() async -> CardState<MeRecapResponse> {

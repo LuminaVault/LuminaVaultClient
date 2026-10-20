@@ -28,6 +28,10 @@ enum APNSDeepLink: Sendable, Equatable {
     /// sheet. The `learned` push carries it as its `deepLink`, so both a
     /// plain tap and its "Review" action land here.
     case learned
+    /// `luminavault://brief` — today's brief as cards, opened as a sheet.
+    /// The daily brief's chat message links here, and so does its push:
+    /// a plain tap and its "Open" action alike.
+    case brief
     case none
 }
 
@@ -66,6 +70,16 @@ final class NotificationRouter {
         }
         if let push = ResurfacePush(userInfo: userInfo) {
             return .memory(id: push.memoryID)
+        }
+        // The daily brief's push rides the `chat` category, so the chat
+        // opt-out gates it, and carries the thread its one-line message
+        // landed in. Its `deepLink` is what it is for, though: the cards.
+        // Checked before the category so `.chat` does not open the thread.
+        if let raw = userInfo["deepLink"] as? String,
+           let url = URL(string: raw),
+           Self.deepLink(from: url) == .brief
+        {
+            return .brief
         }
         guard
             let category = APNSCategory(rawValue: categoryRaw)
@@ -114,13 +128,14 @@ final class NotificationRouter {
         }
     }
 
-    /// Parse an app URL. Three are recognised:
+    /// Parse an app URL. These are recognised:
     ///
     /// * `luminavault://chat/<conversationID>` — the `deepLink` the server
     ///   puts on a proactive chat push and the `widgetURL` of the agent-run
     ///   Live Activity.
     /// * `luminavault://memory/<memoryID>` — one memory.
     /// * `luminavault://learned` — "What I learned this week".
+    /// * `luminavault://brief` — today's brief.
     ///
     /// Everything else is `.none`, so `onOpenURL` can fall through to its
     /// other handlers.
@@ -129,6 +144,9 @@ final class NotificationRouter {
         let segments = url.pathComponents.filter { $0 != "/" }
         if url.host?.lowercased() == "learned" {
             return segments.isEmpty ? .learned : .none
+        }
+        if url.host?.lowercased() == "brief" {
+            return segments.isEmpty ? .brief : .none
         }
         guard segments.count == 1, let id = UUID(uuidString: segments[0]) else { return .none }
         switch url.host?.lowercased() {
@@ -149,6 +167,8 @@ final class NotificationRouter {
         if case .memory = link { return false }
         // And for the weekly "what I learned": the banner is the invitation.
         if case .learned = link { return false }
+        // The brief's push is `passive`: it arrives quietly and opens on a tap.
+        if case .brief = link { return false }
         return link != .none
     }
 }

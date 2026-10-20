@@ -31,6 +31,8 @@ struct CaptureHomeView: View {
     @State private var showingRecap = false
     /// "What I learned this week", opened from its row.
     @State private var showingLearned = false
+    /// Today's brief, opened from its row.
+    @State private var showingBrief = false
     /// The "Connects to" list, opened from the banner after a save.
     @State private var openConnections: CaptureConnectionsUIModel?
     /// A memory opened from the "To revisit" card.
@@ -118,6 +120,13 @@ struct CaptureHomeView: View {
                         // background cleared that hairline ends up stranded
                         // across the top of the strip's own card.
                         .listRowSeparator(.hidden)
+                    }
+                    // Today's brief, on top while it is the morning's news.
+                    // Gone at noon, and until the brief exists.
+                    if let count = glance?.briefCardCount(at: Date()) {
+                        // The sheet runs on the same view model, so a card
+                        // dismissed there comes straight off this count.
+                        BriefHomeRow(count: count) { showingBrief = true }
                     }
                     // `glance` is nil until `.task` builds it, which is after
                     // the first paint. Drawing the strip's own loading state
@@ -279,6 +288,17 @@ struct CaptureHomeView: View {
                 periodRecapClient: appState.makePeriodRecapClient()
             )
         }
+        .sheet(isPresented: $showingBrief) {
+            if let brief = glance?.brief {
+                BriefView(viewModel: brief, memoryClient: memoryClient, spacesClient: spacesClient)
+            }
+        }
+        // The brief and "What I learned" can also open from a deep link, as
+        // `MainTabView` sheets on their own view models. When one of those
+        // closes, the counts on these rows are stale; read them again.
+        .onChange(of: appState.homeGlanceRefreshToken) {
+            Task { await glance?.refreshSheetBackedRows() }
+        }
         .sheet(isPresented: $showingLearned) {
             if let learned = glance?.learned {
                 LearnedThisWeekSheet(
@@ -328,7 +348,7 @@ struct CaptureHomeView: View {
         if isGuidedCardVisible { return true }
         guard let glance else { return true }
         return !glance.allFailed || glance.recommendation != nil || failedCaptureCount > 0
-            || glance.learnedCount > 0
+            || glance.learnedCount > 0 || glance.briefCardCount(at: Date()) != nil
     }
 
     /// True when step 2 is open and the glance heuristic is not already
@@ -443,6 +463,10 @@ struct CaptureHomeView: View {
                 client: appState.makeLearnedClient(),
                 memoryClient: memoryClient,
                 improvementClient: appState.makeSelfImprovementClient()
+            ),
+            brief: BriefViewModel(
+                client: appState.makeBriefClient(),
+                commitmentsClient: appState.makeCommitmentsClient()
             )
         )
     }

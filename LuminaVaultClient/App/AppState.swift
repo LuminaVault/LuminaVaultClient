@@ -26,6 +26,10 @@ final class AppState {
     var pendingChatConversationID: UUID?
     /// Settings → Think handoff: seed the composer, do not auto-send.
     var pendingChatPrefill: String?
+    /// Bumped when a sheet `MainTabView` presented from a deep link (the
+    /// brief, "What I learned") closes. Those sheets run on their own view
+    /// models, so Home re-reads the counts its rows show when this moves.
+    var homeGlanceRefreshToken = 0
     /// HER-238: timestamp of the most recent successful `/v1/auth/me` fetch.
     /// `nil` means we've never refreshed since sign-in. Used by
     /// `refreshCurrentUserIfNeeded(authClient:now:)` to debounce.
@@ -410,6 +414,16 @@ final class AppState {
     /// "What I learned this week" sheet.
     func makeLearnedClient() -> any LearnedClientProtocol {
         LearnedHTTPClient(client: makeHTTPClient())
+    }
+
+    /// `/v1/me/brief` — the daily brief's cards and their 👍 / 👎 / dismiss.
+    func makeBriefClient() -> any BriefClientProtocol {
+        BriefHTTPClient(client: makeHTTPClient())
+    }
+
+    /// `/v1/me/commitments` — the brief's Open loops and the full list.
+    func makeCommitmentsClient() -> any CommitmentsClientProtocol {
+        CommitmentsHTTPClient(client: makeHTTPClient())
     }
 
     /// `/v1/me/improvement` — the SOUL changes' Keep / Forget in "What I
