@@ -129,6 +129,8 @@ struct MeetingBriefSheet: View {
                 .font(.system(.title2, design: .rounded, weight: .bold))
                 .foregroundStyle(palette.textPrimary)
                 .accessibilityAddTraits(.isHeader)
+                // Room for a round capital's overshoot at the row's edge.
+                .padding(.leading, 1)
             if let time = vm.timeRangeText {
                 detail(time, systemImage: "clock")
             }
@@ -142,14 +144,17 @@ struct MeetingBriefSheet: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Icon and text in a tight row: a `Label` in a list takes the list's
+    /// wide icon column, which leaves the text floating mid-row.
     private func detail(_ text: String, systemImage: String) -> some View {
-        Label {
-            Text(text)
-                .lvFont(.footnote)
-                .foregroundStyle(palette.textSecondary)
-        } icon: {
+        HStack(alignment: .firstTextBaseline, spacing: LVSpacing.sm) {
             Image(systemName: systemImage)
                 .font(.footnote)
+                .foregroundStyle(palette.textSecondary)
+                .frame(width: 18)
+                .accessibilityHidden(true)
+            Text(text)
+                .lvFont(.footnote)
                 .foregroundStyle(palette.textSecondary)
         }
     }

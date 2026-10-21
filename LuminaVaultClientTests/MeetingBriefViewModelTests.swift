@@ -20,6 +20,11 @@ final class MeetingBriefViewModelTests: XCTestCase {
     private let utc = TimeZone(identifier: "UTC") ?? .gmt
     private let enUS = Locale(identifier: "en_US")
 
+    /// ICU puts a narrow no-break space before "PM"; compare it as a space.
+    private func plain(_ text: String) -> String {
+        text.replacingOccurrences(of: "\u{202F}", with: " ")
+    }
+
     private func makeSUT(
         _ response: MeetingBriefResponse = .fixture()
     ) -> (MeetingBriefViewModel, MockMeetingBriefClient) {
@@ -53,7 +58,7 @@ final class MeetingBriefViewModelTests: XCTestCase {
         XCTAssertEqual(vm.brief?.event.title, "Design review")
         XCTAssertEqual(vm.locationText, "Room 4.2")
         XCTAssertEqual(vm.attendeesText, "Ana Silva, Rui, and joana@example.com")
-        XCTAssertEqual(vm.timeRangeText, "Wed, Oct 21 · 2:30 PM – 3:00 PM")
+        XCTAssertEqual(vm.timeRangeText.map(plain), "Wed, Oct 21 · 2:30 PM – 3:00 PM")
     }
 
     func testNoMatchingNotesIsAnEmptyStateWithoutTheWhy() async {
@@ -132,11 +137,11 @@ final class MeetingBriefViewModelTests: XCTestCase {
     }
 
     func testATimeRangeAcrossMidnightNamesBothDays() {
-        let start = Date(timeIntervalSince1970: 1_792_624_800) // Oct 21, 23:00 UTC
+        let start = Date(timeIntervalSince1970: 1_792_623_600) // Oct 21, 23:00 UTC
         let text = MeetingBriefViewModel.timeRangeText(
             start: start, end: start.addingTimeInterval(7200), locale: enUS, timeZone: utc
         )
-        XCTAssertEqual(text, "Wed, Oct 21 11:00 PM – Thu, Oct 22 1:00 AM")
+        XCTAssertEqual(plain(text), "Wed, Oct 21 11:00 PM – Thu, Oct 22 1:00 AM")
     }
 
     func testANoteShowsItsKindAndDay() async {
