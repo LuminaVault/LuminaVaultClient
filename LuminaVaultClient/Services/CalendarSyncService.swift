@@ -5,7 +5,8 @@
 // Promotes Calendar from on-demand device-RPC into a persisted server cache.
 // `syncNow` reads events in the window now-7d…now+90d via `EKEventStore`,
 // maps them to `[AppleCalendarEventInput]` (externalID = `eventIdentifier`,
-// remoteUpdatedAt = `lastModifiedDate`), and batch-POSTs `/v1/calendar/sync`.
+// remoteUpdatedAt = `lastModifiedDate`, attendees via
+// `CalendarAttendeeMapping`), and batch-POSTs `/v1/calendar/sync`.
 // The server upserts by `(tenant_id, source, external_id)` with last-writer-
 // wins, so re-pushing the same window is idempotent — no client-side anchor
 // diffing needed (EventKit has no stable change-token across stores).
@@ -102,7 +103,10 @@ actor CalendarSyncService {
                 allDay: event.isAllDay,
                 status: event.status == .canceled ? "cancelled" : "confirmed",
                 organizer: event.organizer?.name,
-                remoteUpdatedAt: event.lastModifiedDate
+                remoteUpdatedAt: event.lastModifiedDate,
+                // Always an array: EventKit's nil is "nobody", which clears
+                // them, and the pre-meeting brief matches on these names.
+                attendees: CalendarAttendeeMapping.attendees(from: event.calendarParticipants)
             )
         }
 
