@@ -30,10 +30,10 @@ The client does **not** author the API. When opened in ObsidianClaudeBrain, see 
 
 ## Build & CI
 
-- **Deployment target:** `IPHONEOS_DEPLOYMENT_TARGET` is 18.0 (must stay ≤ CI simulator OS).
-- **CI:** Xcode 16.4, SwiftLint (errors block merge; warnings are non-blocking).
+- **Deployment target:** `IPHONEOS_DEPLOYMENT_TARGET` is 26.4 (must stay ≤ CI simulator OS).
+- **CI:** Xcode 26.4 (pinned in `.github/workflows/ci.yml`), SwiftLint (errors block merge; warnings are non-blocking).
 - **Config:** committed `.xcconfig.sample` files; real `.xcconfig` is gitignored. See `LuminaVaultClient/Config/README.md`.
-- **Verify locally:** `xcodebuild -project LuminaVaultClient.xcodeproj -scheme LuminaVaultClient -destination 'platform=iOS Simulator,name=iPhone 16' build test`
+- **Verify locally:** `xcodebuild -project LuminaVaultClient.xcodeproj -scheme LuminaVaultClient -destination 'platform=iOS Simulator,name=iPhone 16 Pro' build test`
 
 ## Skills
 
