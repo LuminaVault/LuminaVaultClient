@@ -421,6 +421,12 @@ final class AppState {
         BriefHTTPClient(client: makeHTTPClient())
     }
 
+    /// `/v1/calendar/events/{id}/brief` — the pre-meeting brief a
+    /// `luminavault://meeting/<id>` push opens.
+    func makeMeetingBriefClient() -> any MeetingBriefClientProtocol {
+        MeetingBriefHTTPClient(client: makeHTTPClient())
+    }
+
     /// `/v1/me/commitments` — the brief's Open loops and the full list.
     func makeCommitmentsClient() -> any CommitmentsClientProtocol {
         CommitmentsHTTPClient(client: makeHTTPClient())

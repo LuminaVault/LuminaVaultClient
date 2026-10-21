@@ -32,6 +32,10 @@ enum APNSDeepLink: Sendable, Equatable {
     /// The daily brief's chat message links here, and so does its push:
     /// a plain tap and its "Open" action alike.
     case brief
+    /// `luminavault://meeting/<eventId>` — the pre-meeting brief for one
+    /// calendar event, opened as a sheet. The opt-in `meeting` push carries
+    /// it (and the id as `eventID`); a tap and its "Open" action alike.
+    case meeting(eventID: UUID)
     case none
 }
 
@@ -52,6 +56,12 @@ final class NotificationRouter {
         let aps = userInfo["aps"] as? [String: Any]
         guard let categoryRaw = (userInfo["category"] as? String) ?? (aps?["category"] as? String) else {
             return .none
+        }
+        // The pre-meeting brief. Its own category, read from either key, and
+        // decided first: whatever else the payload carries, a meeting push
+        // opens that meeting's brief or nothing — never another route.
+        if categoryRaw == Self.meetingCategory || (aps?["category"] as? String) == Self.meetingCategory {
+            return Self.meetingLink(from: userInfo)
         }
         if categoryRaw == "ingestion" {
             guard let batchIDRaw = userInfo["batchID"] as? String,
@@ -84,8 +94,8 @@ final class NotificationRouter {
         guard
             let category = APNSCategory(rawValue: categoryRaw)
         else {
-            // A category this build has no case for (`learned`, `brief`,
-            // `meeting`, …) still opens wherever its deep link points.
+            // A category this build has no case for (`learned`, `brief`, …)
+            // still opens wherever its deep link points.
             guard let raw = userInfo["deepLink"] as? String, let url = URL(string: raw) else {
                 return .none
             }
@@ -136,6 +146,7 @@ final class NotificationRouter {
     /// * `luminavault://memory/<memoryID>` — one memory.
     /// * `luminavault://learned` — "What I learned this week".
     /// * `luminavault://brief` — today's brief.
+    /// * `luminavault://meeting/<eventID>` — one meeting's brief.
     ///
     /// Everything else is `.none`, so `onOpenURL` can fall through to its
     /// other handlers.
@@ -152,6 +163,7 @@ final class NotificationRouter {
         switch url.host?.lowercased() {
         case "chat": return .conversation(id: id)
         case "memory": return .memory(id: id)
+        case "meeting": return .meeting(eventID: id)
         default: return .none
         }
     }
@@ -169,6 +181,27 @@ final class NotificationRouter {
         if case .learned = link { return false }
         // The brief's push is `passive`: it arrives quietly and opens on a tap.
         if case .brief = link { return false }
+        // So is the pre-meeting brief's: a note before a meeting, not a summons.
+        if case .meeting = link { return false }
         return link != .none
+    }
+
+    /// The `meeting` push's wire category (`ResurfaceNotifications` registers
+    /// its "Open" action under the same string).
+    static let meetingCategory = ResurfaceNotifications.meetingCategoryID
+
+    /// The event a `meeting` push names: `eventID`, or failing that its
+    /// `luminavault://meeting/<id>` deep link. `.none` without either.
+    private static func meetingLink(from userInfo: [AnyHashable: Any]) -> APNSDeepLink {
+        if let raw = userInfo["eventID"] as? String, let id = UUID(uuidString: raw) {
+            return .meeting(eventID: id)
+        }
+        if let raw = userInfo["deepLink"] as? String,
+           let url = URL(string: raw),
+           case let .meeting(id) = deepLink(from: url)
+        {
+            return .meeting(eventID: id)
+        }
+        return .none
     }
 }
