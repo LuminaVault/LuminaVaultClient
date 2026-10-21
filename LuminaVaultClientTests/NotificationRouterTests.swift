@@ -260,4 +260,95 @@ struct NotificationRouterTests {
         let wikilink = try #require(URL(string: "luminavault-wikilink://note?target=a&label=a"))
         #expect(WikilinkMarkdownView.inAppLink(for: wikilink) == nil)
     }
+
+    // MARK: - Pre-meeting brief
+
+    @Test
+    func `the meeting URL routes to that meeting's brief`() throws {
+        let id = UUID()
+        let lower = try #require(URL(string: "luminavault://meeting/\(id.uuidString.lowercased())"))
+        #expect(NotificationRouter.deepLink(from: lower) == .meeting(eventID: id))
+        let shouting = try #require(URL(string: "LuminaVault://MEETING/\(id.uuidString)"))
+        #expect(NotificationRouter.deepLink(from: shouting) == .meeting(eventID: id))
+    }
+
+    @Test(arguments: [
+        "luminavault://meeting",
+        "luminavault://meeting/not-a-uuid",
+        "luminavault://meeting/0d000000-0000-4000-8000-000000000001/brief",
+        "luminavault://meetings/0d000000-0000-4000-8000-000000000001",
+        "https://meeting/0d000000-0000-4000-8000-000000000001",
+    ])
+    func `malformed meeting URLs are not routed`(raw: String) throws {
+        let url = try #require(URL(string: raw))
+        #expect(NotificationRouter.deepLink(from: url) == .none)
+    }
+
+    /// The server's payload: `aps.category` `meeting`, `eventID` (upper-case
+    /// `uuidString`) and the lower-case deep link.
+    @Test
+    func `the meeting push opens that meeting's brief`() {
+        let id = UUID()
+        let router = NotificationRouter()
+        #expect(router.deepLink(from: [
+            "aps": ["category": "meeting", "thread-id": "meeting"],
+            "eventID": id.uuidString,
+            "deepLink": "luminavault://meeting/\(id.uuidString.lowercased())",
+        ]) == .meeting(eventID: id))
+        #expect(router.deepLink(from: [
+            "category": "meeting",
+            "eventID": id.uuidString,
+        ]) == .meeting(eventID: id))
+        // Only the deep link: still that meeting.
+        #expect(router.deepLink(from: [
+            "aps": ["category": "meeting"],
+            "deepLink": "luminavault://meeting/\(id.uuidString.lowercased())",
+        ]) == .meeting(eventID: id))
+    }
+
+    /// Whatever else rides on it, a meeting push opens the meeting or
+    /// nothing — not a chat thread, a memory, the brief or Today.
+    @Test
+    func `a meeting push never falls into another route`() {
+        let id = UUID()
+        let router = NotificationRouter()
+        #expect(router.deepLink(from: [
+            "category": "chat",
+            "aps": ["category": "meeting"],
+            "conversationID": UUID().uuidString,
+            "memoryId": UUID().uuidString,
+            "eventID": id.uuidString,
+            "deepLink": "luminavault://brief",
+        ]) == .meeting(eventID: id))
+        #expect(router.deepLink(from: [
+            "aps": ["category": "meeting"],
+            "deepLink": "luminavault://memory/\(UUID().uuidString)",
+        ]) == .none)
+        #expect(router.deepLink(from: [
+            "aps": ["category": "meeting"],
+            "eventID": "not-a-uuid",
+        ]) == .none)
+    }
+
+    @Test
+    func `a meeting deep link on another category is still the meeting`() {
+        let id = UUID()
+        let router = NotificationRouter()
+        #expect(router.deepLink(from: [
+            "aps": ["category": "unknownFutureCategory"],
+            "deepLink": "luminavault://meeting/\(id.uuidString.lowercased())",
+        ]) == .meeting(eventID: id))
+    }
+
+    @Test
+    func `a meeting push waits for a tap when the app is open`() {
+        #expect(!NotificationRouter.routesOnForegroundDelivery(.meeting(eventID: UUID())))
+    }
+
+    @Test
+    func `a meeting link in a chat message routes in the app`() throws {
+        let id = UUID()
+        let url = try #require(URL(string: "luminavault://meeting/\(id.uuidString.lowercased())"))
+        #expect(WikilinkMarkdownView.inAppLink(for: url) == .meeting(eventID: id))
+    }
 }

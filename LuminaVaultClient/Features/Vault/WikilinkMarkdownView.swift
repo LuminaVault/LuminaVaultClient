@@ -7,9 +7,10 @@ import SwiftUI
 
 struct WikilinkMarkdownView: View {
     @Environment(\.lvPalette) private var palette
-    /// Routes the app's own links (`luminavault://brief`, `…/memory/<id>`)
-    /// in place. Optional: a preview or a reader outside the signed-in shell
-    /// has none, and those links then go to the system as before.
+    /// Routes the app's own links (`luminavault://brief`, `…/memory/<id>`,
+    /// `…/meeting/<id>`) in place. Optional: a preview or a reader outside
+    /// the signed-in shell has none, and those links then go to the system
+    /// as before.
     @Environment(NotificationRouter.self) private var notificationRouter: NotificationRouter?
 
     let markdown: String

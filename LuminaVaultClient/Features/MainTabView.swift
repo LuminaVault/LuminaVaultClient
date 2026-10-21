@@ -52,6 +52,10 @@ struct MainTabView: View {
     @State private var showingBrief = false
     /// A brief link that arrived while Settings was up; same hand-over.
     @State private var briefAfterSettings = false
+    /// Non-nil while a `luminavault://meeting/<id>` link is being shown.
+    @State private var pendingMeeting: MeetingPresentation?
+    /// A meeting link that arrived while Settings was up; same hand-over.
+    @State private var meetingAfterSettings: MeetingPresentation?
     @State private var showSettings = false
     @AppStorage("lv.chat.hapticsEnabled") private var hapticsEnabled = true
     @State private var tabHapticTrigger = 0
@@ -280,6 +284,17 @@ struct MainTabView: View {
                 spacesClient: spacesClient
             )
         }
+        // Read-only, so nothing on Home needs re-reading when it closes.
+        .sheet(item: $pendingMeeting) { presentation in
+            MeetingBriefSheet(
+                viewModel: MeetingBriefViewModel(
+                    eventID: presentation.id,
+                    client: appState.makeMeetingBriefClient()
+                ),
+                memoryClient: memoryUpsertClient,
+                spacesClient: spacesClient
+            )
+        }
         .sheet(isPresented: $showSettings) {
             // A workflow push that arrived while Settings was up closed it and
             // parked itself here; present it now that the slot is free.
@@ -294,6 +309,10 @@ struct MainTabView: View {
             if briefAfterSettings {
                 briefAfterSettings = false
                 showingBrief = true
+            }
+            if let meeting = meetingAfterSettings {
+                meetingAfterSettings = nil
+                pendingMeeting = meeting
             }
             guard let presentation = workflowAfterSettings else { return }
             workflowAfterSettings = nil
@@ -326,6 +345,7 @@ struct MainTabView: View {
             routePendingMemory()
             routePendingLearned()
             routePendingBrief()
+            routePendingMeeting()
         }
         .task(id: captureCoordinator?.queue == nil) {
             guard captureFailures == nil, captureCoordinator?.queue != nil else { return }
@@ -495,6 +515,22 @@ struct MainTabView: View {
             showSettings = false
         } else {
             showingBrief = true
+        }
+    }
+
+    /// `luminavault://meeting/<eventId>` — the opt-in pre-meeting push (a
+    /// tap or its "Open" action) or the URL. A sheet over whatever tab is
+    /// up, routed from `.task(id:)` for the same cold-start reason as a
+    /// memory.
+    private func routePendingMeeting() {
+        guard case let .meeting(eventID) = notificationRouter.pendingDeepLink else { return }
+        _ = notificationRouter.consume()
+        let presentation = MeetingPresentation(id: eventID)
+        if showSettings {
+            meetingAfterSettings = presentation
+            showSettings = false
+        } else {
+            pendingMeeting = presentation
         }
     }
 
@@ -714,6 +750,11 @@ private struct WorkflowPresentation: Identifiable, Equatable {
 
 /// `.sheet(item:)` fodder for a memory link.
 private struct MemoryPresentation: Identifiable, Equatable {
+    let id: UUID
+}
+
+/// The calendar event a `luminavault://meeting/<id>` link names.
+private struct MeetingPresentation: Identifiable, Equatable {
     let id: UUID
 }
 

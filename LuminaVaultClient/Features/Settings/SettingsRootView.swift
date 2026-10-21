@@ -161,12 +161,7 @@ struct SettingsRootView: View {
                             LVSettingsDivider()
                             // Apple Ecosystem Integration P0 — per-domain data-access consent.
                             LVSettingsRow("Data Access", icon: .lockShield) {
-                                DataAccessView(
-                                    vm: DataAccessViewModel(
-                                        client: AppleConsentHTTPClient(client: appState.makeHTTPClient())
-                                    ),
-                                    locationClient: LastKnownLocationHTTPClient(client: appState.makeHTTPClient())
-                                )
+                                dataAccessView
                             }
                         }
 
@@ -321,7 +316,13 @@ struct SettingsRootView: View {
                             LVSettingsDivider()
                             LVSettingsRow("Notifications", icon: .bellBadge) {
                                 NotificationsPaneView(
-                                    vm: NotificationsPaneViewModel(client: apnsPrefsClient)
+                                    vm: NotificationsPaneViewModel(
+                                        client: apnsPrefsClient,
+                                        calendarReadiness: LiveCalendarSyncReadiness(
+                                            consentClient: AppleConsentHTTPClient(client: appState.makeHTTPClient())
+                                        )
+                                    ),
+                                    dataAccess: { dataAccessView }
                                 )
                             }
                         }
@@ -380,6 +381,18 @@ struct SettingsRootView: View {
 
     private var apnsPrefsClient: any APNSPrefsClientProtocol {
         APNSPrefsHTTPClient(client: appState.makeHTTPClient())
+    }
+
+    /// Apple Ecosystem Integration P0 — per-domain data-access consent. Its
+    /// own row, and where Notifications › Meeting briefs sends you to turn
+    /// calendar sync on.
+    private var dataAccessView: DataAccessView {
+        DataAccessView(
+            vm: DataAccessViewModel(
+                client: AppleConsentHTTPClient(client: appState.makeHTTPClient())
+            ),
+            locationClient: LastKnownLocationHTTPClient(client: appState.makeHTTPClient())
+        )
     }
 
     /// Phase 1 — `/v1/hermes/runs`.

@@ -1,6 +1,7 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Settings/Notifications/NotificationsPaneView.swift
 //
-// HER-179 — Settings → Notifications: per-category opt-out toggles.
+// HER-179 — Settings → Notifications: per-category opt-out toggles, and the
+// one opt-in, the pre-meeting brief.
 
 import LuminaVaultShared
 import SwiftUI
@@ -10,6 +11,9 @@ struct NotificationsPaneView: View {
     @Environment(\.lvPalette) private var palette
 
     @State var vm: NotificationsPaneViewModel
+    /// Settings › Data Access, where calendar sync is turned on. Nil where
+    /// no settings shell is hosting; the meeting row then only says so.
+    var dataAccess: (() -> DataAccessView)?
 
     var body: some View {
         ZStack {
@@ -51,6 +55,7 @@ struct NotificationsPaneView: View {
                             )
                         )
                         hermesRunsSection
+                        meetingsSection
                     }
                 }
                 .padding(.horizontal, 20)
@@ -105,7 +110,41 @@ struct NotificationsPaneView: View {
         }
     }
 
+    /// The opt-in pre-meeting brief. Off by default, and useless without
+    /// calendar sync, which the row says when it knows sync is off.
+    private var meetingsSection: some View {
+        VStack(alignment: .leading, spacing: LVSpacing.md) {
+            Text("MEETINGS")
+                .lvFont(.kicker)
+                .kerning(0.8)
+                .foregroundStyle(palette.textSecondary)
+                .padding(.top, LVSpacing.sm)
+
+            MeetingBriefSettingsRow(
+                isOn: Binding(
+                    get: { vm.meetingBriefEnabled },
+                    set: { newValue in Task { await vm.setMeetingBrief(newValue) } }
+                ),
+                readiness: vm.calendarReadiness,
+                dataAccess: dataAccess
+            )
+        }
+    }
+
     private func toggleCard(title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
+        NotificationToggleCard(title: title, subtitle: subtitle, isOn: isOn)
+    }
+}
+
+/// One switch with its title and one line of explanation.
+struct NotificationToggleCard: View {
+    let title: String
+    let subtitle: String
+    @Binding var isOn: Bool
+
+    @Environment(\.lvPalette) private var palette
+
+    var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
@@ -116,7 +155,7 @@ struct NotificationsPaneView: View {
                     .foregroundStyle(palette.textSecondary)
             }
             Spacer()
-            Toggle("", isOn: isOn)
+            Toggle(title, isOn: $isOn)
                 .labelsHidden()
                 .tint(palette.primary)
         }
@@ -128,5 +167,62 @@ struct NotificationsPaneView: View {
             RoundedRectangle(cornerRadius: 14)
                 .stroke(palette.primary.opacity(0.15), lineWidth: 1)
         )
+    }
+}
+
+/// Settings › Notifications › Meeting briefs: the opt-in switch, and — when
+/// calendar sync is known to be off — what is missing and the way to turn
+/// it on. The switch still works then: the choice is kept for when the
+/// calendar starts syncing.
+struct MeetingBriefSettingsRow: View {
+    static let title = "Meeting briefs"
+    static let subtitle = "A quiet note 30 minutes before a meeting, only when you've saved something relevant."
+
+    @Binding var isOn: Bool
+    let readiness: CalendarSyncReadiness
+    var dataAccess: (() -> DataAccessView)?
+
+    @Environment(\.lvPalette) private var palette
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
+            NotificationToggleCard(title: Self.title, subtitle: Self.subtitle, isOn: $isOn)
+            switch readiness {
+            case .consentOff:
+                calendarNote("Meeting briefs need calendar sync, which is off.") {
+                    if let dataAccess {
+                        NavigationLink("Turn on Calendar in Data Access") { dataAccess() }
+                    } else {
+                        Text("Turn it on in Settings › Data Access.")
+                    }
+                }
+            case .systemAccessOff:
+                calendarNote("LuminaVault can't read your calendar, so there's nothing to brief on.") {
+                    Button("Allow calendar access in iOS Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                    }
+                }
+            case .ready, .unknown:
+                EmptyView()
+            }
+        }
+    }
+
+    private func calendarNote(_ text: String, @ViewBuilder action: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: LVSpacing.xs) {
+            Label {
+                Text(text)
+                    .lvFont(.caption)
+                    .foregroundStyle(palette.textSecondary)
+            } icon: {
+                Image(systemName: "calendar.badge.exclamationmark")
+                    .foregroundStyle(palette.accent)
+            }
+            action()
+                .lvFont(.caption)
+                .tint(palette.primary)
+        }
+        .padding(.horizontal, LVSpacing.xs)
     }
 }

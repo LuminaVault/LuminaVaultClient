@@ -423,6 +423,11 @@ struct LuminaVaultClientApp: App {
                     // push. `MainTabView` presents `BriefView`.
                     notificationRouter.pendingDeepLink = .brief
                     return
+                case let .meeting(eventID):
+                    // `luminavault://meeting/<id>` — the pre-meeting push.
+                    // `MainTabView` presents `MeetingBriefSheet`.
+                    notificationRouter.pendingDeepLink = .meeting(eventID: eventID)
+                    return
                 default:
                     break
                 }

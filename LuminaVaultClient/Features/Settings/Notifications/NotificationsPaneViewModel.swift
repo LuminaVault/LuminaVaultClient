@@ -2,6 +2,10 @@
 //
 // HER-179 — Settings → Notifications pane. Per-category toggles backed
 // by GET/PUT /v1/me/apns-categories.
+//
+// The pre-meeting brief is the one opt-in among them: off unless turned on,
+// and not an `APNSCategory` case in Shared, so it has its own setter. It
+// only works with calendar sync on, so the pane also reads whether it is.
 
 import Foundation
 import LuminaVaultShared
@@ -22,11 +26,18 @@ final class NotificationsPaneViewModel {
     var digestEnabled: Bool = true
     var approvalEnabled: Bool = true
     var runCompletedEnabled: Bool = true
+    /// Opt-in: false until the user turns it on (and when the server is
+    /// too old to say).
+    var meetingBriefEnabled: Bool = false
+    /// Whether the calendar syncs, which meeting briefs need.
+    private(set) var calendarReadiness: CalendarSyncReadiness = .unknown
 
     private let client: APNSPrefsClientProtocol
+    private let calendarReadinessChecker: (any CalendarSyncReadinessChecking)?
 
-    init(client: APNSPrefsClientProtocol) {
+    init(client: APNSPrefsClientProtocol, calendarReadiness: (any CalendarSyncReadinessChecking)? = nil) {
         self.client = client
+        self.calendarReadinessChecker = calendarReadiness
     }
 
     func load() async {
@@ -37,7 +48,28 @@ final class NotificationsPaneViewModel {
             state = .loaded
         } catch {
             state = .failed(Self.message(for: error))
+            return
         }
+        await refreshCalendarReadiness()
+    }
+
+    /// Re-read on every appearance too: the way to fix it is a screen away
+    /// (Data Access, or iOS Settings), and the pane should notice the return.
+    func refreshCalendarReadiness() async {
+        guard let calendarReadinessChecker else { return }
+        calendarReadiness = await calendarReadinessChecker.readiness()
+    }
+
+    /// Calendar sync is known to be off, so a brief cannot go out yet.
+    var meetingBriefNeedsCalendar: Bool {
+        calendarReadiness == .consentOff || calendarReadiness == .systemAccessOff
+    }
+
+    /// The opt-in pre-meeting brief. Same optimistic write and rollback as
+    /// `toggle`.
+    func setMeetingBrief(_ value: Bool) async {
+        meetingBriefEnabled = value
+        await write(APNSCategoryPrefsPutRequest(meetingBriefEnabled: value))
     }
 
     /// Every category the server can report and write. Phase 1's `approval`
@@ -69,6 +101,10 @@ final class NotificationsPaneViewModel {
             runCompletedEnabled = value
             body = .init(runCompletedEnabled: value)
         }
+        await write(body)
+    }
+
+    private func write(_ body: APNSCategoryPrefsPutRequest) async {
         do {
             // The response is authoritative: the put is sparse, so this is
             // also how the untouched categories stay in sync.
@@ -87,6 +123,7 @@ final class NotificationsPaneViewModel {
         digestEnabled = prefs.digestEnabled
         approvalEnabled = prefs.approvalEnabled
         runCompletedEnabled = prefs.runCompletedEnabled
+        meetingBriefEnabled = prefs.isMeetingBriefEnabled
     }
 
     private static func message(for error: Error) -> String {
