@@ -93,6 +93,12 @@ nonisolated enum Config {
         infoString("LV_SUPPORT_EMAIL") ?? "support@luminavault.fyi"
     }
 
+    /// Invite to the LuminaVault channel of the Discord server, surfaced from
+    /// Settings → About beside the support email.
+    static var discordURL: URL {
+        URL(string: infoString("LV_DISCORD_URL") ?? "https://discord.gg/q54PnEE97")!
+    }
+
     /// Numeric App Store ID from the `AppStoreID` Info.plist key. Empty
     /// until the app has a listing, so nil for now.
     static var appStoreID: String? { infoString("AppStoreID") }

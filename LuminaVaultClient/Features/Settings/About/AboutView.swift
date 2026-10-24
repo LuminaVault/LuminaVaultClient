@@ -16,7 +16,9 @@ import StoreKit
 struct AboutView: View {
     @Environment(\.requestReview) private var requestReview
     @Environment(\.lvPalette) private var palette
+    @Environment(\.openURL) private var openURL
     @AppStorage(ReviewPrompter.Keys.promptsEnabled) private var reviewPromptsEnabled = true
+    private let telemetry: any TelemetryProtocol = AnalyticsTelemetry()
 
     var body: some View {
         List {
@@ -109,6 +111,13 @@ struct AboutView: View {
                 Link(destination: mailto) {
                     Label(Config.supportEmail, systemImage: "envelope")
                 }
+            }
+            // A Button rather than a Link so the tap can be tracked first.
+            Button {
+                telemetry.track("discord_link_clicked", properties: ["surface": "settings"])
+                openURL(Config.discordURL)
+            } label: {
+                Label("Join us on Discord", systemImage: "bubble.left.and.bubble.right")
             }
         }
     }
