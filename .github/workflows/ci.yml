@@ -15,6 +15,13 @@ on:
   # exists. Nothing else in this file runs on it.
   workflow_dispatch:
 
+# A newer push to the same PR makes the older run moot, so cancel it: each
+# superseded run otherwise burns a full macOS build + suite (~15–20 min).
+# Pushes and manual recordings get a unique group and are never cancelled.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
     name: SwiftLint
