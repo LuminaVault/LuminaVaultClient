@@ -65,12 +65,10 @@ struct CaptureSheet: View {
     var body: some View {
         ZStack {
             darkPalette.backgroundBase.ignoresSafeArea()
+            // Memory Keeper: no mascot watermark or sparkle field behind the
+            // form — capture is about the user's content. The aurora stays for
+            // themes that still paint one (it is clear in Memory Keeper).
             AuroraBackdrop()
-            CaptureMascotVignette()
-            SparkleField(density: 12, maxRadius: 1.4)
-                .opacity(0.55)
-                .blendMode(.screen)
-                .allowsHitTesting(false)
 
             VStack(spacing: 0) {
                 LVCaptureModeTabs(selected: $mode)

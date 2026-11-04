@@ -2,8 +2,13 @@
 import SwiftUI
 
 extension View {
-    /// Wrap the view in a glass-morphic card: thin material, gradient stroke,
-    /// and a soft outer glow tinted by the active palette.
+    /// Wrap the view in a card: the palette surface over a material, a
+    /// hairline `surfaceStroke`, and a faint palette glow.
+    ///
+    /// Memory Keeper (2026-10) retired the white top sheen, the cyan-fading
+    /// gradient stroke and the double glow: a card is bounded by its edge, not
+    /// lit. `intensity` still scales the glow, now capped low enough that a
+    /// screen of cards reads the same with glow on or off.
     ///
     /// - Parameters:
     ///   - cornerRadius: corner radius of the card shape.
@@ -56,34 +61,14 @@ private struct LVGlassCardModifier: ViewModifier {
                         .fill(material)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .fill(palette.surface)
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.05), .clear],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
                 }
             }
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                palette.surfaceStroke,
-                                palette.glowPrimary.opacity(0.25),
-                                .clear
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
+                    .strokeBorder(palette.surfaceStroke, lineWidth: 1)
             }
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .shadow(color: palette.glowPrimary.opacity(0.45 * intensity), radius: 22)
-            .shadow(color: palette.glowSecondary.opacity(0.18 * intensity), radius: 40)
+            .shadow(color: palette.glowPrimary.opacity(0.10 * intensity), radius: 18)
     }
 }
 
@@ -95,7 +80,7 @@ private struct LVInnerGlowModifier: ViewModifier {
     func body(content: Content) -> some View {
         content.overlay {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .stroke(palette.glowPrimary.opacity(0.55 * intensity), lineWidth: 1)
+                .stroke(palette.glowPrimary.opacity(0.30 * intensity), lineWidth: 1)
                 .blur(radius: 6)
                 .mask(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -114,10 +99,9 @@ private struct LVGlowStrokeModifier: ViewModifier {
         content
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(palette.glowPrimary.opacity(intensity), lineWidth: 1.2)
+                    .stroke(palette.glowPrimary.opacity(0.75 * intensity), lineWidth: 1.2)
             }
-            .shadow(color: palette.glowPrimary.opacity(0.55 * intensity), radius: 14)
-            .shadow(color: palette.glowSecondary.opacity(0.2 * intensity), radius: 28)
+            .shadow(color: palette.glowPrimary.opacity(0.15 * intensity), radius: 10)
     }
 }
 
@@ -143,7 +127,6 @@ private struct LVAuroraGoldRingModifier: ViewModifier {
                         lineWidth: 1.5
                     )
             }
-            .shadow(color: palette.accent.opacity(0.4 * intensity), radius: 12)
-            .shadow(color: palette.glowPrimary.opacity(0.18 * intensity), radius: 28)
+            .shadow(color: palette.accent.opacity(0.25 * intensity), radius: 12)
     }
 }

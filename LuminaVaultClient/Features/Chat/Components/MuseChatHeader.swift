@@ -220,7 +220,8 @@ private struct MuseAvatar: View {
             HermieMascotView(
                 state: state,
                 size: LVMuse.avatarSize,
-                fallbackImageName: "OnboardingMascot",
+                // The avatar crop: the full-body art lost the face inside a disc.
+                fallbackImageName: "MascotChatAvatar",
                 hostTab: "think"
             )
             .clipShape(.circle)

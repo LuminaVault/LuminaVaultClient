@@ -244,8 +244,7 @@ struct BrainTabView: View {
                 LVEmptyState(
                     mascot: .thinking,
                     headline: "No reasoning graph yet.",
-                    supporting: "New memories are converted into claims, entities, events, and evidence-backed connections.",
-                    backgroundImage: "Lumina/Backgrounds/neural-network"
+                    supporting: "New memories are converted into claims, entities, events, and evidence-backed connections."
                 )
                 Button("Show memory graph") { graphLayer = .memories }
                     .buttonStyle(.borderedProminent)
@@ -350,8 +349,7 @@ struct BrainTabView: View {
             LVEmptyState(
                 mascot: .thinking,
                 headline: "No memory graph yet.",
-                supporting: "Capture or save memories to grow your brain.",
-                backgroundImage: "Lumina/Backgrounds/neural-network"
+                supporting: "Capture or save memories to grow your brain."
             )
             Button("Check reasoning graph") { graphLayer = .knowledge }
                 .buttonStyle(.bordered)

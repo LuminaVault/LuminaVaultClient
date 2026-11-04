@@ -84,3 +84,19 @@ code, and are tracked separately:
    overrides to be removable.
 
 The `RiveRuntime` SPM dependency is already wired (HER-40).
+
+## Memory Keeper brief states
+
+The 2026-10 brand brief names more states than the enum has. The 7-case enum is
+a contract shared with web guided start, so the extra names map onto it:
+
+| Brief state | Enum case |
+|-------------|-----------|
+| listening, searching | `thinking` |
+| capturing, compiling, remembering | `learning` |
+| success | `happy` |
+| error | `sad` |
+| offline, sleeping | `sleeping` |
+
+Expression-specific art (closed eyes, concern) does not exist yet. All states
+currently animate one cutout from the key art.

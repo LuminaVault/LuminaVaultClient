@@ -45,8 +45,8 @@ final class ChatCosmicBackgroundTests: XCTestCase {
     }
 }
 
-/// The contract's user bubble (`#0096ff`) fails AA under white text, so the
-/// token is darkened. This keeps it from drifting back.
+/// The user bubble's text has to clear WCAG AA on the bubble. It once failed
+/// (white on the contract's `#0096ff`); this keeps it from drifting back.
 final class MuseColorsContrastTests: XCTestCase {
     private func luminance(_ color: Color) -> Double {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
@@ -58,8 +58,20 @@ final class MuseColorsContrastTests: XCTestCase {
         return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
     }
 
-    func testWhiteOnUserBubbleMeetsAA() {
-        let ratio = 1.05 / (luminance(LVPalette.museUserBubble) + 0.05)
-        XCTAssertGreaterThanOrEqual(ratio, 4.5)
+    private func contrast(_ a: Color, _ b: Color) -> Double {
+        let la = luminance(a), lb = luminance(b)
+        return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+    }
+
+    func testUserTextOnUserBubbleMeetsAA() {
+        XCTAssertGreaterThanOrEqual(contrast(LVPalette.museUserText, LVPalette.museUserBubble), 4.5)
+    }
+
+    /// `LVButton` paints `onPrimary` on a `primary` fill.
+    func testButtonLabelOnPrimaryMeetsAA() {
+        for scheme in [ColorScheme.dark, .light] {
+            let palette = LVTheme.cyanGold.palette(for: scheme)
+            XCTAssertGreaterThanOrEqual(contrast(palette.onPrimary, palette.primary), 4.5, "\(scheme)")
+        }
     }
 }

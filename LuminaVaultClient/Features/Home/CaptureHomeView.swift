@@ -204,6 +204,7 @@ struct CaptureHomeView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .lvListCanvas()
         .navigationTitle("Home")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {

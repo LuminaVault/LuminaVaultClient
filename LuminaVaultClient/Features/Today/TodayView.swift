@@ -116,13 +116,7 @@ struct TodayView: View {
                 )
                 Text("Today")
                     .font(.system(size: 22, weight: .heavy))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [palette.accent, palette.primary],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .foregroundStyle(palette.textPrimary)
             }
             Spacer()
             StreakCounter(days: vm.streakDays)
@@ -135,8 +129,7 @@ struct TodayView: View {
         LVEmptyState(
             mascot: .idle,
             headline: "Hermes is getting to know you.",
-            supporting: "Your first brief arrives at 7am tomorrow.",
-            backgroundImage: "Lumina/Backgrounds/neural-network"
+            supporting: "Your first brief arrives at 7am tomorrow."
         )
     }
 }

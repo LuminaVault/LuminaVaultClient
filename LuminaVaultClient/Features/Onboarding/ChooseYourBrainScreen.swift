@@ -40,16 +40,14 @@ struct ChooseYourBrainScreen: View {
             ZStack {
                 Color.clear.lvBackground()
 
-                LVHaloBackdrop(focalSize: 200, intensity: LVGlow.hero)
-                    .allowsHitTesting(false)
-
                 ScrollView {
                     VStack(spacing: LVSpacing.lg) {
-                        Image("Lumina/Icons/brain-neural")
+                        // Lumina, not a glowing brain: the companion is
+                        // the one choosing with you.
+                        Image("MascotHead")
                             .resizable()
-                            .renderingMode(.original)
                             .scaledToFit()
-                            .frame(width: 200, height: 200)
+                            .frame(width: 160, height: 160)
                             .shadow(color: palette.glowPrimary.opacity(0.6), radius: 40, y: 0)
                             .accessibilityHidden(true)
                             .padding(.top, LVSpacing.xl)
@@ -57,13 +55,7 @@ struct ChooseYourBrainScreen: View {
                         VStack(spacing: LVSpacing.sm) {
                             Text("Choose your Brain")
                                 .lvFont(.display)
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [palette.accent, palette.primary],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
+                                .foregroundStyle(palette.textPrimary)
                                 .multilineTextAlignment(.center)
 
                             Text("Pick the AI model powering your vault.\nYou can change this anytime in Settings.")

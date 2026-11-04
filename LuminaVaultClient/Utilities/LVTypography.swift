@@ -59,6 +59,14 @@ enum LVTypography {
     /// `.body` monospaced — code blocks, server URLs, identifiers.
     case mono
 
+    /// `.largeTitle` serif (New York) weight `.regular` — brand moments only:
+    /// splash, auth hero, onboarding titles. Echoes the key-art wordmark.
+    /// Never in the vault, lists or chat — those stay on SF for readability.
+    case brandDisplay
+
+    /// `.title2` serif weight `.regular` — the smaller brand-moment heading.
+    case brandTitle
+
     var font: Font {
         switch self {
         // `.hero` stays a fixed point size on purpose: it is a decorative
@@ -86,6 +94,8 @@ enum LVTypography {
         case .button:       return .system(.footnote, design: .default, weight: .heavy)
         case .otp:          return .system(.body, design: .default, weight: .bold).monospacedDigit()
         case .mono:         return .system(.body, design: .monospaced)
+        case .brandDisplay: return .system(.largeTitle, design: .serif, weight: .regular)
+        case .brandTitle:   return .system(.title2, design: .serif, weight: .regular)
         }
     }
 }

@@ -8,7 +8,6 @@ struct WingedScrollRiveView: View {
     var playsOnAppear: Bool = true
 
     @State private var viewModel: RiveViewModel?
-    @State private var fallbackBreathing: CGFloat = 1.0
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -28,15 +27,11 @@ struct WingedScrollRiveView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: size, height: size)
-                    .scaleEffect(fallbackBreathing)
             }
         }
-        .accessibilityLabel("LuminaVault winged-scroll mark")
+        .accessibilityLabel("LuminaVault")
         .task { loadIfAvailable() }
-        .onAppear {
-            startFallbackBreathing()
-            setLive(true)
-        }
+        .onAppear { setLive(true) }
         .onDisappear { setLive(false) }
         .onChange(of: scenePhase) { _, phase in setLive(phase == .active) }
         .onChange(of: reduceMotion) { _, rm in setPlaying(playsOnAppear && !rm) }
@@ -65,13 +60,6 @@ struct WingedScrollRiveView: View {
             viewModel.play()
         } else {
             viewModel.pause()
-        }
-    }
-
-    private func startFallbackBreathing() {
-        guard viewModel == nil, !reduceMotion else { return }
-        withAnimation(.easeInOut(duration: 4.0).repeatForever(autoreverses: true)) {
-            fallbackBreathing = 1.025
         }
     }
 }

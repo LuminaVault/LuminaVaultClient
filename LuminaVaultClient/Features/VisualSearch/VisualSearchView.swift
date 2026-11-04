@@ -36,8 +36,7 @@ struct VisualSearchView: View {
                 LVEmptyState(
                     mascot: .thinking,
                     headline: "Drop an image to search.",
-                    supporting: "Long-press a photo with text and Hermes will hunt your memories.",
-                    backgroundImage: "Lumina/Backgrounds/neural-network"
+                    supporting: "Long-press a photo with text and Hermes will hunt your memories."
                 )
                 .allowsHitTesting(false)
                 .padding(.bottom, 80)

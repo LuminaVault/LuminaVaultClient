@@ -1,15 +1,20 @@
 // LuminaVaultClient/LuminaVaultClient/Components/LVButton.swift
 import SwiftUI
 
+/// The app's primary call to action.
+///
+/// Memory Keeper (2026-10): a solid `palette.primary` fill with a dark label.
+/// The old primary→secondary→accent gradient, perpetual shimmer sweep and
+/// double glow shadow are gone — cyan already marks "this is interactive",
+/// and gold is reserved for premium moments (`lvAuroraGoldRing`). Feedback is
+/// a short press scale instead of constant motion.
 struct LVButton: View {
 
     @Environment(\.lvPalette) private var palette
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let title: String
     private let isLoading: Bool
     private let action: () -> Void
-    @State private var shimmerPhase: CGFloat = 0
 
     init(_ title: String, isLoading: Bool = false, action: @escaping () -> Void) {
         self.title = title
@@ -21,54 +26,30 @@ struct LVButton: View {
         Button(action: action) {
             ZStack {
                 if isLoading {
-                    ProgressView().progressViewStyle(.circular).tint(.black).scaleEffect(0.85)
+                    ProgressView().progressViewStyle(.circular).tint(palette.onPrimary).scaleEffect(0.85)
                 } else {
                     Text(title)
                         .font(LVTypography.button.font)
-                        .foregroundStyle(.black)
+                        .foregroundStyle(palette.onPrimary)
                 }
             }
             .frame(maxWidth: .infinity)
             .frame(height: LVSize.buttonHeight)
-            .background(
-                ZStack {
-                    LinearGradient(
-                        stops: [
-                            .init(color: palette.primary,               location: 0.0),
-                            .init(color: palette.secondary,               location: 0.6),
-                            .init(color: palette.accent.opacity(0.7), location: 1.0)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    // Shimmer overlay
-                    GeometryReader { geo in
-                        let sw = geo.size.width * 0.4
-                        LinearGradient(
-                            colors: [.clear, .white.opacity(0.20), .clear],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                        .frame(width: sw)
-                        .offset(x: (geo.size.width + sw) * shimmerPhase - sw)
-                    }
-                }
-            )
-            .clipShape(RoundedRectangle(cornerRadius: LVRadius.md))
-            .shadow(color: palette.primary.opacity(0.35), radius: 12, y: 4)
-            .shadow(color: palette.accent.opacity(0.15), radius: 24, y: 8)
+            .background(palette.primary, in: RoundedRectangle(cornerRadius: LVRadius.md, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(LVPressScaleStyle())
         .disabled(isLoading)
-        // The shimmer was an unconditional `repeatForever` sweep across the
-        // app's primary CTA. Reduce Motion parks it at its resting phase.
-        .lvRepeatingAnimation(
-            .linear(duration: 2.6).repeatForever(autoreverses: false),
-            value: shimmerPhase
-        )
-        .onAppear {
-            guard !reduceMotion else { return }
-            shimmerPhase = 1
-        }
+    }
+}
+
+/// 0.97 scale while pressed, 150ms. Reduce Motion keeps the opacity dip only.
+struct LVPressScaleStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .opacity(configuration.isPressed ? 0.88 : 1)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }

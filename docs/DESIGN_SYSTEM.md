@@ -83,9 +83,12 @@ Every palette exposes the same semantic slots. Use slots, never raw hex.
 | `accent`         | High-contrast highlight (warnings, badges, pull focus)          |
 | `glowPrimary`    | Outer glow / pulse — always vivid even in light mode            |
 | `glowSecondary`  | Layered shadow tint paired with `glowPrimary`                   |
-| `surface`        | Glass-card fill (subtle; pairs with `.ultraThinMaterial`)       |
+| `surface`        | Card fill (solid in Memory Keeper)                              |
 | `surfaceStroke`  | Hairline border on cards/pills                                  |
-| `backgroundBase` | Root background (dark cosmic / light cream)                     |
+| `surfaceElevated`| One step above `surface`: selected rows, user chat bubbles      |
+| `highlight`      | The "important" gold, for discoveries and milestones            |
+| `onPrimary`      | Label colour on a `primary` fill                                |
+| `backgroundBase` | Root background (see `usesBrandCanvas`)                         |
 | `auroraTop`      | Top-trailing radial wash. `AuroraBackdrop` (CaptureSheet) only  |
 | `auroraBottom`   | Bottom-leading radial wash. `AuroraBackdrop` only               |
 | `auroraCenter`   | Mid-depth pulse. `AuroraBackdrop` only                          |
@@ -96,11 +99,27 @@ Every palette exposes the same semantic slots. Use slots, never raw hex.
 
 | Token | Dark | Light |
 |-------|------|-------|
-| `primary` | `#00D4FF` | `#007EA8` |
-| `secondary` | `#0096FF` | `#0061B2` |
-| `accent` | `#F59E0B` | `#C98000` |
-| `backgroundBase` | `#070D1E` | `#F0F7FF` |
-| `textPrimary` | `#FFFFFF` | `#0D1530` |
+| `primary` (Memory Cyan) | `#65DCE5` | `#0B6E78` |
+| `secondary` (Neural Glow) | `#A3F0EE` | `#0E8790` |
+| `accent` (Archive Gold) | `#D8AE7E` | `#8A6424` |
+| `highlight` (Warm Gold) | `#F4D1A2` | `#A97C35` |
+| `backgroundBase` (Vault Obsidian / Ivory) | `#0A0F18` | `#F5F1E9` |
+| `surface` (Midnight Archive) | `#121D2D` | `#FFFFFF` |
+| `surfaceElevated` (Titanium Navy) | `#1C2D43` | `#FBF9F5` |
+| `surfaceStroke` (Steel Blue) | `#34465B` | `#C7D0DA` |
+| `textPrimary` (Ivory / Deep navy) | `#F5F1E9` | `#0B111D` |
+| `textSecondary` (Muted Silver) | `#A8B5C3` | `#4A5768` |
+
+This is "Memory Keeper" (2026-10), sampled from the key art. The theme id stays
+`cyanGold` so persisted preferences keep working; only its values and display
+name changed. Cyan is for what you can tap, gold for brand and premium moments,
+and the identity has to hold with every glow off.
+
+`cyanGold` is the one theme with its own canvas. Every other theme keeps
+`backgroundBase` on the system grouped background. A `List` draws that system
+colour itself, so a tab-root `List` takes `.lvListCanvas()` to sit on the
+canvas. Pushed and sheet lists are not converted yet and still show the system
+grouped colour.
 
 Full source: `LuminaVaultClient/Utilities/LVPalette.swift`.
 

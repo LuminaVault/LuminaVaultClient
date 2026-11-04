@@ -26,7 +26,6 @@ struct AchievementUnlockOverlay: View {
     var body: some View {
         ZStack {
             Color.black.opacity(0.82).ignoresSafeArea()
-            Color.clear.lvParticleBackground(intensity: .hero).ignoresSafeArea()
 
             if let current {
                 VStack(spacing: LVSpacing.xl) {

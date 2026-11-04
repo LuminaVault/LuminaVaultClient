@@ -56,11 +56,6 @@ struct AchievementsView: View {
                 colors: [palette.accent.opacity(0.08), .clear],
                 center: .bottomLeading, startRadius: 0, endRadius: 600
             ).ignoresSafeArea()
-            Color.clear
-                .lvParticleBackground(intensity: .subtle)
-                .frame(maxHeight: 420)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .allowsHitTesting(false)
         }
     }
 
