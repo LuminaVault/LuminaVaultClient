@@ -10,24 +10,38 @@ import SwiftUI
 extension MarkdownUI.Theme {
     /// Builds a Theme bound to the supplied palette. Pass the value read from
     /// `\.lvPalette` so the rendered markdown tracks the user's theme + scheme.
+    ///
+    /// Memory Keeper (2026-10) reading rules: cyan is reserved for things you
+    /// can tap (links), so inline code sits on an elevated chip in body colour;
+    /// body size follows Dynamic Type (15pt at the default size, as before);
+    /// paragraphs get reading line-spacing.
     static func luminaVault(_ palette: LVPalette) -> MarkdownUI.Theme {
         MarkdownUI.Theme()
             .text {
                 ForegroundColor(palette.textPrimary)
-                FontSize(15)
+                FontSize(bodySize)
             }
             .code {
                 FontFamilyVariant(.monospaced)
                 FontSize(.em(0.88))
-                ForegroundColor(palette.primary)
+                ForegroundColor(palette.textPrimary)
+                BackgroundColor(palette.surfaceElevated)
             }
             .strong { FontWeight(.semibold) }
-            .link { ForegroundColor(palette.primary) }
+            .link {
+                ForegroundColor(palette.primary)
+                UnderlineStyle(.single)
+            }
+            .paragraph { configuration in
+                configuration.label
+                    .relativeLineSpacing(.em(0.3))
+                    .markdownMargin(top: 0, bottom: 12)
+            }
             .heading1 { configuration in
                 configuration.label
                     .markdownMargin(top: 20, bottom: 8)
                     .markdownTextStyle {
-                        FontWeight(.heavy)
+                        FontWeight(.bold)
                         FontSize(.em(1.6))
                         ForegroundColor(palette.textPrimary)
                     }
@@ -63,7 +77,7 @@ extension MarkdownUI.Theme {
                     .padding(.leading, 14)
                     .overlay(alignment: .leading) {
                         Rectangle()
-                            .fill(palette.primary.opacity(0.6))
+                            .fill(palette.accent.opacity(0.7))
                             .frame(width: 3)
                     }
                     .markdownTextStyle {
@@ -80,7 +94,7 @@ extension MarkdownUI.Theme {
                     }
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(palette.surface))
+                    .background(RoundedRectangle(cornerRadius: 10).fill(palette.surfaceElevated))
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
                             .strokeBorder(palette.surfaceStroke, lineWidth: 1)
@@ -92,5 +106,11 @@ extension MarkdownUI.Theme {
                     .overlay(palette.surfaceStroke)
                     .markdownMargin(top: 12, bottom: 12)
             }
+    }
+
+    /// 15pt at the default content size, scaled with the user's Dynamic Type
+    /// setting. Read at theme-build time; callers build the theme in `body`.
+    private static var bodySize: CGFloat {
+        15 * UIFont.preferredFont(forTextStyle: .body).pointSize / 17
     }
 }

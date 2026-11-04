@@ -4,14 +4,13 @@ import RiveRuntime
 
 struct GetStartedHeroRiveView: View {
 
-    @Environment(\.lvPalette) private var palette
-
+    /// Width in points. The artboard contract is 1280×720, so the view is
+    /// 16:9 — the key-art fallback is the same scene, full-bleed.
     var size: CGFloat = 240
     var fallbackImageName: String = "GetStartedHero"
     var playsOnAppear: Bool = true
 
     @State private var viewModel: RiveViewModel?
-    @State private var fallbackFloat: CGFloat = 0
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -25,23 +24,19 @@ struct GetStartedHeroRiveView: View {
         Group {
             if let viewModel {
                 viewModel.view()
-                    .frame(width: size, height: size)
+                    .frame(width: size, height: size * 9 / 16)
             } else {
+                // Static: the key art already carries its own light and depth.
                 Image(fallbackImageName)
                     .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: size, height: size)
-                    .offset(y: fallbackFloat)
-                    .shadow(color: palette.primary.opacity(0.40), radius: 32, y: 14)
-                    .shadow(color: palette.accent.opacity(0.22), radius: 56, y: 22)
+                    .aspectRatio(16 / 9, contentMode: .fill)
+                    .frame(width: size, height: size * 9 / 16)
+                    .clipped()
             }
         }
-        .accessibilityLabel("Lumina the keeper of memories")
+        .accessibilityLabel("Lumina, the keeper of memories, reading a glowing scroll in the vault library")
         .task { loadIfAvailable() }
-        .onAppear {
-            startFallbackFloat()
-            setLive(true)
-        }
+        .onAppear { setLive(true) }
         .onDisappear { setLive(false) }
         .onChange(of: scenePhase) { _, phase in setLive(phase == .active) }
         .onChange(of: reduceMotion) { _, rm in setPlaying(playsOnAppear && !rm) }
@@ -69,13 +64,6 @@ struct GetStartedHeroRiveView: View {
             viewModel.play()
         } else {
             viewModel.pause()
-        }
-    }
-
-    private func startFallbackFloat() {
-        guard viewModel == nil, !reduceMotion else { return }
-        withAnimation(.easeInOut(duration: 3.0).repeatForever(autoreverses: true)) {
-            fallbackFloat = -8
         }
     }
 }

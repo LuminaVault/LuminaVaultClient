@@ -185,7 +185,9 @@ struct MainTabView: View {
             guard let requested else { return }
             selection = appTab(for: requested)
         }
-        .tint(palette.accent)
+        // Cyan is the interactive colour (selected tab, toggles, links, the
+        // ~150 ProgressViews that inherit it); gold stays a brand accent.
+        .tint(palette.primary)
         .onChange(of: selection) { oldValue, newValue in
             guard oldValue != newValue, hapticsEnabled else { return }
             tabHapticTrigger += 1

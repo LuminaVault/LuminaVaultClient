@@ -18,10 +18,20 @@ struct LVPalette: Equatable {
     // correspondingly stronger stroke, so every card is actually bounded.
     let surface: Color           // glass-card fill (pairs with `.ultraThinMaterial`)
     let surfaceStroke: Color     // hairline border
+    /// One step above `surface`: sheets-on-cards, selected rows, user chat
+    /// bubbles. Titanium Navy in Memory Keeper.
+    let surfaceElevated: Color
+    /// Warm emphasis for discoveries and milestones. Use sparingly — it is
+    /// the "important" gold, not a second accent.
+    let highlight: Color
+    /// Label colour on a `primary` fill (buttons, selected chips). Stored, not
+    /// derived, because `system` resolves its primary from a dynamic asset.
+    let onPrimary: Color
 
-    /// Root background fill. Every theme maps this to the system
-    /// grouped background so `List` screens and `.lvBackground()` screens
-    /// sit on the same colour.
+    /// Root background fill. Most themes map this to the system grouped
+    /// background so `List` screens and `.lvBackground()` screens sit on the
+    /// same colour. Memory Keeper paints its own canvas (Obsidian / Ivory, the
+    /// launch screen's colours); see `usesBrandCanvas` and `lvListCanvas()`.
     let backgroundBase: Color
     let auroraTop: Color         // top-trailing radial wash
     let auroraBottom: Color      // bottom-leading radial wash
@@ -44,7 +54,7 @@ enum LVTheme: String, CaseIterable, Identifiable, Codable {
     var displayName: String {
         switch self {
         case .system:   return "System"
-        case .cyanGold: return "Cyan Gold"
+        case .cyanGold: return "Memory Keeper"
         case .nebula:   return "Nebula"
         case .solar:    return "Solar"
         }
@@ -74,6 +84,14 @@ enum LVTheme: String, CaseIterable, Identifiable, Codable {
 // MARK: - Concrete palettes
 
 extension LVPalette {
+    /// True when `backgroundBase` is not the system grouped background, so a
+    /// `List` has to hide its own background to sit on the same colour.
+    var usesBrandCanvas: Bool {
+        self == .cyanGoldDark || self == .cyanGoldLight
+    }
+}
+
+extension LVPalette {
     // System — native iOS semantic colors; no custom aurora identity.
     static let systemDark = LVPalette(
         primary:        Color.accentColor,
@@ -83,6 +101,9 @@ extension LVPalette {
         glowSecondary:  Color(uiColor: .systemIndigo),
         surface:        Color(uiColor: .secondarySystemGroupedBackground).opacity(0.72),
         surfaceStroke:  Color(uiColor: .separator),
+        surfaceElevated: Color(uiColor: .tertiarySystemGroupedBackground),
+        highlight:      Color(uiColor: .systemOrange),
+        onPrimary:      Color.black,
         backgroundBase: Color(uiColor: .systemGroupedBackground),
         auroraTop:      .clear,
         auroraBottom:   .clear,
@@ -99,6 +120,9 @@ extension LVPalette {
         glowSecondary:  Color(uiColor: .systemIndigo),
         surface:        Color(uiColor: .secondarySystemGroupedBackground).opacity(0.88),
         surfaceStroke:  Color(uiColor: .separator),
+        surfaceElevated: Color(uiColor: .systemBackground),
+        highlight:      Color(uiColor: .systemOrange),
+        onPrimary:      Color.white,
         backgroundBase: Color(uiColor: .systemGroupedBackground),
         auroraTop:      .clear,
         auroraBottom:   .clear,
@@ -107,37 +131,49 @@ extension LVPalette {
         textSecondary:  Color(uiColor: .secondaryLabel)
     )
 
-    // Cyan-Gold (default LuminaVault aesthetic)
+    // Cyan-Gold — "Memory Keeper" (default LuminaVault aesthetic, 2026-10).
+    // Sampled from the key art: obsidian/navy structure, cyan for anything
+    // interactive or "intelligent", gold for brand and premium moments, ivory
+    // and silver for reading. Aurora washes are retired (clear) — the identity
+    // has to hold with every glow off. Full table: docs/DESIGN_SYSTEM.md §3.
     static let cyanGoldDark = LVPalette(
-        primary:        Color(red: 0.000, green: 0.831, blue: 1.000), // #00D4FF cyan
-        secondary:      Color(red: 0.000, green: 0.588, blue: 1.000), // #0096FF blue
-        accent:         Color(red: 0.961, green: 0.620, blue: 0.043), // #F59E0B amber
-        glowPrimary:    Color(red: 0.000, green: 0.831, blue: 1.000),
-        glowSecondary:  Color(red: 0.961, green: 0.620, blue: 0.043),
-        surface:        Color.white.opacity(0.12),
-        surfaceStroke:  Color(red: 0.000, green: 0.831, blue: 1.000).opacity(0.38),
-        backgroundBase: Color(uiColor: .systemGroupedBackground),
-        auroraTop:      Color(red: 0.961, green: 0.620, blue: 0.043).opacity(0.18),
-        auroraBottom:   Color(red: 0.000, green: 0.831, blue: 1.000).opacity(0.14),
-        auroraCenter:   Color(red: 0.000, green: 0.588, blue: 1.000).opacity(0.08),
-        textPrimary:    Color.white,
-        textSecondary:  Color.white.opacity(0.72)
+        primary:        Color(red: 0.396, green: 0.863, blue: 0.898), // #65DCE5 Memory Cyan
+        secondary:      Color(red: 0.639, green: 0.941, blue: 0.933), // #A3F0EE Neural Glow
+        accent:         Color(red: 0.847, green: 0.682, blue: 0.494), // #D8AE7E Archive Gold
+        glowPrimary:    Color(red: 0.396, green: 0.863, blue: 0.898),
+        glowSecondary:  Color(red: 0.957, green: 0.820, blue: 0.635), // #F4D1A2 Warm Gold
+        surface:        Color(red: 0.071, green: 0.114, blue: 0.176), // #121D2D Midnight Archive
+        surfaceStroke:  Color(red: 0.204, green: 0.275, blue: 0.357), // #34465B Steel Blue
+        surfaceElevated: Color(red: 0.110, green: 0.176, blue: 0.263), // #1C2D43 Titanium Navy
+        highlight:      Color(red: 0.957, green: 0.820, blue: 0.635), // #F4D1A2 Warm Gold
+        onPrimary:      Color(red: 0.039, green: 0.059, blue: 0.094), // #0A0F18 Vault Obsidian
+        backgroundBase: Color(red: 0.039, green: 0.059, blue: 0.094), // #0A0F18 Vault Obsidian
+        auroraTop:      .clear,
+        auroraBottom:   .clear,
+        auroraCenter:   .clear,
+        textPrimary:    Color(red: 0.961, green: 0.945, blue: 0.914), // #F5F1E9 Ivory
+        textSecondary:  Color(red: 0.659, green: 0.710, blue: 0.765)  // #A8B5C3 Muted Silver
     )
 
+    // Light is its own palette, not an inversion: white cards on Ivory,
+    // deep-navy text, and darkened cyan/gold that clear WCAG AA as text on both.
     static let cyanGoldLight = LVPalette(
-        primary:        Color(red: 0.000, green: 0.494, blue: 0.658),
-        secondary:      Color(red: 0.000, green: 0.380, blue: 0.694),
-        accent:         Color(red: 0.788, green: 0.502, blue: 0.000),
-        glowPrimary:    Color(red: 0.000, green: 0.831, blue: 1.000),
-        glowSecondary:  Color(red: 0.961, green: 0.620, blue: 0.043),
-        surface:        Color.black.opacity(0.07),
-        surfaceStroke:  Color(red: 0.000, green: 0.494, blue: 0.658).opacity(0.34),
-        backgroundBase: Color(uiColor: .systemGroupedBackground),
-        auroraTop:      Color(red: 0.961, green: 0.620, blue: 0.043).opacity(0.09),
-        auroraBottom:   Color(red: 0.000, green: 0.831, blue: 1.000).opacity(0.08),
-        auroraCenter:   Color(red: 0.000, green: 0.588, blue: 1.000).opacity(0.05),
-        textPrimary:    Color(red: 0.05, green: 0.08, blue: 0.18),
-        textSecondary:  Color(red: 0.05, green: 0.08, blue: 0.18).opacity(0.72)
+        primary:        Color(red: 0.043, green: 0.431, blue: 0.471), // #0B6E78
+        secondary:      Color(red: 0.055, green: 0.529, blue: 0.565), // #0E8790
+        accent:         Color(red: 0.541, green: 0.392, blue: 0.141), // #8A6424
+        glowPrimary:    Color(red: 0.055, green: 0.529, blue: 0.565),
+        glowSecondary:  Color(red: 0.663, green: 0.486, blue: 0.208), // #A97C35
+        surface:        Color.white,
+        surfaceStroke:  Color(red: 0.780, green: 0.816, blue: 0.855), // #C7D0DA
+        surfaceElevated: Color(red: 0.984, green: 0.976, blue: 0.961), // #FBF9F5
+        highlight:      Color(red: 0.663, green: 0.486, blue: 0.208), // #A97C35
+        onPrimary:      Color(red: 0.961, green: 0.945, blue: 0.914), // #F5F1E9
+        backgroundBase: Color(red: 0.961, green: 0.945, blue: 0.914), // #F5F1E9 Ivory
+        auroraTop:      .clear,
+        auroraBottom:   .clear,
+        auroraCenter:   .clear,
+        textPrimary:    Color(red: 0.043, green: 0.067, blue: 0.114), // #0B111D
+        textSecondary:  Color(red: 0.290, green: 0.341, blue: 0.408)  // #4A5768
     )
 
     // Nebula (magenta + violet)
@@ -149,6 +185,9 @@ extension LVPalette {
         glowSecondary:  Color(red: 0.486, green: 0.302, blue: 1.000),
         surface:        Color.white.opacity(0.12),
         surfaceStroke:  Color(red: 0.878, green: 0.251, blue: 0.984).opacity(0.38),
+        surfaceElevated: Color.white.opacity(0.18),
+        highlight:      Color(red: 1.000, green: 0.431, blue: 0.780),
+        onPrimary:      Color.black,
         backgroundBase: Color(uiColor: .systemGroupedBackground),
         auroraTop:      Color(red: 1.000, green: 0.431, blue: 0.780).opacity(0.20),
         auroraBottom:   Color(red: 0.486, green: 0.302, blue: 1.000).opacity(0.18),
@@ -165,6 +204,9 @@ extension LVPalette {
         glowSecondary:  Color(red: 0.486, green: 0.302, blue: 1.000),
         surface:        Color.black.opacity(0.07),
         surfaceStroke:  Color(red: 0.580, green: 0.118, blue: 0.690).opacity(0.34),
+        surfaceElevated: Color.white,
+        highlight:      Color(red: 0.780, green: 0.220, blue: 0.520),
+        onPrimary:      Color.white,
         backgroundBase: Color(uiColor: .systemGroupedBackground),
         auroraTop:      Color(red: 1.000, green: 0.431, blue: 0.780).opacity(0.10),
         auroraBottom:   Color(red: 0.486, green: 0.302, blue: 1.000).opacity(0.08),
@@ -182,6 +224,9 @@ extension LVPalette {
         glowSecondary:  Color(red: 1.000, green: 0.361, blue: 0.553),
         surface:        Color.white.opacity(0.12),
         surfaceStroke:  Color(red: 1.000, green: 0.702, blue: 0.000).opacity(0.38),
+        surfaceElevated: Color.white.opacity(0.18),
+        highlight:      Color(red: 1.000, green: 0.835, blue: 0.310),
+        onPrimary:      Color.black,
         backgroundBase: Color(uiColor: .systemGroupedBackground),
         auroraTop:      Color(red: 1.000, green: 0.835, blue: 0.310).opacity(0.20),
         auroraBottom:   Color(red: 1.000, green: 0.361, blue: 0.553).opacity(0.18),
@@ -198,6 +243,9 @@ extension LVPalette {
         glowSecondary:  Color(red: 1.000, green: 0.361, blue: 0.553),
         surface:        Color.black.opacity(0.07),
         surfaceStroke:  Color(red: 0.690, green: 0.380, blue: 0.000).opacity(0.34),
+        surfaceElevated: Color.white,
+        highlight:      Color(red: 0.690, green: 0.560, blue: 0.000),
+        onPrimary:      Color.white,
         backgroundBase: Color(uiColor: .systemGroupedBackground),
         auroraTop:      Color(red: 1.000, green: 0.835, blue: 0.310).opacity(0.10),
         auroraBottom:   Color(red: 1.000, green: 0.361, blue: 0.553).opacity(0.08),
@@ -226,14 +274,17 @@ struct LVMuseColors: Equatable {
 }
 
 extension LVPalette {
-    /// `#070d1e` — the dark chat canvas.
-    static let museCanvasDark = Color(red: 7 / 255, green: 13 / 255, blue: 30 / 255)
-    /// Contract value is `#0096ff` (`--lv-secondary`), but white body text on
-    /// it measures 3.09:1 and fails WCAG AA. `#0074DA` keeps the hue and
-    /// measures 4.66:1.
-    static let museUserBubble = Color(red: 0 / 255, green: 116 / 255, blue: 218 / 255)
-    /// Tailwind gray-100, the light agent bubble.
-    static let museAgentBubbleLight = Color(red: 243 / 255, green: 244 / 255, blue: 246 / 255)
+    /// `#0A0F18` Vault Obsidian — the dark chat canvas.
+    static let museCanvasDark = Color(red: 10 / 255, green: 15 / 255, blue: 24 / 255)
+    /// `#1C2D43` Titanium Navy. The user's own words sit on structure, not on
+    /// the interactive cyan; ivory text on it measures ≈ 12:1.
+    static let museUserBubble = Color(red: 28 / 255, green: 45 / 255, blue: 67 / 255)
+    /// `#121D2D` Midnight Archive — the dark agent bubble.
+    static let museAgentBubbleDark = Color(red: 18 / 255, green: 29 / 255, blue: 45 / 255)
+    /// White — the light agent bubble, a card on the grouped base.
+    static let museAgentBubbleLight = Color.white
+    /// `#F5F1E9` Ivory — text on the user bubble in both schemes.
+    static let museUserText = Color(red: 245 / 255, green: 241 / 255, blue: 233 / 255)
 
     /// Muse tokens for `scheme`. Light keeps the palette's own base and text,
     /// which is what "existing light base" means in the contract.
@@ -241,19 +292,19 @@ extension LVPalette {
         if scheme == .dark {
             return LVMuseColors(
                 canvas: Self.museCanvasDark,
-                agentBubble: Color.white.opacity(0.07),
+                agentBubble: Self.museAgentBubbleDark,
                 userBubble: Self.museUserBubble,
-                userText: .white,
+                userText: Self.museUserText,
                 pill: Color.white.opacity(0.10),
-                text: .white,
-                textSecondary: Color.white.opacity(0.72)
+                text: Self.museUserText,
+                textSecondary: Color(red: 168 / 255, green: 181 / 255, blue: 195 / 255)
             )
         }
         return LVMuseColors(
             canvas: backgroundBase,
             agentBubble: Self.museAgentBubbleLight,
             userBubble: Self.museUserBubble,
-            userText: .white,
+            userText: Self.museUserText,
             pill: Color.black.opacity(0.06),
             text: textPrimary,
             textSecondary: textSecondary

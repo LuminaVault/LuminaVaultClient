@@ -268,8 +268,7 @@ struct SpacesListView: View {
             headline: "Your vault is ready.",
             supporting: "Create your first space to file notes under.",
             primaryCTA: ("New Space", { presentingEditorFor = EditorPresentation(mode: .create) }),
-            chips: [],
-            backgroundImage: "Lumina/Backgrounds/neural-network"
+            chips: []
         )
         .padding(.top, 32)
     }

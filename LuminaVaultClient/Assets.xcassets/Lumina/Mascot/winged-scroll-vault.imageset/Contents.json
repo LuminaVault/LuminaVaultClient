@@ -1,23 +1,56 @@
 {
   "images": [
     {
+      "filename": "winged-scroll-vault.png",
+      "idiom": "universal",
+      "scale": "1x"
+    },
+    {
+      "filename": "winged-scroll-vault@2x.png",
+      "idiom": "universal",
+      "scale": "2x"
+    },
+    {
+      "filename": "winged-scroll-vault@3x.png",
+      "idiom": "universal",
+      "scale": "3x"
+    },
+    {
+      "filename": "winged-scroll-vault-dark.png",
       "idiom": "universal",
       "scale": "1x",
-      "filename": "winged-scroll-vault.png"
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ]
     },
     {
+      "filename": "winged-scroll-vault-dark@2x.png",
       "idiom": "universal",
       "scale": "2x",
-      "filename": "winged-scroll-vault@2x.png"
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ]
     },
     {
+      "filename": "winged-scroll-vault-dark@3x.png",
       "idiom": "universal",
       "scale": "3x",
-      "filename": "winged-scroll-vault@3x.png"
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ]
     }
   ],
   "info": {
-    "version": 1,
-    "author": "xcode"
+    "author": "xcode",
+    "version": 1
   }
 }

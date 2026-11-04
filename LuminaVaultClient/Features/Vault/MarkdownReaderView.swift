@@ -63,6 +63,10 @@ struct MarkdownReaderView: View {
             .padding(.horizontal, 20)
             .padding(.top, 16)
             .padding(.bottom, 40)
+            // Reading measure: ~70 characters. A no-op on iPhone portrait;
+            // keeps lines readable on iPad and in landscape.
+            .frame(maxWidth: 680, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
         .lvBackground()
         .navigationTitle(isEditing ? "Edit" : "Note")
@@ -118,7 +122,7 @@ struct MarkdownReaderView: View {
                     .font(.system(size: 20))
             }
             Text(displayTitle)
-                .font(.system(size: 20, weight: .heavy))
+                .lvFont(.title)
                 .foregroundStyle(palette.textPrimary)
                 .strikethrough(file.metadata?.done == true, color: palette.textSecondary)
         }

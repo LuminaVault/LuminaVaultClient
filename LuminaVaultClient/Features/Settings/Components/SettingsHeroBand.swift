@@ -1,8 +1,8 @@
 // LuminaVaultClient/LuminaVaultClient/Features/Settings/Components/SettingsHeroBand.swift
 //
-// HER-303 — cinematic hero band at the top of the Settings root.
-// Composes `LVHaloBackdrop` (drifting cyan/secondary halo + dust)
-// behind the mascot disc, plus a gradient wordmark + tagline.
+// HER-303 — hero band at the top of the Settings root: Lumina's head in a
+// gold-rimmed disc beside the wordmark and tagline. (Memory Keeper, 2026-10,
+// retired the drifting halo and gradient wordmark.)
 
 import SwiftUI
 
@@ -17,13 +17,7 @@ struct SettingsHeroBand: View {
             VStack(alignment: .leading, spacing: LVSpacing.xs) {
                 Text("LuminaVault")
                     .lvFont(.title)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [palette.glowPrimary, palette.accent],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .foregroundStyle(palette.textPrimary)
                 Text(BrandCopy.motto)
                     .lvFont(.callout)
                     .foregroundStyle(palette.textSecondary)
@@ -50,29 +44,17 @@ struct SettingsHeroBand: View {
 
     private var mascotDisc: some View {
         ZStack {
-            LVHaloBackdrop(focalSize: mascotSize, intensity: LVGlow.focused, particleCount: 8)
-                .frame(width: mascotSize * 2.2, height: mascotSize * 2.2)
-                .allowsHitTesting(false)
+            Circle().fill(palette.surfaceElevated)
 
+            // Head crop in a disc with one gold hairline — the brand accent —
+            // instead of the drifting halo, gradient ring and cyan bloom.
             HermieMascotView(state: .idle, size: mascotSize,
-                             fallbackImageName: "Lumina/Mascot/hermie-hero")
+                             fallbackImageName: "MascotHead")
                 .frame(width: mascotSize, height: mascotSize)
                 .clipShape(Circle())
                 .overlay {
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    palette.glowPrimary.opacity(0.8),
-                                    palette.accent.opacity(0.8)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1.4
-                        )
+                    Circle().strokeBorder(palette.accent.opacity(0.8), lineWidth: 1)
                 }
-                .shadow(color: palette.glowPrimary.opacity(0.65), radius: 14)
         }
         .frame(width: mascotSize, height: mascotSize)
     }

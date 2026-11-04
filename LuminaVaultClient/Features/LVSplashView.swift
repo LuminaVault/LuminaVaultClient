@@ -1,90 +1,71 @@
 // LuminaVaultClient/LuminaVaultClient/Features/LVSplashView.swift
 import SwiftUI
 
+/// The first SwiftUI frame after launch.
+///
+/// Memory Keeper (2026-10): this picks up exactly where the static launch
+/// screen (Info.plist `UILaunchScreen` → `LaunchBackground` + `LaunchMark`)
+/// leaves off — same colour, same mark, same size, same centre — so there is
+/// no flash or jump. Only the wordmark and tagline arrive, below the mark.
+/// The repeating pulse rings are gone; nothing here loops.
 struct LVSplashView: View {
 
     @Environment(\.lvPalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @State private var pulseScale1: CGFloat = 0.5
-    @State private var pulseScale2: CGFloat = 0.5
-    @State private var pulseScale3: CGFloat = 0.5
-    @State private var pulseOpacity1: Double = 0.5
-    @State private var pulseOpacity2: Double = 0.5
-    @State private var pulseOpacity3: Double = 0.5
-    @State private var heroOpacity: Double = 0
     @State private var wordmarkOpacity: Double = 0
     @State private var taglineOpacity: Double = 0
-    @State private var heroScale: CGFloat = 0.85
+
+    /// Matches the launch image's 1x width so the hand-off is pixel-stable.
+    private let markWidth: CGFloat = 120
 
     var body: some View {
         ZStack {
-            Circle()
-                .stroke(palette.primary.opacity(0.18), lineWidth: 1.5)
-                .scaleEffect(pulseScale1)
-                .opacity(pulseOpacity1)
-                .frame(width: 280, height: 280)
-            Circle()
-                .stroke(palette.primary.opacity(0.12), lineWidth: 1)
-                .scaleEffect(pulseScale2)
-                .opacity(pulseOpacity2)
-                .frame(width: 280, height: 280)
-            Circle()
-                .stroke(palette.accent.opacity(0.10), lineWidth: 1)
-                .scaleEffect(pulseScale3)
-                .opacity(pulseOpacity3)
-                .frame(width: 280, height: 280)
+            Color("LaunchBackground").ignoresSafeArea()
 
-            VStack(spacing: LVSpacing.base) {
-                SplashHeroRiveView(size: LVSize.mascotSmall)
-                    .opacity(heroOpacity)
-                    .scaleEffect(heroScale)
-
-                Text("LUMINAVAULT")
-                    .font(LVTypography.button.font)
-                    .tracking(4.0)
-                    .foregroundStyle(LinearGradient(
-                        colors: [palette.accent, palette.primary],
-                        startPoint: .leading, endPoint: .trailing
-                    ))
-                    .opacity(wordmarkOpacity)
-
-                Text("Your memories, illuminated.")
-                    .font(LVTypography.caption.font)
-                    .foregroundStyle(palette.textSecondary)
-                    .opacity(taglineOpacity)
-            }
+            Image("LaunchMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: markWidth)
+                .accessibilityHidden(true)
+                // Overlay, not a VStack: the mark must stay dead-centre where
+                // the launch screen put it while the text appears below.
+                .overlay(alignment: .top) {
+                    VStack(spacing: LVSpacing.sm) {
+                        Image("Wordmark")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 220)
+                            .opacity(wordmarkOpacity)
+                        Text("Your memories, illuminated.")
+                            .font(LVTypography.footnote.font)
+                            .foregroundStyle(palette.textSecondary)
+                            .opacity(taglineOpacity)
+                    }
+                    .fixedSize()
+                    .offset(y: markWidth + LVSpacing.lg)
+                }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .lvBackground()
-        .onAppear { startAnimations() }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("LuminaVault. Your memories, illuminated.")
+        .onAppear(perform: reveal)
     }
 
-    private func startAnimations() {
-        withAnimation(.easeOut(duration: 1.8).repeatForever(autoreverses: false)) {
-            pulseScale1 = 2.2; pulseOpacity1 = 0
+    private func reveal() {
+        guard !reduceMotion else {
+            wordmarkOpacity = 1; taglineOpacity = 1
+            return
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.easeOut(duration: 1.8).repeatForever(autoreverses: false)) {
-                pulseScale2 = 2.2; pulseOpacity2 = 0
-            }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            withAnimation(.easeOut(duration: 1.8).repeatForever(autoreverses: false)) {
-                pulseScale3 = 2.2; pulseOpacity3 = 0
-            }
-        }
-        withAnimation(.easeOut(duration: 0.7)) {
-            heroOpacity = 1; heroScale = 1.0
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            withAnimation(.easeIn(duration: 0.5)) { wordmarkOpacity = 1 }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            withAnimation(.easeIn(duration: 0.5)) { taglineOpacity = 1 }
-        }
+        withAnimation(.easeOut(duration: 0.35).delay(0.15)) { wordmarkOpacity = 1 }
+        withAnimation(.easeOut(duration: 0.35).delay(0.35)) { taglineOpacity = 1 }
     }
 }
 
-#Preview {
-    LVSplashView()
+#Preview("Dark") {
+    LVSplashView().preferredColorScheme(.dark)
+}
+
+#Preview("Light") {
+    LVSplashView().preferredColorScheme(.light)
 }

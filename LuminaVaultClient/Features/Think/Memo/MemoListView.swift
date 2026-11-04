@@ -50,8 +50,7 @@ struct MemoListView: View {
         LVEmptyState(
             mascot: .thinking,
             headline: "Lumina's notebook is empty.",
-            supporting: "Save an insight from \"Think with Lumina\" and it will land here.",
-            backgroundImage: "Lumina/Backgrounds/neural-network"
+            supporting: "Save an insight from \"Think with Lumina\" and it will land here."
         )
     }
 }

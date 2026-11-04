@@ -8,46 +8,41 @@ struct GetStartedView: View {
 
     var onContinue: () -> Void
 
-    private let mascotSize: CGFloat = 300
-
     /// Offset-based intro — content stays fully opaque so a stalled animation
-    /// on device never leaves an empty screen with only glass-card chrome.
+    /// on device never leaves an empty screen.
     @State private var introOffset: CGFloat = 0
 
+    // Memory Keeper (2026-10): the key art is the hero, framed as a card. The
+    // halo backdrop (which was wider than the screen and pushed the whole
+    // stack — title, copy and CTA — past both edges), pulse, glass card and
+    // gradient headline are gone; the serif title echoes the wordmark.
     var body: some View {
-        ZStack {
-            Color.clear.lvBackground()
-
-            LVHaloBackdrop(focalSize: mascotSize, intensity: LVGlow.hero)
-                .allowsHitTesting(false)
+        GeometryReader { proxy in
+            let heroWidth = proxy.size.width - LVSpacing.xl * 2
 
             VStack(spacing: LVSpacing.xl) {
-                Spacer(minLength: LVSpacing.xl)
+                Spacer(minLength: LVSpacing.lg)
 
-                GetStartedHeroRiveView(size: mascotSize)
-                    .lvPulse(active: true)
+                GetStartedHeroRiveView(size: heroWidth)
+                    .clipShape(RoundedRectangle(cornerRadius: LVRadius.card, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: LVRadius.card, style: .continuous)
+                            .strokeBorder(palette.surfaceStroke, lineWidth: 1)
+                    }
 
-                VStack(spacing: LVSpacing.sm) {
+                VStack(spacing: LVSpacing.md) {
                     Text("Your Knowledge, Transcended")
-                        .lvFont(.display)
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [palette.accent, palette.primary],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                        .lvFont(.brandDisplay)
+                        .foregroundStyle(palette.textPrimary)
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text("Your memories, illuminated. Let Lumina remember everything for you — privately, on your own server.")
                         .lvFont(.body)
                         .foregroundStyle(palette.textSecondary)
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(.horizontal, LVSpacing.lg)
-                .padding(.vertical, LVSpacing.lg)
-                .lvGlassCard(cornerRadius: LVRadius.card, intensity: LVGlow.hero)
-                .lvInnerGlow(cornerRadius: LVRadius.card, intensity: LVGlow.subtle)
                 .padding(.horizontal, LVSpacing.xl)
 
                 Spacer(minLength: LVSpacing.base)
@@ -57,11 +52,11 @@ struct GetStartedView: View {
                 }
                 .padding(.horizontal, LVSpacing.xl)
                 .padding(.bottom, LVSpacing.xl)
-                .shadow(color: palette.glowPrimary.opacity(LVGlow.subtle), radius: 28, y: 12)
             }
+            .frame(width: proxy.size.width)
             .offset(y: introOffset)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .lvBackground()
         .animation(nil, value: introOffset)
         .onAppear { runIntro() }
     }
