@@ -22,7 +22,7 @@ struct GrokChatView: View {
                 Button("Send") {
                     Task { await viewModel.ask() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .disabled(viewModel.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             } footer: {
                 Text("Direct chat with Grok 4.x via your connected xAI subscription.")

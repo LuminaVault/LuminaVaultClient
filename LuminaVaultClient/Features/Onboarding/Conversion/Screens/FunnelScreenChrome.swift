@@ -93,7 +93,7 @@ struct FunnelScreenChrome<Content: View>: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity, minHeight: 50)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .controlSize(.large)
                 .disabled(!primaryEnabled)
                 .opacity(primaryEnabled ? 1.0 : 0.55)

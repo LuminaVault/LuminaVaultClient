@@ -208,7 +208,7 @@ struct PeriodRecapStoryView: View {
                 .foregroundStyle(palette.textPrimary)
             if let action {
                 Button(action.0, action: action.1)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
                     .buttonBorderShape(.capsule)
                     .tint(palette.primary)
             }

@@ -86,7 +86,7 @@ struct SubscriptionView: View {
                         Label(upgradeCTA(currentTier: viewModel.currentTier), systemImage: "sparkles")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
                     .controlSize(.large)
                 } footer: {
                     Text(upgradeFooter(currentTier: viewModel.currentTier))

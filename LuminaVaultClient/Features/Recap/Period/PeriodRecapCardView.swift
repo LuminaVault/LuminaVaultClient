@@ -221,7 +221,7 @@ struct PeriodRecapCardView: View {
                         .padding(.horizontal, LVSpacing.base)
                         .frame(minHeight: LVSize.buttonHeight)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .buttonBorderShape(.capsule)
                 .tint(palette.primary)
                 .accessibilityHint("Shares an image of your numbers. No titles, tags or themes are included.")

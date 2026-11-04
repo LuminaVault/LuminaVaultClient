@@ -51,7 +51,7 @@ struct WorkflowDetailView: View {
                     Button("Run workflow", systemImage: "play.fill") {
                         Task { selectedRunID = await viewModel.run() }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
                 }
             }
             Section("Execution history") {

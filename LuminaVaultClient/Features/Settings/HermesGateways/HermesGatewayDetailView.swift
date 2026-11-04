@@ -107,7 +107,7 @@ struct HermesGatewayDetailView: View {
             Button("Save & apply") {
                 Task { await viewModel.saveAndApply() }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.lvProminent)
             .disabled(viewModel.save == .saving || viewModel.applyPhase == .applying)
 
             if entry.hasConfig {

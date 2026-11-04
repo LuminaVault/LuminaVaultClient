@@ -165,7 +165,7 @@ struct PlacesMapView: View {
                 .foregroundStyle(palette.textSecondary)
                 .padding(.horizontal, 32)
             Button("Try again") { Task { await viewModel.load() } }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .tint(palette.primary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

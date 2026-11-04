@@ -202,7 +202,7 @@ struct SpacesListView: View {
 
         if vm.selectedCategory == cat {
             Button(title, action: select)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .buttonBorderShape(.capsule)
         } else {
             Button(title, action: select)

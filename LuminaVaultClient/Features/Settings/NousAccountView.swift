@@ -86,7 +86,7 @@ struct NousAccountView: View {
                     showConnectSheet = true
                     Task { await viewModel.startConnect() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .disabled(viewModel.isWorking)
             }
             Link("Manage on Nous ↗", destination: Self.manageURL)
@@ -160,7 +160,7 @@ private struct NousConnectSheet: View {
                     openURL(url)
                 }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.lvProminent)
         } header: {
             Text("Step 1 — Approve in browser")
         } footer: {

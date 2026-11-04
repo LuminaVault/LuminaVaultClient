@@ -95,7 +95,7 @@ struct PluginDetailView: View {
             Button(viewModel.isInstalled ? "Save config" : "Install") {
                 Task { await viewModel.installOrUpdate() }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.lvProminent)
             .disabled(viewModel.outcome == .working)
         }
     }

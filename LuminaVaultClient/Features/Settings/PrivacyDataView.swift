@@ -127,8 +127,7 @@ struct PrivacyDataView: View {
                         Button("Permanently delete", role: .destructive) {
                             Task { await viewModel.confirmDelete() }
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.red)
+                        .buttonStyle(.lvProminent)
                         .disabled(!viewModel.canDelete)
                     }
                 }

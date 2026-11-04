@@ -151,7 +151,7 @@ struct WorkflowListView: View {
                                 Button("Review", systemImage: "paperclip") {
                                     selectedApproval = approval
                                 }
-                                .buttonStyle(.borderedProminent)
+                                .buttonStyle(.lvProminent)
                                 Button("Reject", systemImage: "xmark") {
                                     Task { await viewModel.decide(approval, approved: false) }
                                 }

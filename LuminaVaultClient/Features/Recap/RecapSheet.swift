@@ -139,7 +139,7 @@ struct RecapSheet: View {
                 .lvFont(.bodyEmphasis)
                 .frame(maxWidth: .infinity, minHeight: LVSize.buttonHeight)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.lvProminent)
         .buttonBorderShape(.capsule)
         .tint(palette.primary)
         .disabled(vm.recap == nil)

@@ -370,7 +370,7 @@ private struct BriefLoopRow: View {
             CommitmentRow(commitment: commitment, detail: detail, errorMessage: errorMessage)
             HStack(spacing: LVSpacing.sm) {
                 Button("Done", action: onDone)
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
                     .controlSize(.small)
                     .accessibilityLabel("Mark done: \(commitment.text)")
                 Button("Drop", action: onDrop)

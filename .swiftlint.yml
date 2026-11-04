@@ -71,6 +71,13 @@ custom_rules:
     message: "Fixed point sizes ignore Dynamic Type. Use an LVTypography token, or .system(.textStyle) so it scales."
     severity: warning
 
+  prominent_button_contrast:
+    name: "Prominent button contrast"
+    regex: '\.borderedProminent\b'
+    excluded: ".*/Components/LVButton\\.swift"
+    message: "Stock .borderedProminent draws a white label, 1.53:1 on Memory Cyan in dark mode. Use .lvProminent."
+    severity: error
+
   near_invisible_opacity:
     name: "Near-invisible opacity"
     regex: '\.opacity\(0\.[0-2]\d*\)'

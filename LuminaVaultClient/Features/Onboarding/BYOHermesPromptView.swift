@@ -34,7 +34,7 @@ struct BYOHermesPromptView: View {
 
             VStack(spacing: 12) {
                 Button("Set up now →") { viewModel.setUpNowTapped() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
                     .controlSize(.large)
                     .frame(maxWidth: .infinity)
                 Button("Skip") { viewModel.skipTapped() }

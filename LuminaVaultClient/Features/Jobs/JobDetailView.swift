@@ -124,7 +124,7 @@ struct JobDetailView: View {
                 } label: {
                     Label("Run now", systemImage: "play.fill")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .disabled(vm.isWorking)
 
                 Button {

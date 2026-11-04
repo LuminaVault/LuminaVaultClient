@@ -37,7 +37,7 @@ struct BiometricUnlockView: View {
                     }
                     .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .disabled(isAuthenticating)
 
                 Button("Sign in instead", role: .destructive) {

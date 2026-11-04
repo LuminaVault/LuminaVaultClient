@@ -277,7 +277,7 @@ private struct LearnedAnswerButton: View {
     var body: some View {
         if prominent {
             Button(title, action: action)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .controlSize(.small)
                 .accessibilityLabel(label)
         } else {

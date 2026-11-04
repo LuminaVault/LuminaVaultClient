@@ -96,7 +96,7 @@ struct PhotonSetupView: View {
                 Button("Submit phone & continue") {
                     Task { await viewModel.submitPhone() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .disabled(viewModel.phoneInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isSubmittingPhone)
             }
 
@@ -110,7 +110,7 @@ struct PhotonSetupView: View {
                 Button("Submit phone & continue") {
                     Task { await viewModel.submitPhone() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .disabled(viewModel.phoneInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isSubmittingPhone)
             }
 
@@ -153,7 +153,7 @@ struct PhotonSetupView: View {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
                 Button("Try again") { Task { await viewModel.startSetup() } }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
             }
         }
     }
@@ -216,7 +216,7 @@ struct PhotonSetupView: View {
             Button("Done") {
                 // The sheet / navigation will dismiss naturally; parent can refresh.
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.lvProminent)
         }
     }
 

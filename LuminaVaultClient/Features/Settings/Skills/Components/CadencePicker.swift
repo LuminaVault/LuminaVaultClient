@@ -80,7 +80,7 @@ struct CadencePicker: View {
                             customError = "Cron must have five space-separated fields."
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
                     .tint(palette.primary)
                     .disabled(customCron.isEmpty)
                 }
