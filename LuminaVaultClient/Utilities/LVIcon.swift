@@ -305,17 +305,10 @@ enum LVIcon: CaseIterable, Hashable, Sendable {
         case .brainPremium:            return "Lumina/Icons/brain_premium"
         case .briefcase:               return "Lumina/Icons/briefcase"
         case .chartUp:                 return "Lumina/Icons/chart-up"
-        case .cloudWinged:             return "Lumina/Icons/cloud-winged"
         case .door:                    return "Lumina/Icons/door"
-        case .heartWinged:             return "Lumina/Icons/heart-winged"
         case .homeGlow:                return "Lumina/Icons/home"
         case .layers:                  return "Lumina/Icons/layers"
-        case .scrollWinged:            return "Lumina/Icons/scroll-winged"
-        case .shieldBrain:             return "Lumina/Icons/shield-brain"
-        case .skeletonKeyPremium:      return "Lumina/Icons/skeleton_key_premium"
         case .wandSparkle:             return "Lumina/Icons/wand-sparkle"
-        case .wingedLockPremium:       return "Lumina/Icons/winged_lock_premium"
-        case .wingedScrollPremium:     return "Lumina/Icons/winged_scroll_premium"
 
         default:                       return nil
         }

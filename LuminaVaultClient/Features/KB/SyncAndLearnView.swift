@@ -27,7 +27,7 @@ struct SyncAndLearnView: View {
             VStack(spacing: 20) {
                 Spacer()
 
-                HermieMascotView(state: vm.mascotState, size: 220, fallbackImageName: "OnboardingMascot")
+                HermieMascotView(state: vm.mascotState, size: 220)
 
                 Text("Sync & Learn")
                     .font(.system(size: 26, weight: .heavy))

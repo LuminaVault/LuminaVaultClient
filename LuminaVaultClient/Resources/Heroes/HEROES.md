@@ -31,7 +31,6 @@ on the next build.
 
 ## Consumers
 
-- `splash_hero.riv` → `Components/SplashHeroRiveView.swift` (splash screen).
 - `get_started_hero.riv` → `Components/GetStartedHeroRiveView.swift`
   (onboarding Get Started screen).
 

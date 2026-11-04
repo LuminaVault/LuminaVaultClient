@@ -13,7 +13,7 @@ struct WelcomeFunnelView: View {
             onPrimary: { state.advance() }
         ) {
             VStack(spacing: 24) {
-                HermieMascotView(state: .idle, size: 180, fallbackImageName: "OnboardingMascot")
+                HermieMascotView(state: .idle, size: 180)
                     .lvPulse()
                     .padding(.top, 24)
                     .accessibilityHidden(true)

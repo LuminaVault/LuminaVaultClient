@@ -161,7 +161,7 @@
 		<key>UIColorName</key>
 		<string>LaunchBackground</string>
 		<key>UIImageName</key>
-		<string>LaunchMark</string>
+		<string>LogoMark</string>
 		<key>UIImageRespectsSafeAreaInsets</key>
 		<true/>
 	</dict>

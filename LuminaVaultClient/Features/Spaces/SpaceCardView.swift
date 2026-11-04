@@ -64,8 +64,8 @@ struct SpaceCardView: View {
 
     /// HER-307 — server returns an SF Symbol name (or nil). Map common
     /// values to `LVIcon` cases so cards pick up the branded glyph.
-    /// Unknown / unset icons fall back to `.scrollWinged` (the winged
-    /// scroll mark matches the Stitch reference for generic spaces).
+    /// Unknown / unset icons fall back to `.scrollWinged`, which draws the
+    /// plain scroll symbol: winged art reads as a second logo here.
     private static func resolveIcon(_ raw: String?) -> LVIcon {
         switch raw {
         case "brain.head.profile", "brain":     return .brainHeadProfile

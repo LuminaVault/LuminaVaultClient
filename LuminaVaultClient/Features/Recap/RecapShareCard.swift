@@ -62,7 +62,7 @@ struct RecapShareCard: View {
 
     private var header: some View {
         HStack(alignment: .center, spacing: LVSpacing.sm) {
-            Image("Lumina/Icons/shield-brain")
+            Image("LogoMark")
                 .resizable()
                 .scaledToFit()
                 .frame(width: 28, height: 28)

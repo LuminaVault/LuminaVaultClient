@@ -9,7 +9,7 @@ Drop the Rive file `winged_scroll.riv` into this directory and add it to the
 LuminaVaultClient Xcode target so it is bundled into the app.
 
 The runtime (`Components/WingedScrollRiveView.swift`) gracefully falls back to
-`Image("WingedScroll")` if the `.riv` file is absent, so the UI never breaks
+`Image("LogoMark")` if the `.riv` file is absent, so the UI never breaks
 while the asset is being authored.
 
 ## Rive contract
@@ -53,9 +53,9 @@ gradient (`.lvBackground()` modifier in `Utilities/Extensions/View+LVBackground.
 
 ## Fallback PNG
 
-Until the `.riv` lands, the runtime renders `Image("WingedScroll")`. Drop a
+Until the `.riv` lands, the runtime renders `Image("LogoMark")`. Drop a
 transparent 1024×1024 PNG into
-`LuminaVaultClient/Assets.xcassets/WingedScroll.imageset/` with this prompt:
+`LuminaVaultClient/Assets.xcassets/Branding/LogoMark.imageset/` with this prompt:
 
 ```
 Generate a transparent PNG, 1024×1024, centered subject, no padding, no border:

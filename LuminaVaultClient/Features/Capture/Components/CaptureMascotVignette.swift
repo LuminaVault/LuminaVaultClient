@@ -8,7 +8,7 @@ import SwiftUI
 
 struct CaptureMascotVignette: View {
     /// Asset name from `Lumina/Mascot/*` (folder provides namespace).
-    var assetName: String = "Lumina/Mascot/mascot_premium_1"
+    var assetName: String = "Mascot"
     var opacity: Double = 0.12
     var blur: CGFloat = 6
 

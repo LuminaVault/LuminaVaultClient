@@ -38,13 +38,32 @@ public enum HermieMascotState: String, CaseIterable, Sendable {
     }
 }
 
+/// The one mascot, in the crops the key art was cut into. Call sites pick a
+/// crop only when they need a specific one; everything else takes
+/// `recommended(for:)`, so the same size always shows the same picture.
+public enum HermieMascotArt: String, CaseIterable, Sendable {
+    case full = "Mascot"
+    case head = "MascotHead"
+    /// Round crop on a navy disc, for the chat header.
+    case avatar = "MascotChatAvatar"
+
+    /// Below this point size the full figure's face is too small to read, and
+    /// it stops looking like the character the head crop shows next to it.
+    static let headCropBelow: CGFloat = 96
+
+    static func recommended(for size: CGFloat) -> Self {
+        size < headCropBelow ? .head : .full
+    }
+}
+
 public struct HermieMascotView: View {
 
     @Environment(\.lvPalette) private var palette
 
     public let state: HermieMascotState
     public var size: CGFloat = 220
-    public var fallbackImageName: String = "Mascot"
+    /// Nil takes `HermieMascotArt.recommended(for: size)`.
+    public var art: HermieMascotArt? = nil
     /// Call-site opt-out from the Rive canvas. Small avatars skip Rive
     /// regardless — dozens of live instances in a chat list is real CPU.
     public var animated: Bool = true
@@ -83,13 +102,13 @@ public struct HermieMascotView: View {
     public init(
         state: HermieMascotState,
         size: CGFloat = 220,
-        fallbackImageName: String = "Mascot",
+        art: HermieMascotArt? = nil,
         animated: Bool = true,
         hostTab: String? = nil
     ) {
         self.state = state
         self.size = size
-        self.fallbackImageName = fallbackImageName
+        self.art = art
         self.animated = animated
         self.hostTab = hostTab
     }
@@ -142,7 +161,7 @@ public struct HermieMascotView: View {
                 viewModel.view()
                     .frame(width: size, height: size)
             } else {
-                Image(fallbackImageName)
+                Image((art ?? .recommended(for: size)).rawValue)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: size, height: size)

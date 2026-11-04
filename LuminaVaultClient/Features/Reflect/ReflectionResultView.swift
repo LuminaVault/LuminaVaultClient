@@ -52,7 +52,6 @@ struct ReflectionResultView: View {
         HermieMascotView(
             state: celebrate ? .celebrating : mascotState(for: runner.state),
             size: 96,
-            fallbackImageName: "OnboardingMascot",
         )
         .frame(maxWidth: .infinity)
     }

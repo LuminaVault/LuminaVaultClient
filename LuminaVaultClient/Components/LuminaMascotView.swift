@@ -26,23 +26,23 @@ public struct LuminaMascotView: View {
 
     private let state: LuminaMascotState
     private let size: CGFloat
-    private let fallbackImageName: String
+    private let art: HermieMascotArt?
 
     public init(
         state: LuminaMascotState = .idle,
         size: CGFloat = 220,
-        fallbackImageName: String = "Mascot"
+        art: HermieMascotArt? = nil
     ) {
         self.state = state
         self.size = size
-        self.fallbackImageName = fallbackImageName
+        self.art = art
     }
 
     public var body: some View {
         HermieMascotView(
             state: state,
             size: size,
-            fallbackImageName: fallbackImageName
+            art: art
         )
         .accessibilityLabel("Lumina mascot — \(state.rawValue)")
     }
@@ -53,7 +53,7 @@ public struct LuminaMascotView: View {
         LuminaMascotView(
             state: newState,
             size: size,
-            fallbackImageName: fallbackImageName
+            art: art
         )
     }
 }
