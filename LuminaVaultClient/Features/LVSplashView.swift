@@ -4,7 +4,7 @@ import SwiftUI
 /// The first SwiftUI frame after launch.
 ///
 /// Memory Keeper (2026-10): this picks up exactly where the static launch
-/// screen (Info.plist `UILaunchScreen` → `LaunchBackground` + `LaunchMark`)
+/// screen (Info.plist `UILaunchScreen` → `LaunchBackground` + `LogoMark`)
 /// leaves off — same colour, same mark, same size, same centre — so there is
 /// no flash or jump. Only the wordmark and tagline arrive, below the mark.
 /// The repeating pulse rings are gone; nothing here loops.
@@ -23,7 +23,7 @@ struct LVSplashView: View {
         ZStack {
             Color("LaunchBackground").ignoresSafeArea()
 
-            Image("LaunchMark")
+            Image("LogoMark")
                 .resizable()
                 .scaledToFit()
                 .frame(width: markWidth)

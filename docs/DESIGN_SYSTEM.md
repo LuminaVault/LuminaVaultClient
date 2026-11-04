@@ -282,9 +282,16 @@ Prefix convention: all SwiftUI components are `LV*`. (Earlier `HV*` files were r
 |----------------------------|-----------------------------------------------|-------|
 | `HermieMascotView`         | `Components/HermieMascotView.swift`           | Hermie mascot — animated. |
 | `SparkleField`             | `Components/SparkleField.swift`               | Floating sparkle particle field. |
-| `SplashHeroRiveView`       | `Components/SplashHeroRiveView.swift`         | Rive animation for splash. |
 | `GetStartedHeroRiveView`   | `Components/GetStartedHeroRiveView.swift`     | Rive hero for onboarding. |
 | `WingedScrollRiveView`     | `Components/WingedScrollRiveView.swift`       | Rive winged-scroll motif (see `Resources/WingedScroll/WINGED_SCROLL.md`). |
+
+### Logo and mascot: one of each
+
+Same rule on web (`LuminaVaultWebApp/docs/ASSETS.md`).
+
+- **Logo:** `LVLogoMark` or `Image("LogoMark")`, and no other name. It also backs the launch screen. Winged and shield glyphs are not logos: `LVIcon.scrollWinged`, `.shieldBrain` and friends draw plain SF Symbols.
+- **Mascot:** `HermieMascotView`. Leave `art` nil and the size picks the crop: `MascotHead` under 96pt, `Mascot` from there up. Only the chat header overrides it, with `.avatar`.
+- `GetStartedHero` is the key-art scene, for Get Started only.
 
 ### Tab-surface content (2026-09-17)
 

@@ -37,7 +37,7 @@ struct AboutView: View {
     private var heroSection: some View {
         Section {
             VStack(spacing: 12) {
-                HermieMascotView(state: .idle, size: 96, fallbackImageName: "OnboardingMascot")
+                HermieMascotView(state: .idle, size: 96)
                 VStack(spacing: 4) {
                     Text("LuminaVault")
                         .font(.system(size: 22, weight: .heavy))

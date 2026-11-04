@@ -111,8 +111,7 @@ struct TodayView: View {
             VStack(spacing: 4) {
                 HermieMascotView(
                     state: celebrate ? .celebrating : vm.mascotState,
-                    size: 120,
-                    fallbackImageName: "OnboardingMascot"
+                    size: 120
                 )
                 Text("Today")
                     .font(.system(size: 22, weight: .heavy))

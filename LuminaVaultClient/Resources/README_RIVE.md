@@ -14,7 +14,6 @@ Four views ask for a Rive artboard, find nothing, and fall back:
 
 | Artboard the view asks for | Consumer view | What renders |
 |---|---|---|
-| `splash_hero` | `SplashHeroRiveView` | static PNG |
 | `get_started_hero` | `GetStartedHeroRiveView` | static PNG |
 | `winged_scroll` | `WingedScrollRiveView` / `LVLogoMark` | static PNG + host-side breathing |
 | `hermie` | `HermieMascotView` | static PNG + host-side reactions |

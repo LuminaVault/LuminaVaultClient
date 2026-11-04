@@ -9,7 +9,7 @@
 // the star's glow rather than a backdrop.
 //
 // Asset state today:
-//   - Bundle asset: "WingedScroll" — the mark, cut from the key art. Dark
+//   - Bundle asset: "LogoMark" — the mark, cut from the key art. Dark
 //     appearance = the keyed gold/cyan artwork; light = a deep-gold trace
 //     (LuminaAssets/memory-keeper/README.md).
 //   - Rive file: "lumina_anims.riv" artboard `winged_scroll` — absent. The

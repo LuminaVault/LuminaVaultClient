@@ -34,7 +34,7 @@ struct AchievementUnlockOverlay: View {
                         .tracking(3)
                         .foregroundStyle(rarity.tint(palette))
 
-                    HermieMascotView(state: .celebrating, size: 200, fallbackImageName: "Mascot")
+                    HermieMascotView(state: .celebrating, size: 200)
                         .shadow(color: palette.glowPrimary.opacity(0.55), radius: 28)
                         .shadow(color: palette.accent.opacity(0.25), radius: 48)
 

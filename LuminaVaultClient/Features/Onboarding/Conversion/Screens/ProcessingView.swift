@@ -7,7 +7,7 @@ struct ProcessingView: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            HermieMascotView(state: .thinking, size: 140, fallbackImageName: "OnboardingMascot")
+            HermieMascotView(state: .thinking, size: 140)
                 .lvPulse()
             VStack(spacing: 8) {
                 Text("Building your first Lumina query…")

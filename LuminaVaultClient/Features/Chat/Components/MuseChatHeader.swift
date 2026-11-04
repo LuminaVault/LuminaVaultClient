@@ -221,7 +221,7 @@ private struct MuseAvatar: View {
                 state: state,
                 size: LVMuse.avatarSize,
                 // The avatar crop: the full-body art lost the face inside a disc.
-                fallbackImageName: "MascotChatAvatar",
+                art: .avatar,
                 hostTab: "think"
             )
             .clipShape(.circle)

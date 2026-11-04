@@ -63,7 +63,7 @@ struct AchievementsView: View {
 
     private var header: some View {
         VStack(spacing: LVSpacing.md) {
-            HermieMascotView(state: .happy, size: 140, fallbackImageName: "Mascot")
+            HermieMascotView(state: .happy, size: 140)
                 .shadow(color: palette.glowPrimary.opacity(0.5), radius: 22)
             if let total = unlockedSummary {
                 Text(total)

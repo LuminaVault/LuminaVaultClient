@@ -4,7 +4,7 @@ import RiveRuntime
 
 struct WingedScrollRiveView: View {
     var size: CGFloat = 220
-    var fallbackImageName: String = "WingedScroll"
+    var fallbackImageName: String = "LogoMark"
     var playsOnAppear: Bool = true
 
     @State private var viewModel: RiveViewModel?
@@ -65,7 +65,7 @@ struct WingedScrollRiveView: View {
 }
 
 #Preview("Fallback PNG · Dark") {
-    WingedScrollRiveView(size: 220, fallbackImageName: "OnboardingLogo1")
+    WingedScrollRiveView(size: 220)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .lvBackground()
         .preferredColorScheme(.dark)

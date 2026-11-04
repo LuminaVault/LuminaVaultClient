@@ -49,7 +49,7 @@ struct SettingsHeroBand: View {
             // Head crop in a disc with one gold hairline — the brand accent —
             // instead of the drifting halo, gradient ring and cyan bloom.
             HermieMascotView(state: .idle, size: mascotSize,
-                             fallbackImageName: "MascotHead")
+                             art: .head)
                 .frame(width: mascotSize, height: mascotSize)
                 .clipShape(Circle())
                 .overlay {
