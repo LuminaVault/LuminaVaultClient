@@ -11,14 +11,19 @@ import XCTest
 
 @MainActor
 final class ProminentButtonContrastTests: XCTestCase {
-    func testOnPrimaryIsReadableOnPrimaryInEveryPalette() async {
+    func testOnPrimaryIsReadableOnPrimaryInEveryPalette() async throws {
         for theme in LVTheme.allCases {
             for scheme in [ColorScheme.light, .dark] {
                 let palette = theme.palette(for: scheme)
                 let traits = UITraitCollection(userInterfaceStyle: scheme == .dark ? .dark : .light)
+                // `system` uses Color.accentColor, which converts to UIKit's system
+                // blue here rather than the AccentColor asset the app draws.
+                let primary = theme == .system
+                    ? try XCTUnwrap(UIColor(named: "AccentColor"))
+                    : UIColor(palette.primary)
                 let ratio = Self.contrast(
                     UIColor(palette.onPrimary).resolvedColor(with: traits),
-                    UIColor(palette.primary).resolvedColor(with: traits)
+                    primary.resolvedColor(with: traits)
                 )
                 XCTAssertGreaterThanOrEqual(ratio, 4.5, "\(theme) \(scheme)")
             }
