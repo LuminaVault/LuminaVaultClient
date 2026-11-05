@@ -130,7 +130,7 @@ struct HermesRunStartView: View {
                                 .frame(maxWidth: .infinity)
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
                     .tint(palette.primary)
                     .controlSize(.large)
                     .disabled(!vm.canStart)

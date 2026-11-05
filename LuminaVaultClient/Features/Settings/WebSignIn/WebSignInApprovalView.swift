@@ -209,7 +209,7 @@ struct WebSignInApprovalView: View {
                     } label: {
                         Text("Approve").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
                     .disabled(typedCode.count != 6)
                     Button("Cancel") {
                         typedCode = ""
@@ -233,7 +233,7 @@ struct WebSignInApprovalView: View {
                     } label: {
                         Text("Approve").frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
                     Button("Cancel") { viewModel.reset() }
                         .buttonStyle(.bordered)
                 }
@@ -259,7 +259,7 @@ struct WebSignInApprovalView: View {
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                 Button("Try again") { viewModel.reset() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
             }
         }
         .padding(LVSpacing.lg)

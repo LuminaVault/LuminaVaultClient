@@ -274,8 +274,7 @@ private struct HermesApprovalChoiceButton: View {
         Button(action: action) {
             label
         }
-        .buttonStyle(.borderedProminent)
-        .tint(choice == .deny ? Color.red : palette.primary)
+        .buttonStyle(.lvProminent(destructive: choice == .deny))
         .disabled(isDisabled)
     }
 

@@ -81,7 +81,7 @@ struct WhatsAppPairingView: View {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
                 Button("Try again") { Task { await viewModel.startPairing() } }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
             }
         }
     }

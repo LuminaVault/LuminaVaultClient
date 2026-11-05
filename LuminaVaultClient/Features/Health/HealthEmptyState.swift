@@ -29,7 +29,7 @@ struct HealthEmptyState: View {
                     Text("Connect HealthKit")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .padding(.top, 4)
             }
         }

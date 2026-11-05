@@ -53,3 +53,52 @@ struct LVPressScaleStyle: ButtonStyle {
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
+
+/// The stock prominent button, with a label that is readable on its fill.
+///
+/// `.borderedProminent` always draws a white label, which is 1.53:1 on Memory
+/// Cyan in dark mode. This keeps the stock control (shape, pressed state,
+/// control size, Dynamic Type) and only supplies the fill and label colours,
+/// so they stay a pair from the active palette. Use it instead of
+/// `.borderedProminent`; the `prominent_button_contrast` lint rule enforces that.
+///
+/// Destructive buttons keep the system red and its white label. Disabled ones
+/// keep the system's disabled colours.
+struct LVProminentButtonStyle: PrimitiveButtonStyle {
+    var destructive = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        LVProminentButton(
+            configuration: configuration,
+            destructive: destructive || configuration.role == .destructive
+        )
+    }
+}
+
+private struct LVProminentButton: View {
+    @Environment(\.lvPalette) private var palette
+    @Environment(\.isEnabled) private var isEnabled
+
+    let configuration: PrimitiveButtonStyleConfiguration
+    let destructive: Bool
+
+    var body: some View {
+        Button(role: configuration.role, action: configuration.trigger) {
+            if destructive || !isEnabled {
+                configuration.label
+            } else {
+                configuration.label.foregroundStyle(palette.onPrimary)
+            }
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(destructive ? Color.red : palette.primary)
+    }
+}
+
+extension PrimitiveButtonStyle where Self == LVProminentButtonStyle {
+    static var lvProminent: LVProminentButtonStyle { LVProminentButtonStyle() }
+
+    static func lvProminent(destructive: Bool) -> LVProminentButtonStyle {
+        LVProminentButtonStyle(destructive: destructive)
+    }
+}

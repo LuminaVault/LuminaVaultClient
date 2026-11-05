@@ -234,7 +234,7 @@ struct BrainTabView: View {
                     .multilineTextAlignment(.center)
                     .foregroundStyle(palette.textSecondary)
                 Button("Show memory graph") { graphLayer = .memories }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
             }
             .padding(32)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -247,7 +247,7 @@ struct BrainTabView: View {
                     supporting: "New memories are converted into claims, entities, events, and evidence-backed connections."
                 )
                 Button("Show memory graph") { graphLayer = .memories }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
                     .tint(palette.primary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -265,7 +265,7 @@ struct BrainTabView: View {
                         .font(.headline)
                         .foregroundStyle(palette.textPrimary)
                     Button("Show all memories") { graphLayer = .memories }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.lvProminent)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .lvBackground()
@@ -337,7 +337,7 @@ struct BrainTabView: View {
                 .foregroundStyle(palette.textSecondary)
                 .padding(.horizontal, 32)
             Button("Try again") { Task { await loadGraph() } }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .tint(palette.primary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -370,7 +370,7 @@ struct BrainTabView: View {
                 .foregroundStyle(palette.textSecondary)
                 .padding(.horizontal, 32)
             Button("Try again") { Task { await loadGraph() } }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .tint(palette.primary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

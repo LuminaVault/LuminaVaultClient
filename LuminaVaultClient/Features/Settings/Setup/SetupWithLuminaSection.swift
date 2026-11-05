@@ -67,7 +67,7 @@ struct SetupWithLuminaSection: View {
                     appState.openChat(prefill: prompt)
                     onSend()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
 
                 Button(copied ? "Copied" : "Copy") {
                     UIPasteboard.general.string = prompt

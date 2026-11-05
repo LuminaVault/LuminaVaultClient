@@ -70,7 +70,7 @@ struct GrokConnectFlowView: View {
                     onConnected(status)
                     dismiss()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
             }
             .padding()
         case let .failed(message):

@@ -22,7 +22,7 @@ struct GrokXSearchView: View {
                 Button("Search") {
                     Task { await viewModel.search() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .disabled(viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     || viewModel.state == .searching)
             } footer: {

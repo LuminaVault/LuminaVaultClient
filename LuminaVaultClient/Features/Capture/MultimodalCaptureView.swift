@@ -11,7 +11,7 @@ struct MultimodalCaptureView: View {
             // by however many files the user picked in the importer.
             LazyVStack(alignment: .leading, spacing: LVSpacing.base) {
                 Button("Choose files", systemImage: "doc.badge.plus") { showingImporter = true }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
                     .accessibilityHint("Choose PDFs, images, audio, or video for Hermes to process")
 
                 Picker("Save to Space", selection: $viewModel.selectedSpaceID) {

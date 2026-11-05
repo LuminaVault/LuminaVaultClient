@@ -26,7 +26,7 @@ struct GrokTTSView: View {
                     resultMessage = "Server hasn't enabled this Grok feature yet (501 tts_coming_soon)."
                     isWorking = false
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .disabled(text.isEmpty || isWorking)
             } footer: {
                 Text("Grok TTS is gated server-side while xAI's audio endpoint is still private. The shape ships now; audio playback lands once the upstream provider is configured.")

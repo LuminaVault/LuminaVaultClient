@@ -60,7 +60,7 @@ struct HermesGatewayPaneView: View {
                     Text("Currently using **LuminaVault managed Hermes** — nothing to set up.")
                         .font(.body)
                     Button("Connect my own Hermes →") { viewModel.useMyOwnGateway() }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.lvProminent)
                 }
                 .padding(.vertical, 4)
             } header: {
@@ -219,7 +219,7 @@ struct HermesGatewayPaneView: View {
 
         Section {
             Button("Save & verify") { Task { await viewModel.submit() } }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .disabled(viewModel.isWorking || viewModel.baseUrlInput.isEmpty)
             Button("Cancel") { Task { await viewModel.cancelEditing() } }
                 .disabled(viewModel.isWorking)

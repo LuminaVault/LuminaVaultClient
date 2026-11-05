@@ -249,7 +249,7 @@ struct PluginStoreView: View {
                         Text("Install")
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .disabled(viewModel.hubBusy || viewModel.hubInstallText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             if let hubError = viewModel.hubError {

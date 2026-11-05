@@ -82,7 +82,7 @@ struct SelfImprovementView: View {
                                 .disabled(!viewModel.canManage)
                                 Spacer()
                                 Button("Approve") { approvalCandidate = change }
-                                    .buttonStyle(.borderedProminent)
+                                    .buttonStyle(.lvProminent)
                                     .disabled(!viewModel.canManage)
                             }
                         }

@@ -87,7 +87,7 @@ struct CalendarSettingsView: View {
                 Button("Connect Google Calendar") {
                     Task { await viewModel.connect(anchor: Self.presentationAnchor()) }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .disabled(viewModel.isWorking)
             }
         } footer: {

@@ -141,7 +141,7 @@ struct HermesMirrorJobDetailView: View {
             } label: {
                 Label("Run now", systemImage: "play.fill")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.lvProminent)
             .tint(palette.primary)
             .disabled(vm.isWorking)
 

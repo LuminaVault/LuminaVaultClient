@@ -92,7 +92,7 @@ struct ChatInboxView: View {
                 .font(LVTypography.callout.font)
                 .foregroundStyle(palette.textSecondary)
             Button("Try again") { Task { await viewModel.load() } }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .padding(.top, LVSpacing.xs)
         }
         .padding(.vertical, LVSpacing.md)
@@ -108,7 +108,7 @@ struct ChatInboxView: View {
                 .font(LVTypography.callout.font)
                 .foregroundStyle(palette.textSecondary)
             Button("New Chat", action: onNewChat)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .padding(.top, LVSpacing.xs)
         }
         .padding(.vertical, LVSpacing.md)

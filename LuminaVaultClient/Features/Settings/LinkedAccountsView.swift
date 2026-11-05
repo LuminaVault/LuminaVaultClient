@@ -109,7 +109,7 @@ struct LinkedAccountsView: View {
                 Button("Connect with xAI") {
                     showConnectSheet = true
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
                 .disabled(viewModel.isWorking)
             }
         } footer: {

@@ -217,7 +217,7 @@ struct ServerConnectionView: View {
             HStack {
                 Spacer()
                 Button("Test & Save") { Task { await vm.testAndSave() } }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
                     .tint(palette.primary)
                     .disabled(vm.byoTesting || vm.byoURLInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
@@ -256,7 +256,7 @@ struct ServerConnectionView: View {
             HStack {
                 Spacer()
                 Button("Test & Save") { Task { await vm.testAndSaveTailscale() } }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.lvProminent)
                     .tint(palette.primary)
                     .disabled(vm.tailscaleTesting || vm.tailscaleURLInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
@@ -295,7 +295,7 @@ struct ServerConnectionView: View {
                 HStack {
                     Spacer()
                     Button("Save") { Task { await vm.saveSoul() } }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.lvProminent)
                         .tint(palette.primary)
                         .disabled(vm.soulSaving)
                 }

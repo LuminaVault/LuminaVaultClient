@@ -129,7 +129,7 @@ struct GatewaysSetupView: View {
                     viewModel.skipTapped()
                 }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.lvProminent)
             .controlSize(.large)
             .frame(maxWidth: .infinity)
 

@@ -556,6 +556,8 @@ Content surfaces are `List` with `.listStyle(.insetGrouped)` and section headers
 
 No hand-drawn cards, dividers, capsules or segmented controls where a `Section`, a `Picker` or a stock `Button` does the job. The stock control gets Dynamic Type, the tint, the pressed state, VoiceOver and the right contrast for free; the hand-drawn one gets none of them and has to be maintained.
 
+The one exception to stock colours: use `.buttonStyle(.lvProminent)`, not `.borderedProminent`. It is still the stock control, but its label comes from `palette.onPrimary`, because the system's white label is 1.53:1 on Memory Cyan in dark mode. Pass `.lvProminent(destructive: true)` or `role: .destructive` for red.
+
 ### 13.5 Materials
 
 System materials appear in exactly two places: the navigation and tab bars, which apply their own, and a `safeAreaInset` pinned to a bar edge, which uses `.background(.bar)` so it reads as part of the bar above or below it.

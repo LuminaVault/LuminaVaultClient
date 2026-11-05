@@ -35,7 +35,7 @@ struct GrokVisionView: View {
                 Button("Analyse with Grok") {
                     Task { await viewModel.analyse() }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
             } footer: {
                 Text("Grok 4.3 multimodal. Public HTTPS image URLs only in this build; base64 uploads land in a follow-up.")
             }

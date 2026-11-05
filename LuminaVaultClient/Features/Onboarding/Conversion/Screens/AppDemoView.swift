@@ -114,7 +114,7 @@ struct AppDemoView: View {
             Text("Nothing left to pick from.")
                 .font(.system(size: 18, weight: .semibold))
             Button("Continue") { state.advance() }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.lvProminent)
         }
     }
 
