@@ -157,6 +157,61 @@ final class QuickAssistantRoutingTests: XCTestCase {
         XCTAssertNil(session.model.heldScreenRoute)
     }
 
+    // MARK: - Several screens (ruling 46)
+
+    private func screen(_ screen: AssistantScreenDTO, summary: String, memoryID: UUID? = nil) -> QueryStreamEvent {
+        .assistantAction(AssistantActionDTO(
+            id: UUID(), kind: .openScreen, summary: summary, screen: screen, memoryID: memoryID
+        ))
+    }
+
+    func testTheLastResolvingScreenWinsWhenTheTurnEnds() async {
+        let routed = Routed()
+        let (session, _) = session(
+            script: [screen(.brain, summary: "Opening Brain"), screen(.insights, summary: "Opening Insights"), .done],
+            routed: routed
+        )
+        await finish(session)
+        XCTAssertEqual(routed.routes, [.tab(.reflect)])
+    }
+
+    func testAnUnknownLastScreenDoesNotDropAnEarlierValidOne() async {
+        let routed = Routed()
+        let (session, _) = session(
+            script: [screen(.brain, summary: "Opening Brain"), screen(.unknown, summary: "Opening ?"), .done],
+            routed: routed
+        )
+        await finish(session)
+        XCTAssertEqual(routed.routes, [.tab(.brain)])
+    }
+
+    func testAnIDLessMemoryLastDoesNotDropAnEarlierValidScreen() async {
+        let routed = Routed()
+        let (session, _) = session(
+            script: [screen(.brain, summary: "Opening Brain"), screen(.memory, summary: "Opening memory"), .done],
+            routed: routed
+        )
+        await finish(session)
+        XCTAssertEqual(routed.routes, [.tab(.brain)])
+    }
+
+    func testHeldRowShowsTheSummaryOfTheScreenItOpens() async {
+        let routed = Routed()
+        let (session, _) = session(
+            script: [
+                .assistantAction(confirm()),
+                screen(.brain, summary: "Opening Brain"),
+                screen(.settings, summary: "Opening Settings"),
+                screen(.unknown, summary: "Opening ?"),
+                .done,
+            ],
+            routed: routed
+        )
+        await finish(session)
+        XCTAssertEqual(session.model.heldScreenRoute, .settings)
+        XCTAssertEqual(session.model.heldScreenSummary, "Opening Settings")
+    }
+
     func testNewTurnClearsAHeldScreen() async {
         let routed = Routed()
         let (session, conversations) = session(
@@ -167,6 +222,36 @@ final class QuickAssistantRoutingTests: XCTestCase {
         conversations.script = [.token("ok"), .done]
         await finish(session)
         XCTAssertNil(session.model.heldScreenRoute)
+    }
+
+    func testHeldRowStillRoutesAfterItsConfirmResolves() async {
+        let routed = Routed()
+        let ask = confirm()
+        let actions = RecordingActions()
+        let (session, _) = session(
+            script: [.assistantAction(ask), screen(.settings), .done], actions: actions, routed: routed
+        )
+        await finish(session)
+        XCTAssertEqual(session.model.heldScreenRoute, .settings)
+
+        await session.model.confirm(ask)
+        XCTAssertEqual(actions.confirmed, [ask.id])
+        XCTAssertEqual(session.model.heldScreenRoute, .settings, "answering the card does not take the row away")
+        XCTAssertTrue(routed.routes.isEmpty, "and does not route by itself; the tap does")
+    }
+
+    func testCancelReachesTheServerThroughTheModelPath() async {
+        let routed = Routed()
+        let ask = confirm()
+        let actions = RecordingActions()
+        actions.result = .success(.init(status: .cancelled, message: "Cancelled."))
+        let (session, _) = session(script: [.assistantAction(ask), .done], actions: actions, routed: routed)
+        await finish(session)
+
+        await session.model.cancel(ask)
+        XCTAssertEqual(actions.cancelled, [ask.id])
+        XCTAssertTrue(actions.confirmed.isEmpty)
+        XCTAssertEqual(session.model.resolutions[ask.id]?.status, .cancelled)
     }
 
     // MARK: - Dismissal

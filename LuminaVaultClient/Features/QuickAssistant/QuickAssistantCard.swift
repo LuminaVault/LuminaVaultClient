@@ -98,10 +98,13 @@ struct QuickAssistantCard: View {
     let onRoute: (QuickAssistantRoute) -> Void
 
     @Environment(\.lvPalette) private var palette
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var text = ""
     @State private var contentHeight: CGFloat = 0
     @State private var availableHeight: CGFloat = 0
+    /// The part of the card that never scrolls: status line, field, open-in-chat.
+    /// Measured, so a two-line error, a taller field or a larger text size cannot
+    /// push the field off screen.
+    @State private var footerHeight: CGFloat = 0
     @FocusState private var fieldFocused: Bool
     @AccessibilityFocusState private var fieldAccessibilityFocused: Bool
 
@@ -110,13 +113,8 @@ struct QuickAssistantCard: View {
     private static let maxWidth: CGFloat = 560
     /// Never squeezed below this, so a reply is still readable.
     private static let minScrollHeight: CGFloat = 96
-    /// What the card needs besides its scrolling part: the field, the open-in-chat
-    /// row, a status line, padding and spacing, the margin above it.
-    private static let fixedChromeHeight: CGFloat = 200
-    /// The scaled field and rows at accessibility sizes.
-    private static let accessibilityChromeExtra: CGFloat = 200
-    /// The two largest sizes, where the field and rows take most of a small screen.
-    private static let largestChromeExtra: CGFloat = 310
+    /// Space kept above the card.
+    private static let topMargin: CGFloat = LVSpacing.base
     /// Above the home indicator, to clear the dimmed tab bar. The keyboard hides
     /// the bar, so with the field focused the card sits just above the keyboard.
     private static let tabBarClearance: CGFloat = 62
@@ -140,8 +138,16 @@ struct QuickAssistantCard: View {
                 .frame(maxWidth: Self.maxWidth)
                 .padding(.horizontal, LVSpacing.base)
                 .padding(.bottom, fieldFocused ? LVSpacing.md : Self.tabBarClearance)
+
+            // The room the card has. A clear view takes exactly what the stack
+            // proposes: the safe area, so the keyboard shrinks it, and not the dim's
+            // bleed past the edges. It must not be the card's own container, whose
+            // size grows with the card and would feed back into the card's limit.
+            Color.clear
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                .onGeometryChange(for: CGFloat.self, of: \.size.height) { availableHeight = $0 }
         }
-        .onGeometryChange(for: CGFloat.self, of: \.size.height) { availableHeight = $0 }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
         .accessibilityAction(.escape, onClose)
@@ -155,15 +161,18 @@ struct QuickAssistantCard: View {
         VStack(alignment: .leading, spacing: LVSpacing.md) {
             exchange
 
-            if let message = voice.errorMessage {
-                statusText(message)
-            }
+            VStack(alignment: .leading, spacing: LVSpacing.md) {
+                if let message = voice.errorMessage {
+                    statusText(message)
+                }
 
-            composer
+                composer
 
-            if let conversationID = model.conversationID {
-                openInChat(conversationID)
+                if let conversationID = model.conversationID {
+                    openInChat(conversationID)
+                }
             }
+            .onGeometryChange(for: CGFloat.self, of: \.size.height) { footerHeight = $0 }
         }
         .padding(LVSpacing.base)
         .lvGlassCard(cornerRadius: Self.cornerRadius, intensity: LVGlow.subtle, material: .regularMaterial)
@@ -178,16 +187,14 @@ struct QuickAssistantCard: View {
         session.prompt != nil || model.phase != .idle || !model.actions.isEmpty
     }
 
-    /// The tallest the scrolling part may be: what the screen leaves after the
-    /// field and the rest of the card, and the keyboard when it is up (the
-    /// container shrinks with it). With a long reply, three confirm cards and
-    /// several chips it scrolls instead of pushing the field off screen.
+    /// The tallest the scrolling part may be: the container (which the keyboard
+    /// shrinks) minus the measured footer, the card's padding and spacing, the room
+    /// below the card and the margin above it. With a long reply, three confirm
+    /// cards and several chips it scrolls instead of pushing the field off screen.
     private var maxScrollHeight: CGFloat {
-        let bottom = fieldFocused ? LVSpacing.md : Self.tabBarClearance
-        let chrome = Self.fixedChromeHeight + bottom
-            + (dynamicTypeSize >= .accessibility4 ? Self.largestChromeExtra
-                : dynamicTypeSize.isAccessibilitySize ? Self.accessibilityChromeExtra : 0)
-        return max(Self.minScrollHeight, availableHeight - chrome)
+        let below = fieldFocused ? LVSpacing.md : Self.tabBarClearance
+        let used = footerHeight + 2 * LVSpacing.base + LVSpacing.md + below + Self.topMargin
+        return max(Self.minScrollHeight, availableHeight - used)
     }
 
     /// As tall as its content up to the limit, then it scrolls. Anchored at the

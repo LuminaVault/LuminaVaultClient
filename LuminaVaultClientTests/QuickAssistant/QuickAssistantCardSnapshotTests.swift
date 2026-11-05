@@ -29,36 +29,32 @@ import LuminaVaultShared
 enum QuickAssistantCardScene {
     /// The card over a screen, the way the shell shows it.
     static func view(session: QuickAssistantSession, dark: Bool) -> some View {
-        ZStack {
-            StandInScreen()
-            QuickAssistantCard(session: session, onClose: {}, onOpenChat: { _ in }, onRoute: { _ in })
-        }
+        // The stand-in is a background so its own height, which grows with text size,
+        // cannot make the card's container taller than the screen.
+        QuickAssistantCard(session: session, onClose: {}, onOpenChat: { _ in }, onRoute: { _ in })
+            .background { StandInScreen() }
         .environment(\.lvAmbientMotionEnabled, false)
         .environment(\.locale, Locale(identifier: "en_US"))
         .environment(\.lvPalette, LVTheme.cyanGold.palette(for: dark ? .dark : .light))
         .preferredColorScheme(dark ? .dark : .light)
     }
 
-    /// `drawHierarchyInKeyWindow` calls `fatalError` with no key window, resizes the
-    /// one it finds, and leaves it with no root view controller. So this skips
-    /// instead of aborting the run (or, when `CI` is set, fails), and hands the window back as it found it.
     struct NoKeyWindow: Error, CustomStringConvertible {
         var description: String { "Drawing the card needs the host app's key window, and there is none." }
     }
 
+    /// `drawHierarchyInKeyWindow` calls `fatalError` with no key window, resizes the
+    /// one it finds, and leaves it with no root view controller. So this fails
+    /// with a clear message instead of aborting the run, and hands the window back as it found it.
     static func borrowingKeyWindow(_ body: () -> Void) throws {
         let keyWindow = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
             .first(where: \.isKeyWindow)
-        guard let keyWindow else {
-            // On CI a missing window means the baselines were never compared, which
-            // must not read as a pass.
-            if ProcessInfo.processInfo.environment["CI"] != nil {
-                throw NoKeyWindow()
-            }
-            throw XCTSkip("Drawing the card needs the host app's key window, and there is none.")
-        }
+        // Always a failure, never a skip: a missing window means the card was never
+        // compared against its baselines, which must not read as a pass. (Keying
+        // this on a `CI` variable would not do: it may not reach the simulator host.)
+        guard let keyWindow else { throw NoKeyWindow() }
         let frame = keyWindow.frame
         let root = keyWindow.rootViewController
         defer {

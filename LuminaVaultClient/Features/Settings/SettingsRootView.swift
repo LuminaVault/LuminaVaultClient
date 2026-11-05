@@ -18,8 +18,14 @@ struct SettingsRootView: View {
     @Environment(\.lvReopenGuidedStart) private var reopenGuidedStart
     /// Opens with Data Access already pushed: where a Quick Assistant permission
     /// card sends you. The same screen the "Data Access" row opens.
-    var startAtDataAccess = false
-    @State private var showingDataAccess = false
+    @State private var showingDataAccess: Bool
+
+    /// `startAtDataAccess` seeds the push once, when the view is created. It is not
+    /// re-applied from `.task` or `.onAppear`: those run again when the root
+    /// reappears on Back, which would push Data Access again and trap the user in it.
+    init(startAtDataAccess: Bool = false) {
+        _showingDataAccess = State(initialValue: startAtDataAccess)
+    }
 
     var body: some View {
         NavigationStack {
@@ -374,9 +380,6 @@ struct SettingsRootView: View {
                 }
             }
             .navigationDestination(isPresented: $showingDataAccess) { dataAccessView }
-            .task {
-                if startAtDataAccess { showingDataAccess = true }
-            }
         }
     }
 

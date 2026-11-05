@@ -100,10 +100,8 @@ struct QuickAssistantActions: View {
                     QuickAssistantPermissionCard(summary: action.summary) { onRoute(.dataAccess) }
                 }
             }
-            if let route = model.heldScreenRoute,
-               let opening = model.actions.first(where: { $0.kind == .openScreen })
-            {
-                QuickAssistantScreenRow(summary: opening.summary) { onRoute(route) }
+            if let route = model.heldScreenRoute, let summary = model.heldScreenSummary {
+                QuickAssistantScreenRow(summary: summary) { onRoute(route) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

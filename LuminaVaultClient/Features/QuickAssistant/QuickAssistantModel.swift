@@ -89,6 +89,10 @@ final class QuickAssistantModel {
     /// The screen an `openScreen` named when the turn ended with a confirm card
     /// still unanswered. The card shows it as a row to tap instead of routing.
     private(set) var heldScreenRoute: QuickAssistantRoute?
+    /// The server's summary for that same action, which the held row shows.
+    private(set) var heldScreenSummary: String?
+    /// Summary of the action `pendingScreen` came from.
+    private var pendingScreenSummary: String?
     /// While the app is in the background a finished voice turn is not read out.
     /// The text is there on return.
     var isSpeechSuspended = false
@@ -126,7 +130,9 @@ final class QuickAssistantModel {
         reply = ""
         actions = []
         pendingScreen = nil
+        pendingScreenSummary = nil
         heldScreenRoute = nil
+        heldScreenSummary = nil
         resolutions = [:]
         actionErrors = [:]
 
@@ -230,7 +236,13 @@ final class QuickAssistantModel {
             guard !actions.contains(where: { $0.id == action.id }) else { return nil }
             actions.append(action)
             if action.kind == .openScreen {
-                pendingScreen = (action.screen ?? .unknown, action.memoryID)
+                // The last frame that goes somewhere wins. One that does not (an
+                // unknown screen, a memory with no id) must not displace a valid one.
+                let screen = action.screen ?? .unknown
+                if QuickAssistantRoute.resolve(screen, memoryID: action.memoryID) != .none {
+                    pendingScreen = (screen, action.memoryID)
+                    pendingScreenSummary = action.summary
+                }
             }
         case let .error(message):
             return message
@@ -250,6 +262,7 @@ final class QuickAssistantModel {
         guard route != .none else { return }
         if actions.contains(where: { $0.kind == .needsConfirm && resolutions[$0.id] == nil }) {
             heldScreenRoute = route
+            heldScreenSummary = pendingScreenSummary
         } else {
             onOpenScreen?(route)
         }
@@ -308,7 +321,9 @@ final class QuickAssistantModel {
         reply = ""
         actions = []
         pendingScreen = nil
+        pendingScreenSummary = nil
         heldScreenRoute = nil
+        heldScreenSummary = nil
         resolutions = [:]
         actionErrors = [:]
         resolving = []
