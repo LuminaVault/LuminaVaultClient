@@ -37,10 +37,10 @@ final class SelfImprovementViewModel {
             var loadedResources: [LVImprovementResource] = []
             // A task group, not `async let`: see HomeGlanceViewModel.load().
             try await withThrowingTaskGroup(of: Loaded.self) { group in
-                group.addTask { @MainActor in .status(try await self.client.status()) }
-                group.addTask { @MainActor in .runs(try await self.client.runs()) }
-                group.addTask { @MainActor in .changes(try await self.client.changes()) }
-                group.addTask { @MainActor in .resources(try await self.client.resources()) }
+                group.addTask { .status(try await self.client.status()) }
+                group.addTask { .runs(try await self.client.runs()) }
+                group.addTask { .changes(try await self.client.changes()) }
+                group.addTask { .resources(try await self.client.resources()) }
                 for try await item in group {
                     switch item {
                     case .status(let value): loadedStatus = value

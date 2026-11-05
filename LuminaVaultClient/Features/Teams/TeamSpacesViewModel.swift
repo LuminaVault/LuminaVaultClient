@@ -45,8 +45,8 @@ final class TeamSpacesViewModel {
         do {
             // A task group, not `async let`: see HomeGlanceViewModel.load().
             try await withThrowingTaskGroup(of: LoadedSpaces.self) { group in
-                group.addTask { @MainActor in .teams(try await self.client.teams()) }
-                group.addTask { @MainActor in .vaults(try await self.client.vaults()) }
+                group.addTask { .teams(try await self.client.teams()) }
+                group.addTask { .vaults(try await self.client.vaults()) }
                 for try await item in group {
                     switch item {
                     case .teams(let value): teams = value
@@ -92,8 +92,8 @@ final class TeamSpacesViewModel {
             // A task group, not `async let`: see HomeGlanceViewModel.load().
             let vaultID = vault.id
             try await withThrowingTaskGroup(of: LoadedRoster.self) { group in
-                group.addTask { @MainActor in .members(try await self.client.members(vaultID: vaultID)) }
-                group.addTask { @MainActor in .invitations(try await self.client.invitations(teamID: teamID)) }
+                group.addTask { .members(try await self.client.members(vaultID: vaultID)) }
+                group.addTask { .invitations(try await self.client.invitations(teamID: teamID)) }
                 for try await item in group {
                     switch item {
                     case .members(let value): members = value

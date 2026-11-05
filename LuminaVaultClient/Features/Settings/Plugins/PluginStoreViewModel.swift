@@ -59,15 +59,15 @@ final class PluginStoreViewModel {
             var marketplace: MarketplaceListResponse?
             // A task group, not `async let`: see HomeGlanceViewModel.load().
             try await withThrowingTaskGroup(of: Loaded.self) { group in
-                group.addTask { @MainActor in .catalog(try await self.client.catalog(category: nil)) }
-                group.addTask { @MainActor in .installs(try await self.client.installs()) }
+                group.addTask { .catalog(try await self.client.catalog(category: nil)) }
+                group.addTask { .installs(try await self.client.installs()) }
                 // Best-effort: Hermes may be unreachable; show an empty section
                 // rather than failing the whole store.
-                group.addTask { @MainActor in .hermes(try? await self.client.hermesSkills()) }
+                group.addTask { .hermes(try? await self.client.hermesSkills()) }
                 // Curation (best-effort): empty/unbadged if these fail.
-                group.addTask { @MainActor in .featured(try? await self.client.featuredPlugins()) }
-                group.addTask { @MainActor in .premium(try? await self.client.premiumPlugins()) }
-                group.addTask { @MainActor in
+                group.addTask { .featured(try? await self.client.featuredPlugins()) }
+                group.addTask { .premium(try? await self.client.premiumPlugins()) }
+                group.addTask {
                     .marketplace(try? await self.client.marketplace(query: nil, category: nil))
                 }
                 for try await item in group {

@@ -54,8 +54,8 @@ final class CommunityThreadViewModel {
             var loadedPage: CommunityPostPageDTO?
             // A task group, not `async let`: see HomeGlanceViewModel.load().
             try await withThrowingTaskGroup(of: Loaded.self) { group in
-                group.addTask { @MainActor in .post(try await self.client.post(id: postID)) }
-                group.addTask { @MainActor in
+                group.addTask { .post(try await self.client.post(id: postID)) }
+                group.addTask {
                     .page(try await self.client.replies(postID: postID, cursor: nil, limit: limit))
                 }
                 for try await item in group {
