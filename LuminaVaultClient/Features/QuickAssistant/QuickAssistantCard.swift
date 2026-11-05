@@ -90,6 +90,22 @@ final class QuickAssistantSession {
     }
 }
 
+/// The reply as the card shows it: inline markdown, with every link removed.
+/// Reply text can carry words from a poisoned note or tool result, and a link
+/// there could send the user's data to another site on one tap.
+enum QuickAssistantReplyText {
+    static func attributed(_ reply: String) -> AttributedString {
+        let options = AttributedString.MarkdownParsingOptions(
+            interpretedSyntax: .inlineOnlyPreservingWhitespace
+        )
+        var text = (try? AttributedString(markdown: reply, options: options)) ?? AttributedString(reply)
+        for run in text.runs where run.link != nil {
+            text[run.range].link = nil
+        }
+        return text
+    }
+}
+
 struct QuickAssistantCard: View {
     let session: QuickAssistantSession
     let onClose: () -> Void
@@ -248,10 +264,7 @@ struct QuickAssistantCard: View {
     }
 
     private var formattedReply: AttributedString {
-        let options = AttributedString.MarkdownParsingOptions(
-            interpretedSyntax: .inlineOnlyPreservingWhitespace
-        )
-        return (try? AttributedString(markdown: model.reply, options: options)) ?? AttributedString(model.reply)
+        QuickAssistantReplyText.attributed(model.reply)
     }
 
     private var thinking: some View {

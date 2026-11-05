@@ -281,6 +281,17 @@ final class QuickAssistantModelTests: XCTestCase {
         XCTAssertEqual(model.resolutions[action.id]?.message, "That request expired.")
     }
 
+    // MARK: - Reply text
+
+    func testReplyKeepsInlineStyleButNoLinks() {
+        let text = QuickAssistantReplyText.attributed(
+            "**Sure.** See [your note](https://evil.example/?q=secret) or <https://evil.example/x>."
+        )
+        XCTAssertTrue(text.runs.allSatisfy { $0.link == nil })
+        XCTAssertEqual(String(text.characters), "Sure. See your note or https://evil.example/x.")
+        XCTAssertTrue(text.runs.contains { $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true })
+    }
+
     // MARK: - Send while streaming / reset
 
     func testSendWhileStreamingIsRefused() async {
