@@ -1,0 +1,137 @@
+// LuminaVaultClient/LuminaVaultClientTests/QuickAssistant/QuickAssistantCardSnapshotTests.swift
+//
+// The card over a stand-in screen: empty, with a reply, recording, and with the
+// glow at rest. Light and dark.
+//
+// `accessibilityReduceMotion` is get-only on `EnvironmentValues`, so a test
+// cannot set it. `lvAmbientMotionEnabled` is the documented seam for it: the
+// glow takes the same static branch for either.
+//
+// Baselines are recorded on CI's iPhone 16 Pro / iOS 26.4 renderer by the
+// `record-snapshots` workflow (`.github/workflows/ci.yml`), never locally, so
+// these cases have no reference images until that runs.
+
+import SnapshotTesting
+import SwiftUI
+import UIKit
+import XCTest
+
+@testable import LuminaVaultClient
+import LuminaVaultShared
+
+@MainActor
+enum QuickAssistantCardScene {
+    /// The card over a screen, the way the shell shows it.
+    static func view(session: QuickAssistantSession, dark: Bool) -> some View {
+        ZStack {
+            StandInScreen()
+            QuickAssistantCard(session: session, onClose: {}, onOpenChat: { _ in })
+        }
+        .environment(\.lvAmbientMotionEnabled, false)
+        .environment(\.locale, Locale(identifier: "en_US"))
+        .environment(\.lvPalette, LVTheme.cyanGold.palette(for: dark ? .dark : .light))
+        .preferredColorScheme(dark ? .dark : .light)
+    }
+
+    static func empty() -> QuickAssistantSession {
+        QuickAssistantFixture.session()
+    }
+
+    static func reply() async -> QuickAssistantSession {
+        let conversations = QuickAssistantStubConversations()
+        conversations.script = [
+            .token(
+                "Your next meeting is the design review at 3 pm. You have one open loop from it: send Priya the updated flows."
+            ),
+            .done,
+        ]
+        let session = QuickAssistantFixture.session(conversations: conversations)
+        session.send("What's on this afternoon?", viaVoice: false)
+        for _ in 0 ..< 400 where session.model.reply.isEmpty || session.model.phase != .idle {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        return session
+    }
+
+    static func recording() async -> QuickAssistantSession {
+        let recognizer = StubSpeechRecognizer(available: true, authorized: true)
+        let session = QuickAssistantFixture.session(recognizer: recognizer)
+        await session.voice.startRecording()
+        recognizer.emit("Remind me to call the bank")
+        for _ in 0 ..< 400 where session.voice.liveTranscript.isEmpty {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        return session
+    }
+
+    private struct StandInScreen: View {
+        @Environment(\.lvPalette) private var palette
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: LVSpacing.base) {
+                Text("Home")
+                    .lvFont(.display)
+                    .foregroundStyle(palette.textPrimary)
+                ForEach(0 ..< 6, id: \.self) { index in
+                    Text("Saved note \(index + 1)")
+                        .lvFont(.body)
+                        .foregroundStyle(palette.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(LVSpacing.base)
+                        .background(palette.surface, in: .rect(cornerRadius: LVRadius.md))
+                }
+                Spacer()
+            }
+            .padding(LVSpacing.base)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(palette.backgroundBase)
+        }
+    }
+}
+
+@MainActor
+final class QuickAssistantCardSnapshotTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        UIView.setAnimationsEnabled(false)
+    }
+
+    override func tearDown() {
+        UIView.setAnimationsEnabled(true)
+        super.tearDown()
+    }
+
+    private func snap(_ session: QuickAssistantSession, _ name: String) {
+        for dark in [false, true] {
+            assertSnapshot(
+                of: QuickAssistantCardScene.view(session: session, dark: dark),
+                // In the key window, because a plain layer render drops the blur
+                // and the material, which are most of what this card looks like.
+                as: .image(
+                    drawHierarchyInKeyWindow: true,
+                    precision: 0.98,
+                    perceptualPrecision: 0.96,
+                    layout: .device(config: .iPhone13Pro),
+                    traits: .init(userInterfaceStyle: dark ? .dark : .light)
+                ),
+                testName: "\(name)-\(dark ? "dark" : "light")"
+            )
+        }
+    }
+
+    func testEmpty() async {
+        snap(QuickAssistantCardScene.empty(), "quick-assistant-empty")
+    }
+
+    func testReply() async {
+        await snap(QuickAssistantCardScene.reply(), "quick-assistant-reply")
+    }
+
+    func testVoiceRecording() async {
+        await snap(QuickAssistantCardScene.recording(), "quick-assistant-recording")
+    }
+
+    func testReducedMotion() async {
+        snap(QuickAssistantCardScene.empty(), "quick-assistant-reduced-motion")
+    }
+}

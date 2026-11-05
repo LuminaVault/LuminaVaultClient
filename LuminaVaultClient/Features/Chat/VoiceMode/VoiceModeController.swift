@@ -35,6 +35,7 @@ final class VoiceModeController {
     private let synthesizer: any SpeechSynthesizing
     private var recognitionTask: Task<Void, Never>?
     private var errorDecayTask: Task<Void, Never>?
+    private var isShutDown = false
 
     /// Wired by ChatViewModel — fires once per successful release with
     /// the final transcript. Empty transcripts are dropped (no-op).
@@ -58,11 +59,12 @@ final class VoiceModeController {
     // MARK: - Recording
 
     func startRecording() async {
-        guard state == .idle else { return }
+        guard state == .idle, !isShutDown else { return }
         clearError()
         if !hasPermission {
             let granted = await recognizer.requestAuthorization()
             hasPermission = granted
+            guard !isShutDown else { return }
             guard granted else {
                 setError("Enable Microphone & Speech Recognition in Settings to talk to Lumina.")
                 return
@@ -92,6 +94,17 @@ final class VoiceModeController {
         // The recognizer's final result still arrives via the stream.
         // We finalize there to ensure onFinalTranscript fires with the
         // last partial baked in.
+    }
+
+    /// For an owner that is going away for good, like the Quick Assistant card.
+    /// `stopRecording()` still delivers the final transcript, and a press whose
+    /// permission prompt is up still opens the mic once answered. This stops
+    /// both: the mic stays closed and nothing is delivered.
+    func shutDown() {
+        isShutDown = true
+        onFinalTranscript = nil
+        stopRecording()
+        stopSpeaking()
     }
 
     private func consume(stream: AsyncThrowingStream<String, Error>) async {

@@ -53,6 +53,51 @@ final class VoiceModeControllerTests: XCTestCase {
         XCTAssertEqual(controller.state, .idle)
     }
 
+    func testShutDownDropsTheFinalTranscript() async throws {
+        let recognizer = StubSpeechRecognizer(available: true, authorized: true)
+        let controller = VoiceModeController(recognizer: recognizer, synthesizer: StubSpeechSynthesizer())
+        var fired = false
+        controller.onFinalTranscript = { _ in fired = true }
+
+        await controller.startRecording()
+        recognizer.emit("half a sentence")
+        try await Task.sleep(for: .milliseconds(20))
+        controller.shutDown()
+        recognizer.finish()
+        try await Task.sleep(for: .milliseconds(50))
+
+        XCTAssertFalse(fired)
+        XCTAssertEqual(recognizer.stopCalls, 1)
+        XCTAssertEqual(controller.state, .idle)
+    }
+
+    func testStartAfterShutDownNeverOpensTheMic() async {
+        let recognizer = StubSpeechRecognizer(available: true, authorized: true)
+        let controller = VoiceModeController(recognizer: recognizer, synthesizer: StubSpeechSynthesizer())
+
+        controller.shutDown()
+        await controller.startRecording()
+
+        XCTAssertEqual(recognizer.startCalls, 0)
+        XCTAssertEqual(controller.state, .idle)
+    }
+
+    /// The permission prompt can be up while the owner of the controller goes
+    /// away. Granting it afterwards must not open the mic.
+    func testShutDownDuringThePermissionPromptNeverOpensTheMic() async {
+        let recognizer = GatedAuthorizationRecognizer()
+        let controller = VoiceModeController(recognizer: recognizer, synthesizer: StubSpeechSynthesizer())
+
+        let start = Task { await controller.startRecording() }
+        await recognizer.waitForPrompt()
+        controller.shutDown()
+        recognizer.grant()
+        await start.value
+
+        XCTAssertEqual(recognizer.startCalls, 0)
+        XCTAssertEqual(controller.state, .idle)
+    }
+
     func testDeniedPermissionSurfacesError() async throws {
         let recognizer = StubSpeechRecognizer(available: true, authorized: false)
         let controller = VoiceModeController(recognizer: recognizer, synthesizer: StubSpeechSynthesizer())
@@ -95,6 +140,36 @@ final class VoiceModeControllerTests: XCTestCase {
 }
 
 // MARK: - Stubs
+
+/// Holds `requestAuthorization()` open, like a system prompt nobody has answered.
+@MainActor
+private final class GatedAuthorizationRecognizer: SpeechRecognizing {
+    let isAvailable = true
+    private(set) var startCalls = 0
+    private var prompt: CheckedContinuation<Bool, Never>?
+
+    func requestAuthorization() async -> Bool {
+        await withCheckedContinuation { prompt = $0 }
+    }
+
+    func waitForPrompt() async {
+        while prompt == nil {
+            try? await Task.sleep(for: .milliseconds(2))
+        }
+    }
+
+    func grant() {
+        prompt?.resume(returning: true)
+        prompt = nil
+    }
+
+    func start() throws -> AsyncThrowingStream<String, Error> {
+        startCalls += 1
+        return AsyncThrowingStream { $0.finish() }
+    }
+
+    func stop() {}
+}
 
 @MainActor
 final class StubSpeechRecognizer: SpeechRecognizing {

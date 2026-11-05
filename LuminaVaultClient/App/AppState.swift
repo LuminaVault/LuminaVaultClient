@@ -30,6 +30,9 @@ final class AppState {
     /// brief, "What I learned") closes. Those sheets run on their own view
     /// models, so Home re-reads the counts its rows show when this moves.
     var homeGlanceRefreshToken = 0
+    /// Bumped when the app root is about to present a sheet the shell cannot
+    /// see (web sign-in approval), so the Quick Assistant card closes first.
+    var rootSheetRequestToken = 0
     /// HER-238: timestamp of the most recent successful `/v1/auth/me` fetch.
     /// `nil` means we've never refreshed since sign-in. Used by
     /// `refreshCurrentUserIfNeeded(authClient:now:)` to debounce.

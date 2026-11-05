@@ -22,6 +22,7 @@ struct MainTabView: View {
 
     @Environment(AppState.self) private var appState
     @Environment(NotificationRouter.self) private var notificationRouter
+    @Environment(WorkspaceSelection.self) private var workspaceSelection
     @Environment(\.captureCoordinator) private var captureCoordinator
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.lvPalette) private var palette
@@ -84,6 +85,9 @@ struct MainTabView: View {
     /// From `GET /v1/community/me`. The palette offers Community only when
     /// the board is on — there is no tab for it.
     @State private var communityEnabled = false
+    /// Non-nil while the Quick Assistant card is up. One per opening.
+    @State private var quickAssistant: QuickAssistantSession?
+    @State private var quickAssistantHapticTrigger = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -128,7 +132,11 @@ struct MainTabView: View {
             }
             .environment(\.lvActiveTab, selection.rawValue)
             .modifier(TabBarMinimizeOnScrollDown())
+            .aiTabLongPress(coveredByModal: quickAssistant != nil, perform: openQuickAssistant)
         }
+        // With `coveredByModal`, this keeps VoiceOver on the card: this one
+        // hides the banners above the tabs.
+        .accessibilityHidden(quickAssistant != nil)
         .lvAnimation(LVMotion.standard, value: shellActivity.busy && selection != .think)
         .environment(shellActivity)
         .background { keyboardShortcuts }
@@ -162,6 +170,10 @@ struct MainTabView: View {
         // The last latch flipping is the whole point of the wizard, so the
         // celebration is hosted where nothing can clip it.
         .overlay(ConfettiOverlay(trigger: guided?.confettiTrigger ?? 0))
+        // Last of the overlays, so it covers the banners, the tab bar and a
+        // spotlight. It is not a sheet, so the one-sheet rule does not apply,
+        // but see `QuickAssistantCloseTriggers` for what closes it.
+        .overlay { quickAssistantOverlay }
         .environment(guided)
         .environment(\.lvReopenGuidedStart, guided.map { coordinator in
             {
@@ -336,6 +348,15 @@ struct MainTabView: View {
             communityEnabled = (try? await appState.makeCommunityClient().me().enabled) ?? false
         }
         .sensoryFeedback(.selection, trigger: tabHapticTrigger)
+        .sensoryFeedback(.impact(weight: .medium), trigger: quickAssistantHapticTrigger)
+        .modifier(QuickAssistantCloseTriggers(
+            isSheetRequested: isSheetRequested,
+            deepLink: notificationRouter.pendingDeepLink,
+            chatConversationID: appState.pendingChatConversationID,
+            chatPrefill: appState.pendingChatPrefill,
+            rootSheetRequestToken: appState.rootSheetRequestToken,
+            close: closeQuickAssistant
+        ))
         .captureSheet(
             isPresented: $showingIngestionCapture,
             initialMode: .files,
@@ -359,6 +380,8 @@ struct MainTabView: View {
             await store.refresh()
         }
         .onChange(of: scenePhase) { _, phase in
+            // Leaving the app with the card up must not leave the mic open.
+            if phase == .background { closeQuickAssistant() }
             // A capture can exhaust its retries while the app is backgrounded,
             // so the count is stale by the time anyone looks at it.
             guard phase == .active else { return }
@@ -367,6 +390,74 @@ struct MainTabView: View {
         // The shell is the one view always on screen once signed in, so the
         // rating prompt made due by a background drain is requested here.
         .reviewPromptPresenter()
+        .onDisappear(perform: closeQuickAssistant)
+    }
+
+    // MARK: - Quick Assistant
+
+    /// Every sheet this view presents, and the root paywall. Add new ones here,
+    /// so the Quick Assistant card closes before they open.
+    private var isSheetRequested: Bool {
+        showCommandPalette
+            || showSettings
+            || showCommunity
+            || showingLearned
+            || showingBrief
+            || showingIngestionCapture
+            || pendingHermesRunID != nil
+            || pendingWorkflow != nil
+            || pendingMemory != nil
+            || pendingMeeting != nil
+            || appState.pendingPaywallID != nil
+    }
+
+    /// From the AI tab long-press. Does not touch `selection`, and a guided
+    /// step keeps the screen to itself.
+    private func openQuickAssistant() {
+        guard quickAssistant == nil, guided?.activeStep == nil, !isSheetRequested else { return }
+        if hapticsEnabled { quickAssistantHapticTrigger += 1 }
+        // One synthesizer for the spoken reply and the voice controller, so
+        // closing the card has one thing to silence.
+        let synthesizer = SystemSpeechSynthesizer()
+        quickAssistant = QuickAssistantSession(
+            model: QuickAssistantModel(
+                conversations: conversationsClient,
+                actions: AssistantActionsHTTPClient(client: appState.makeHTTPClient()),
+                settings: HybridExecutionSettingsStore(),
+                synthesizer: synthesizer,
+                isOnline: { appState.networkMonitor.isConnected }
+            ),
+            voice: VoiceModeController(synthesizer: synthesizer),
+            synthesizer: synthesizer,
+            context: {
+                QuickAssistantSendContext(
+                    currentTab: selection.rawValue,
+                    activeSpaceID: workspaceSelection.activeWorkspaceID
+                )
+            }
+        )
+    }
+
+    private func closeQuickAssistant() {
+        quickAssistant?.close()
+        quickAssistant = nil
+    }
+
+    private var quickAssistantOverlay: some View {
+        ZStack {
+            if let quickAssistant {
+                QuickAssistantCard(
+                    session: quickAssistant,
+                    onClose: closeQuickAssistant,
+                    onOpenChat: { conversationID in
+                        closeQuickAssistant()
+                        appState.openChat(conversationID: conversationID)
+                    }
+                )
+                .transition(.opacity)
+            }
+        }
+        .lvAnimation(LVMotion.standard, value: quickAssistant == nil)
     }
 
     // MARK: - Keyboard
@@ -742,6 +833,39 @@ struct MainTabView: View {
     /// LLM call.
     private var vaultUploadClient: VaultUploadClientProtocol {
         VaultUploadHTTPClient(client: appState.makeHTTPClient())
+    }
+}
+
+/// What closes the Quick Assistant card without a touch. Touches cannot reach
+/// what is behind it, so anything opening a sheet while it is up got there
+/// another way: a push or link, a hardware-keyboard shortcut, or a 402 answering
+/// a request in flight. A chat being opened is here because it would land
+/// behind the card.
+private struct QuickAssistantCloseTriggers: ViewModifier {
+    let isSheetRequested: Bool
+    let deepLink: APNSDeepLink
+    let chatConversationID: UUID?
+    let chatPrefill: String?
+    let rootSheetRequestToken: Int
+    let close: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: isSheetRequested) { _, requested in
+                if requested { close() }
+            }
+            .onChange(of: deepLink) { _, link in
+                if link != .none { close() }
+            }
+            .onChange(of: chatConversationID) { _, id in
+                if id != nil { close() }
+            }
+            .onChange(of: chatPrefill) { _, prefill in
+                if prefill != nil { close() }
+            }
+            .onChange(of: rootSheetRequestToken) { _, _ in
+                close()
+            }
     }
 }
 
