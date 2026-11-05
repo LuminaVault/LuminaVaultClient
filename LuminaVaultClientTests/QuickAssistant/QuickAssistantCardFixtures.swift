@@ -69,6 +69,7 @@ enum QuickAssistantFixture {
 
     static func session(
         conversations: QuickAssistantStubConversations = QuickAssistantStubConversations(),
+        actions: any AssistantActionsClientProtocol = QuickAssistantStubActions(),
         recognizer: StubSpeechRecognizer = StubSpeechRecognizer(available: true, authorized: true),
         synthesizer: StubSpeechSynthesizer = StubSpeechSynthesizer(),
         currentTab: String = "home",
@@ -77,7 +78,7 @@ enum QuickAssistantFixture {
         QuickAssistantSession(
             model: QuickAssistantModel(
                 conversations: conversations,
-                actions: QuickAssistantStubActions(),
+                actions: actions,
                 settings: settings(),
                 synthesizer: synthesizer,
                 isOnline: { true }

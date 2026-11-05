@@ -14,6 +14,10 @@
 //    a stream that outlives a reset cannot repopulate the state.
 //  * Voice replies are spoken only after the stream has fully ended.
 //  * The client never decides an action has expired; the server answers.
+//  * An `openScreen` routes when the turn ends cleanly, never when its frame
+//    arrives (closing the card cancels the stream, so an early route would cut
+//    the reply off), and never after a failure. A confirm card the user has not
+//    answered holds the screen back instead: closing would discard it.
 //  * `prepare` / `commit` (the local-execution path) are never called.
 import Foundation
 import LuminaVaultShared
@@ -79,6 +83,12 @@ final class QuickAssistantModel {
     private(set) var actionErrors: [UUID: String] = [:]
     /// Actions with a confirm / cancel in flight (disables double taps).
     private(set) var resolving: Set<UUID> = []
+    /// Called once when a turn ends cleanly with an `openScreen` that goes somewhere
+    /// and nothing left to answer. The shell closes the card and routes.
+    var onOpenScreen: ((QuickAssistantRoute) -> Void)?
+    /// The screen an `openScreen` named when the turn ended with a confirm card
+    /// still unanswered. The card shows it as a row to tap instead of routing.
+    private(set) var heldScreenRoute: QuickAssistantRoute?
     /// While the app is in the background a finished voice turn is not read out.
     /// The text is there on return.
     var isSpeechSuspended = false
@@ -116,6 +126,7 @@ final class QuickAssistantModel {
         reply = ""
         actions = []
         pendingScreen = nil
+        heldScreenRoute = nil
         resolutions = [:]
         actionErrors = [:]
 
@@ -177,6 +188,7 @@ final class QuickAssistantModel {
             } else {
                 phase = .idle
                 if viaVoice { speakReply() }
+                routePendingScreen()
             }
         } catch {
             guard gen == generation else { return }
@@ -228,6 +240,19 @@ final class QuickAssistantModel {
             break // sources, routing, usage, follow-ups, unrecognized: not for this card
         }
         return nil
+    }
+
+    /// The turn ended cleanly. A routed screen closes the card, which stops any
+    /// speech still going: accepted, the user asked to be taken there.
+    private func routePendingScreen() {
+        guard let (screen, memoryID) = pendingScreen else { return }
+        let route = QuickAssistantRoute.resolve(screen, memoryID: memoryID)
+        guard route != .none else { return }
+        if actions.contains(where: { $0.kind == .needsConfirm && resolutions[$0.id] == nil }) {
+            heldScreenRoute = route
+        } else {
+            onOpenScreen?(route)
+        }
     }
 
     private func speakReply() {
@@ -283,6 +308,7 @@ final class QuickAssistantModel {
         reply = ""
         actions = []
         pendingScreen = nil
+        heldScreenRoute = nil
         resolutions = [:]
         actionErrors = [:]
         resolving = []

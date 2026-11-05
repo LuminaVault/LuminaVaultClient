@@ -16,6 +16,10 @@ struct SettingsRootView: View {
     /// Settings › "Show me around". Supplied by `MainTabView`; `nil` when no
     /// shell is hosting, which is when the row has nothing to reopen.
     @Environment(\.lvReopenGuidedStart) private var reopenGuidedStart
+    /// Opens with Data Access already pushed: where a Quick Assistant permission
+    /// card sends you. The same screen the "Data Access" row opens.
+    var startAtDataAccess = false
+    @State private var showingDataAccess = false
 
     var body: some View {
         NavigationStack {
@@ -368,6 +372,10 @@ struct SettingsRootView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                 }
+            }
+            .navigationDestination(isPresented: $showingDataAccess) { dataAccessView }
+            .task {
+                if startAtDataAccess { showingDataAccess = true }
             }
         }
     }

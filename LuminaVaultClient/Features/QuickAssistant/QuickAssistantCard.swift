@@ -94,17 +94,29 @@ struct QuickAssistantCard: View {
     let session: QuickAssistantSession
     let onClose: () -> Void
     let onOpenChat: (UUID) -> Void
+    /// Carries out an action's route. The shell closes the card first.
+    let onRoute: (QuickAssistantRoute) -> Void
 
     @Environment(\.lvPalette) private var palette
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var text = ""
-    @State private var replyHeight: CGFloat = 0
+    @State private var contentHeight: CGFloat = 0
+    @State private var availableHeight: CGFloat = 0
     @FocusState private var fieldFocused: Bool
     @AccessibilityFocusState private var fieldAccessibilityFocused: Bool
 
     private static let dimOpacity: Double = 0.5
     private static let cornerRadius: CGFloat = LVRadius.sheet
     private static let maxWidth: CGFloat = 560
-    private static let maxReplyHeight: CGFloat = 260
+    /// Never squeezed below this, so a reply is still readable.
+    private static let minScrollHeight: CGFloat = 96
+    /// What the card needs besides its scrolling part: the field, the open-in-chat
+    /// row, a status line, padding and spacing, the margin above it.
+    private static let fixedChromeHeight: CGFloat = 200
+    /// The scaled field and rows at accessibility sizes.
+    private static let accessibilityChromeExtra: CGFloat = 200
+    /// The two largest sizes, where the field and rows take most of a small screen.
+    private static let largestChromeExtra: CGFloat = 310
     /// Above the home indicator, to clear the dimmed tab bar. The keyboard hides
     /// the bar, so with the field focused the card sits just above the keyboard.
     private static let tabBarClearance: CGFloat = 62
@@ -129,6 +141,7 @@ struct QuickAssistantCard: View {
                 .padding(.horizontal, LVSpacing.base)
                 .padding(.bottom, fieldFocused ? LVSpacing.md : Self.tabBarClearance)
         }
+        .onGeometryChange(for: CGFloat.self, of: \.size.height) { availableHeight = $0 }
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
         .accessibilityAction(.escape, onClose)
@@ -141,8 +154,6 @@ struct QuickAssistantCard: View {
     private var card: some View {
         VStack(alignment: .leading, spacing: LVSpacing.md) {
             exchange
-
-            // Task 10: action chips and confirm cards go here, from `model.actions`.
 
             if let message = voice.errorMessage {
                 statusText(message)
@@ -161,46 +172,63 @@ struct QuickAssistantCard: View {
         .lvAnimation(LVMotion.quick, value: voice.errorMessage)
     }
 
-    // MARK: - Question and reply
+    // MARK: - Question, reply and actions
 
+    private var hasExchange: Bool {
+        session.prompt != nil || model.phase != .idle || !model.actions.isEmpty
+    }
+
+    /// The tallest the scrolling part may be: what the screen leaves after the
+    /// field and the rest of the card, and the keyboard when it is up (the
+    /// container shrinks with it). With a long reply, three confirm cards and
+    /// several chips it scrolls instead of pushing the field off screen.
+    private var maxScrollHeight: CGFloat {
+        let bottom = fieldFocused ? LVSpacing.md : Self.tabBarClearance
+        let chrome = Self.fixedChromeHeight + bottom
+            + (dynamicTypeSize >= .accessibility4 ? Self.largestChromeExtra
+                : dynamicTypeSize.isAccessibilitySize ? Self.accessibilityChromeExtra : 0)
+        return max(Self.minScrollHeight, availableHeight - chrome)
+    }
+
+    /// As tall as its content up to the limit, then it scrolls. Anchored at the
+    /// bottom, so a streaming reply and the cards that follow it stay in view.
     @ViewBuilder
     private var exchange: some View {
-        if session.prompt != nil || model.phase != .idle {
-            VStack(alignment: .leading, spacing: LVSpacing.sm) {
-                if let prompt = session.prompt {
-                    Text(prompt)
-                        .lvFont(.footnote)
-                        .foregroundStyle(palette.textSecondary)
-                        .lineLimit(2)
-                }
-                if !model.reply.isEmpty {
-                    reply
-                }
-                switch model.phase {
-                case .idle:
-                    EmptyView()
-                case .sending:
-                    if model.reply.isEmpty {
-                        thinking
-                    }
-                case let .blocked(message), let .failed(message):
-                    statusText(message)
-                }
+        if hasExchange {
+            ScrollView {
+                exchangeContent
+                    .onGeometryChange(for: CGFloat.self, of: \.size.height) { contentHeight = $0 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .defaultScrollAnchor(.bottom)
+            .scrollBounceBehavior(.basedOnSize)
+            .frame(minHeight: 0, maxHeight: min(contentHeight, maxScrollHeight))
         }
     }
 
-    /// As tall as the reply up to a limit, then it scrolls. Above the keyboard,
-    /// in landscape especially, it also gives up height so the field stays visible.
-    private var reply: some View {
-        ScrollView {
-            replyText
-                .onGeometryChange(for: CGFloat.self, of: \.size.height) { replyHeight = $0 }
+    private var exchangeContent: some View {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
+            if let prompt = session.prompt {
+                Text(prompt)
+                    .lvFont(.footnote)
+                    .foregroundStyle(palette.textSecondary)
+                    .lineLimit(2)
+            }
+            if !model.reply.isEmpty {
+                replyText
+            }
+            switch model.phase {
+            case .idle:
+                EmptyView()
+            case .sending:
+                if model.reply.isEmpty {
+                    thinking
+                }
+            case let .blocked(message), let .failed(message):
+                statusText(message)
+            }
+            QuickAssistantActions(model: model, onRoute: onRoute)
         }
-        .defaultScrollAnchor(.bottom)
-        .scrollBounceBehavior(.basedOnSize)
-        .frame(minHeight: 0, maxHeight: min(replyHeight, Self.maxReplyHeight))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var replyText: some View {

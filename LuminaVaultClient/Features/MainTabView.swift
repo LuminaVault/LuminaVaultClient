@@ -88,6 +88,8 @@ struct MainTabView: View {
     /// Non-nil while the Quick Assistant card is up. One per opening.
     @State private var quickAssistant: QuickAssistantSession?
     @State private var quickAssistantHapticTrigger = 0
+    /// Settings opened to Data Access, for a Quick Assistant permission card.
+    @State private var settingsStartsAtDataAccess = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -310,6 +312,7 @@ struct MainTabView: View {
             )
         }
         .sheet(isPresented: $showSettings) {
+            settingsStartsAtDataAccess = false
             // A workflow push that arrived while Settings was up closed it and
             // parked itself here; present it now that the slot is free.
             if let memory = memoryAfterSettings {
@@ -332,7 +335,7 @@ struct MainTabView: View {
             workflowAfterSettings = nil
             pendingWorkflow = presentation
         } content: {
-            SettingsRootView()
+            SettingsRootView(startAtDataAccess: settingsStartsAtDataAccess)
         }
         .sheet(isPresented: $showCommunity) {
             NavigationStack {
@@ -421,14 +424,16 @@ struct MainTabView: View {
         // One synthesizer for the spoken reply and the voice controller, so
         // closing the card has one thing to silence.
         let synthesizer = SystemSpeechSynthesizer()
+        let model = QuickAssistantModel(
+            conversations: conversationsClient,
+            actions: AssistantActionsHTTPClient(client: appState.makeHTTPClient()),
+            settings: HybridExecutionSettingsStore(),
+            synthesizer: synthesizer,
+            isOnline: { appState.networkMonitor.isConnected }
+        )
+        model.onOpenScreen = { route in openFromQuickAssistant(route) }
         quickAssistant = QuickAssistantSession(
-            model: QuickAssistantModel(
-                conversations: conversationsClient,
-                actions: AssistantActionsHTTPClient(client: appState.makeHTTPClient()),
-                settings: HybridExecutionSettingsStore(),
-                synthesizer: synthesizer,
-                isOnline: { appState.networkMonitor.isConnected }
-            ),
+            model: model,
             voice: VoiceModeController(synthesizer: synthesizer),
             synthesizer: synthesizer,
             context: {
@@ -438,6 +443,30 @@ struct MainTabView: View {
                 )
             }
         )
+    }
+
+    /// An action's route, from the card or from a finished turn. The card closes
+    /// first and the route runs on the next run loop, so a sheet is not presented
+    /// during the dismissal. `.none` closes nothing.
+    private func openFromQuickAssistant(_ route: QuickAssistantRoute) {
+        if route == .none { return }
+        closeQuickAssistant()
+        Task { @MainActor in
+            switch route {
+            case let .tab(tab):
+                selection = tab
+            case .settings:
+                showSettings = true
+            case .dataAccess:
+                settingsStartsAtDataAccess = true
+                showSettings = true
+            case let .deepLink(link):
+                // Routed by the same `.task(id:)` a pushed link goes through.
+                notificationRouter.pendingDeepLink = link
+            case .none:
+                break
+            }
+        }
     }
 
     private func closeQuickAssistant() {
@@ -454,7 +483,8 @@ struct MainTabView: View {
                     onOpenChat: { conversationID in
                         closeQuickAssistant()
                         appState.openChat(conversationID: conversationID)
-                    }
+                    },
+                    onRoute: openFromQuickAssistant
                 )
                 .transition(.opacity)
             }
