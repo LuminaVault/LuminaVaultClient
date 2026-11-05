@@ -433,12 +433,21 @@ final class QuickAssistantModelTests: XCTestCase {
         XCTAssertTrue(speech.spoken.isEmpty)
     }
 
-    func testCancellationErrorEndsIdleWithoutFailure() async {
+    /// iOS tearing down a stream throws `URLError.cancelled` though nobody asked.
+    /// Idle would read as a finished answer; it is a cut-off one.
+    func testUnrequestedCancellationShowsTheCutOffLine() async {
         stub.script = [.token("x")]
         stub.scriptError = APIError.networkFailure(URLError(.cancelled))
         await send(viaVoice: true)
-        XCTAssertEqual(model.phase, .idle)
+        XCTAssertEqual(model.phase, .failed(QuickAssistantGate.cutOffMessage))
+        XCTAssertEqual(model.reply, "x")
         XCTAssertTrue(speech.spoken.isEmpty)
+    }
+
+    func testUnrequestedBareURLCancellationShowsTheCutOffLine() async {
+        stub.scriptError = URLError(.cancelled)
+        await send()
+        XCTAssertEqual(model.phase, .failed(QuickAssistantGate.cutOffMessage))
     }
 }
 

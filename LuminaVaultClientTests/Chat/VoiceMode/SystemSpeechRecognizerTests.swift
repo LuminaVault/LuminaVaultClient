@@ -30,10 +30,31 @@ final class SystemSpeechRecognizerTests: XCTestCase {
         let engine: AVAudioEngine
         let output: AVAudioPCMBuffer
 
-        func run() {
+        /// Renders on the calling thread and returns the first render error, so
+        /// the caller learns the render ended before it touches the engine.
+        func run() -> (any Error)? {
             for _ in 0 ..< 8 {
-                _ = try? engine.renderOffline(output.frameCapacity, to: output)
+                do {
+                    _ = try engine.renderOffline(output.frameCapacity, to: output)
+                } catch {
+                    return error
+                }
             }
+            return nil
+        }
+    }
+
+    /// @unchecked: written once by the render queue, read after the test waited for it.
+    nonisolated private final class RenderErrorBox: @unchecked Sendable {
+        private let lock = NSLock()
+        private var error: (any Error)?
+
+        func set(_ newValue: (any Error)?) {
+            lock.withLock { error = newValue }
+        }
+
+        func get() -> (any Error)? {
+            lock.withLock { error }
         }
     }
 
@@ -66,8 +87,16 @@ final class SystemSpeechRecognizerTests: XCTestCase {
         player.play()
 
         let render = OfflineRender(engine: engine, output: output)
-        DispatchQueue.global(qos: .userInitiated).async { render.run() }
-        wait(for: [delivered], timeout: 10)
+        let rendered = expectation(description: "the render finished")
+        let renderError = RenderErrorBox()
+        DispatchQueue.global(qos: .userInitiated).async {
+            renderError.set(render.run())
+            rendered.fulfill()
+        }
+        // The engine is stopped only once the render has ended: stopping it
+        // under a render still running on the background queue can crash the host.
+        wait(for: [delivered, rendered], timeout: 10)
+        XCTAssertNil(renderError.get(), "the offline render failed")
 
         engine.mainMixerNode.removeTap(onBus: 0)
         engine.stop()

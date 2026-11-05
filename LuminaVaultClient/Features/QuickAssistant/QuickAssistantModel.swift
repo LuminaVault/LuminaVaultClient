@@ -180,7 +180,15 @@ final class QuickAssistantModel {
             }
         } catch {
             guard gen == generation else { return }
-            if Task.isCancelled || APIError.isBenignCancellation(error) { return endCancelled(gen) }
+            // `reset()` bumps the generation, so a cancellation anyone asked for
+            // returned above or has `Task.isCancelled` set. A cancellation error
+            // with neither is the system dropping the stream (iOS tearing down a
+            // connection): the reply is cut off, not finished.
+            if Task.isCancelled { return endCancelled(gen) }
+            if APIError.isBenignCancellation(error) {
+                phase = .failed(QuickAssistantGate.cutOffMessage)
+                return
+            }
             phase = .failed(Self.message(for: error))
         }
     }

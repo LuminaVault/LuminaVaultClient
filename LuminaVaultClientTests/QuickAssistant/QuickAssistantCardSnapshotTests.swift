@@ -40,13 +40,22 @@ enum QuickAssistantCardScene {
 
     /// `drawHierarchyInKeyWindow` calls `fatalError` with no key window, resizes the
     /// one it finds, and leaves it with no root view controller. So this skips
-    /// instead of aborting the run, and hands the window back as it found it.
+    /// instead of aborting the run (or, when `CI` is set, fails), and hands the window back as it found it.
+    struct NoKeyWindow: Error, CustomStringConvertible {
+        var description: String { "Drawing the card needs the host app's key window, and there is none." }
+    }
+
     static func borrowingKeyWindow(_ body: () -> Void) throws {
         let keyWindow = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
             .first(where: \.isKeyWindow)
         guard let keyWindow else {
+            // On CI a missing window means the baselines were never compared, which
+            // must not read as a pass.
+            if ProcessInfo.processInfo.environment["CI"] != nil {
+                throw NoKeyWindow()
+            }
             throw XCTSkip("Drawing the card needs the host app's key window, and there is none.")
         }
         let frame = keyWindow.frame
