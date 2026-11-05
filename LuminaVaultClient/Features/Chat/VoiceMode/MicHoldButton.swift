@@ -55,7 +55,12 @@ struct MicHoldButton: View {
     private func startIfNeeded() {
         guard !isHeld else { return }
         isHeld = true
-        Task { await voice.startRecording() }
+        Task {
+            await voice.startRecording()
+            // Released while the permission prompts were up: the mic must not
+            // stay open with nobody holding it.
+            if !isHeld { voice.stopRecording() }
+        }
     }
 
     private func stopIfNeeded() {
