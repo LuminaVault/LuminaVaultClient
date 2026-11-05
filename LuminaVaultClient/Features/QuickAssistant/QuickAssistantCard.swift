@@ -67,6 +67,20 @@ final class QuickAssistantSession {
         synthesizer.stop()
     }
 
+    /// The app left the screen. A recording nobody finished is dropped rather
+    /// than sent, and nothing is read out until the app is back. The card and any
+    /// turn stay: if the connection dies meanwhile, the model's failed phase is
+    /// what the user finds on return.
+    func enterBackground() {
+        voice.cancelRecording()
+        model.isSpeechSuspended = true
+        stopSpeaking()
+    }
+
+    func enterForeground() {
+        model.isSpeechSuspended = false
+    }
+
     /// Mic off with its pending transcript dropped, stream cancelled, speech
     /// stopped. Anything arriving afterwards finds nowhere to land.
     func close() {

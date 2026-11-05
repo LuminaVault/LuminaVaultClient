@@ -36,6 +36,9 @@ final class VoiceModeController {
     private var recognitionTask: Task<Void, Never>?
     private var errorDecayTask: Task<Void, Never>?
     private var isShutDown = false
+    private var isAwaitingPermission = false
+    private var wasReleasedDuringPrompt = false
+    private var discardsRecording = false
 
     /// Wired by ChatViewModel — fires once per successful release with
     /// the final transcript. Empty transcripts are dropped (no-op).
@@ -60,11 +63,21 @@ final class VoiceModeController {
 
     func startRecording() async {
         guard state == .idle, !isShutDown else { return }
+        // Pressed again while the prompts are up: the first press carries on.
+        if isAwaitingPermission {
+            wasReleasedDuringPrompt = false
+            return
+        }
         clearError()
         if !hasPermission {
+            isAwaitingPermission = true
+            wasReleasedDuringPrompt = false
             let granted = await recognizer.requestAuthorization()
+            isAwaitingPermission = false
             hasPermission = granted
-            guard !isShutDown else { return }
+            // A system alert cancels the touch, so this is every first press. The
+            // answer is kept, the mic stays closed, and the next press records.
+            guard !isShutDown, !wasReleasedDuringPrompt else { return }
             guard granted else {
                 setError("Enable Microphone & Speech Recognition in Settings to talk to Lumina.")
                 return
@@ -89,11 +102,19 @@ final class VoiceModeController {
     }
 
     func stopRecording() {
+        if isAwaitingPermission { wasReleasedDuringPrompt = true }
         guard state == .recording else { return }
         recognizer.stop()
         // The recognizer's final result still arrives via the stream.
         // We finalize there to ensure onFinalTranscript fires with the
         // last partial baked in.
+    }
+
+    /// Mic off with nothing delivered and no error, for a recording nobody
+    /// finished. Unlike `shutDown()` the controller can record again.
+    func cancelRecording() {
+        discardsRecording = state == .recording
+        stopRecording()
     }
 
     /// For an owner that is going away for good, like the Quick Assistant card.
@@ -114,12 +135,20 @@ final class VoiceModeController {
             }
             finalizeTranscript()
         } catch {
-            setError(Self.message(for: error))
+            if !discardsRecording { setError(Self.message(for: error)) }
+            discardsRecording = false
+            liveTranscript = ""
             state = .idle
         }
     }
 
     private func finalizeTranscript() {
+        if discardsRecording {
+            discardsRecording = false
+            liveTranscript = ""
+            state = .idle
+            return
+        }
         let final = liveTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
         state = .idle
         if final.isEmpty {

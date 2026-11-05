@@ -8,19 +8,23 @@ import SwiftUI
 struct VoiceWaveformView: View {
     @Environment(\.lvPalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Production never clears this. It is how a snapshot asks for the still bars.
+    @Environment(\.lvAmbientMotionEnabled) private var ambientMotionEnabled
     let active: Bool
+
+    private var isStill: Bool { reduceMotion || !ambientMotionEnabled }
 
     private let barCount = 5
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 0.08, paused: !active || reduceMotion)) { timeline in
+        TimelineView(.animation(minimumInterval: 0.08, paused: !active || isStill)) { timeline in
             Canvas { context, size in
                 let now = timeline.date.timeIntervalSinceReferenceDate
                 let slot = size.width / CGFloat(barCount)
                 let barWidth = slot * 0.5
                 for index in 0 ..< barCount {
                     let phase = Double(index) * 0.7
-                    let amplitude = reduceMotion
+                    let amplitude = isStill
                         ? 0.5
                         : 0.35 + 0.65 * abs(sin(now * 6 + phase))
                     let height = max(barWidth, size.height * CGFloat(amplitude))

@@ -9,6 +9,10 @@ struct MicHoldButton: View {
     @Environment(\.lvPalette) private var palette
     @Bindable var voice: VoiceModeController
     @State private var isHeld = false
+    /// A touch ends in the button's action too, after its press and release have
+    /// done the work. Without this, a release during the permission prompts finds
+    /// nothing recording and the action starts a second time, with nobody holding.
+    @State private var touchHandledActivation = false
 
     var body: some View {
         // A real `Button`, not a bare `Image` with a `DragGesture` attached.
@@ -18,7 +22,11 @@ struct MicHoldButton: View {
         Button {
             // Hold drives recording; the plain activation path exists so
             // VoiceOver and Full Keyboard Access can still toggle it.
-            toggleForAssistiveActivation()
+            if touchHandledActivation {
+                touchHandledActivation = false
+            } else {
+                toggleForAssistiveActivation()
+            }
         } label: {
             LVIconView(
                 voice.isRecording ? .micCircleFill : .micFill,
@@ -37,16 +45,24 @@ struct MicHoldButton: View {
         .opacity(voice.isEnabled ? 1 : 0.4)
         .lvAnimation(LVMotion.quick, value: voice.isRecording)
         .onLongPressGesture(minimumDuration: 0, pressing: { pressing in
-            guard voice.isEnabled else { return }
             if pressing {
+                guard voice.isEnabled else { return }
+                touchHandledActivation = true
                 startIfNeeded()
             } else {
+                // Not gated on `isEnabled`: a denial during the hold turns it off,
+                // and a release that did not clear `isHeld` would leave a dead mic.
                 stopIfNeeded()
             }
         }, perform: {})
         // Was a raw `UIImpactFeedbackGenerator` inside the controller, which
         // ignored the user's haptics setting. `.sensoryFeedback` honours it.
         .sensoryFeedback(.impact(weight: .medium), trigger: voice.recordingStartTrigger)
+        // A recording can end with no release: a recognizer error, or the app
+        // leaving the screen.
+        .onChange(of: voice.isRecording) { _, recording in
+            if !recording { isHeld = false }
+        }
         .accessibilityLabel(voice.isRecording ? "Stop recording" : "Hold to talk")
         .accessibilityHint("Press and hold to record, release to send.")
         .accessibilityAddTraits(voice.isRecording ? [.isButton, .isSelected] : .isButton)
@@ -55,12 +71,7 @@ struct MicHoldButton: View {
     private func startIfNeeded() {
         guard !isHeld else { return }
         isHeld = true
-        Task {
-            await voice.startRecording()
-            // Released while the permission prompts were up: the mic must not
-            // stay open with nobody holding it.
-            if !isHeld { voice.stopRecording() }
-        }
+        Task { await voice.startRecording() }
     }
 
     private func stopIfNeeded() {
@@ -76,7 +87,11 @@ struct MicHoldButton: View {
             stopIfNeeded()
         } else if !isHeld {
             isHeld = true
-            Task { await voice.startRecording() }
+            Task {
+                await voice.startRecording()
+                // No release follows this activation to clear it.
+                if !voice.isRecording { isHeld = false }
+            }
         }
     }
 }

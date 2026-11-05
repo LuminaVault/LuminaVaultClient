@@ -91,11 +91,172 @@ final class VoiceModeControllerTests: XCTestCase {
         let start = Task { await controller.startRecording() }
         await recognizer.waitForPrompt()
         controller.shutDown()
-        recognizer.grant()
+        recognizer.answer(true)
         await start.value
 
         XCTAssertEqual(recognizer.startCalls, 0)
         XCTAssertEqual(controller.state, .idle)
+    }
+
+    // MARK: - Released during the permission prompts
+
+    // The system alert cancels the touch, so this is every first press.
+    func testReleaseDuringThePromptOpensNoMicAndShowsNoError() async {
+        let recognizer = GatedAuthorizationRecognizer()
+        let controller = VoiceModeController(recognizer: recognizer, synthesizer: StubSpeechSynthesizer())
+
+        let start = Task { await controller.startRecording() }
+        await recognizer.waitForPrompt()
+        controller.stopRecording()
+        recognizer.answer(true)
+        await start.value
+
+        XCTAssertEqual(recognizer.startCalls, 0)
+        XCTAssertEqual(recognizer.stopCalls, 0)
+        XCTAssertEqual(controller.state, .idle)
+        XCTAssertNil(controller.errorMessage)
+    }
+
+    func testReleaseBeforeADenialShowsNoError() async {
+        let recognizer = GatedAuthorizationRecognizer()
+        let controller = VoiceModeController(recognizer: recognizer, synthesizer: StubSpeechSynthesizer())
+
+        let start = Task { await controller.startRecording() }
+        await recognizer.waitForPrompt()
+        controller.stopRecording()
+        recognizer.answer(false)
+        await start.value
+
+        XCTAssertEqual(recognizer.startCalls, 0)
+        XCTAssertNil(controller.errorMessage)
+        XCTAssertTrue(controller.isEnabled)
+    }
+
+    func testThePressAfterAReleasedPromptRecordsWithoutAskingAgain() async {
+        let recognizer = GatedAuthorizationRecognizer()
+        let controller = VoiceModeController(recognizer: recognizer, synthesizer: StubSpeechSynthesizer())
+        let start = Task { await controller.startRecording() }
+        await recognizer.waitForPrompt()
+        controller.stopRecording()
+        recognizer.answer(true)
+        await start.value
+
+        await controller.startRecording()
+
+        XCTAssertEqual(recognizer.promptCalls, 1)
+        XCTAssertEqual(recognizer.startCalls, 1)
+        XCTAssertEqual(controller.state, .recording)
+    }
+
+    func testHoldingThroughThePromptRecords() async {
+        let recognizer = GatedAuthorizationRecognizer()
+        let controller = VoiceModeController(recognizer: recognizer, synthesizer: StubSpeechSynthesizer())
+
+        let start = Task { await controller.startRecording() }
+        await recognizer.waitForPrompt()
+        recognizer.answer(true)
+        await start.value
+
+        XCTAssertEqual(recognizer.startCalls, 1)
+        XCTAssertEqual(controller.state, .recording)
+    }
+
+    func testPressingAgainDuringThePromptRecordsOnceAndAsksOnce() async {
+        let recognizer = GatedAuthorizationRecognizer()
+        let controller = VoiceModeController(recognizer: recognizer, synthesizer: StubSpeechSynthesizer())
+
+        let start = Task { await controller.startRecording() }
+        await recognizer.waitForPrompt()
+        controller.stopRecording()
+        await controller.startRecording()
+        recognizer.answer(true)
+        await start.value
+
+        XCTAssertEqual(recognizer.promptCalls, 1)
+        XCTAssertEqual(recognizer.startCalls, 1)
+        XCTAssertEqual(controller.state, .recording)
+    }
+
+    // MARK: - Cancelled
+
+    func testCancelDropsTheTranscriptAndShowsNoError() async throws {
+        let recognizer = StubSpeechRecognizer(available: true, authorized: true)
+        let controller = VoiceModeController(recognizer: recognizer, synthesizer: StubSpeechSynthesizer())
+        var fired = false
+        controller.onFinalTranscript = { _ in fired = true }
+
+        await controller.startRecording()
+        recognizer.emit("half a sentence")
+        try await Task.sleep(for: .milliseconds(20))
+        controller.cancelRecording()
+        recognizer.finish()
+        try await Task.sleep(for: .milliseconds(50))
+
+        XCTAssertFalse(fired)
+        XCTAssertEqual(recognizer.stopCalls, 1)
+        XCTAssertEqual(controller.state, .idle)
+        XCTAssertEqual(controller.liveTranscript, "")
+        XCTAssertNil(controller.errorMessage)
+    }
+
+    func testCancelWithNothingSaidShowsNoError() async throws {
+        let recognizer = StubSpeechRecognizer(available: true, authorized: true)
+        let controller = VoiceModeController(recognizer: recognizer, synthesizer: StubSpeechSynthesizer())
+
+        await controller.startRecording()
+        controller.cancelRecording()
+        recognizer.finish()
+        try await Task.sleep(for: .milliseconds(50))
+
+        XCTAssertEqual(controller.state, .idle)
+        XCTAssertNil(controller.errorMessage)
+    }
+
+    func testARecognizerErrorAfterCancelShowsNoError() async throws {
+        let recognizer = StubSpeechRecognizer(available: true, authorized: true)
+        let controller = VoiceModeController(recognizer: recognizer, synthesizer: StubSpeechSynthesizer())
+
+        await controller.startRecording()
+        controller.cancelRecording()
+        recognizer.fail(SpeechRecognizerError.noSpeechDetected)
+        try await Task.sleep(for: .milliseconds(50))
+
+        XCTAssertEqual(controller.state, .idle)
+        XCTAssertNil(controller.errorMessage)
+    }
+
+    func testTheRecordingAfterACancelDeliversItsTranscript() async throws {
+        let recognizer = StubSpeechRecognizer(available: true, authorized: true)
+        let controller = VoiceModeController(recognizer: recognizer, synthesizer: StubSpeechSynthesizer())
+        var transcripts: [String] = []
+        controller.onFinalTranscript = { transcripts.append($0) }
+        await controller.startRecording()
+        controller.cancelRecording()
+        recognizer.finish()
+        try await Task.sleep(for: .milliseconds(20))
+
+        await controller.startRecording()
+        recognizer.emit("again")
+        try await Task.sleep(for: .milliseconds(20))
+        controller.stopRecording()
+        recognizer.finish()
+        try await Task.sleep(for: .milliseconds(50))
+
+        XCTAssertEqual(transcripts, ["again"])
+    }
+
+    func testCancelDuringThePromptOpensNoMic() async {
+        let recognizer = GatedAuthorizationRecognizer()
+        let controller = VoiceModeController(recognizer: recognizer, synthesizer: StubSpeechSynthesizer())
+
+        let start = Task { await controller.startRecording() }
+        await recognizer.waitForPrompt()
+        controller.cancelRecording()
+        recognizer.answer(true)
+        await start.value
+
+        XCTAssertEqual(recognizer.startCalls, 0)
+        XCTAssertNil(controller.errorMessage)
     }
 
     func testDeniedPermissionSurfacesError() async throws {
@@ -142,14 +303,21 @@ final class VoiceModeControllerTests: XCTestCase {
 // MARK: - Stubs
 
 /// Holds `requestAuthorization()` open, like a system prompt nobody has answered.
+/// The answer is remembered, as the system remembers it.
 @MainActor
 private final class GatedAuthorizationRecognizer: SpeechRecognizing {
     let isAvailable = true
+    private(set) var promptCalls = 0
     private(set) var startCalls = 0
+    private(set) var stopCalls = 0
+    private var answered: Bool?
     private var prompt: CheckedContinuation<Bool, Never>?
+    private var stream: AsyncThrowingStream<String, Error>.Continuation?
 
     func requestAuthorization() async -> Bool {
-        await withCheckedContinuation { prompt = $0 }
+        if let answered { return answered }
+        promptCalls += 1
+        return await withCheckedContinuation { prompt = $0 }
     }
 
     func waitForPrompt() async {
@@ -158,17 +326,21 @@ private final class GatedAuthorizationRecognizer: SpeechRecognizing {
         }
     }
 
-    func grant() {
-        prompt?.resume(returning: true)
+    func answer(_ granted: Bool) {
+        answered = granted
+        prompt?.resume(returning: granted)
         prompt = nil
     }
 
     func start() throws -> AsyncThrowingStream<String, Error> {
         startCalls += 1
-        return AsyncThrowingStream { $0.finish() }
+        return AsyncThrowingStream { stream = $0 }
     }
 
-    func stop() {}
+    func stop() {
+        stopCalls += 1
+        stream?.finish()
+    }
 }
 
 @MainActor

@@ -354,7 +354,7 @@ struct MainTabView: View {
             deepLink: notificationRouter.pendingDeepLink,
             chatConversationID: appState.pendingChatConversationID,
             chatPrefill: appState.pendingChatPrefill,
-            rootSheetRequestToken: appState.rootSheetRequestToken,
+            sheetRequestToken: appState.sheetRequestToken,
             close: closeQuickAssistant
         ))
         .captureSheet(
@@ -380,8 +380,10 @@ struct MainTabView: View {
             await store.refresh()
         }
         .onChange(of: scenePhase) { _, phase in
-            // Leaving the app with the card up must not leave the mic open.
-            if phase == .background { closeQuickAssistant() }
+            // Leaving the app stops the mic and speech. The card and its turn stay,
+            // and if the connection dies meanwhile the card says so on return.
+            if phase == .background { quickAssistant?.enterBackground() }
+            if phase == .active { quickAssistant?.enterForeground() }
             // A capture can exhaust its retries while the app is backgrounded,
             // so the count is stale by the time anyone looks at it.
             guard phase == .active else { return }
@@ -846,7 +848,7 @@ private struct QuickAssistantCloseTriggers: ViewModifier {
     let deepLink: APNSDeepLink
     let chatConversationID: UUID?
     let chatPrefill: String?
-    let rootSheetRequestToken: Int
+    let sheetRequestToken: Int
     let close: () -> Void
 
     func body(content: Content) -> some View {
@@ -863,7 +865,7 @@ private struct QuickAssistantCloseTriggers: ViewModifier {
             .onChange(of: chatPrefill) { _, prefill in
                 if prefill != nil { close() }
             }
-            .onChange(of: rootSheetRequestToken) { _, _ in
+            .onChange(of: sheetRequestToken) { _, _ in
                 close()
             }
     }

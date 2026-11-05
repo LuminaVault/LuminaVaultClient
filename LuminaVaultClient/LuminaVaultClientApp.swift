@@ -579,7 +579,7 @@ struct LuminaVaultClientApp: App {
     private func handlePairingLink(_ raw: String) -> Bool {
         guard let parsed = WebSignInApprovalViewModel.parse(raw) else { return false }
         guard appState.isAuthenticated else { return true }
-        appState.rootSheetRequestToken += 1
+        appState.sheetRequestToken += 1
         pendingPairing = PendingPairingApproval(id: parsed.id, code: parsed.code)
         return true
     }

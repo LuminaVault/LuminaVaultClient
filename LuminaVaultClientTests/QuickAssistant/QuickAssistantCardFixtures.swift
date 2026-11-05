@@ -14,6 +14,14 @@ final class QuickAssistantStubConversations: ConversationsClientProtocol, @unche
     var holdsStream = false
     private(set) var requests: [MessageStreamRequest] = []
     private(set) var streamTerminated = false
+    private var heldStream: AsyncThrowingStream<QueryStreamEvent, any Error>.Continuation?
+
+    /// Ends a `holdsStream` stream, the way the server or a dead connection would.
+    func endHeldStream(with events: [QueryStreamEvent] = [], throwing error: (any Error)? = nil) {
+        events.forEach { heldStream?.yield($0) }
+        heldStream?.finish(throwing: error)
+        heldStream = nil
+    }
 
     func create(_: ConversationCreateRequest) async throws -> ConversationDTO {
         ConversationDTO(id: UUID(), title: "", createdAt: Date(), updatedAt: Date(), pinnedMemoryIDs: [])
@@ -33,6 +41,7 @@ final class QuickAssistantStubConversations: ConversationsClientProtocol, @unche
         return AsyncThrowingStream { continuation in
             events.forEach { continuation.yield($0) }
             if holds {
+                self.heldStream = continuation
                 continuation.onTermination = { _ in self.streamTerminated = true }
             } else {
                 continuation.finish()

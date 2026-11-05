@@ -11,7 +11,8 @@
 //    first slot, so a press there is deliberately not a trigger.
 //
 // So a press must be in the AI slot and within one item's reach of its centre.
-// AI is the middle tab, so its centre is the bar's in every layout above.
+// That geometry only holds for the middle tab, whose centre is the bar's in every
+// layout above, so any other tab is refused rather than guessed at.
 import CoreGraphics
 
 enum AITabHitTest {
@@ -19,7 +20,8 @@ enum AITabHitTest {
     private static let maxItemHalfWidth: CGFloat = 38.5
 
     static func isAITab(x: CGFloat, barWidth: CGFloat, tabCount: Int, aiIndex: Int) -> Bool {
-        guard x.isFinite, barWidth.isFinite, barWidth > 0, tabCount > 0, x >= 0, x < barWidth else {
+        guard x.isFinite, barWidth.isFinite, barWidth > 0, tabCount > 0, x >= 0, x < barWidth,
+              aiIndex * 2 + 1 == tabCount else {
             return false
         }
         let slotWidth = barWidth / CGFloat(tabCount)

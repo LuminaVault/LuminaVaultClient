@@ -69,14 +69,23 @@ final class AITabLongPressTests: XCTestCase {
         XCTAssertEqual(recognizers(on: bar).count, 0)
     }
 
-    func testRecognizerUsesTheProvenDuration() throws {
+    func testOnlyATouchOnTheAITabReachesTheRecognizer() throws {
         let coordinator = AITabLongPressCoordinator()
-        let bar = UITabBar()
-
+        let bar = UITabBar(frame: CGRect(x: 0, y: 0, width: 402, height: 62))
         coordinator.attach(to: bar)
+        let recognizer = try XCTUnwrap(recognizers(on: bar).first)
+        func receives(_ x: CGFloat) -> Bool {
+            coordinator.gestureRecognizer(recognizer, shouldReceive: TouchAt(x: x))
+        }
 
-        let recognizer = try XCTUnwrap(recognizers(on: bar).first as? UILongPressGestureRecognizer)
-        XCTAssertEqual(recognizer.minimumPressDuration, 0.4)
+        XCTAssertTrue(receives(201), "AI")
+        XCTAssertFalse(receives(120), "Spaces")
+        XCTAssertFalse(receives(282), "Brain")
+
+        bar.frame.size.width = 874
+        XCTAssertTrue(receives(437), "AI, landscape")
+        XCTAssertFalse(receives(391), "Spaces, landscape")
+        XCTAssertFalse(receives(482), "Brain, landscape")
     }
 
     func testOnlyGesturesInsideTheBarWaitForTheLongPress() throws {
@@ -103,13 +112,18 @@ final class AITabLongPressTests: XCTestCase {
         XCTAssertFalse(coordinator.gestureRecognizer(recognizer, shouldBeRequiredToFailBy: content.panGestureRecognizer))
         XCTAssertFalse(coordinator.gestureRecognizer(recognizer, shouldBeRequiredToFailBy: onScreen))
     }
+}
 
-    func testNeverRecognizesAlongsideAnotherGesture() throws {
-        let coordinator = AITabLongPressCoordinator()
-        let bar = UITabBar()
-        coordinator.attach(to: bar)
-        let recognizer = try XCTUnwrap(recognizers(on: bar).first)
+/// `UITouch` has no public way to set a location.
+private final class TouchAt: UITouch {
+    private let x: CGFloat
 
-        XCTAssertFalse(coordinator.gestureRecognizer(recognizer, shouldRecognizeSimultaneouslyWith: UITapGestureRecognizer()))
+    init(x: CGFloat) {
+        self.x = x
+        super.init()
+    }
+
+    override func location(in _: UIView?) -> CGPoint {
+        CGPoint(x: x, y: 20)
     }
 }

@@ -86,12 +86,13 @@ final class AITabLongPressCoordinator: NSObject, UIGestureRecognizerDelegate {
     // MARK: - UIGestureRecognizerDelegate
 
     func gestureRecognizer(_ recognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        guard let bar = recognizer.view else { return false }
+        guard let bar = recognizer.view,
+              let aiIndex = MainTabView.AppTab.allCases.firstIndex(of: .think) else { return false }
         return AITabHitTest.isAITab(
             x: touch.location(in: bar).x,
             barWidth: bar.bounds.width,
             tabCount: MainTabView.AppTab.allCases.count,
-            aiIndex: MainTabView.AppTab.allCases.firstIndex(of: .think) ?? 0
+            aiIndex: aiIndex
         )
     }
 

@@ -79,6 +79,9 @@ final class QuickAssistantModel {
     private(set) var actionErrors: [UUID: String] = [:]
     /// Actions with a confirm / cancel in flight (disables double taps).
     private(set) var resolving: Set<UUID> = []
+    /// While the app is in the background a finished voice turn is not read out.
+    /// The text is there on return.
+    var isSpeechSuspended = false
 
     private let conversations: any ConversationsClientProtocol
     private let actionsClient: any AssistantActionsClientProtocol
@@ -220,6 +223,7 @@ final class QuickAssistantModel {
     }
 
     private func speakReply() {
+        guard !isSpeechSuspended else { return }
         let spoken: String
         if let ask = actions.first(where: { $0.kind == .needsConfirm }) {
             spoken = ask.summary

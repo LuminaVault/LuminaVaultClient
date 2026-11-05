@@ -156,12 +156,129 @@ final class QuickAssistantSessionTests: XCTestCase {
         XCTAssertNil(session.model.conversationID)
     }
 
-    func testStopSpeakingSilencesTheReply() async {
+    // MARK: - Background
+
+    private func heldTurn(
+        recognizer: StubSpeechRecognizer = StubSpeechRecognizer(available: true, authorized: true),
+        synthesizer: StubSpeechSynthesizer = StubSpeechSynthesizer(),
+        viaVoice: Bool = false
+    ) async -> (QuickAssistantSession, QuickAssistantStubConversations) {
+        let stub = QuickAssistantStubConversations()
+        stub.script = [.token("Partial")]
+        stub.holdsStream = true
+        let session = QuickAssistantFixture.session(conversations: stub, recognizer: recognizer, synthesizer: synthesizer)
+        session.send("hello", viaVoice: viaVoice)
+        await waitUntil { session.model.reply == "Partial" }
+        return (session, stub)
+    }
+
+    func testBackgroundStopsSpeechAndKeepsTheCardAndTheTurn() async {
         let speech = StubSpeechSynthesizer()
-        let session = QuickAssistantFixture.session(synthesizer: speech)
+        let (session, stub) = await heldTurn(synthesizer: speech)
+        // The model silences anything still playing when a turn starts.
+        let stopsBefore = speech.stopCalls
 
-        session.stopSpeaking()
+        session.enterBackground()
 
-        XCTAssertEqual(speech.stopCalls, 1)
+        XCTAssertEqual(speech.stopCalls, stopsBefore + 1)
+        XCTAssertEqual(session.prompt, "hello")
+        XCTAssertEqual(session.model.phase, .sending)
+        XCTAssertEqual(session.model.reply, "Partial")
+        XCTAssertFalse(stub.streamTerminated)
+
+        stub.endHeldStream(with: [.token(" reply"), .done])
+        await waitUntil { session.model.phase == .idle }
+        XCTAssertEqual(session.model.reply, "Partial reply")
+        XCTAssertNotNil(session.model.conversationID)
+    }
+
+    func testBackgroundDropsAHalfFinishedRecording() async {
+        let stub = QuickAssistantStubConversations()
+        let recognizer = StubSpeechRecognizer(available: true, authorized: true)
+        let session = QuickAssistantFixture.session(conversations: stub, recognizer: recognizer)
+        await session.voice.startRecording()
+        recognizer.emit("half a sentence")
+        try? await Task.sleep(for: .milliseconds(20))
+
+        session.enterBackground()
+        XCTAssertEqual(recognizer.stopCalls, 1)
+
+        recognizer.finish()
+        await waitUntil { session.voice.state == .idle }
+        try? await Task.sleep(for: .milliseconds(20))
+        XCTAssertEqual(stub.requests.count, 0)
+        XCTAssertNil(session.prompt)
+        XCTAssertNil(session.voice.errorMessage)
+    }
+
+    func testVoiceAndSendStillWorkAfterReturning() async {
+        let stub = QuickAssistantStubConversations()
+        stub.script = [.token("Yes"), .done]
+        let recognizer = StubSpeechRecognizer(available: true, authorized: true)
+        let session = QuickAssistantFixture.session(conversations: stub, recognizer: recognizer)
+        await session.voice.startRecording()
+        session.enterBackground()
+        recognizer.finish()
+        await waitUntil { session.voice.state == .idle }
+
+        session.enterForeground()
+        await session.voice.startRecording()
+        recognizer.emit("still there?")
+        try? await Task.sleep(for: .milliseconds(20))
+        session.voice.stopRecording()
+        recognizer.finish()
+
+        await waitUntil { session.model.reply == "Yes" }
+        XCTAssertEqual(recognizer.startCalls, 2)
+        XCTAssertEqual(stub.requests.first?.content, "still there?")
+    }
+
+    func testStreamCutOffInTheBackgroundShowsOnReturn() async {
+        let (session, stub) = await heldTurn()
+        session.enterBackground()
+
+        stub.endHeldStream()
+
+        await waitUntil { session.model.phase != .sending }
+        session.enterForeground()
+        XCTAssertEqual(session.model.phase, .failed(QuickAssistantGate.cutOffMessage))
+        XCTAssertEqual(session.model.reply, "Partial")
+    }
+
+    func testStreamFailureInTheBackgroundShowsOnReturn() async {
+        let (session, stub) = await heldTurn()
+        session.enterBackground()
+
+        stub.endHeldStream(throwing: URLError(.networkConnectionLost))
+
+        await waitUntil { session.model.phase != .sending }
+        session.enterForeground()
+        guard case .failed = session.model.phase else {
+            return XCTFail("expected a failed phase, got \(session.model.phase)")
+        }
+        XCTAssertEqual(session.model.reply, "Partial")
+    }
+
+    func testVoiceReplyFinishingInTheBackgroundIsNotReadOut() async {
+        let speech = StubSpeechSynthesizer()
+        let (session, stub) = await heldTurn(synthesizer: speech, viaVoice: true)
+        session.enterBackground()
+
+        stub.endHeldStream(with: [.done])
+
+        await waitUntil { session.model.phase == .idle }
+        session.enterForeground()
+        XCTAssertEqual(speech.spokenTexts, [])
+    }
+
+    func testVoiceReplyFinishingAfterReturningIsReadOut() async {
+        let speech = StubSpeechSynthesizer()
+        let (session, stub) = await heldTurn(synthesizer: speech, viaVoice: true)
+        session.enterBackground()
+        session.enterForeground()
+
+        stub.endHeldStream(with: [.done])
+
+        await waitUntil { speech.spokenTexts == ["Partial"] }
     }
 }

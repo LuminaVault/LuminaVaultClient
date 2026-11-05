@@ -1,11 +1,16 @@
 // LuminaVaultClient/LuminaVaultClientTests/QuickAssistant/QuickAssistantCardSnapshotTests.swift
 //
-// The card over a stand-in screen: empty, with a reply, recording, and with the
-// glow at rest. Light and dark.
+// The card over a stand-in screen: empty, with a reply, and recording. Light and
+// dark.
 //
-// `accessibilityReduceMotion` is get-only on `EnvironmentValues`, so a test
-// cannot set it. `lvAmbientMotionEnabled` is the documented seam for it: the
-// glow takes the same static branch for either.
+// Every case has the glow and the waveform at rest, through `lvAmbientMotionEnabled`,
+// so there is no separate Reduce Motion case: it would be the same picture as the
+// empty one. Reduce Motion takes that same still path, and the breathing it turns
+// off cannot be pinned to a frame.
+//
+// These draw in the host app's key window, unlike the rest of the suite. A plain
+// layer render has no glow at all and flattens the material, and those are most of
+// what this card looks like. See `QuickAssistantCardScene.borrowingKeyWindow`.
 //
 // Baselines are recorded on CI's iPhone 16 Pro / iOS 26.4 renderer by the
 // `record-snapshots` workflow (`.github/workflows/ci.yml`), never locally, so
@@ -31,6 +36,26 @@ enum QuickAssistantCardScene {
         .environment(\.locale, Locale(identifier: "en_US"))
         .environment(\.lvPalette, LVTheme.cyanGold.palette(for: dark ? .dark : .light))
         .preferredColorScheme(dark ? .dark : .light)
+    }
+
+    /// `drawHierarchyInKeyWindow` calls `fatalError` with no key window, resizes the
+    /// one it finds, and leaves it with no root view controller. So this skips
+    /// instead of aborting the run, and hands the window back as it found it.
+    static func borrowingKeyWindow(_ body: () -> Void) throws {
+        let keyWindow = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)
+        guard let keyWindow else {
+            throw XCTSkip("Drawing the card needs the host app's key window, and there is none.")
+        }
+        let frame = keyWindow.frame
+        let root = keyWindow.rootViewController
+        defer {
+            keyWindow.rootViewController = root
+            keyWindow.frame = frame
+        }
+        body()
     }
 
     static func empty() -> QuickAssistantSession {
@@ -101,37 +126,33 @@ final class QuickAssistantCardSnapshotTests: XCTestCase {
         super.tearDown()
     }
 
-    private func snap(_ session: QuickAssistantSession, _ name: String) {
-        for dark in [false, true] {
-            assertSnapshot(
-                of: QuickAssistantCardScene.view(session: session, dark: dark),
-                // In the key window, because a plain layer render drops the blur
-                // and the material, which are most of what this card looks like.
-                as: .image(
-                    drawHierarchyInKeyWindow: true,
-                    precision: 0.98,
-                    perceptualPrecision: 0.96,
-                    layout: .device(config: .iPhone13Pro),
-                    traits: .init(userInterfaceStyle: dark ? .dark : .light)
-                ),
-                testName: "\(name)-\(dark ? "dark" : "light")"
-            )
+    private func snap(_ session: QuickAssistantSession, _ name: String) throws {
+        try QuickAssistantCardScene.borrowingKeyWindow {
+            for dark in [false, true] {
+                assertSnapshot(
+                    of: QuickAssistantCardScene.view(session: session, dark: dark),
+                    as: .image(
+                        drawHierarchyInKeyWindow: true,
+                        precision: 0.98,
+                        perceptualPrecision: 0.96,
+                        layout: .device(config: .iPhone13Pro),
+                        traits: .init(userInterfaceStyle: dark ? .dark : .light)
+                    ),
+                    testName: "\(name)-\(dark ? "dark" : "light")"
+                )
+            }
         }
     }
 
-    func testEmpty() async {
-        snap(QuickAssistantCardScene.empty(), "quick-assistant-empty")
+    func testEmpty() async throws {
+        try snap(QuickAssistantCardScene.empty(), "quick-assistant-empty")
     }
 
-    func testReply() async {
-        await snap(QuickAssistantCardScene.reply(), "quick-assistant-reply")
+    func testReply() async throws {
+        try await snap(QuickAssistantCardScene.reply(), "quick-assistant-reply")
     }
 
-    func testVoiceRecording() async {
-        await snap(QuickAssistantCardScene.recording(), "quick-assistant-recording")
-    }
-
-    func testReducedMotion() async {
-        snap(QuickAssistantCardScene.empty(), "quick-assistant-reduced-motion")
+    func testVoiceRecording() async throws {
+        try await snap(QuickAssistantCardScene.recording(), "quick-assistant-recording")
     }
 }

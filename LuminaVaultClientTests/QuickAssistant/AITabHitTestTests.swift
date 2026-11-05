@@ -55,8 +55,9 @@ final class AITabHitTestTests: XCTestCase {
     }
 
     func testPointsOutsideTheBarAreFalse() {
-        XCTAssertFalse(AITabHitTest.isAITab(x: -1, barWidth: 402, tabCount: 5, aiIndex: 0))
-        XCTAssertFalse(AITabHitTest.isAITab(x: 402, barWidth: 402, tabCount: 5, aiIndex: 4))
+        // One 60pt slot, so both points are within reach of its centre.
+        XCTAssertFalse(AITabHitTest.isAITab(x: -1, barWidth: 60, tabCount: 1, aiIndex: 0))
+        XCTAssertFalse(AITabHitTest.isAITab(x: 60, barWidth: 60, tabCount: 1, aiIndex: 0))
     }
 
     func testNonFiniteInputDoesNotCrash() {
@@ -67,5 +68,29 @@ final class AITabHitTestTests: XCTestCase {
 
     func testNoTabsIsFalse() {
         XCTAssertFalse(AITabHitTest.isAITab(x: 100, barWidth: 402, tabCount: 0, aiIndex: 0))
+    }
+
+    /// The measured geometry only describes a middle tab. If AI moves, the
+    /// trigger stops firing, and this says why.
+    func testAIIsTheMiddleOfFiveTabs() {
+        XCTAssertEqual(MainTabView.AppTab.allCases.count, 5)
+        XCTAssertEqual(MainTabView.AppTab.allCases.firstIndex(of: .think), 2)
+    }
+
+    func testANonMiddleIndexNeverFires() {
+        for x in stride(from: CGFloat(0), to: 402, by: 1) {
+            for aiIndex in [-1, 0, 1, 3, 4, 5] {
+                XCTAssertFalse(
+                    AITabHitTest.isAITab(x: x, barWidth: 402, tabCount: 5, aiIndex: aiIndex),
+                    "index \(aiIndex) of 5 fired at x=\(x)"
+                )
+            }
+            for aiIndex in 0 ..< 4 {
+                XCTAssertFalse(
+                    AITabHitTest.isAITab(x: x, barWidth: 402, tabCount: 4, aiIndex: aiIndex),
+                    "index \(aiIndex) of 4 fired at x=\(x)"
+                )
+            }
+        }
     }
 }

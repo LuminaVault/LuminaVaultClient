@@ -20,6 +20,7 @@ struct BrainTabView: View {
     }
 
     @Environment(\.lvPalette) private var palette
+    @Environment(AppState.self) private var appState
 
     private static let initialGraphLimit = 200
     private static let edgeKindOrder: [MemoryEdgeKindDTO] = [.wikilink, .tag, .space, .semantic, .temporal]
@@ -295,6 +296,9 @@ struct BrainTabView: View {
         Task {
             let explained = await reasoningViewModel.selectNode(id)
             if explained {
+                // The answer can land after a long-press on the AI tab has opened
+                // the Quick Assistant card, and the sheet would open over it.
+                appState.sheetRequestToken += 1
                 showReasoning = true
             }
         }
