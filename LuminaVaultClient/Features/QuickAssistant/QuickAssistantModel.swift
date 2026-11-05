@@ -83,6 +83,9 @@ final class QuickAssistantModel {
     private(set) var actionErrors: [UUID: String] = [:]
     /// Actions with a confirm / cancel in flight (disables double taps).
     private(set) var resolving: Set<UUID> = []
+    /// What the user can do about a failed turn, as chat offers it: the
+    /// server's `cta` for a free account out of messages, an upgrade for a 402.
+    private(set) var recoveryActions: [ChatRecoveryAction] = []
     /// Called once when a turn ends cleanly with an `openScreen` that goes somewhere
     /// and nothing left to answer. The shell closes the card and routes.
     var onOpenScreen: ((QuickAssistantRoute) -> Void)?
@@ -139,6 +142,7 @@ final class QuickAssistantModel {
         heldScreenSummary = nil
         resolutions = [:]
         actionErrors = [:]
+        recoveryActions = []
 
         let decision = QuickAssistantGate.evaluate(
             profile: settings.profile,
@@ -216,6 +220,7 @@ final class QuickAssistantModel {
                 phase = .failed(QuickAssistantGate.cutOffMessage)
                 return
             }
+            recoveryActions = Self.recoveryActions(for: error)
             phase = .failed(Self.message(for: error))
         }
     }
@@ -256,6 +261,7 @@ final class QuickAssistantModel {
         case let .error(message):
             return message
         case let .errorDetail(detail):
+            recoveryActions = detail.cta.compactMap(ChatRecoveryAction.init(ctaToken:))
             return detail.message
         default:
             break // sources, routing, usage, follow-ups, unrecognized: not for this card
@@ -336,23 +342,58 @@ final class QuickAssistantModel {
         resolutions = [:]
         actionErrors = [:]
         resolving = []
+        recoveryActions = []
         conversationID = nil
         phase = .idle
     }
 
     // MARK: - Messages
 
+    static let noVaultAIMessage =
+        "You don't have AI access in this vault. Switch to your own vault, or ask the vault's owner."
+    static let noWriteAccessMessage = "You don't have access to make this change in this vault."
+
+    /// A 403 without a machine code is the vault gate, whose raw text ("vault AI
+    /// access required") is not for people. One with a code (`byok_keys_required`)
+    /// carries readable copy and its own recovery actions.
     private static func message(for error: any Error) -> String {
-        (error as? LocalizedError)?.errorDescription ?? "Something went wrong. Try again."
+        if let apiError = error as? APIError {
+            if case let .httpError(403, data) = apiError,
+               StructuredAPIError.parse(from: data)?.code.isEmpty != false
+            {
+                return noVaultAIMessage
+            }
+            if case let .paymentRequired(_, tier) = apiError {
+                return planMessage(tier, doing: "Quick Assistant needs")
+            }
+            return apiError.userFacingMessage
+        }
+        return (error as? LocalizedError)?.errorDescription ?? "Something went wrong. Try again."
+    }
+
+    private static func recoveryActions(for error: any Error) -> [ChatRecoveryAction] {
+        guard let apiError = error as? APIError else { return [] }
+        if case .paymentRequired = apiError { return [.upgrade] }
+        return apiError.chatRecoveryActions
+    }
+
+    private static func planMessage(_ tier: UserTier?, doing lead: String) -> String {
+        if let tier { return "\(lead) the \(tier.rawValue.capitalized) plan." }
+        return "\(lead) an upgraded plan."
     }
 
     private static func actionMessage(for error: any Error) -> String {
-        if case let APIError.httpError(statusCode, _) = error, statusCode == 404 {
+        switch error {
+        case APIError.httpError(404, _):
             return "This request is no longer available."
-        }
-        if case APIError.networkFailure = error {
+        case APIError.httpError(403, _):
+            return noWriteAccessMessage
+        case let APIError.paymentRequired(_, tier):
+            return planMessage(tier, doing: "Confirming this needs")
+        case APIError.networkFailure:
             return "Couldn't reach Lumina. Check your connection and try again."
+        default:
+            return (error as? LocalizedError)?.errorDescription ?? "Something went wrong. Try again."
         }
-        return message(for: error)
     }
 }

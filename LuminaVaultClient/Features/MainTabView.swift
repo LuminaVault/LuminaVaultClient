@@ -469,6 +469,20 @@ struct MainTabView: View {
         }
     }
 
+    /// A failed turn's recovery button, as chat's error row offers it. Settings
+    /// is where an API key is added, the same place chat sends the user.
+    private func openRecoveryFromQuickAssistant(_ action: ChatRecoveryAction) {
+        closeQuickAssistant()
+        Task { @MainActor in
+            switch action {
+            case .upgrade:
+                appState.pendingPaywallID = PaywallPresentation(id: "default")
+            case .addKey, .switchToManaged:
+                showSettings = true
+            }
+        }
+    }
+
     private func closeQuickAssistant() {
         quickAssistant?.close()
         quickAssistant = nil
@@ -484,7 +498,8 @@ struct MainTabView: View {
                         closeQuickAssistant()
                         appState.openChat(conversationID: conversationID)
                     },
-                    onRoute: openFromQuickAssistant
+                    onRoute: openFromQuickAssistant,
+                    onRecovery: openRecoveryFromQuickAssistant
                 )
                 .transition(.opacity)
             }
@@ -870,8 +885,10 @@ struct MainTabView: View {
 
 /// What closes the Quick Assistant card without a touch. Touches cannot reach
 /// what is behind it, so anything opening a sheet while it is up got there
-/// another way: a push or link, a hardware-keyboard shortcut, or a 402 answering
-/// a request in flight. A chat being opened is here because it would land
+/// another way: a push or link, a hardware-keyboard shortcut, or the root
+/// paywall raised by a 402 on some other request still in flight. The card's
+/// own requests never raise it: their 402 shows in the card, with an Upgrade
+/// button the user taps. A chat being opened is here because it would land
 /// behind the card.
 private struct QuickAssistantCloseTriggers: ViewModifier {
     let isSheetRequested: Bool

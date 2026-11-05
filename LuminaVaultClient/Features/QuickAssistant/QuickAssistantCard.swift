@@ -112,6 +112,9 @@ struct QuickAssistantCard: View {
     let onOpenChat: (UUID) -> Void
     /// Carries out an action's route. The shell closes the card first.
     let onRoute: (QuickAssistantRoute) -> Void
+    /// A failed turn's recovery button (Upgrade, Add API key). The shell
+    /// closes the card and opens the paywall or Settings.
+    var onRecovery: (ChatRecoveryAction) -> Void = { _ in }
 
     @Environment(\.lvPalette) private var palette
     @State private var text = ""
@@ -246,8 +249,11 @@ struct QuickAssistantCard: View {
                 if model.reply.isEmpty {
                     thinking
                 }
-            case let .blocked(message), let .failed(message):
+            case let .blocked(message):
                 statusText(message)
+            case let .failed(message):
+                statusText(message)
+                recoveryButtons
             }
             QuickAssistantActions(model: model, onRoute: onRoute)
         }
@@ -265,6 +271,36 @@ struct QuickAssistantCard: View {
 
     private var formattedReply: AttributedString {
         QuickAssistantReplyText.attributed(model.reply)
+    }
+
+    /// Chat's recovery actions the card can carry out. "Use managed brain" is
+    /// not offered here: chat switches it in place, and the card has no client
+    /// for that. Settings, behind Add API key, has the same switch.
+    @ViewBuilder
+    private var recoveryButtons: some View {
+        let actions = model.recoveryActions
+        if actions.contains(.upgrade) || actions.contains(.addKey) {
+            HStack(spacing: LVSpacing.md) {
+                if actions.contains(.upgrade) {
+                    recoveryButton("Upgrade", .upgrade)
+                }
+                if actions.contains(.addKey) {
+                    recoveryButton("Add API key", .addKey)
+                }
+            }
+        }
+    }
+
+    private func recoveryButton(_ title: String, _ action: ChatRecoveryAction) -> some View {
+        Button { onRecovery(action) } label: {
+            Text(title)
+                .lvFont(.footnote)
+                .fontWeight(.semibold)
+                .foregroundStyle(palette.glowPrimary)
+                .frame(minHeight: LVSize.tapTarget)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
     }
 
     private var thinking: some View {

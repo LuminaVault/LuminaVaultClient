@@ -281,6 +281,70 @@ final class QuickAssistantModelTests: XCTestCase {
         XCTAssertEqual(model.resolutions[action.id]?.message, "That request expired.")
     }
 
+    // MARK: - Refusals the user can act on
+
+    func testOutOfMessagesFrameOffersChatsRecoveryActions() async {
+        let detail = StreamErrorDTO(
+            message: "You've used today's free messages.",
+            code: "free_lane_exhausted",
+            cta: ["upgrade", "add_key", "something_new"]
+        )
+        stub.script = [.errorDetail(detail)]
+        await send()
+        XCTAssertEqual(model.phase, .failed("You've used today's free messages."))
+        XCTAssertEqual(model.recoveryActions, [.upgrade, .addKey])
+        // The next send starts clean.
+        stub.script = [.token("ok"), .done]
+        await send()
+        XCTAssertEqual(model.recoveryActions, [])
+    }
+
+    func testOutOfMessagesEnvelopeOffersChatsRecoveryActions() async {
+        let body = Data(#"{"error":{"code":"free_lane_exhausted","message":"You've used today's free messages.","cta":["upgrade","add_key"]}}"#.utf8)
+        stub.scriptError = APIError.httpError(statusCode: 429, data: body)
+        await send()
+        XCTAssertEqual(model.phase, .failed("You've used today's free messages."))
+        XCTAssertEqual(model.recoveryActions, [.upgrade, .addKey])
+    }
+
+    func testStreamForbiddenByTheVaultIsReadable() async {
+        let body = Data(#"{"error":{"message":"vault AI access required"}}"#.utf8)
+        stub.scriptError = APIError.httpError(statusCode: 403, data: body)
+        await send()
+        XCTAssertEqual(model.phase, .failed(QuickAssistantModel.noVaultAIMessage))
+        XCTAssertEqual(model.recoveryActions, [])
+    }
+
+    func testStreamForbiddenWithACodeKeepsTheServersCopyAndActions() async {
+        let body = Data(#"{"error":{"code":"byok_keys_required","message":"Add an API key to use your own models."}}"#.utf8)
+        stub.scriptError = APIError.httpError(statusCode: 403, data: body)
+        await send()
+        XCTAssertEqual(model.phase, .failed("Add an API key to use your own models."))
+        XCTAssertEqual(model.recoveryActions, [.addKey, .switchToManaged])
+    }
+
+    func testStreamPaymentRequiredIsReadableAndOffersUpgrade() async {
+        stub.scriptError = APIError.paymentRequired(paywallID: nil, requiredTier: .pro)
+        await send()
+        XCTAssertEqual(model.phase, .failed("Quick Assistant needs the Pro plan."))
+        XCTAssertEqual(model.recoveryActions, [.upgrade])
+    }
+
+    func testConfirmForbiddenIsReadable() async {
+        let action = confirmAction()
+        let body = Data(#"{"error":{"message":"vault write access required"}}"#.utf8)
+        actionsStub.confirmResult = .failure(APIError.httpError(statusCode: 403, data: body))
+        await model.confirm(action)
+        XCTAssertEqual(model.actionErrors[action.id], QuickAssistantModel.noWriteAccessMessage)
+    }
+
+    func testConfirmPaymentRequiredIsReadable() async {
+        let action = confirmAction()
+        actionsStub.confirmResult = .failure(APIError.paymentRequired(paywallID: nil, requiredTier: nil))
+        await model.confirm(action)
+        XCTAssertEqual(model.actionErrors[action.id], "Confirming this needs an upgraded plan.")
+    }
+
     // MARK: - Reply text
 
     func testReplyKeepsInlineStyleButNoLinks() {
