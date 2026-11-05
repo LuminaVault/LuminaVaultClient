@@ -46,7 +46,11 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
-    runs-on: macos-15
+    # Same Xcode as the tests in ci.yml. `latest-stable` here resolved to 26.3:
+    # builds up to 166 shipped from a compiler CI never tested with, and that
+    # build crashed after the splash from an `async let` abort that 26.4.1 does
+    # not reproduce.
+    runs-on: macos-26
     timeout-minutes: 60
     env:
       LANG: en_US.UTF-8
@@ -75,10 +79,10 @@ jobs:
           # Empty on workflow_dispatch, where checkout falls back to the ref.
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Select latest stable Xcode
+      - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "26.4"
 
       - uses: ruby/setup-ruby@v1
         with:

@@ -29,14 +29,31 @@ final class TeamSpacesViewModel {
         vaults.first { $0.id == selectedVaultID } ?? vaults.first(where: \.isPersonal)
     }
 
+    private enum LoadedSpaces: Sendable {
+        case teams([TeamSpaceSummary])
+        case vaults([SharedVaultSummary])
+    }
+
+    private enum LoadedRoster: Sendable {
+        case members([VaultMemberSummary])
+        case invitations([TeamInvitationSummary])
+    }
+
     func load() async {
         isLoading = true
         defer { isLoading = false }
         do {
-            async let loadedTeams = client.teams()
-            async let loadedVaults = client.vaults()
-            teams = try await loadedTeams
-            vaults = try await loadedVaults
+            // A task group, not `async let`: see HomeGlanceViewModel.load().
+            try await withThrowingTaskGroup(of: LoadedSpaces.self) { group in
+                group.addTask { .teams(try await self.client.teams()) }
+                group.addTask { .vaults(try await self.client.vaults()) }
+                for try await item in group {
+                    switch item {
+                    case .teams(let value): teams = value
+                    case .vaults(let value): vaults = value
+                    }
+                }
+            }
             await store.restore(for: userIDProvider())
             let stored = await store.selectedVaultID()
             let chosen = vaults.contains(where: { $0.id == stored }) ? stored : vaults.first(where: \.isPersonal)?.id
@@ -72,10 +89,18 @@ final class TeamSpacesViewModel {
             return
         }
         do {
-            async let loadedMembers = client.members(vaultID: vault.id)
-            async let loadedInvitations = client.invitations(teamID: teamID)
-            members = try await loadedMembers
-            invitations = try await loadedInvitations
+            // A task group, not `async let`: see HomeGlanceViewModel.load().
+            let vaultID = vault.id
+            try await withThrowingTaskGroup(of: LoadedRoster.self) { group in
+                group.addTask { .members(try await self.client.members(vaultID: vaultID)) }
+                group.addTask { .invitations(try await self.client.invitations(teamID: teamID)) }
+                for try await item in group {
+                    switch item {
+                    case .members(let value): members = value
+                    case .invitations(let value): invitations = value
+                    }
+                }
+            }
         } catch { errorMessage = error.localizedDescription }
     }
 

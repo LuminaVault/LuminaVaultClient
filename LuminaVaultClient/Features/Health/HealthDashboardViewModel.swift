@@ -48,17 +48,19 @@ final class HealthDashboardViewModel {
         permissionState = await permissionProbe()
 
         do {
-            async let sleep = endpointsExecutor.daily(type: HealthMetric.sleep.serverType, days: days)
-            async let heartRate = endpointsExecutor.daily(type: HealthMetric.heartRate.serverType, days: days)
-            async let hrv = endpointsExecutor.daily(type: HealthMetric.hrv.serverType, days: days)
-            async let steps = endpointsExecutor.daily(type: HealthMetric.steps.serverType, days: days)
-            let (s, h, v, st) = try await (sleep, heartRate, hrv, steps)
-            aggregates = [
-                s.type: s,
-                h.type: h,
-                v.type: v,
-                st.type: st,
-            ]
+            let executor = endpointsExecutor
+            let types = [HealthMetric.sleep, .heartRate, .hrv, .steps].map(\.serverType)
+            // A task group, not `async let`: see HomeGlanceViewModel.load().
+            aggregates = try await withThrowingTaskGroup(of: HealthDailyResponse.self) { group in
+                for type in types {
+                    group.addTask { try await executor.daily(type: type, days: days) }
+                }
+                var loaded: [String: HealthDailyResponse] = [:]
+                for try await aggregate in group {
+                    loaded[aggregate.type] = aggregate
+                }
+                return loaded
+            }
             loadState = .loaded
         } catch {
             loadState = .failed(error.localizedDescription)
