@@ -39,21 +39,49 @@ final class PluginStoreViewModel {
         self.client = client
     }
 
+    private enum Loaded: Sendable {
+        case catalog(PluginCatalogListResponse)
+        case installs(PluginInstallsListResponse)
+        case hermes(PluginCatalogListResponse?)
+        case featured(PluginCatalogListResponse?)
+        case premium(PluginCatalogListResponse?)
+        case marketplace(MarketplaceListResponse?)
+    }
+
     func load() async {
         state = .loading
         do {
-            async let catalogTask = client.catalog(category: nil)
-            async let installsTask = client.installs()
-            // Best-effort: Hermes may be unreachable; show an empty section
-            // rather than failing the whole store.
-            async let hermesTask = try? client.hermesSkills()
-            // Curation (best-effort): empty/unbadged if these fail.
-            async let featuredTask = try? client.featuredPlugins()
-            async let premiumTask = try? client.premiumPlugins()
-            async let marketplaceTask = try? client.marketplace(query: nil, category: nil)
-            let (catalog, installs, hermes, featured, premium, marketplace) = try await (
-                catalogTask, installsTask, hermesTask, featuredTask, premiumTask, marketplaceTask
-            )
+            var loadedCatalog: PluginCatalogListResponse?
+            var loadedInstalls: PluginInstallsListResponse?
+            var hermes: PluginCatalogListResponse?
+            var featured: PluginCatalogListResponse?
+            var premium: PluginCatalogListResponse?
+            var marketplace: MarketplaceListResponse?
+            // A task group, not `async let`: see HomeGlanceViewModel.load().
+            try await withThrowingTaskGroup(of: Loaded.self) { group in
+                group.addTask { @MainActor in .catalog(try await self.client.catalog(category: nil)) }
+                group.addTask { @MainActor in .installs(try await self.client.installs()) }
+                // Best-effort: Hermes may be unreachable; show an empty section
+                // rather than failing the whole store.
+                group.addTask { @MainActor in .hermes(try? await self.client.hermesSkills()) }
+                // Curation (best-effort): empty/unbadged if these fail.
+                group.addTask { @MainActor in .featured(try? await self.client.featuredPlugins()) }
+                group.addTask { @MainActor in .premium(try? await self.client.premiumPlugins()) }
+                group.addTask { @MainActor in
+                    .marketplace(try? await self.client.marketplace(query: nil, category: nil))
+                }
+                for try await item in group {
+                    switch item {
+                    case .catalog(let value): loadedCatalog = value
+                    case .installs(let value): loadedInstalls = value
+                    case .hermes(let value): hermes = value
+                    case .featured(let value): featured = value
+                    case .premium(let value): premium = value
+                    case .marketplace(let value): marketplace = value
+                    }
+                }
+            }
+            guard let catalog = loadedCatalog, let installs = loadedInstalls else { return }
             let bySlug = Dictionary(installs.items.map { ($0.pluginSlug, $0) }, uniquingKeysWith: { first, _ in first })
             self.featured = featured?.items ?? []
             premiumSlugs = Set((premium?.items ?? []).map(\.slug))
