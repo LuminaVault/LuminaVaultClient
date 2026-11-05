@@ -328,35 +328,197 @@ final class QuickAssistantModelTests: XCTestCase {
         XCTAssertNil(model.conversationID)
         XCTAssertEqual(stub.streamRequests.count, 0)
     }
+
+    // MARK: - Fix round 1
+
+    func testBlockedMessagesAreDistinctAndNameSettings() async {
+        settings.profile = .private
+        await send()
+        let privateMsg = model.phase
+        settings.profile = .balanced
+        settings.cloudFallbackEnabled = false
+        await send()
+        let balancedMsg = model.phase
+        settings.cloudFallbackEnabled = true
+        online = false
+        await send()
+        let offlineMsg = model.phase
+        let all = [privateMsg, balancedMsg, offlineMsg]
+        XCTAssertEqual(Set(all.map { "\($0)" }).count, 3)
+        for case let .blocked(text) in all.dropLast() {
+            XCTAssertTrue(text.contains("Settings"), text)
+        }
+        if case let .blocked(text) = privateMsg { XCTAssertTrue(text.contains("Execution profile")) }
+        if case let .blocked(text) = balancedMsg { XCTAssertTrue(text.contains("Allow cloud fallback")) }
+    }
+
+    func testBlockedSendClearsStaleCards() async {
+        stub.script = [.token("old"), .assistantAction(confirmAction()), .done]
+        await send()
+        let stale = model.actions[0]
+        actionsStub.confirmResult = .success(.init(status: .confirmed, message: "Done."))
+        await model.confirm(stale)
+        XCTAssertFalse(model.resolutions.isEmpty)
+        settings.profile = .private
+        await send()
+        XCTAssertTrue(isBlocked(model.phase))
+        XCTAssertEqual(model.reply, "")
+        XCTAssertTrue(model.actions.isEmpty)
+        XCTAssertTrue(model.resolutions.isEmpty)
+    }
+
+    func testSecondConfirmAfterResultSendsNothing() async {
+        let action = confirmAction()
+        await model.confirm(action)
+        await model.confirm(action)
+        await model.cancel(action)
+        XCTAssertEqual(actionsStub.confirmed.count, 1)
+        XCTAssertTrue(actionsStub.cancelled.isEmpty)
+    }
+
+    func testEmptyStreamFailsWithDidntAnswer() async {
+        stub.script = [.done]
+        await send(viaVoice: true)
+        XCTAssertEqual(model.phase, .failed("Lumina didn't answer. Try again."))
+        XCTAssertTrue(speech.spoken.isEmpty)
+    }
+
+    func testStreamClosedWithoutDoneKeepsTextFailsAndIsNotSpoken() async {
+        stub.script = [.token("part")]
+        await send(viaVoice: true)
+        XCTAssertEqual(model.reply, "part")
+        guard case .failed = model.phase else { return XCTFail("expected failed, got \(model.phase)") }
+        XCTAssertTrue(speech.spoken.isEmpty)
+    }
+
+    func testThrownErrorMidStreamKeepsTextAndRetryReusesConversation() async {
+        stub.script = [.token("part")]
+        stub.scriptError = APIError.networkFailure(URLError(.networkConnectionLost))
+        await send(viaVoice: true)
+        XCTAssertEqual(model.reply, "part")
+        guard case .failed = model.phase else { return XCTFail("expected failed, got \(model.phase)") }
+        XCTAssertTrue(speech.spoken.isEmpty)
+        let id = model.conversationID
+        XCTAssertNotNil(id)
+        stub.scriptError = nil
+        stub.script = [.token("whole"), .done]
+        await send()
+        XCTAssertEqual(model.phase, .idle)
+        XCTAssertEqual(model.conversationID, id)
+        XCTAssertEqual(stub.createCount, 1)
+    }
+
+    func testCreateFailureFailsAndRetryCreates() async {
+        stub.failNextCreate(with: APIError.networkFailure(URLError(.notConnectedToInternet)))
+        await send()
+        guard case .failed = model.phase else { return XCTFail("expected failed, got \(model.phase)") }
+        XCTAssertNil(model.conversationID)
+        XCTAssertEqual(stub.streamRequests.count, 0)
+        stub.script = [.token("ok"), .done]
+        await send()
+        XCTAssertEqual(model.phase, .idle)
+        XCTAssertEqual(stub.createCount, 2)
+        XCTAssertNotNil(model.conversationID)
+    }
+
+    func testResetCancelsHeldStreamWithoutFailure() async {
+        stub.holdStream = true
+        let task = Task { await send(viaVoice: true) }
+        await waitUntil { self.stub.streamRequests.count == 1 }
+        model.reset()
+        await waitUntil { self.stub.streamTerminated }
+        await task.value
+        XCTAssertEqual(model.phase, .idle)
+        XCTAssertEqual(model.reply, "")
+        XCTAssertTrue(speech.spoken.isEmpty)
+    }
+
+    func testCancellationErrorEndsIdleWithoutFailure() async {
+        stub.script = [.token("x")]
+        stub.scriptError = APIError.networkFailure(URLError(.cancelled))
+        await send(viaVoice: true)
+        XCTAssertEqual(model.phase, .idle)
+        XCTAssertTrue(speech.spoken.isEmpty)
+    }
 }
 
 // MARK: - Stubs
 
 private final class StubConversations: ConversationsClientProtocol, @unchecked Sendable {
+    // Every field lives behind the lock: the model calls in from the main
+    // actor, the stream callbacks and test helpers from elsewhere.
     private struct State {
+        var script: [QueryStreamEvent] = []
+        var scriptError: (any Error)?
+        var holdStream = false
+        var holdCreate = false
+        var createErrors: [any Error] = []
         var createCount = 0
         var requests: [MessageStreamRequest] = []
         var continuation: AsyncThrowingStream<QueryStreamEvent, any Error>.Continuation?
+        var terminated = false
         var createGate: CheckedContinuation<Void, Never>?
+        var createReleased = false
     }
 
     private let state = OSAllocatedUnfairLock(initialState: State())
-    var script: [QueryStreamEvent] = []
-    var holdStream = false
-    var holdCreate = false
 
+    var script: [QueryStreamEvent] {
+        get { state.withLock { $0.script } }
+        set { state.withLock { $0.script = newValue } }
+    }
+
+    /// Thrown after the scripted events instead of finishing cleanly.
+    var scriptError: (any Error)? {
+        get { state.withLock { $0.scriptError } }
+        set { state.withLock { $0.scriptError = newValue } }
+    }
+
+    var holdStream: Bool {
+        get { state.withLock { $0.holdStream } }
+        set { state.withLock { $0.holdStream = newValue } }
+    }
+
+    var holdCreate: Bool {
+        get { state.withLock { $0.holdCreate } }
+        set { state.withLock { $0.holdCreate = newValue } }
+    }
+
+    func failNextCreate(with error: any Error) { state.withLock { $0.createErrors.append(error) } }
     var createCount: Int { state.withLock { $0.createCount } }
     var streamRequests: [MessageStreamRequest] { state.withLock { $0.requests } }
+    var streamTerminated: Bool { state.withLock { $0.terminated } }
 
     func emit(_ event: QueryStreamEvent) { _ = state.withLock { $0.continuation }?.yield(event) }
     func finish() { state.withLock { $0.continuation }?.finish() }
-    func releaseCreate() { state.withLock { $0.createGate }?.resume() }
+
+    /// A latch, not a signal: safe whether it runs before or after `create`
+    /// has parked its continuation.
+    func releaseCreate() {
+        let gate = state.withLock { s -> CheckedContinuation<Void, Never>? in
+            s.createReleased = true
+            defer { s.createGate = nil }
+            return s.createGate
+        }
+        gate?.resume()
+    }
 
     func create(_: ConversationCreateRequest) async throws -> ConversationDTO {
-        state.withLock { $0.createCount += 1 }
-        if holdCreate {
-            await withCheckedContinuation { cont in state.withLock { $0.createGate = cont } }
+        let (hold, error) = state.withLock { s -> (Bool, (any Error)?) in
+            s.createCount += 1
+            return (s.holdCreate, s.createErrors.isEmpty ? nil : s.createErrors.removeFirst())
         }
+        if hold {
+            await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                let releasedAlready = state.withLock { s -> Bool in
+                    if s.createReleased { return true }
+                    s.createGate = cont
+                    return false
+                }
+                if releasedAlready { cont.resume() }
+            }
+        }
+        if let error { throw error }
         return ConversationDTO(id: UUID(), title: "", createdAt: Date(), updatedAt: Date())
     }
 
@@ -365,17 +527,20 @@ private final class StubConversations: ConversationsClientProtocol, @unchecked S
     func delete(_: UUID) async throws {}
 
     func streamReply(conversationID _: UUID, request: MessageStreamRequest) -> AsyncThrowingStream<QueryStreamEvent, any Error> {
-        state.withLock { $0.requests.append(request) }
-        let hold = holdStream
-        let events = script
-        return AsyncThrowingStream { cont in
+        let (hold, events, failure) = state.withLock { ($0.holdStream, $0.script, $0.scriptError) }
+        let stream = AsyncThrowingStream<QueryStreamEvent, any Error> { cont in
             if hold {
+                cont.onTermination = { [state] _ in state.withLock { $0.terminated = true } }
                 state.withLock { $0.continuation = cont }
             } else {
                 for e in events { cont.yield(e) }
-                cont.finish()
+                if let failure { cont.finish(throwing: failure) } else { cont.finish() }
             }
         }
+        // Recorded after the continuation is stored, so a test that waits on
+        // the request count can emit straight away.
+        state.withLock { $0.requests.append(request) }
+        return stream
     }
 }
 

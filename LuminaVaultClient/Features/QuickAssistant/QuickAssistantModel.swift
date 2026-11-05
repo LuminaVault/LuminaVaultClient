@@ -45,13 +45,24 @@ enum QuickAssistantGate {
                 cloudFallbackEnabled: cloudFallbackEnabled
             )
         )
-        // Offline is the actionable reason; the coordinator's wording blames
-        // the fallback switch. Private keeps its own message.
-        if case .unavailable = decision, !online, profile != .private {
-            return .unavailable("You're offline. Quick Assistant needs a connection.")
-        }
+        // The coordinator's wording is written for chat. Each case here says
+        // what the card needs and names the Settings control that fixes it
+        // (Settings > Intelligence > Hybrid execution).
+        guard case .unavailable = decision else { return decision }
+        if profile == .private { return .unavailable(privateMessage) }
+        if !online { return .unavailable(offlineMessage) }
+        if profile == .balanced, !cloudFallbackEnabled { return .unavailable(balancedMessage) }
         return decision
     }
+
+    static let privateMessage =
+        "Your Execution profile is Private, so nothing is sent to Lumina. To use Quick Assistant, switch it to Balanced or Quality in Settings > Intelligence."
+    static let balancedMessage =
+        "Quick Assistant needs the cloud. Turn on Allow cloud fallback in Settings > Intelligence, or switch the Execution profile to Quality."
+    static let offlineMessage =
+        "You're offline. Quick Assistant needs a connection."
+    static let emptyReplyMessage = "Lumina didn't answer. Try again."
+    static let cutOffMessage = "The reply was cut off. Try again."
 }
 
 @Observable
@@ -75,6 +86,7 @@ final class QuickAssistantModel {
     private let synthesizer: any SpeechSynthesizing
     private let isOnline: @MainActor () -> Bool
     private var generation = 0
+    private var streamTask: Task<Void, Never>?
 
     init(
         conversations: any ConversationsClientProtocol,
@@ -96,6 +108,14 @@ final class QuickAssistantModel {
         let content = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty, phase != .sending else { return }
 
+        // Clear first so a blocked turn never shows the previous turn's cards.
+        synthesizer.stop()
+        reply = ""
+        actions = []
+        pendingScreen = nil
+        resolutions = [:]
+        actionErrors = [:]
+
         let decision = QuickAssistantGate.evaluate(
             profile: settings.profile,
             cloudFallbackEnabled: settings.cloudFallbackEnabled,
@@ -114,39 +134,56 @@ final class QuickAssistantModel {
             break
         }
 
-        synthesizer.stop()
-        reply = ""
-        actions = []
-        pendingScreen = nil
-        resolutions = [:]
-        actionErrors = [:]
         phase = .sending
         let gen = generation
+        // Held so `reset()` can cancel it: dismissing the card closes the
+        // connection even when the server never answers.
+        let task = Task { await self.stream(content, viaVoice: viaVoice, currentTab: currentTab, activeSpaceID: activeSpaceID, gen: gen) }
+        streamTask = task
+        await task.value
+        if gen == generation { streamTask = nil }
+    }
 
+    private func stream(_ content: String, viaVoice: Bool, currentTab: String, activeSpaceID: UUID?, gen: Int) async {
         do {
             let id = try await ensureConversation()
             guard gen == generation else { return }
-            let stream = conversations.streamReply(
+            let events = conversations.streamReply(
                 conversationID: id,
                 request: MessageStreamRequest(
                     content: content,
                     quickAssistant: QuickAssistantContextDTO(currentTab: currentTab, activeSpaceID: activeSpaceID)
                 )
             )
-            for try await event in stream {
-                guard gen == generation else { return }
+            var sawDone = false
+            for try await event in events {
+                guard gen == generation, !Task.isCancelled else { return endCancelled(gen) }
+                if case .done = event { sawDone = true }
                 if let failure = apply(event) {
                     phase = .failed(failure)
                     return
                 }
             }
-            guard gen == generation else { return }
-            phase = .idle
-            if viaVoice { speakReply() }
+            guard gen == generation, !Task.isCancelled else { return endCancelled(gen) }
+            // Every normal server end sends `done` or an error frame, so a
+            // close without one is a cut-off connection. Keep what arrived.
+            if reply.isEmpty, actions.isEmpty {
+                phase = .failed(QuickAssistantGate.emptyReplyMessage)
+            } else if !sawDone {
+                phase = .failed(QuickAssistantGate.cutOffMessage)
+            } else {
+                phase = .idle
+                if viaVoice { speakReply() }
+            }
         } catch {
             guard gen == generation else { return }
+            if Task.isCancelled || APIError.isBenignCancellation(error) { return endCancelled(gen) }
             phase = .failed(Self.message(for: error))
         }
+    }
+
+    private func endCancelled(_ gen: Int) {
+        if gen == generation { phase = .idle }
     }
 
     private func ensureConversation() async throws -> UUID {
@@ -208,7 +245,7 @@ final class QuickAssistantModel {
         _ action: AssistantActionDTO,
         _ call: (any AssistantActionsClientProtocol) async throws -> AssistantActionResolutionDTO
     ) async {
-        guard !resolving.contains(action.id) else { return }
+        guard !resolving.contains(action.id), resolutions[action.id] == nil else { return }
         let gen = generation
         resolving.insert(action.id)
         actionErrors[action.id] = nil
@@ -228,6 +265,8 @@ final class QuickAssistantModel {
 
     func reset() {
         generation += 1
+        streamTask?.cancel()
+        streamTask = nil
         synthesizer.stop()
         reply = ""
         actions = []
