@@ -119,6 +119,27 @@ final class QuickAssistantModelTests: XCTestCase {
         XCTAssertEqual(req?.quickAssistant?.activeSpaceID, space)
     }
 
+    func testRequestCarriesTheDevicesTimeZone() async throws {
+        let santiago = try XCTUnwrap(TimeZone(identifier: "America/Santiago"))
+        model = QuickAssistantModel(
+            conversations: stub,
+            actions: actionsStub,
+            settings: settings,
+            synthesizer: speech,
+            isOnline: { true },
+            timeZone: { santiago }
+        )
+        stub.script = [.done]
+        await send()
+        XCTAssertEqual(stub.streamRequests.first?.quickAssistant?.timeZone, "America/Santiago")
+    }
+
+    func testTimeZoneDefaultsToTheDevicesCurrentZone() async {
+        stub.script = [.done]
+        await send()
+        XCTAssertEqual(stub.streamRequests.first?.quickAssistant?.timeZone, TimeZone.current.identifier)
+    }
+
     func testCurrentTabIsPassedThroughUnmapped() async {
         stub.script = [.done]
         for tab in ["home", "workspaces", "think", "brain", "reflect"] {

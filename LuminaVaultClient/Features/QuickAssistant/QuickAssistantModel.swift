@@ -102,6 +102,8 @@ final class QuickAssistantModel {
     private let settings: HybridExecutionSettingsStore
     private let synthesizer: any SpeechSynthesizing
     private let isOnline: @MainActor () -> Bool
+    /// Read at each send, so a zone change mid-session is picked up.
+    private let timeZone: @MainActor () -> TimeZone
     private var generation = 0
     private var streamTask: Task<Void, Never>?
 
@@ -110,13 +112,15 @@ final class QuickAssistantModel {
         actions: any AssistantActionsClientProtocol,
         settings: HybridExecutionSettingsStore,
         synthesizer: any SpeechSynthesizing,
-        isOnline: @escaping @MainActor () -> Bool
+        isOnline: @escaping @MainActor () -> Bool,
+        timeZone: @escaping @MainActor () -> TimeZone = { .current }
     ) {
         self.conversations = conversations
         actionsClient = actions
         self.settings = settings
         self.synthesizer = synthesizer
         self.isOnline = isOnline
+        self.timeZone = timeZone
     }
 
     // MARK: - Send
@@ -172,7 +176,12 @@ final class QuickAssistantModel {
                 conversationID: id,
                 request: MessageStreamRequest(
                     content: content,
-                    quickAssistant: QuickAssistantContextDTO(currentTab: currentTab, activeSpaceID: activeSpaceID)
+                    quickAssistant: QuickAssistantContextDTO(
+                        currentTab: currentTab,
+                        activeSpaceID: activeSpaceID,
+                        // The server resolves "tomorrow at 9" in this zone.
+                        timeZone: timeZone().identifier
+                    )
                 )
             )
             var sawDone = false
