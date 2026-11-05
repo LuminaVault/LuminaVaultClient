@@ -82,7 +82,7 @@ final class SystemSpeechRecognizer: SpeechRecognizing, @unchecked Sendable {
         let input = audioEngine.inputNode
         let format = input.outputFormat(forBus: 0)
         input.removeTap(onBus: 0)
-        input.installTap(onBus: 0, bufferSize: 1024, format: format, block: Self.tapBlock(feeding: request))
+        Self.installTap(on: input, format: format, feeding: request)
         audioEngine.prepare()
         do {
             try audioEngine.start()
@@ -112,12 +112,15 @@ final class SystemSpeechRecognizer: SpeechRecognizing, @unchecked Sendable {
         return stream
     }
 
-    /// Audio arrives on a realtime thread. Built outside the main actor, because
-    /// a block that inherits its isolation traps the app on the first buffer.
-    private nonisolated static func tapBlock(
+    /// Audio arrives on a realtime thread. Installed outside the main actor,
+    /// because a block that inherits its isolation traps the app on the first
+    /// buffer.
+    nonisolated static func installTap(
+        on node: AVAudioNode,
+        format: AVAudioFormat?,
         feeding request: SFSpeechAudioBufferRecognitionRequest
-    ) -> AVAudioNodeTapBlock {
-        { [weak request] buffer, _ in
+    ) {
+        node.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak request] buffer, _ in
             request?.append(buffer)
         }
     }
