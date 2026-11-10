@@ -1204,9 +1204,12 @@ private struct StreamingCaret: View {
 }
 
 /// The memories an answer was grounded on. Tapping one shows the whole
-/// memory — the chip only has room for its first words.
+/// memory. The chip only has room to say where it came from.
 private struct SourceChipRow: View {
     @Environment(\.lvPalette) private var palette
+    /// A file name plus a heading has no natural length, and one chip must
+    /// not push the rest of the row off screen. Scales with the label.
+    @ScaledMetric(relativeTo: .caption2) private var chipMaxWidth: CGFloat = 220
     let sources: [QueryHitDTO]
     @State private var shown: MemoryDTO?
 
@@ -1217,10 +1220,14 @@ private struct SourceChipRow: View {
                     Button {
                         shown = MemoryDTO(id: hit.id, content: hit.content, tags: [], createdAt: hit.createdAt)
                     } label: {
-                        Text(hit.content.prefix(40))
+                        Text(SourceChipLabel.text(for: hit))
                             .lvFont(.microTag)
                             .foregroundStyle(palette.textSecondary)
                             .lineLimit(1)
+                            // Middle, as on ChatAttachmentChip: the file's
+                            // start and the heading's end both survive.
+                            .truncationMode(.middle)
+                            .frame(maxWidth: chipMaxWidth)
                             .padding(.horizontal, LVSpacing.sm)
                             .padding(.vertical, LVSpacing.xs)
                             .background(
@@ -1230,9 +1237,13 @@ private struct SourceChipRow: View {
                                 Capsule()
                                     .stroke(palette.glowPrimary.opacity(0.25), lineWidth: 1)
                             }
+                            // The capsule keeps its size; the hit region
+                            // around it grows to the HIG minimum.
+                            .frame(minHeight: LVSize.tapTarget)
+                            .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Source: \(hit.content.prefix(80))")
+                    .accessibilityLabel(SourceChipLabel.accessibilityText(for: hit))
                     .accessibilityHint("Shows the whole memory")
                 }
             }
@@ -1240,6 +1251,31 @@ private struct SourceChipRow: View {
         .sheet(item: $shown) { memory in
             MemoryWikilinkSheet(memory: memory)
         }
+    }
+}
+
+enum SourceChipLabel {
+    /// `pricing.md › Anchors` for a chunk hit, as on web. A hit without a
+    /// citation (no backing file, or rebuilt from ids after a reload) keeps
+    /// the old label, the memory's first words.
+    static func text(for hit: QueryHitDTO) -> String {
+        guard let citation = hit.citation, let path = citation.path, !path.isEmpty else {
+            return String(hit.content.prefix(40))
+        }
+        let fileName = (path as NSString).lastPathComponent
+        guard let heading = citation.headingPath.last, !heading.isEmpty else { return fileName }
+        return "\(fileName) › \(heading)"
+    }
+
+    /// What VoiceOver says. The full path and every heading, in the same
+    /// words as `SourceLinkRow`: shortening the chip is a layout decision,
+    /// not a reason to withhold where the answer came from. Falls back exactly
+    /// when the visible label does, so the two never name different things.
+    static func accessibilityText(for hit: QueryHitDTO) -> String {
+        guard let citation = hit.citation, let path = citation.path, !path.isEmpty else {
+            return "Source: \(hit.content.prefix(80))"
+        }
+        return "Source: \(citation.spokenLocation), \(citation.spokenLines)"
     }
 }
 
