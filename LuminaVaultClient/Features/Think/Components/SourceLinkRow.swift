@@ -74,13 +74,23 @@ struct SourceLinkRow: View {
     /// VoiceOver gets the full path — truncating it visually is a layout
     /// decision, not a reason to withhold where the answer came from.
     private func accessibilityLabel(for citation: MemoryCitationDTO) -> String {
-        var parts: [String] = []
-        if let path = citation.path { parts.append(path) }
-        parts.append(contentsOf: citation.headingPath)
-        let location = parts.joined(separator: ", ")
-        let lines = citation.startLine == citation.endLine
-            ? "line \(citation.startLine)"
-            : "lines \(citation.startLine) to \(citation.endLine)"
-        return location.isEmpty ? lines : "Source: \(location), \(lines)"
+        let location = citation.spokenLocation
+        return location.isEmpty ? citation.spokenLines : "Source: \(location), \(citation.spokenLines)"
+    }
+}
+
+/// How a citation is read aloud. One wording for every surface that cites a
+/// source (this row, the chat source chip), so VoiceOver never describes the
+/// same place two ways.
+extension MemoryCitationDTO {
+    /// `projects/hermes.md, Routing, Fallbacks`. Empty when the citation has
+    /// neither a path nor a heading.
+    var spokenLocation: String {
+        ([path ?? ""] + headingPath).filter { !$0.isEmpty }.joined(separator: ", ")
+    }
+
+    /// `line 40` or `lines 40 to 58`.
+    var spokenLines: String {
+        startLine == endLine ? "line \(startLine)" : "lines \(startLine) to \(endLine)"
     }
 }
