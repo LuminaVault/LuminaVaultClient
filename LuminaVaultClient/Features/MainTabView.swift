@@ -713,6 +713,11 @@ struct MainTabView: View {
         MemoryGraphHTTPClient(client: appState.makeHTTPClient())
     }
 
+    /// `GET /v1/brain/graph`. Not passed to the Brain tab yet.
+    private var brainGraphClient: BrainGraphClientProtocol {
+        BrainGraphHTTPClient(client: appState.makeHTTPClient())
+    }
+
     private var knowledgeGraphClient: KnowledgeGraphClientProtocol {
         KnowledgeGraphHTTPClient(client: appState.makeHTTPClient())
     }
