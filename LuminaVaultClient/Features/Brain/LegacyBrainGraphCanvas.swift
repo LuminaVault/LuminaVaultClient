@@ -1,4 +1,4 @@
-// LuminaVaultClient/LuminaVaultClient/Features/Brain/BrainGraphCanvas.swift
+// LuminaVaultClient/LuminaVaultClient/Features/Brain/LegacyBrainGraphCanvas.swift
 //
 // HER-235 — premium pure-SwiftUI knowledge graph. A `TimelineView` drives a
 // `Canvas` at display rate; `BrainGraphEngine` owns the force simulation,
@@ -14,8 +14,8 @@ import Foundation
 import LuminaVaultShared
 import SwiftUI
 
-struct BrainGraphCanvas: View {
-
+/// Deleted in Task 12.
+struct LegacyBrainGraphCanvas: View {
     @Environment(\.lvPalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 

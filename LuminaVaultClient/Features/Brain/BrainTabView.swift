@@ -128,7 +128,7 @@ struct BrainTabView: View {
                     }
                     .lvBackground()
                 } else {
-                    BrainGraphCanvas(graph: filtered(graph)) { id in
+                    LegacyBrainGraphCanvas(graph: filtered(graph)) { id in
                         vm.selectedNodeID = id
                     }
                     .lvBackground()
@@ -274,7 +274,7 @@ struct BrainTabView: View {
                     .id(identity)
                     .lvBackground()
             } else {
-                BrainGraphCanvas(graph: projected, onSelect: selectKnowledgeNode)
+                LegacyBrainGraphCanvas(graph: projected, onSelect: selectKnowledgeNode)
                     .id(identity)
                     .lvBackground()
             }
