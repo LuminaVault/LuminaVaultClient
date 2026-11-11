@@ -387,7 +387,51 @@ extension BrainGraphCanvasLogicTests {
             // Near the right edge: below and above run past it, right is off it.
             let edge = BrainGraphCanvasLogic.labelSpots(centre: CGPoint(x: 790, y: 300), radius: 5, text: text)
             #expect(boxes.place(edge, canvas: canvas, force: false) == nil)
-            #expect(boxes.place(edge, canvas: canvas, force: true) == edge.below)
+            let forced = boxes.place(edge, canvas: canvas, force: true)
+            #expect(forced == BrainGraphCanvasLogic.forcedSpot(edge, canvas: canvas))
+        }
+
+        @Test func aForcedLabelAtTheRightEdgeSlidesLeftOntoTheCanvas() {
+            let edge = BrainGraphCanvasLogic.labelSpots(centre: CGPoint(x: 790, y: 300), radius: 5, text: text)
+            let spot = BrainGraphCanvasLogic.forcedSpot(edge, canvas: canvas)
+            #expect(spot.rect.maxX == canvas.width)
+            #expect(spot.rect.minY == edge.below.rect.minY)
+            #expect(spot.rect.size == edge.below.rect.size)
+            // The text moves with its plate.
+            #expect(spot.text.x - spot.rect.midX == edge.below.text.x - edge.below.rect.midX)
+            #expect(spot.text.y == edge.below.text.y)
+        }
+
+        @Test func aForcedLabelAtTheLeftEdgeSlidesRight() {
+            let edge = BrainGraphCanvasLogic.labelSpots(centre: CGPoint(x: 3, y: 300), radius: 5, text: text)
+            #expect(BrainGraphCanvasLogic.forcedSpot(edge, canvas: canvas).rect.minX == 0)
+        }
+
+        @Test func aForcedLabelAtTheBottomFlipsAbove() {
+            let edge = BrainGraphCanvasLogic.labelSpots(centre: CGPoint(x: 400, y: 595), radius: 5, text: text)
+            let spot = BrainGraphCanvasLogic.forcedSpot(edge, canvas: canvas)
+            #expect(spot == edge.above)
+        }
+
+        @Test func aForcedLabelInACornerStaysWhollyOnTheCanvas() {
+            let corner = BrainGraphCanvasLogic.labelSpots(centre: CGPoint(x: 799, y: 599), radius: 5, text: text)
+            let rect = BrainGraphCanvasLogic.forcedSpot(corner, canvas: canvas).rect
+            #expect(CGRect(origin: .zero, size: canvas).contains(rect))
+        }
+
+        @Test func aForcedLabelWiderThanTheCanvasStartsAtTheLeftEdge() {
+            let wide = BrainGraphCanvasLogic.labelSpots(
+                centre: CGPoint(x: 400, y: 300), radius: 5, text: CGSize(width: 900, height: 11)
+            )
+            #expect(BrainGraphCanvasLogic.forcedSpot(wide, canvas: canvas).rect.minX == 0)
+        }
+
+        @Test func truncateToFitCutsByAverageCharacterWidthAndLeavesFittingLabels() {
+            let label = String(repeating: "x", count: 20)
+            #expect(BrainGraphCanvasLogic.truncateLabel(label, toFit: 200, measuredWidth: 100) == label)
+            // 20 characters at 10 pt each into 100 pt: 9 characters and an ellipsis.
+            let cut = BrainGraphCanvasLogic.truncateLabel(label, toFit: 100, measuredWidth: 200)
+            #expect(cut == String(repeating: "x", count: 9) + "…")
         }
 
         @Test func boxesRefuseAnOverlapAcrossGridCells() {

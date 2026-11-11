@@ -313,7 +313,13 @@ enum BrainCanvasPainter {
             guard p.x.isFinite, p.y.isFinite else { return }
             let c = v.screen(p)
             let r = screenR(i)
-            let (text, textSize) = scratch.text(scene.text[i], in: context, colour: theme.label, typeSize: f.typeSize)
+            var (text, textSize) = scratch.text(scene.text[i], in: context, colour: theme.label, typeSize: f.typeSize)
+            // A forced label must fit the canvas: cut one wider than it.
+            let room = size.width - BrainGraphCanvasLogic.labelSidePadding * 2
+            if force, textSize.width > room {
+                let cut = BrainGraphCanvasLogic.truncateLabel(scene.text[i], toFit: room, measuredWidth: textSize.width)
+                (text, textSize) = scratch.text(cut, in: context, colour: theme.label, typeSize: f.typeSize)
+            }
             if BrainGraphCanvasLogic.labelOffscreen(centre: c, radius: r, text: textSize, canvas: size) { return }
             let spots = BrainGraphCanvasLogic.labelSpots(centre: c, radius: r, text: textSize)
             guard let at = scratch.boxes.place(spots, canvas: size, force: force) else { return }

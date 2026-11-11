@@ -142,10 +142,27 @@ nonisolated final class BrainGraph2DSnapshotTests: XCTestCase {
         window.makeKeyAndVisible()
         defer { window.isHidden = true }
 
-        // A fresh 25-point graph settles in well under two seconds of frames.
-        try await Task.sleep(for: .seconds(3))
-        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
-            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        // Poll until the layout has drawn the graph, rather than sleeping a
+        // fixed time: a fresh 25-point graph settles in about a second.
+        func capture() -> UIImage {
+            UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+        }
+        let deadline = Date.now.addingTimeInterval(15)
+        var image = capture()
+        while try distinctColours(image) <= 4, Date.now < deadline {
+            try await Task.sleep(for: .milliseconds(100))
+            image = capture()
+        }
+        // Then until it is at rest: two captures alike.
+        var previous = image.pngData()
+        while Date.now < deadline {
+            try await Task.sleep(for: .milliseconds(200))
+            image = capture()
+            let now = image.pngData()
+            if now == previous { break }
+            previous = now
         }
         if let dir = ProcessInfo.processInfo.environment["BRAIN_CANVAS_SHOTS"], let png = image.pngData() {
             try png.write(to: URL(fileURLWithPath: dir).appendingPathComponent("live-small-dark.png"))

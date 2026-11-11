@@ -136,6 +136,8 @@ nonisolated enum BrainGraphCanvasLogic {
     static let dimAlpha: CGFloat = 0.12
     static let labelPlateAlpha: CGFloat = 0.78
     static let labelPlateRadius: CGFloat = 3
+    /// A label plate pads its text this much either side.
+    static let labelSidePadding: CGFloat = 2
 
     static func fitZoomCap(pointCount: Int) -> CGFloat {
         pointCount <= smallGraph ? 2.2 : 1
@@ -244,6 +246,46 @@ nonisolated enum BrainGraphCanvasLogic {
         pointCount <= smallGraph
     }
 
+    /// Where a forced label goes when no free spot lies wholly on the canvas:
+    /// below the point if that fits the canvas height, else above, else
+    /// whichever is nearer to fitting, slid sideways (and, failing that,
+    /// vertically) to lie inside the canvas. Wider than the canvas, it starts
+    /// at the left edge; the caller truncates the text (`truncateLabel(_:toFit:measuredWidth:)`).
+    static func forcedSpot(_ spots: BrainLabelSpots, canvas: CGSize) -> BrainLabelSpot {
+        let fitsHeight = { (s: BrainLabelSpot) in s.rect.minY >= 0 && s.rect.maxY <= canvas.height }
+        var spot: BrainLabelSpot
+        if fitsHeight(spots.below) {
+            spot = spots.below
+        } else if fitsHeight(spots.above) {
+            spot = spots.above
+        } else {
+            spot = spots.below.rect.maxY - canvas.height <= -spots.above.rect.minY ? spots.below : spots.above
+        }
+        var dx: CGFloat = 0
+        if spot.rect.width >= canvas.width || spot.rect.minX < 0 {
+            dx = -spot.rect.minX
+        } else if spot.rect.maxX > canvas.width {
+            dx = canvas.width - spot.rect.maxX
+        }
+        var dy: CGFloat = 0
+        if spot.rect.minY < 0 {
+            dy = -spot.rect.minY
+        } else if spot.rect.maxY > canvas.height {
+            dy = canvas.height - spot.rect.maxY
+        }
+        spot.rect = spot.rect.offsetBy(dx: dx, dy: dy)
+        spot.text = CGPoint(x: spot.text.x + dx, y: spot.text.y + dy)
+        return spot
+    }
+
+    /// `label` cut with an ellipsis so text measured `measuredWidth` wide fits
+    /// `width`, by its average character width. Unchanged when it fits.
+    static func truncateLabel(_ label: String, toFit width: CGFloat, measuredWidth: CGFloat) -> String {
+        guard measuredWidth > width, width > 0, !label.isEmpty else { return label }
+        let keep = Int((CGFloat(label.count) * width / measuredWidth).rounded(.down)) - 1
+        return truncateLabel(label, max: Swift.max(1, keep))
+    }
+
     static func truncateLabel(_ label: String, max: Int = labelMaxChars) -> String {
         guard label.count > max else { return label }
         var cut = String(label.prefix(max))
@@ -255,7 +297,7 @@ nonisolated enum BrainGraphCanvasLogic {
     /// `radius`, in the order tried: below, above, right. None touches the
     /// point. Each box pads the text 2 pt either side and 1 pt above and below.
     static func labelSpots(centre: CGPoint, radius r: CGFloat, text: CGSize) -> BrainLabelSpots {
-        let half = text.width / 2 + 2
+        let half = text.width / 2 + labelSidePadding
         let h = text.height + 2
         func spot(_ x0: CGFloat, _ y0: CGFloat) -> BrainLabelSpot {
             BrainLabelSpot(rect: CGRect(x: x0, y: y0, width: half * 2, height: h), text: CGPoint(x: x0 + half, y: y0 + 1))
@@ -271,7 +313,7 @@ nonisolated enum BrainGraphCanvasLogic {
     /// arithmetic over their union, so off-screen candidates are dropped
     /// before any box is touched.
     static func labelOffscreen(centre: CGPoint, radius r: CGFloat, text: CGSize, canvas: CGSize) -> Bool {
-        let half = text.width / 2 + 2
+        let half = text.width / 2 + labelSidePadding
         let h = text.height + 2
         let left = centre.x - half
         let right = centre.x + r + 4 + half * 2
@@ -368,8 +410,7 @@ nonisolated struct BrainLabelBoxes: Sendable {
 
     /// Claims and returns the first of the spots that lies wholly on the
     /// canvas and is free. When none is, a forced label (a selected point's)
-    /// takes the first spot that is at least partly on the canvas; any other
-    /// is skipped, so labels are never cut by the edge (the web keeps spots
+    /// takes `forcedSpot`, slid onto the canvas; any other is skipped, so labels are never cut by the edge (the web keeps spots
     /// that only touch the canvas; a phone's narrow edges cut too many). A
     /// label with no spot on the canvas is never placed.
     mutating func place(_ spots: BrainLabelSpots, canvas: CGSize, force: Bool) -> BrainLabelSpot? {
@@ -382,7 +423,8 @@ nonisolated struct BrainLabelBoxes: Sendable {
                 return spot
             }
         }
-        guard force, let spot = firstOnCanvas else { return nil }
+        guard force, firstOnCanvas != nil else { return nil }
+        let spot = BrainGraphCanvasLogic.forcedSpot(spots, canvas: canvas)
         occupy(spot.rect)
         return spot
     }
