@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/LuminaVault/LuminaVaultShared.git",
       "state" : {
-        "revision" : "1909cc8de3ec282737b1942f9adf33c337f8e2d0",
-        "version" : "5.32.0"
+        "branch" : "feat/brain-graph",
+        "revision" : "5f60f449e85f3f61694ee2042e9e06f80a310149"
       }
     },
     {
