@@ -32,7 +32,8 @@ final class BrainSelection {
 
     func selectGroup(_ ids: [String], additive: Bool) {
         var next = additive ? selected : []
-        for id in ids where !next.contains(id) { next.append(id) }
+        var seen = Set(next)
+        for id in ids where seen.insert(id).inserted { next.append(id) }
         selected = next
     }
 

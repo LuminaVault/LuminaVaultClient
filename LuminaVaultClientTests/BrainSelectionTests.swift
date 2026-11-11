@@ -92,11 +92,25 @@ struct BrainSelectionTests {
         #expect(s.selected == ["b"])
     }
 
+    /// Counts observation notifications fired by `body` (a write to `selected`
+    /// notifies even when the new value is equal).
+    private func notifications(of s: BrainSelection, during body: () -> Void) -> Int {
+        let changes = Mutex(0)
+        withObservationTracking { _ = s.selected } onChange: { changes.withLock { $0 += 1 } }
+        body()
+        return changes.withLock { $0 }
+    }
+
     @Test func removeIsANoOpForAnIDThatIsNotSelected() {
         let s = BrainSelection()
         s.selectGroup(["a"], additive: false)
-        s.remove("z")
+        #expect(notifications(of: s) { s.remove("z") } == 0)
         #expect(s.selected == ["a"])
+    }
+
+    @Test func clearOnAnEmptySelectionDoesNotNotify() {
+        let s = BrainSelection()
+        #expect(notifications(of: s) { s.clear() } == 0)
     }
 
     @Test func clearEmptiesTheSelection() {
@@ -118,7 +132,7 @@ struct BrainSelectionTests {
     @Test func pruneLeavesTheSelectionAloneWhenNothingIsHidden() {
         let s = BrainSelection()
         s.selectGroup(["a", "b"], additive: false)
-        s.prune(visible: ["a", "b", "c"])
+        #expect(notifications(of: s) { s.prune(visible: ["a", "b", "c"]) } == 0)
         #expect(s.selected == ["a", "b"])
     }
 

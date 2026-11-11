@@ -182,6 +182,31 @@ struct BrainGraphModelTests {
         #expect(v.edges.count < edges.count)
     }
 
+    // Rule 4 (prune thin hubs) runs before rule 6 (orphans): a note whose only
+    // edge goes to a pruned hub is an orphan once the hub is gone.
+    @Test func orphansAreJudgedAfterThinHubsArePruned() {
+        let g = Self.response(
+            nodes: [
+                Self.node("a", .note, "A", vault: Self.v1),
+                Self.node("b", .note, "B", vault: Self.v1),
+                Self.node("c", .note, "C", vault: Self.v1),
+                Self.node("tag:solo", .tag, "solo"),
+                Self.node("tag:pair", .tag, "pair"),
+            ],
+            edges: [
+                Self.edge("a", "tag:solo", .tag),
+                Self.edge("b", "tag:pair", .tag),
+                Self.edge("c", "tag:pair", .tag),
+            ]
+        )
+        let v = visible(g, filters(showOrphans: false))
+        #expect(v.index.byID["tag:solo"] == nil)
+        #expect(v.index.byID["a"] == nil)
+        #expect(v.index.byID["tag:pair"] != nil)
+        #expect(v.index.byID["b"] != nil)
+        #expect(v.index.byID["c"] != nil)
+    }
+
     @Test func buildsNeighboursAndEdgesOfFromWhatIsLeft() {
         let v = visible()
         #expect(v.index.neighbours["n2"] == ["n1", Self.spaceHub])
@@ -203,7 +228,6 @@ struct BrainGraphModelTests {
         let v = visible(big, f)
         let elapsed = ContinuousClock.now - start
         let ms = Double(elapsed.components.seconds) * 1000 + Double(elapsed.components.attoseconds) / 1e15
-        print("visible() on 2000 nodes: \(ms) ms")
         #expect(v.nodes.count == 2001)
         #if DEBUG
         #expect(ms < 300)
