@@ -129,3 +129,17 @@ An app-repo merge deploys nothing. Production runs the SHA pinned in `platform/i
 ## Next
 
 On approval, copy this to `LuminaVaultClient/docs/superpowers/specs/2026-11-04-quick-assistant-design.md` and write the task-level plan with `superpowers:writing-plans`, starting with the trigger spike.
+
+## As built
+
+Where the build differs from, or adds to, the design above:
+
+- **`needsPermission`.** A fourth action kind. When the user has not allowed Calendar changes, `calendar_create` shows no confirm card: it shows a `needsPermission` card with screen `dataAccess`, and the card's button opens Settings at Data Access. Nothing is stored.
+- **`dataAccess` screen.** `AssistantScreenDTO` gained `dataAccess` (and `brief`, `learned`, `memory`) beside the five tabs and `settings`. Unknown screens and kinds decode to `.unknown`, so a newer server cannot break the stream.
+- **`vault_id` on pending actions.** `assistant_pending_actions` (M151) stores the vault an action was proposed against. Confirm acts on that vault, ignores `X-Vault-ID`, and checks again that the user may still write there. Calendar actions are filed against the user's own vault. A resolved action keeps only its status (args and summary are cleared on confirm, cancel and failure), and a user's actions are deleted a day after they expired, swept on each new proposal. A cancel adds "Cancelled. Nothing was changed." to the conversation; adjacent assistant messages are merged in `ConversationController.buildPrompt`, which both the loop and classic chat use.
+- **Caps.** At most 8 tool calls per round (more get a "too many" result), at most 5 writes and 3 confirm cards per turn, titles capped at 200 characters, 4 rounds per question.
+- **Per-turn dedupe.** A write with the same tool and arguments (key order ignored) runs once per turn; a repeat gets the first result and no second chip or card.
+- **Team-vault save refusal.** `memory_save` runs only in the caller's own vault. In a shared vault it is refused, with a separate refusal when the turn has already read the user's personal data.
+- **Gemini excluded.** Gemini routes are removed from the tool loop like Ollama and the Hermes gateway (`RouteDecision.removingGemini()`), because its adapter cannot replay a tool round. A BYOK Gemini pin, or a managed decision left with only Gemini, answers through the classic path with actions off.
+- **`timeZone`.** `QuickAssistantContextDTO.timeZone` carries the device's IANA zone. The server checks it and prefers it over `users.timezone` (which nothing writes, so it is UTC for nearly everyone), falling back on a missing or invalid zone. It drives the prompt's clock line and offset, reminder chips, calendar card summaries, the schedule block and the classic fallback prompt on a quick-assistant turn. The model is told to write times with no offset, which are read in that zone; any offset it does write is kept as the instant it names, and calendar times are stored in UTC. Classic chat is unchanged.
+- **Card.** Reply links are not tappable. A free account out of messages gets chat's recovery buttons (Upgrade, Add API key), and 402 and 403 replies get readable copy.
