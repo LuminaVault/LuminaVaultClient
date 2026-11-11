@@ -356,6 +356,31 @@ final class QuickAssistantModelTests: XCTestCase {
         XCTAssertTrue(text.runs.contains { $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true })
     }
 
+    // MARK: - Confirm card while the reply streams
+
+    /// The server saves the reply only at `done`, so a tap before then would put the
+    /// confirm or cancel line ahead of the reply it answers. Not an expiry gate.
+    func testConfirmCardWaitsForTheReplyToFinish() async {
+        let action = confirmAction()
+        stub.holdStream = true
+        let turn = Task { await send() }
+        await waitUntil { self.stub.streamRequests.count == 1 }
+        stub.emit(.assistantAction(action))
+        await waitUntil { self.model.actions.contains { $0.id == action.id } }
+        XCTAssertEqual(model.phase, .sending)
+        let streaming = QuickAssistantConfirmState.of(action, in: model)
+        XCTAssertEqual(streaming, .awaitingReply)
+        XCTAssertFalse(streaming.buttonsEnabled)
+
+        stub.emit(.token("Waiting for your confirmation."))
+        stub.emit(.done)
+        stub.finish()
+        await turn.value
+        let answered = QuickAssistantConfirmState.of(action, in: model)
+        XCTAssertEqual(answered, .ask(error: nil))
+        XCTAssertTrue(answered.buttonsEnabled)
+    }
+
     // MARK: - Send while streaming / reset
 
     func testSendWhileStreamingIsRefused() async {

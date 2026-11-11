@@ -54,10 +54,14 @@ enum QuickAssistantConfirmState: Equatable {
     /// Waiting for a tap. `error` is a failed attempt; the card stays actionable.
     case ask(error: String?)
     case resolving
+    /// The reply that proposed this card is still streaming. The server saves the
+    /// reply only when the stream ends, so a tap now would put the confirm or cancel
+    /// line before the reply it answers.
+    case awaitingReply
     /// Any server answer, including a status this build does not know.
     case finished(AssistantActionResolutionDTO)
 
-    /// Disabled only while resolving and after a result. Never from `expiresAt`:
+    /// Disabled while the reply streams, while resolving and after a result. Never from `expiresAt`:
     /// the server answers `.expired`, and a wrong device clock must not kill a
     /// valid card.
     var buttonsEnabled: Bool {
@@ -69,6 +73,7 @@ enum QuickAssistantConfirmState: Equatable {
     static func of(_ action: AssistantActionDTO, in model: QuickAssistantModel) -> QuickAssistantConfirmState {
         if let resolution = model.resolutions[action.id] { return .finished(resolution) }
         if model.resolving.contains(action.id) { return .resolving }
+        if model.phase == .sending { return .awaitingReply }
         return .ask(error: model.actionErrors[action.id])
     }
 }
@@ -164,7 +169,7 @@ struct QuickAssistantConfirmCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 buttons
-            case .resolving:
+            case .resolving, .awaitingReply:
                 buttons
             }
         }
