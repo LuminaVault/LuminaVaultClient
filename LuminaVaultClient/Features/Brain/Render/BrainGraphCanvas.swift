@@ -56,7 +56,8 @@ struct BrainGraphCanvas: View {
 private final class BrainCanvasDriver {
     enum Command: Sendable {
         case graph(VisibleBrainGraph)
-        case pin(String, CGPoint?)
+        case pin(String, CGPoint)
+        case release(String, seq: Int)
         case quiet(Bool)
     }
 
@@ -65,8 +66,13 @@ private final class BrainCanvasDriver {
     var sync = BrainCanvasSync()
     /// The live run's channel.
     var commands: AsyncStream<Command>.Continuation?
-    /// The newest snapshot accepted.
-    var snapshot: LayoutSnapshot?
+    /// The current graph and Reduce Motion, kept here by `onChange` so a run
+    /// reads them when it starts and never from the copy of the view its
+    /// task captured.
+    var latestGraph: VisibleBrainGraph?
+    var reduceMotion = false
+    /// The snapshot's points in the current scene's order.
+    var positionCache = BrainPositionCache()
 
     var press: BrainPressTracker?
     var pressBegan = Date.distantPast
@@ -95,12 +101,18 @@ private final class BrainCanvasDriver {
     }
 
     func send(_ command: Command) {
-        if case let .pin(id, point) = command, point != nil { sync.pinned(id) }
+        if case let .pin(id, _) = command { sync.pinned(id) }
         commands?.yield(command)
     }
 
-    func releaseDelivered(_ id: String) {
-        sync.releaseDelivered(id)
+    /// Lets go of a point the user held.
+    func release(_ id: String) {
+        guard let seq = sync.releaseSeq(id) else { return }
+        commands?.yield(.release(id, seq: seq))
+    }
+
+    func releaseDelivered(_ id: String, seq: Int) {
+        sync.releaseDelivered(id, seq: seq)
     }
 }
 
@@ -115,9 +127,10 @@ private struct BrainGraphCanvasSurface: View {
     private var fixedSnapshot: LayoutSnapshot? { inputs.fixedSnapshot }
 
     @State private var driver = BrainCanvasDriver()
-    /// The newest snapshot's points in scene order, aligned once per snapshot
-    /// rather than on every body evaluation.
-    @State private var positions: [CGPoint]
+    /// The newest accepted snapshot, and a count of them, so positions are
+    /// aligned once per (snapshot, scene) pair rather than per body evaluation.
+    @State private var snapshot: LayoutSnapshot?
+    @State private var snapshotSerial = 0
     /// nil until there is a size to fit to: drawn as the automatic fit.
     @State private var viewport: BrainGraphViewport?
     @State private var motion: BrainViewportMotion?
@@ -141,13 +154,13 @@ private struct BrainGraphCanvasSurface: View {
         self.inputs = inputs
         self.scene = scene
         self.theme = theme
-        _positions = State(initialValue: inputs.fixedSnapshot.map(scene.aligned) ?? [])
+        _snapshot = State(initialValue: inputs.fixedSnapshot)
         _viewport = State(initialValue: inputs.fixedViewport)
     }
 
     var body: some View {
-        // For the one evaluation between a graph change and `onChange`.
-        let points = positions.count == scene.ids.count ? positions : (latestSnapshot.map(scene.aligned) ?? [])
+        // Here, where the current scene is known; never in the layout task.
+        let points = driver.positionCache.positions(snapshot: snapshot, serial: snapshotSerial, scene: scene)
         TimelineView(.animation(paused: motion == nil)) { timeline in
             Canvas { context, canvasSize in
                 let frame = BrainCanvasFrame(
@@ -176,11 +189,14 @@ private struct BrainGraphCanvasSurface: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             inForeground = true
         }
-        .onChange(of: scene.layoutKey) {
-            positions = latestSnapshot.map(scene.aligned) ?? []
+        .onChange(of: scene.layoutKey, initial: true) {
+            driver.latestGraph = graph
             if driver.sync.graphChanged(key: scene.layoutKey) { driver.send(.graph(graph)) }
         }
-        .onChange(of: reduceMotion) { _, quiet in driver.send(.quiet(quiet)) }
+        .onChange(of: reduceMotion, initial: true) { _, quiet in
+            driver.reduceMotion = quiet
+            driver.send(.quiet(quiet))
+        }
         .task(id: motion) { await finish(motion) }
         .task(id: pressCount) { await longPressTimer(pressCount) }
         .sensoryFeedback(.selection, trigger: longPresses)
@@ -209,12 +225,10 @@ private struct BrainGraphCanvasSurface: View {
 
     private var isAutomatic: Bool { viewport?.isAutomatic ?? true }
 
-    private var latestSnapshot: LayoutSnapshot? { driver.snapshot ?? fixedSnapshot }
-
     private func fit(animated: Bool) {
-        guard size != .zero, let snapshot = latestSnapshot, !snapshot.points.isEmpty else { return }
+        guard size != .zero, let snapshot, !snapshot.points.isEmpty else { return }
         let target = BrainGraphCanvasLogic.fittedView(points: snapshot.points, size: size)
-        if animated, !reduceMotion, let from = viewport {
+        if animated, !driver.reduceMotion, let from = viewport {
             motion = .ease(from: from, to: target, start: .now)
         } else {
             motion = nil
@@ -249,21 +263,23 @@ private struct BrainGraphCanvasSurface: View {
 
     // MARK: Layout
 
+    /// One run. Everything it reads from the view after the gate is `@State`
+    /// or the driver, never the inputs of the view copy this task captured.
     private func runLayout() async {
         await driver.beginRun()
         defer { driver.endRun() }
         guard !Task.isCancelled else { return }
-        let layout = driver.layout
         let driver = driver
-        await layout.setQuiet(reduceMotion)
+        let layout = driver.layout
+        await layout.setQuiet(driver.reduceMotion)
         let updates = await layout.updates()
         let (commands, sink) = AsyncStream.makeStream(of: BrainCanvasDriver.Command.self)
-        let start = driver.sync.startRun(key: scene.layoutKey)
+        let start = driver.sync.startRun()
         driver.commands = sink
         for send in start.sends {
             switch send {
-            case let .release(id): driver.send(.pin(id, nil))
-            case .graph: driver.send(.graph(graph))
+            case let .release(id, seq): sink.yield(.release(id, seq: seq))
+            case .graph: if let graph = driver.latestGraph { sink.yield(.graph(graph)) }
             }
         }
         await withTaskGroup(of: Void.self) { group in
@@ -274,7 +290,9 @@ private struct BrainGraphCanvasSurface: View {
                         await layout.setGraph(graph)
                     case let .pin(id, point):
                         await layout.pin(id, at: point)
-                        if point == nil { await driver.releaseDelivered(id) }
+                    case let .release(id, seq):
+                        await layout.pin(id, at: nil)
+                        await driver.releaseDelivered(id, seq: seq)
                     case let .quiet(quiet):
                         await layout.setQuiet(quiet)
                     }
@@ -293,12 +311,13 @@ private struct BrainGraphCanvasSurface: View {
 
     private func received(_ next: LayoutSnapshot) {
         let facts = BrainCanvasSync.ViewFacts(
-            automatic: isAutomatic, dragging: driver.isDraggingPoint, reduceMotion: reduceMotion
+            automatic: isAutomatic, dragging: driver.isDraggingPoint, reduceMotion: driver.reduceMotion
         )
         let outcome = driver.sync.receive(next, view: facts)
         guard outcome.accept else { return }
-        driver.snapshot = next
-        positions = scene.aligned(next)
+        // Raw: aligned in `body`, against whatever the scene is by then.
+        snapshot = next
+        snapshotSerial += 1
         if outcome.resetAutomatic, var current = viewport {
             current.isAutomatic = true
             viewport = current
@@ -362,7 +381,7 @@ private struct BrainGraphCanvasSurface: View {
                 driver.press = nil
                 switch press.phase {
                 case .draggingPoint:
-                    if let id = press.hitID { driver.send(.pin(id, nil)) }
+                    if let id = press.hitID { driver.release(id) }
                 case .panning:
                     let from = currentViewport(positions: positions)
                     let v = CGSize(width: value.velocity.width, height: value.velocity.height)
@@ -413,7 +432,7 @@ private struct BrainGraphCanvasSurface: View {
                     driver.pinchBase = currentViewport(positions: positions)
                     if driver.isDraggingPoint, let id = driver.press?.hitID {
                         // A second finger: a pinch, not a drag.
-                        driver.send(.pin(id, nil))
+                        driver.release(id)
                     }
                     driver.press?.pinchBegan()
                 }
