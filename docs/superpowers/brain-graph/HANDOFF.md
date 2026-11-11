@@ -105,12 +105,11 @@ Server:
 
 ## Cleaning up
 
-These worktrees were created for this work. Web, Shared and Infra are merged and can be removed; the iOS one is still in use.
+The worktrees for the Server, Web, Shared and Infra work were removed on 2026-11-11 after their pull requests merged (each was clean and sat on its PR's head commit). The only worktree left is the iOS one, `lumina/.worktrees/brain-graph-client`, which is still in use and holds the interrupted Task 7 files.
 
-    git -C LuminaVaultWebApp worktree remove .worktrees/brain-graph
-    git -C LuminaVaultShared worktree remove .worktrees/brain-graph
-    git -C ~/Work/production/platform/infra worktree remove .worktrees/brain-route
+Still to tidy, when convenient:
 
-Remote branches `feat/brain-graph` (Web, Shared, Server) and `api-go/brain-route` (Infra) can be deleted. The local `main` checkouts of Web, Shared, Server and Infra are behind their remotes; pull before working on them.
+- Remote branches `feat/brain-graph` (Web, Shared, Server) and `api-go/brain-route` (Infra) can be deleted. Local branches of the same names remain in those repos; they were squash-merged, so `git branch -d` will refuse and `-D` is needed.
+- The local `main` checkouts of Web, Shared, Server and Infra are behind their remotes; pull before working on them.
 
-The ledgers under each worktree's `.superpowers/` are git-ignored working files; the copies in `docs/superpowers/handoff/` are the ones to keep.
+The ledgers, reports and a dozen screenshots from the removed worktrees were copied to `docs/superpowers/handoff/` first; those copies are the ones to keep.
