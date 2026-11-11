@@ -336,6 +336,18 @@ struct BrainGraphStoreTests {
         #expect(r.store.loaded == BrainGraphRequest(similar: true))
     }
 
+    @Test func disposeCancelsAnInFlightRequestThatHonoursCancellation() async {
+        let r = rig()
+        let held = await r.mock.enqueueHeld(honoursCancellation: true)
+        let pending = r.store.startLoad(Self.all)
+        await r.mock.waitForCalls(1)
+        r.store.dispose()
+        await pending.value
+        #expect(held.wasCancelled)
+        #expect(isLoading(r.store.state))
+        #expect(r.store.loaded == nil)
+    }
+
     @Test func disposeDropsAResponseThatIsInFlight() async {
         let r = rig()
         let held = await r.mock.enqueueHeld(honoursCancellation: false)
@@ -365,9 +377,12 @@ struct BrainGraphStoreTests {
         await r.mock.enqueueOnce(.success(Self.other))
         r.store.sync(Self.focused)
         await r.sleeper.waitForRegistrations(1)
+        #expect(r.sleeper.requestedDurations == [.milliseconds(400)])
         r.sleeper.advance(by: .milliseconds(399))
         await Task.yield()
         #expect(await r.mock.callCount == 1)
+        #expect(r.sleeper.activeCount == 1)
+        #expect(r.store.pending)
         r.sleeper.advance(by: .milliseconds(1))
         await r.store.waitUntilIdle()
         #expect(await r.mock.callCount == 2)
@@ -417,6 +432,78 @@ struct BrainGraphStoreTests {
         r.sleeper.advance(by: .milliseconds(400))
         await r.store.waitUntilIdle()
         #expect(await r.mock.callCount == 2)
+        #expect(stamp(r.store) == 1)
+    }
+
+    @Test func syncOfTheRequestAlreadyLoadingSchedulesNothing() async {
+        let r = rig()
+        let held = await r.mock.enqueueHeld()
+        r.store.sync(Self.all)
+        await r.mock.waitForCalls(1)
+        r.store.sync(BrainGraphRequest())
+        #expect(r.sleeper.registrations == 0)
+        #expect(!r.store.pending)
+        held.release(Self.graph)
+        await r.store.waitUntilIdle()
+        #expect(await r.mock.callCount == 1)
+        #expect(stamp(r.store) == 1)
+    }
+
+    @Test func syncOfTheRefreshAlreadyOnItsWayDropsAPendingTimerAndAsksNothing() async {
+        let r = await shown()
+        let held = await r.mock.enqueueHeld()
+        r.store.sync(Self.focused)
+        await r.sleeper.waitForRegistrations(1)
+        r.sleeper.advance(by: .milliseconds(400))
+        await r.mock.waitForCalls(2)
+        // The tab reappears while the refresh runs: a stray scheduled request for
+        // something else must go, and the same request must not be re-sent.
+        r.store.sync(BrainGraphRequest(similar: true))
+        #expect(r.store.pending)
+        r.store.sync(Self.focused)
+        #expect(!r.store.pending)
+        r.sleeper.advance(by: .seconds(1))
+        held.release(Self.other)
+        await r.store.waitUntilIdle()
+        #expect(await r.mock.callCount == 2)
+        #expect(r.store.loaded == Self.focused)
+    }
+
+    @Test func aScheduledRequestThatHasLandedMeanwhileIsNotFetchedAgain() async {
+        let r = await shown()
+        r.store.schedule(Self.all)
+        await r.sleeper.waitForRegistrations(1)
+        r.sleeper.advance(by: .milliseconds(400))
+        await r.store.waitUntilIdle()
+        #expect(await r.mock.callCount == 1)
+        #expect(!r.store.pending)
+        #expect(r.store.loaded == Self.all)
+    }
+
+    @Test func aTransportCancelledFirstLoadBecomesARetryableFailure() async {
+        let r = rig()
+        await r.mock.enqueueOnce(.failure(CancellationError()))
+        r.store.sync(Self.all)
+        await r.store.waitUntilIdle()
+        #expect(failedMessage(r.store.state) == "The graph did not load. Try again.")
+        #expect(r.store.failureStatus == nil)
+        #expect(!r.store.refreshing)
+        await r.mock.enqueueOnce(.success(Self.graph))
+        await r.store.retry().value
+        #expect(stamp(r.store) == 1)
+    }
+
+    @Test func twoRetriesBackToBackMakeOneRequest() async {
+        let r = rig()
+        let held = await r.mock.enqueueHeld()
+        r.store.sync(Self.focused)
+        await r.mock.waitForCalls(1)
+        let first = r.store.retry()
+        let second = r.store.retry()
+        held.release(Self.graph)
+        await first.value
+        await second.value
+        #expect(await r.mock.callCount == 1)
         #expect(stamp(r.store) == 1)
     }
 
@@ -526,6 +613,16 @@ struct BrainGraphStoreTests {
         #expect(ids(r.store.knownVaults) == [Self.v0, Self.v1])
     }
 
+    @Test func knownVaultsSortsAccentedNamesAsTheWebDoes() async {
+        let r = rig()
+        let accented = BrainGraphVaultDTO(id: Self.v1, name: "Été", personal: false)
+        let zeta = BrainGraphVaultDTO(id: Self.v2, name: "Zeta", personal: false)
+        let alpha = BrainGraphVaultDTO(id: Self.v0, name: "Alpha", personal: false)
+        await r.mock.enqueueOnce(.success(Self.response(at: 1, vaults: [zeta, accented, alpha])))
+        await r.store.load(Self.all)
+        #expect(ids(r.store.knownVaults) == [Self.v0, Self.v1, Self.v2])
+    }
+
     @Test func knownVaultsSortsNamesWithoutRegardToCase() async {
         let r = rig()
         let lower = BrainGraphVaultDTO(id: Self.v1, name: "acme", personal: false)
@@ -609,7 +706,9 @@ struct BrainGraphStoreTests {
         #expect(BrainGraphErrors.friendlyMessage(APIError.networkFailure(URLError(.notConnectedToInternet)))
             == "Network unavailable.")
         #expect(BrainGraphErrors.friendlyMessage(APIError.rateLimited(retryAfter: nil))
-            == "You've hit today's limit. Try again later.")
+            == "Too many requests. Try again in a minute.")
+        #expect(BrainGraphErrors.friendlyMessage(APIError.httpError(statusCode: 429, data: Data()))
+            == "Too many requests. Try again in a minute.")
         #expect(BrainGraphErrors.friendlyMessage(APIError.decodingFailed(URLError(.badServerResponse)))
             == "Unexpected server response.")
     }

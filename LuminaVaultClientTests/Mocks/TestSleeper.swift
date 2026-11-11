@@ -16,6 +16,7 @@ final class TestSleeper: Sendable {
         var now: Duration = .zero
         var nextID = 0
         var registrations = 0
+        var durations: [Duration] = []
         var waiters: [Waiter] = []
         var registrationWaiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
     }
@@ -24,6 +25,8 @@ final class TestSleeper: Sendable {
 
     /// Sleepers started so far, cancelled ones included.
     var registrations: Int { state.withLock { $0.registrations } }
+    /// Every duration asked for, in order.
+    var requestedDurations: [Duration] { state.withLock { $0.durations } }
     /// Sleepers still waiting.
     var activeCount: Int { state.withLock { $0.waiters.count } }
 
@@ -33,18 +36,26 @@ final class TestSleeper: Sendable {
     }
 
     private func sleepFor(_ duration: Duration) async throws {
+        try Task.checkCancellation()
         let id = state.withLock { s -> Int in s.nextID += 1; return s.nextID }
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 enum Action { case wait([CheckedContinuation<Void, Never>]), cancel }
                 let action = state.withLock { s -> Action in
+                    // Cancelled between the check above and here: the cancellation
+                    // handler has already run, so a waiter would never be resumed.
+                    if Task.isCancelled { return .cancel }
                     s.registrations += 1
+                    s.durations.append(duration)
                     let ready = s.registrationWaiters.filter { $0.count <= s.registrations }
                     s.registrationWaiters.removeAll { $0.count <= s.registrations }
                     s.waiters.append(Waiter(id: id, deadline: s.now + duration, continuation: continuation))
                     return .wait(ready.map(\.continuation))
                 }
-                if case .wait(let ready) = action { for r in ready { r.resume() } }
+                switch action {
+                case .wait(let ready): for r in ready { r.resume() }
+                case .cancel: continuation.resume(throwing: CancellationError())
+                }
             }
         } onCancel: {
             let waiter = state.withLock { s -> Waiter? in

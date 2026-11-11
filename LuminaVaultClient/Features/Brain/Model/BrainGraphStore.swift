@@ -39,7 +39,12 @@ nonisolated enum BrainGraphErrors {
         (error as? APIError)?.httpStatusCode
     }
 
+    static let rateLimitedMessage = "Too many requests. Try again in a minute."
+    static let didNotLoadMessage = "The graph did not load. Try again."
+
     static func friendlyMessage(_ error: Error) -> String {
+        // The graph limit is per minute; the app-wide 429 text talks about "today".
+        if isRateLimited(error) { return rateLimitedMessage }
         if let api = error as? APIError {
             switch api {
             case .unauthorized: return "Session expired — sign in again."
@@ -88,6 +93,9 @@ final class BrainGraphStore {
     @ObservationIgnored private var debounceToken = 0
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
     @ObservationIgnored private var loadTask: Task<Void, Never>?
+    /// The request whose load is running right now; nil once it has landed,
+    /// failed, or been abandoned. `loadTask` itself is not cleared on completion.
+    @ObservationIgnored private var inFlight: BrainGraphRequest?
 
     init(
         client: any BrainGraphClientProtocol,
@@ -129,16 +137,29 @@ final class BrainGraphStore {
             request = req
             return
         }
+        // This very request is already on its way: asking again would only
+        // cancel it and spend another of the ~10 requests a minute.
+        if let inFlight, Self.same(inFlight, req) {
+            cancelTimer()
+            return
+        }
         schedule(req)
     }
 
-    /// Loads the newest request now.
+    /// Loads the newest request now, unless that request is already in flight
+    /// (then its Task is returned and nothing is sent).
     @discardableResult
     func retry() -> Task<Void, Never> {
-        startLoad(wanted)
+        if let inFlight, Self.same(inFlight, wanted), let loadTask {
+            cancelTimer()
+            return loadTask
+        }
+        return startLoad(wanted)
     }
 
     /// Fetches now and returns when this load is over (or superseded).
+    /// Cancelling the caller does not cancel the load: it runs in the store's
+    /// own Task and is cancelled only by a newer request, `sync` or `dispose`.
     func load(_ req: BrainGraphRequest) async {
         await startLoad(req).value
     }
@@ -158,6 +179,7 @@ final class BrainGraphStore {
         } else {
             state = .loading
         }
+        inFlight = req
         let task = Task { await self.perform(req, token: mine, previous: previous) }
         loadTask = task
         return task
@@ -175,6 +197,10 @@ final class BrainGraphStore {
             guard !Task.isCancelled, token == self.debounceToken else { return }
             self.pending = false
             self.debounceTask = nil
+            if case .loaded = self.state, Self.same(self.loaded, req) {
+                self.request = req
+                return
+            }
             self.startLoad(req)
         }
     }
@@ -211,6 +237,7 @@ final class BrainGraphStore {
         do {
             let graph = try await client.fetchGraph(req)
             guard token == seq else { return }
+            inFlight = nil
             state = .loaded(graph)
             loaded = req
             rateLimited = false
@@ -220,11 +247,19 @@ final class BrainGraphStore {
             learnVaults(graph.vaults, unfiltered: req.vaults?.isEmpty ?? true)
         } catch {
             guard token == seq else { return }
+            inFlight = nil
             refreshing = false
-            // SwiftUI (or the transport) cancelled this load without superseding
-            // it: put back what was there. Not a failure.
+            // A cancel that is neither a supersession nor a dispose can only come
+            // from the transport (session invalidation, URLError.cancelled).
+            // Put back what was there; but `.loading` would spin forever with
+            // nothing running, so a first load becomes a retryable failure.
             if error.isBenignCancellation {
-                state = previous
+                if case .loading = previous {
+                    state = .failed(BrainGraphErrors.didNotLoadMessage)
+                    failureStatus = nil
+                } else {
+                    state = previous
+                }
                 return
             }
             refreshError = nil
@@ -251,11 +286,11 @@ final class BrainGraphStore {
         return a.query == b.query
     }
 
-    /// Sorted by name (case-insensitive) then id, so chips and vault colours do
+    /// Sorted by name (case- and accent-insensitive, like the web's localeCompare) then id, so chips and vault colours do
     /// not depend on what loaded first.
     private static func sorted(_ vaults: [BrainGraphVaultDTO]) -> [BrainGraphVaultDTO] {
         vaults.sorted { a, b in
-            switch a.name.caseInsensitiveCompare(b.name) {
+            switch a.name.localizedStandardCompare(b.name) {
             case .orderedAscending: true
             case .orderedDescending: false
             case .orderedSame: a.id.uuidString < b.id.uuidString
@@ -279,6 +314,7 @@ final class BrainGraphStore {
     private func abandon() -> Int {
         loadTask?.cancel()
         loadTask = nil
+        inFlight = nil
         seq += 1
         return seq
     }

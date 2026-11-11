@@ -7,11 +7,12 @@ import LuminaVaultShared
 import Testing
 
 struct BrainPrefsTests {
-    private func suite() -> UserDefaults {
+    /// A throwaway suite and the call that removes it; use with `defer`.
+    private func suite() -> (defaults: UserDefaults, cleanup: () -> Void) {
         let name = "BrainPrefsTests-\(UUID().uuidString)"
-        guard let defaults = UserDefaults(suiteName: name) else { return .standard }
+        guard let defaults = UserDefaults(suiteName: name) else { return (.standard, {}) }
         defaults.removePersistentDomain(forName: name)
-        return defaults
+        return (defaults, { defaults.removePersistentDomain(forName: name) })
     }
 
     private var fresh: BrainPrefs { BrainPrefs(filters: BrainGraphModel.defaultFilters(), view: nil) }
@@ -21,11 +22,14 @@ struct BrainPrefsTests {
     }
 
     @Test func fallsBackToTheDefaultsWhenNothingIsStored() {
-        #expect(BrainPrefs.load(from: suite()) == fresh)
+        let (defaults, cleanup) = suite()
+        defer { cleanup() }
+        #expect(BrainPrefs.load(from: defaults) == fresh)
     }
 
     @Test func roundTripsFiltersAndTheView() {
-        let defaults = suite()
+        let (defaults, cleanup) = suite()
+        defer { cleanup() }
         var filters = BrainGraphModel.defaultFilters()
         filters.links[.tag] = false
         filters.links[.similar] = true
@@ -36,7 +40,8 @@ struct BrainPrefsTests {
     }
 
     @Test func storesTheChoiceAsOneJSONStringUnderOneKey() throws {
-        let defaults = suite()
+        let (defaults, cleanup) = suite()
+        defer { cleanup() }
         BrainPrefs(filters: BrainGraphModel.defaultFilters(), view: .twoD).save(to: defaults)
         let text = try #require(defaults.string(forKey: "lv_brain_prefs_v1"))
         #expect(text.contains("\"2d\""))
@@ -44,7 +49,8 @@ struct BrainPrefsTests {
     }
 
     @Test func neverStoresTheVaultSet() throws {
-        let defaults = suite()
+        let (defaults, cleanup) = suite()
+        defer { cleanup() }
         let id = UUID()
         var filters = BrainGraphModel.defaultFilters()
         filters.vaults = [id]
@@ -55,7 +61,8 @@ struct BrainPrefsTests {
     }
 
     @Test func fallsBackToTheDefaultsOnCorruptedJSON() {
-        let defaults = suite()
+        let (defaults, cleanup) = suite()
+        defer { cleanup() }
         defaults.set("{\"filters\": {\"links\": ", forKey: BrainPrefs.key)
         #expect(BrainPrefs.load(from: defaults) == fresh)
         defaults.set(Data([0xFF, 0x00, 0x12]), forKey: BrainPrefs.key)
@@ -65,7 +72,8 @@ struct BrainPrefsTests {
     }
 
     @Test func ignoresUnknownLinkKindsAndUnknownEnumValuesAndKeepsDefaultsForMissingOnes() {
-        let defaults = suite()
+        let (defaults, cleanup) = suite()
+        defer { cleanup() }
         defaults.set(
             #"{"filters":{"links":{"tag":false,"wormhole":true,"similar":"yes"},"colourBy":"mood"},"view":"4d"}"#,
             forKey: BrainPrefs.key
@@ -84,7 +92,8 @@ struct BrainPrefsTests {
     }
 
     @Test func neitherStoresNorRestoresWhetherTheFilterSheetWasOpen() throws {
-        let defaults = suite()
+        let (defaults, cleanup) = suite()
+        defer { cleanup() }
         defaults.set(#"{"filters":{},"panelOpen":true}"#, forKey: BrainPrefs.key)
         #expect(BrainPrefs.load(from: defaults) == fresh)
         BrainPrefs(filters: BrainGraphModel.defaultFilters(), view: .twoD).save(to: defaults)
