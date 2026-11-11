@@ -1,0 +1,23 @@
+// Search's one explicit camera move. The screen hands the canvas a request to
+// put a point in the middle; a new token makes picking the same point again a
+// new request. Taps never send one: selecting never moves the camera.
+
+import CoreGraphics
+
+nonisolated struct BrainCentreRequest: Equatable, Sendable {
+    var id: String
+    var token: Int
+
+    /// The view with `id` in the middle of a canvas of `size`, at the current
+    /// zoom, or nil while that cannot be known (no size yet, the point is not
+    /// laid out, positions not aligned with `ids`).
+    static func view(
+        centring id: String, ids: [String], positions: [CGPoint], current: BrainGraphViewport, size: CGSize
+    ) -> BrainGraphViewport? {
+        guard size.width > 0, size.height > 0, positions.count == ids.count,
+              let at = ids.firstIndex(of: id) else { return nil }
+        let point = positions[at]
+        guard point.x.isFinite, point.y.isFinite else { return nil }
+        return current.centred(on: point, in: size)
+    }
+}

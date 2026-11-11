@@ -32,6 +32,9 @@ struct BrainGraphCanvas: View {
     let onBackgroundTap: () -> Void
     /// A double tap on a point.
     let onOpen: (_ id: String) -> Void
+    /// Put this point in the middle, at the current zoom (search's one
+    /// explicit camera move). A new token is a new request.
+    var centreOn: BrainCentreRequest?
     /// Tests and previews: draw this snapshot and never start a layout.
     var fixedSnapshot: LayoutSnapshot?
     /// Tests and previews: this view instead of the automatic fit.
@@ -79,6 +82,9 @@ private final class BrainCanvasDriver {
     var lastLocation = CGPoint.zero
     var pinchBase: BrainGraphViewport?
     var lastTap: (id: String, at: Date)?
+    /// A centre request whose point had no position yet; tried again on the
+    /// next snapshot.
+    var pendingCentre: BrainCentreRequest?
 
     var isDraggingPoint: Bool { press?.phase == .draggingPoint }
 
@@ -197,6 +203,10 @@ private struct BrainGraphCanvasSurface: View {
             driver.reduceMotion = quiet
             driver.send(.quiet(quiet))
         }
+        .onChange(of: inputs.centreOn) { _, request in centre(on: request, positions: points) }
+        .onChange(of: snapshotSerial) {
+            if let pending = driver.pendingCentre { centre(on: pending, positions: points) }
+        }
         .task(id: motion) { await finish(motion) }
         .task(id: pressCount) { await longPressTimer(pressCount) }
         .sensoryFeedback(.selection, trigger: longPresses)
@@ -234,6 +244,27 @@ private struct BrainGraphCanvasSurface: View {
             motion = nil
             viewport = target
         }
+    }
+
+    /// Search's centring. Leaves the zoom alone and ends the automatic fit, so
+    /// the next snapshot does not frame the graph back over it.
+    private func centre(on request: BrainCentreRequest?, positions: [CGPoint]) {
+        guard let request else { return }
+        // Not in this graph at all: nothing to wait for.
+        guard scene.ids.contains(request.id) else {
+            driver.pendingCentre = nil
+            return
+        }
+        let current = currentViewport(positions: positions)
+        guard let target = BrainCentreRequest.view(
+            centring: request.id, ids: scene.ids, positions: positions, current: current, size: size
+        ) else {
+            driver.pendingCentre = request
+            return
+        }
+        driver.pendingCentre = nil
+        viewport = target
+        motion = driver.reduceMotion ? nil : .ease(from: current, to: target, start: .now)
     }
 
     private func resized(to new: CGSize, positions: [CGPoint]) {

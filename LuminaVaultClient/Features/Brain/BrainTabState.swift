@@ -1,0 +1,223 @@
+// The Brain screen's pure state mapping, kept out of `BrainTabView` so it can
+// be tested: which card shows for which store state and filter result, the
+// Filters badge, the status line, the request the controls describe, the
+// vault chip rules, the focus point a focused graph selects, the list rows and
+// the selection summary. No UI, no networking; `nonisolated` and `Sendable`.
+
+import Foundation
+import LuminaVaultShared
+
+/// What fills the screen under the bar.
+nonisolated enum BrainTabCard: Equatable, Sendable {
+    /// The very first load, nothing on screen yet.
+    case firstLoad
+    case graph
+    /// The graph loaded and has no notes or memories at all.
+    case empty
+    case failed(message: String, showAllVaults: Bool)
+    /// A focused request answered 404.
+    case missingFocus
+    /// The graph has notes, the filters hide all of them.
+    case nothingMatches
+}
+
+/// The quiet line under the bar.
+nonisolated struct BrainStatusLine: Equatable, Sendable {
+    /// "N notes and memories · M connections".
+    var counts: String
+    /// "Most recent 800 shown" when the response was cut.
+    var truncated: String?
+    /// One notice at most: the graph shown is an earlier one, or a refresh
+    /// over this very graph was refused.
+    var notice: String?
+    /// Why, for VoiceOver and a second line: the friendly error.
+    var reason: String?
+    var offersRetry: Bool
+}
+
+/// One row of `BrainListView`.
+nonisolated struct BrainListRow: Equatable, Sendable, Identifiable {
+    var id: String
+    var label: String
+    /// "Note" or "Memory".
+    var kind: String
+    /// The vault's name, when the graph knows it.
+    var vault: String?
+    var connections: Int
+}
+
+nonisolated enum BrainTabState {
+    static let firstLoadText = "Mapping your notes…"
+    static let emptyHeadline = "Nothing to map yet"
+    static let emptySupporting = "Capture a note or a memory and it appears here, connected to the rest."
+    static let captureTitle = "Capture"
+    static let missingFocusText = "That is no longer in your graph. It may have been deleted."
+    static let showFullGraphTitle = "Show full graph"
+    static let fullGraphTitle = "Full graph"
+    static let nothingMatchesText = "Nothing matches these filters"
+    static let resetTitle = "Reset"
+    static let retryTitle = "Retry"
+    static let showAllVaultsTitle = "Show all vaults"
+    static let notShownInFocusText = "Not shown in a focused graph"
+    static let noSimilarText = "No similar notes found."
+    static let staleText = "Showing an earlier graph"
+    static let searchPrompt = "Search notes and memories"
+    static let truncatedText = "Most recent \(BrainGraphRequest.unfocusedLimit) shown"
+
+    static func isItem(_ node: BrainGraphNodeDTO) -> Bool {
+        node.kind == .note || node.kind == .memory
+    }
+
+    // MARK: Card
+
+    static func card(
+        state: BrainGraphLoadState, request: BrainGraphRequest, visible: VisibleBrainGraph?
+    ) -> BrainTabCard {
+        switch state {
+        case .loading:
+            return .firstLoad
+        case .missingFocus:
+            return .missingFocus
+        case let .failed(message):
+            return .failed(message: message, showAllVaults: !(request.vaults ?? []).isEmpty)
+        case let .loaded(graph):
+            if !graph.nodes.contains(where: isItem) { return .empty }
+            if let visible, !visible.nodes.contains(where: isItem) { return .nothingMatches }
+            return .graph
+        }
+    }
+
+    // MARK: Badge
+
+    /// How many settings in the filter sheet differ from the defaults.
+    static func badgeCount(_ filters: BrainGraphFilters) -> Int {
+        let base = BrainGraphModel.defaultFilters()
+        var count = 0
+        for kind in BrainLinkKindDTO.allCases where (filters.links[kind] ?? false) != (base.links[kind] ?? false) {
+            count += 1
+        }
+        if filters.vaults != nil { count += 1 }
+        if filters.showOrphans != base.showOrphans { count += 1 }
+        if filters.colourBy != base.colourBy { count += 1 }
+        return count
+    }
+
+    // MARK: Status line
+
+    static func countsText(items: Int, connections: Int) -> String {
+        "\(items) notes and memories · \(connectionsText(connections))"
+    }
+
+    static func connectionsText(_ n: Int) -> String {
+        n == 1 ? "1 connection" : "\(n) connections"
+    }
+
+    static func statusLine(
+        visible: VisibleBrainGraph, truncated: Bool, stale: Bool, rateLimited: Bool, refreshError: String?
+    ) -> BrainStatusLine {
+        let items = visible.nodes.count(where: isItem)
+        let reason = rateLimited ? BrainGraphErrors.rateLimitedMessage : refreshError
+        let notice = stale ? staleText : reason
+        return BrainStatusLine(
+            counts: countsText(items: items, connections: visible.edges.count),
+            truncated: truncated ? truncatedText : nil,
+            notice: notice,
+            reason: stale ? reason : nil,
+            offersRetry: notice != nil
+        )
+    }
+
+    // MARK: Request
+
+    /// The request the controls describe. Vaults follow the order of the
+    /// known vaults (unknown ids last, by id) so the same set is the same query.
+    static func request(
+        vaults: Set<UUID>?, known: [UUID], focus: String?, depth: Int, similarAsked: Bool
+    ) -> BrainGraphRequest {
+        var named: [UUID]?
+        if let vaults, !vaults.isEmpty {
+            let inOrder = known.filter { vaults.contains($0) }
+            let rest = vaults.subtracting(inOrder).sorted { $0.uuidString < $1.uuidString }
+            named = inOrder + rest
+        }
+        let focus = (focus?.isEmpty ?? true) ? nil : focus
+        return BrainGraphRequest(vaults: named, focus: focus, depth: focus == nil ? 1 : depth, similar: similarAsked)
+    }
+
+    /// Similar is fetched the first time it is turned on and kept from then
+    /// on: turning it off again filters in place and asks nothing.
+    static func similarAsked(previously: Bool, filters: BrainGraphFilters) -> Bool {
+        previously || (filters.links[.similar] ?? false)
+    }
+
+    // MARK: Vault chips
+
+    static func isVaultOn(_ id: UUID, in vaults: Set<UUID>?) -> Bool {
+        vaults?.contains(id) ?? true
+    }
+
+    /// Any chip that is off can be turned on; the last one on cannot go off.
+    static func canToggleVault(_ id: UUID, in vaults: Set<UUID>?, known: [UUID]) -> Bool {
+        guard isVaultOn(id, in: vaults) else { return true }
+        return (vaults?.count ?? known.count) > 1
+    }
+
+    /// The vault set after tapping a chip. Every vault on is `nil`.
+    static func toggledVault(_ id: UUID, in vaults: Set<UUID>?, known: [UUID]) -> Set<UUID>? {
+        guard canToggleVault(id, in: vaults, known: known) else { return vaults }
+        var next = vaults ?? Set(known)
+        if next.contains(id) { next.remove(id) } else { next.insert(id) }
+        return next.isSuperset(of: known) ? nil : next
+    }
+
+    // MARK: Focus
+
+    /// A focus that is not an author hub omits authors from the request, so
+    /// the Authors toggle and colour-by-author have nothing to show.
+    static func authorsUnavailable(focus: String?) -> Bool {
+        guard let focus, !focus.isEmpty else { return false }
+        return !BrainGraphRequest.isAuthorFocus(focus)
+    }
+
+    /// The focus point to select now: once per focus, when it is on screen.
+    static func focusToSelect(focus: String?, selectedFor: String?, visibleIDs: Set<String>) -> String? {
+        guard let focus, !focus.isEmpty, focus != selectedFor, visibleIDs.contains(focus) else { return nil }
+        return focus
+    }
+
+    // MARK: List
+
+    /// Visible notes and memories, heaviest first (then by label), whose label
+    /// contains `query`.
+    static func listRows(_ visible: VisibleBrainGraph, vaults: [BrainGraphVaultDTO], query: String) -> [BrainListRow] {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let names = Dictionary(vaults.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
+        return visible.nodes
+            .filter { isItem($0) && (q.isEmpty || $0.label.localizedStandardContains(q)) }
+            .sorted {
+                if $0.weight != $1.weight { return $0.weight > $1.weight }
+                let order = $0.label.localizedStandardCompare($1.label)
+                return order == .orderedSame ? $0.id < $1.id : order == .orderedAscending
+            }
+            .map { node in
+                BrainListRow(
+                    id: node.id,
+                    label: node.label,
+                    kind: BrainGraphCopy.nodeKindName(node.kind),
+                    vault: node.vaultID.flatMap { names[$0] },
+                    connections: visible.index.edgesOf[node.id]?.count ?? 0
+                )
+            }
+    }
+
+    // MARK: Selection
+
+    /// The canvas's accessibility value.
+    static func selectionSummary(_ selected: [String], index: BrainGraphIndex) -> String {
+        switch selected.count {
+        case 0: "Nothing selected"
+        case 1: "Selected: \(index.byID[selected[0]]?.label ?? selected[0])"
+        default: "\(selected.count) selected"
+        }
+    }
+}

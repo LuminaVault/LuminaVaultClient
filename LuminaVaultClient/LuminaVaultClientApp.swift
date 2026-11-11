@@ -89,6 +89,12 @@ struct LuminaVaultClientApp: App {
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
             return
         }
+        #if DEBUG
+        // UI tests of the Brain screen run on a stubbed client: no SDKs.
+        if BrainUITestScenario.launched != nil {
+            return
+        }
+        #endif
 
         SentrySDK.start { options in
             // No hardcoded fallback: a missing SENTRY_DSN disables the SDK
@@ -539,6 +545,10 @@ struct LuminaVaultClientApp: App {
                 // held a finished app behind the splash.
                 withAnimation { showSplash = false }
             }
+            #if DEBUG
+            // `-BrainUITestScenario`: the Brain screen alone, on a stub.
+            .brainUITestHarness()
+            #endif
         }
     }
 

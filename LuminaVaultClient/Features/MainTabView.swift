@@ -597,11 +597,7 @@ struct MainTabView: View {
     /// toolbar item with it — a `.toolbar` declared out here would have no
     /// bar to attach to.
     private var brainTab: some View {
-        BrainTabView(
-            client: memoryGraphClient,
-            knowledgeClient: knowledgeGraphClient,
-            memoryClient: memoryUpsertClient
-        )
+        BrainTabView(client: brainGraphClient)
     }
 
     private var insightsTab: some View {
@@ -709,17 +705,9 @@ struct MainTabView: View {
         return viewModel
     }
 
-    private var memoryGraphClient: MemoryGraphClientProtocol {
-        MemoryGraphHTTPClient(client: appState.makeHTTPClient())
-    }
-
-    /// `GET /v1/brain/graph`. Not passed to the Brain tab yet.
+    /// `GET /v1/brain/graph`.
     private var brainGraphClient: BrainGraphClientProtocol {
         BrainGraphHTTPClient(client: appState.makeHTTPClient())
-    }
-
-    private var knowledgeGraphClient: KnowledgeGraphClientProtocol {
-        KnowledgeGraphHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var jobsClient: JobsClientProtocol {
