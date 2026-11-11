@@ -79,7 +79,7 @@ extension ForceSimulation2D {
     }
 
     nonisolated func byID() -> [String: CGPoint] {
-        Dictionary(uniqueKeysWithValues: zip(nodes.map(\.id), positions))
+        Dictionary(zip(nodes.map(\.id), positions), uniquingKeysWith: { first, _ in first })
     }
 
     /// The smallest gap between two circles drawn at their radii; negative is an overlap.
@@ -378,13 +378,177 @@ nonisolated struct ForceSimulation2DTests {
         sim.settle()
         #expect(sim.byID()[id] == target)
     }
+
+    @Test func nonFinitePinsAreIgnoredAndFarPinsClamped() {
+        var sim = Self.simulation(Fixture.vault(60))
+        sim.settle()
+        let before = sim.positions
+        let cold = sim.alpha
+        for bad in [CGPoint(x: CGFloat.nan, y: 0), CGPoint(x: 0, y: CGFloat.infinity), CGPoint(x: -CGFloat.infinity, y: CGFloat.nan)] {
+            sim.pin(4, at: bad)
+        }
+        #expect(sim.positions == before)
+        #expect(sim.alpha == cold)
+        #expect(sim.tick() == false)
+
+        sim.pin(4, at: CGPoint(x: 1e9, y: -1e12))
+        #expect(sim.positions[4] == CGPoint(x: 100_000, y: -100_000))
+        sim.settle()
+        #expect(sim.positions[4] == CGPoint(x: 100_000, y: -100_000))
+        #expect(sim.positions.allSatisfy { $0.x.isFinite && $0.y.isFinite })
+    }
+
+    @Test func anEmptyGraphTicksCold() {
+        var sim = Self.simulation(Fixture.vault(20))
+        sim.setGraph(Fixture.graph([], []))
+        #expect(sim.alpha > 0)
+        #expect(sim.tick() == false)
+        #expect(sim.alpha == 0)
+    }
+
+    @Test func aFreshGraphLaysOutTheSameWhateverCameBefore() {
+        let graph = Fixture.singleAuthor(1000)
+        var alone = Self.simulation(graph)
+        alone.settle()
+
+        var after = Self.simulation(Fixture.vault(30, prefix: "o"))
+        for _ in 0 ..< 7 { _ = after.tick() }
+        #expect(after.isFresh(graph.nodes.map(\.id)))
+        after.setGraph(graph)
+        after.settle()
+        #expect(after.byID() == alone.byID())
+    }
+
+    /// Two ids that are different strings on the wire (NFC and NFD, or a
+    /// character outside the BMP) stay two points, in the web's code-unit order.
+    @Test func idsThatDifferOnTheWireStayTwoPoints() {
+        let nfc = "tag:caf\u{E9}", nfd = "tag:cafe\u{301}"
+        let astral = "\u{1F600}x", halfwidth = "\u{FF61}x"
+        #expect(nfc == nfd, "Swift's own String equality merges them")
+        let graph = Fixture.graph(
+            [Fixture.note(halfwidth), Fixture.note(nfc), Fixture.note(astral), Fixture.note(nfd)],
+            [Fixture.edge(nfd, astral, .link), Fixture.edge(nfc, halfwidth, .source)]
+        )
+        let input = ForceSimulation2D.input(for: graph)
+        #expect(input.nodes.map { Array($0.id.utf16) } == [nfd, nfc, astral, halfwidth].map { Array($0.utf16) })
+        #expect(input.links.map { "\($0.from)-\($0.to)" } == ["0-2", "1-3"])
+
+        var sim = ForceSimulation2D()
+        sim.setGraph(graph)
+        #expect(sim.nodes.count == 4)
+        #expect(sim.index(of: nfd) == 0)
+        #expect(sim.index(of: nfc) == 1)
+        sim.settle()
+        #expect(sim.positions[0] != sim.positions[1])
+    }
+
+    /// 1,000 newcomers seeded onto one placed hub: the crowded clump must
+    /// spread without flinging the hub. d3, on the same input, moves the hub
+    /// at most 92 pt and settles the group at about (29, -42).
+    @Test func aBurstOfNewcomersOntoOneHubDoesNotFlingIt() throws {
+        let author = "author:user:AAAAAAAA-0000-4000-8000-000000000001"
+        let ids = ["z-seed"] + (0 ..< 1000).map { String(format: "a%05d", $0) }
+        let hub = Fixture.hub(author, .author, weight: ids.count)
+        var sim = Self.simulation(Fixture.graph([hub, Fixture.note("z-seed")], [Fixture.edge("z-seed", author, .author)]))
+        sim.settle()
+        let start = try #require(sim.byID()[author])
+
+        sim.setGraph(Fixture.graph([hub] + ids.map { Fixture.note($0) }, ids.map { Fixture.edge($0, author, .author) }))
+        let h = try #require(sim.index(of: author))
+        var furthest: CGFloat = 0
+        var ticks = 0
+        while ticks < 400 {
+            ticks += 1
+            let more = sim.tick()
+            furthest = max(furthest, distance(sim.positions[h], start))
+            if !more { break }
+        }
+        #expect(ticks <= 300)
+        #expect(furthest < 300, "hub flung \(furthest) pt")
+        let members = sim.positions.indices.filter { $0 != h }
+        let centroid = CGPoint(
+            x: members.map { sim.positions[$0].x }.reduce(0, +) / CGFloat(members.count),
+            y: members.map { sim.positions[$0].y }.reduce(0, +) / CGFloat(members.count)
+        )
+        #expect(hypot(centroid.x, centroid.y) < 200, "group settled at \(centroid)")
+        #expect(sim.smallestGap() >= 0)
+    }
+
+    /// A point held far away stays out of the grid's extent, so the rest lay
+    /// out exactly as if it were not there (it has no links to pull them).
+    @Test func aFarPinLeavesTheRestUntouched() {
+        let graph = Fixture.vault(300)
+        var alone = Self.simulation(graph)
+        alone.settle()
+
+        let far = "zzz-far"
+        var held = Self.simulation(Fixture.graph(graph.nodes + [Fixture.note(far)], graph.edges))
+        let index = held.nodes.count - 1
+        #expect(held.nodes[index].id == far)
+        held.pin(index, at: CGPoint(x: 90_000, y: 90_000))
+        held.settle()
+        var rest = held.byID()
+        rest[far] = nil
+        #expect(rest == alone.byID())
+    }
+
+    #if DEBUG
+        /// A Debug-checkable stand-in for the release timing: the work per tick.
+        /// By construction a point visits at most 9 cells × 24 exact pairs (a
+        /// crowded cell counts as one body), so 216. Measured release means
+        /// per point per tick over a settle: vault 24, single author 95,
+        /// clump 87; the bound of 120 leaves 25% headroom over the worst.
+        @Test(arguments: ["vault", "author", "clump"])
+        func nearFieldWorkPerTickIsBounded(_ shape: String) {
+            var sim = ForceSimulation2D()
+            switch shape {
+            case "vault": sim.setGraph(Fixture.vault(1000))
+            case "author": sim.setGraph(Fixture.singleAuthor(1000))
+            default:
+                let author = "author:user:AAAAAAAA-0000-4000-8000-000000000001"
+                sim.setGraph(Fixture.graph(
+                    [Fixture.hub(author, .author, weight: 2), Fixture.note("z-seed")],
+                    [Fixture.edge("z-seed", author, .author)]
+                ))
+                sim.settle()
+                let ids = ["z-seed"] + (0 ..< 1000).map { String(format: "a%05d", $0) }
+                sim.setGraph(Fixture.graph(
+                    [Fixture.hub(author, .author, weight: ids.count)] + ids.map { Fixture.note($0) },
+                    ids.map { Fixture.edge($0, author, .author) }
+                ))
+            }
+            var ticks = 0, busiest = 0
+            var perPoint = 0.0
+            while ticks < 400 {
+                ticks += 1
+                let more = sim.tick()
+                let visits = sim.lastTickPairVisits
+                busiest = max(busiest, visits.maxPerPoint)
+                perPoint += Double(visits.total) / Double(sim.nodes.count)
+                if !more { break }
+            }
+            #expect(ticks <= 300)
+            #expect(busiest <= 9 * ForceSimulation2D.cellSampleLimit)
+            #expect(perPoint / Double(ticks) < 120, "mean \(perPoint / Double(ticks)) pairs per point per tick")
+        }
+
+        @Test func aNonFinitePositionNeverTrapsTheGrid() {
+            var sim = Self.simulation(Fixture.vault(80))
+            sim.overwritePositionForTesting(3, CGPoint(x: CGFloat.nan, y: 4))
+            sim.overwritePositionForTesting(9, CGPoint(x: CGFloat.infinity, y: -CGFloat.infinity))
+            sim.settle()
+            #expect(sim.positions.allSatisfy { $0.x.isFinite && $0.y.isFinite })
+        }
+
+    #endif
 }
 
 // MARK: - Actor
 
-/// A clock tests drive by hand. With `step` set, every reading of `now` also
-/// moves it on, so each tick batch appears to take that long.
-nonisolated final class TestClock: Clock, Sendable {
+/// A clock that moves only when told. `sleep(until:)` parks until `advance`
+/// reaches its deadline, and ends early with `CancellationError` when its task
+/// is cancelled.
+nonisolated final class ManualClock: Clock, Sendable {
     struct Instant: InstantProtocol {
         var offset: Duration
         func advanced(by duration: Duration) -> Instant { Instant(offset: offset + duration) }
@@ -392,170 +556,450 @@ nonisolated final class TestClock: Clock, Sendable {
         static func < (lhs: Instant, rhs: Instant) -> Bool { lhs.offset < rhs.offset }
     }
 
-    private let state = Mutex(Duration.zero)
-    private let step: Duration
+    private struct Sleeper: Sendable {
+        let id: Int
+        let deadline: Instant
+        let continuation: CheckedContinuation<Void, any Error>
+    }
 
-    init(step: Duration = .zero) { self.step = step }
+    private struct State: Sendable {
+        var now = Instant(offset: .zero)
+        var sleepers: [Sleeper] = []
+        var cancelledEarly: Set<Int> = []
+        var nextID = 0
+        var sleepCalls = 0
+    }
 
-    var now: Instant {
-        state.withLock { value in
-            value += step
-            return Instant(offset: value)
+    private let state = Mutex(State())
+
+    var now: Instant { state.withLock { $0.now } }
+    var minimumResolution: Duration { .nanoseconds(1) }
+    var sleeperCount: Int { state.withLock { $0.sleepers.count } }
+    /// How many times anything has slept on this clock.
+    var sleepCalls: Int { state.withLock { $0.sleepCalls } }
+
+    func sleep(until deadline: Instant, tolerance: Duration?) async throws {
+        let id = state.withLock { s in
+            s.nextID += 1
+            s.sleepCalls += 1
+            return s.nextID
+        }
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+                enum Action { case resume, cancel, park }
+                let action: Action = state.withLock { s in
+                    if s.cancelledEarly.remove(id) != nil { return .cancel }
+                    if deadline <= s.now { return .resume }
+                    s.sleepers.append(Sleeper(id: id, deadline: deadline, continuation: continuation))
+                    return .park
+                }
+                switch action {
+                case .resume: continuation.resume()
+                case .cancel: continuation.resume(throwing: CancellationError())
+                case .park: break
+                }
+            }
+        } onCancel: {
+            let sleeper: Sleeper? = state.withLock { s in
+                if let i = s.sleepers.firstIndex(where: { $0.id == id }) { return s.sleepers.remove(at: i) }
+                s.cancelledEarly.insert(id)
+                return nil
+            }
+            sleeper?.continuation.resume(throwing: CancellationError())
         }
     }
 
-    var minimumResolution: Duration { .nanoseconds(1) }
+    /// Moves time on and wakes every sleeper now due.
+    func advance(by duration: Duration) {
+        let due: [Sleeper] = state.withLock { s in
+            s.now = s.now.advanced(by: duration)
+            let now = s.now
+            let ready = s.sleepers.filter { $0.deadline <= now }
+            s.sleepers.removeAll { $0.deadline <= now }
+            return ready
+        }
+        for sleeper in due { sleeper.continuation.resume() }
+    }
 
-    func advance(by duration: Duration) { state.withLock { $0 += duration } }
-
-    func sleep(until deadline: Instant, tolerance: Duration?) async throws {
-        while now < deadline { try await Task.sleep(for: .milliseconds(1)) }
+    /// Waits (in real time, briefly) until `count` sleepers are parked.
+    func parked(_ count: Int) async -> Bool {
+        let deadline = ContinuousClock.now + .seconds(20)
+        while sleeperCount != count {
+            if ContinuousClock.now > deadline { return false }
+            try? await Task.sleep(for: .milliseconds(1))
+        }
+        return true
     }
 }
 
 @Suite(.timeLimit(.minutes(2)))
 nonisolated struct GraphLayout2DTests {
     typealias Fixture = LayoutFixtures
+    static let frame = GraphLayout2D.frameInterval
 
-    private func waitIdle(_ layout: GraphLayout2D) async throws {
-        let deadline = ContinuousClock.now + .seconds(60)
-        while await !layout.isIdle {
-            try #require(ContinuousClock.now < deadline, "layout never settled")
-            try await Task.sleep(for: .milliseconds(5))
+    private func until(_ what: String, _ condition: () async -> Bool) async throws {
+        let deadline = ContinuousClock.now + .seconds(30)
+        while await !condition() {
+            try #require(ContinuousClock.now < deadline, "timed out waiting for \(what)")
+            try await Task.sleep(for: .milliseconds(1))
         }
     }
 
-    @Test func aRunEndsWithOneSettledSnapshotAndThenGoesQuiet() async throws {
-        let layout = GraphLayout2D(clock: TestClock(step: .milliseconds(10)))
-        await layout.setGraph(Fixture.vault(150))
-        try await waitIdle(layout)
-        let stats = await layout.stats
-        #expect(stats.yields > 1, "intermediate frames were published")
+    /// Advances a frame whenever the loop sleeps, until the run settles.
+    @discardableResult
+    private func drive(_ layout: GraphLayout2D, _ clock: ManualClock) async throws -> Int {
+        var frames = 0
+        let deadline = ContinuousClock.now + .seconds(60)
+        while await !layout.isIdle {
+            try #require(ContinuousClock.now < deadline, "layout never settled")
+            if clock.sleeperCount > 0 {
+                clock.advance(by: Self.frame)
+                frames += 1
+            } else {
+                try await Task.sleep(for: .milliseconds(1))
+            }
+        }
+        return frames
+    }
 
-        var updates = layout.updates.makeAsyncIterator()
+    /// Advances `count` frames, each time waiting for the loop to step and sleep again.
+    private func step(_ clock: ManualClock, frames count: Int) async throws {
+        for _ in 0 ..< count {
+            try #require(await clock.parked(1))
+            clock.advance(by: Self.frame)
+        }
+        try #require(await clock.parked(1))
+    }
+
+    // MARK: Pacing
+
+    @Test func withoutTimeNothingTicks() async throws {
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        // Held: dropping the stream would count as the subscriber leaving.
+        let stream = await layout.updates()
+        await layout.setGraph(Fixture.vault(150))
+        try #require(await clock.parked(1))
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(await layout.stats.ticks == 0)
+        #expect(await layout.stats.yields == 0)
+        #expect(await !layout.isIdle)
+        withExtendedLifetime(stream) {}
+    }
+
+    @Test func eachFrameIsTwoTicksAndOneSnapshot() async throws {
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        var updates = await layout.updates().makeAsyncIterator()
+        await layout.setGraph(Fixture.vault(150))
+        try await step(clock, frames: 1)
+        #expect(await layout.stats.ticks == 2)
+        #expect(await layout.stats.yields == 1)
+        let first = try #require(await updates.next())
+        #expect(first.generation == 1)
+        #expect(!first.settled)
+        try await step(clock, frames: 1)
+        #expect(await layout.stats.ticks == 4)
+        #expect(await layout.stats.yields == 2)
+    }
+
+    @Test func aStallGivesOneStepNotACatchUpBurst() async throws {
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        await layout.setGraph(Fixture.vault(150))
+        try await step(clock, frames: 1)
+        clock.advance(by: .seconds(1))
+        try #require(await clock.parked(1))
+        #expect(await layout.stats.ticks == 4)
+        #expect(await layout.stats.yields == 2)
+    }
+
+    @Test func aDragIsPacedLikeASettle() async throws {
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        await layout.setGraph(Fixture.vault(60))
+        try await drive(layout, clock)
+        let ticks = await layout.stats.ticks
+        for k in 1 ... 5 {
+            await layout.pin("n00002", at: CGPoint(x: 10 * CGFloat(k), y: 0))
+        }
+        try await step(clock, frames: 1)
+        #expect(await layout.stats.ticks == ticks + 2)
+        #expect(await layout.stats.loopStarts == 2)
+        #expect(await layout.positions()["n00002"] == CGPoint(x: 50, y: 0))
+    }
+
+    @Test func cancellingWhileAsleepEndsTheLoop() async throws {
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        await layout.setGraph(Fixture.vault(150))
+        try await step(clock, frames: 2)
+        await layout.pause()
+        try #require(await clock.parked(0), "the sleeping step was not cancelled")
+        let ticks = await layout.stats.ticks
+        clock.advance(by: .seconds(5))
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(await layout.stats.ticks == ticks)
+        #expect(await layout.isIdle)
+        #expect(clock.sleeperCount == 0)
+    }
+
+    @Test func quietModeNeverSleeps() async throws {
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        var updates = await layout.updates().makeAsyncIterator()
+        await layout.setQuiet(true)
+        await layout.setGraph(Fixture.vault(150))
+        try await until("settle") { await layout.isIdle }
+        #expect(clock.sleepCalls == 0)
+        #expect(await layout.stats.yields == 1)
+        #expect(await updates.next()?.settled == true)
+        await layout.pin("n00001", at: .zero)
+        try await until("second settle") { await layout.isIdle }
+        #expect(clock.sleepCalls == 0)
+        #expect(await layout.stats.yields == 2)
+    }
+
+    // MARK: Runs and generations
+
+    @Test func aRunEndsWithOneSettledSnapshotAndThenGoesQuiet() async throws {
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        var updates = await layout.updates().makeAsyncIterator()
+        await layout.setGraph(Fixture.vault(150))
+        let frames = try await drive(layout, clock)
+        #expect(frames >= 80)
+        let stats = await layout.stats
+        #expect(stats.yields == frames)
         let last = try #require(await updates.next())
         #expect(last.settled)
         #expect(last.generation == 1)
         #expect(last.ids.count == 156)
         #expect(last.points.count == last.ids.count)
 
-        // Idle: no timer, no polling, nothing more published.
-        for _ in 0 ..< 20 { try await Task.sleep(for: .milliseconds(2)) }
-        #expect(await layout.stats.yields == stats.yields)
-        #expect(await layout.isIdle)
+        // Idle: nothing asleep, nothing ticking, nothing published.
+        #expect(clock.sleeperCount == 0)
+        clock.advance(by: .seconds(10))
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(await layout.stats == stats)
 
-        // A pin wakes it; it settles again.
+        // A pin wakes it; it settles again with the point held.
         await layout.pin("n00003", at: CGPoint(x: 400, y: 400))
-        try await waitIdle(layout)
+        try await drive(layout, clock)
         let woken = try #require(await updates.next())
         #expect(woken.settled)
-        #expect(woken.generation == 1)
         let index = try #require(woken.ids.firstIndex(of: "n00003"))
         #expect(woken.points[index] == CGPoint(x: 400, y: 400))
-        #expect(await layout.positions()["n00003"] == CGPoint(x: 400, y: 400))
     }
 
     @Test func aSlowConsumerOnlySeesTheLatestSnapshot() async throws {
-        let layout = GraphLayout2D(clock: TestClock(step: .milliseconds(10)))
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        let updates = await layout.updates()
         await layout.setGraph(Fixture.vault(150))
-        try await waitIdle(layout)
+        try await drive(layout, clock)
         #expect(await layout.stats.yields > 2)
         await layout.stop()
         var seen: [LayoutSnapshot] = []
-        for await snapshot in layout.updates { seen.append(snapshot) }
+        for await snapshot in updates { seen.append(snapshot) }
         #expect(seen.count == 1)
         #expect(seen.first?.settled == true)
     }
 
-    @Test func snapshotsAreThrottledByTheClock() async throws {
-        // Time never moves: only the first batch and the settle are published.
-        let layout = GraphLayout2D(clock: TestClock())
-        await layout.setGraph(Fixture.vault(150))
-        try await waitIdle(layout)
-        #expect(await layout.stats.yields == 2)
-    }
-
     @Test func aSecondGraphMidRunContinuesTheSameLoopForTheNewGeneration() async throws {
-        // A still clock publishes the first batch, then nothing until settled.
-        let layout = GraphLayout2D(clock: TestClock())
-        var updates = layout.updates.makeAsyncIterator()
-        await layout.setGraph(Fixture.vault(1000))
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        var updates = await layout.updates().makeAsyncIterator()
+        await layout.setGraph(Fixture.vault(300))
+        try await step(clock, frames: 1)
         let first = try #require(await updates.next())
         #expect(first.generation == 1)
         #expect(!first.settled)
-        try #require(await !layout.isIdle)
 
         let second = Fixture.vault(120, prefix: "m")
         await layout.setGraph(second)
-        var after: [LayoutSnapshot] = []
-        while let next = await updates.next() {
-            after.append(next)
-            if next.settled { break }
-        }
-        #expect(after.allSatisfy { $0.generation == 2 })
-        #expect(after.last?.settled == true)
-        #expect(Set(after.last?.ids ?? []) == Set(second.nodes.map(\.id)))
+        try await drive(layout, clock)
+        let last = try #require(await updates.next())
+        #expect(last.generation == 2)
+        #expect(last.settled)
+        #expect(Set(last.ids) == Set(second.nodes.map(\.id)))
         #expect(await layout.stats.loopStarts == 1)
     }
 
-    @Test func quietModePublishesOnlyTheSettledSnapshot() async throws {
-        let layout = GraphLayout2D(clock: TestClock(step: .milliseconds(10)))
-        await layout.setQuiet(true)
-        await layout.setGraph(Fixture.vault(150))
-        try await waitIdle(layout)
-        #expect(await layout.stats.yields == 1)
-        await layout.pin("n00001", at: .zero)
-        try await waitIdle(layout)
-        #expect(await layout.stats.yields == 2)
-        var updates = layout.updates.makeAsyncIterator()
-        #expect(await updates.next()?.settled == true)
-    }
-
     @Test func everyGraphGetsANewGenerationEvenWhenNothingMoves() async throws {
-        let layout = GraphLayout2D(clock: TestClock())
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        var updates = await layout.updates().makeAsyncIterator()
         let graph = Fixture.vault(20)
         await layout.setGraph(graph)
-        try await waitIdle(layout)
+        try await drive(layout, clock)
         await layout.setGraph(graph)
-        try await waitIdle(layout)
-        var updates = layout.updates.makeAsyncIterator()
+        try await drive(layout, clock)
         let snapshot = try #require(await updates.next())
         #expect(snapshot.generation == 2)
         #expect(snapshot.settled)
     }
 
-    @Test func stopFinishesTheStreamAndIgnoresLaterGraphs() async throws {
-        let layout = GraphLayout2D(clock: TestClock())
-        await layout.setGraph(Fixture.vault(1000))
-        await layout.stop()
-        #expect(await layout.isIdle)
-        var count = 0
-        for await _ in layout.updates { count += 1 }
-        #expect(count <= 1)
-        let yields = await layout.stats.yields
-        await layout.setGraph(Fixture.vault(10))
-        await layout.pin("n00001", at: .zero)
-        #expect(await layout.isIdle)
-        #expect(await layout.stats.yields == yields)
+    // MARK: Pause, resume, subscribers
+
+    @Test func pauseMidRunHoldsAndResumeFinishesTheSameGeneration() async throws {
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        var updates = await layout.updates().makeAsyncIterator()
+        await layout.setGraph(Fixture.vault(150))
+        try await step(clock, frames: 3)
+        await layout.pause()
+        let held = await layout.stats
+        clock.advance(by: .seconds(1))
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(await layout.stats == held)
+        #expect(await layout.isPaused)
+
+        await layout.resume()
+        #expect(await layout.stats.yields == held.yields + 1)
+        try await drive(layout, clock)
+        let last = try #require(await updates.next())
+        #expect(last.generation == 1)
+        #expect(last.settled)
+        #expect(await layout.stats.ticks > held.ticks)
     }
 
-    @Test func releasingTheActorMidRunEndsTheLoopAndTheStream() async throws {
-        weak var weakLayout: GraphLayout2D?
-        let updates: AsyncStream<LayoutSnapshot>
-        do {
-            let layout = GraphLayout2D(clock: TestClock())
-            weakLayout = layout
-            updates = layout.updates
-            await layout.setGraph(Fixture.vault(1000))
-            #expect(await !layout.isIdle)
-        }
-        let deadline = ContinuousClock.now + .seconds(10)
-        while weakLayout != nil, ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        #expect(weakLayout == nil, "the run loop kept the actor alive")
+    @Test func whilePausedAGraphChangesTheLayoutButRunsNothing() async throws {
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        await layout.pause()
+        await layout.setGraph(Fixture.vault(40))
+        #expect(await layout.isIdle)
+        #expect(await layout.positions().count == 41)
+        #expect(clock.sleeperCount == 0)
+        var updates = await layout.updates().makeAsyncIterator()
+        let now = try #require(await updates.next())
+        #expect(now.generation == 1)
+        #expect(!now.settled)
+        #expect(await !layout.isPaused)
+        try await drive(layout, clock)
+        #expect(await updates.next()?.settled == true)
+    }
+
+    @Test func aNewSubscriberAfterACancelledOneGetsTheCurrentSnapshotAndLaterOnes() async throws {
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        let firstStream = await layout.updates()
+        let consumer = Task { for await _ in firstStream {} }
+        await layout.setGraph(Fixture.vault(150))
+        try await step(clock, frames: 2)
+        consumer.cancel()
+        try await until("pause") { await layout.isPaused }
+
+        var updates = await layout.updates().makeAsyncIterator()
+        let current = try #require(await updates.next())
+        #expect(current.generation == 1)
+        #expect(!current.settled)
+        try await step(clock, frames: 1)
+        let later = try #require(await updates.next())
+        #expect(later.points != current.points)
+        try await drive(layout, clock)
+        #expect(await updates.next()?.settled == true)
+    }
+
+    @Test func nobodyListeningMeansNothingTicks() async throws {
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        let stream = await layout.updates()
+        let consumer = Task { for await _ in stream {} }
+        await layout.setGraph(Fixture.vault(150))
+        try await step(clock, frames: 1)
+        consumer.cancel()
+        try await until("pause") { await layout.isPaused }
+        let ticks = await layout.stats.ticks
+        for _ in 0 ..< 20 { clock.advance(by: Self.frame) }
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(await layout.stats.ticks == ticks)
+        #expect(clock.sleeperCount == 0)
+    }
+
+    @Test func aNewSubscriberReplacesTheOldOne() async throws {
+        let layout = GraphLayout2D(clock: ManualClock())
+        let old = await layout.updates()
+        let current = await layout.updates()
+        var count = 0
+        for await _ in old { count += 1 }
+        #expect(count == 0)
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(await !layout.isPaused, "the old stream's end paused the new subscriber")
+        withExtendedLifetime(current) {}
+    }
+
+    @Test func aNonFinitePinIsIgnored() async throws {
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        await layout.setGraph(Fixture.vault(40))
+        try await drive(layout, clock)
+        let before = await layout.positions()
+        let stats = await layout.stats
+        await layout.pin("n00002", at: CGPoint(x: CGFloat.nan, y: 1))
+        await layout.pin("n00002", at: CGPoint(x: 1, y: CGFloat.infinity))
+        #expect(await layout.isIdle)
+        #expect(await layout.stats == stats)
+        #expect(await layout.positions() == before)
+    }
+
+    // MARK: Ending
+
+    @Test func stopFinishesTheStreamAndIgnoresLaterCommands() async throws {
+        let clock = ManualClock()
+        let layout = GraphLayout2D(clock: clock)
+        let updates = await layout.updates()
+        await layout.setGraph(Fixture.vault(300))
+        try await step(clock, frames: 1)
+        await layout.stop()
+        #expect(await layout.isIdle)
+        try #require(await clock.parked(0))
         var count = 0
         for await _ in updates { count += 1 }
         #expect(count <= 1)
+        let stats = await layout.stats
+        await layout.setGraph(Fixture.vault(10))
+        await layout.pin("n00001", at: .zero)
+        await layout.resume()
+        #expect(await layout.isIdle)
+        #expect(await layout.stats == stats)
+        var late = 0
+        for await _ in await layout.updates() { late += 1 }
+        #expect(late == 0)
+    }
+
+    @Test func releasingTheActorWhileItSleepsEndsTheLoopAndTheStream() async throws {
+        let clock = ManualClock()
+        weak var weakLayout: GraphLayout2D?
+        let updates: AsyncStream<LayoutSnapshot>
+        do {
+            let layout = GraphLayout2D(clock: clock)
+            weakLayout = layout
+            updates = await layout.updates()
+            await layout.setGraph(Fixture.vault(300))
+            try await step(clock, frames: 1)
+        }
+        try await until("release") { weakLayout == nil }
+        try #require(await clock.parked(0), "the run loop is still asleep")
+        var count = 0
+        for await _ in updates { count += 1 }
+        #expect(count <= 1)
+    }
+
+    @Test func aPausedActorIsReleasedWhenDropped() async throws {
+        let clock = ManualClock()
+        weak var weakLayout: GraphLayout2D?
+        do {
+            let layout = GraphLayout2D(clock: clock)
+            weakLayout = layout
+            let stream = await layout.updates()
+            await layout.setGraph(Fixture.vault(100))
+            try await step(clock, frames: 1)
+            await layout.pause()
+            withExtendedLifetime(stream) {}
+        }
+        try await until("release") { weakLayout == nil }
+        #expect(clock.sleeperCount == 0)
     }
 }
