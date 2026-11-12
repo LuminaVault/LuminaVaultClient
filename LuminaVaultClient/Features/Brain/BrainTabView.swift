@@ -77,7 +77,7 @@ struct BrainTabView: View {
                 .searchable(text: $searchText, isPresented: $searchPresented, prompt: BrainTabState.searchPrompt)
                 .searchSuggestions { searchSuggestions }
                 .task(id: request) { store.sync(request) }
-                .onChange(of: graphKey, initial: true) { rederive() }
+                .onChange(of: derivationKey, initial: true) { rederive() }
                 .onChange(of: filters) { _, next in
                     similarAsked = BrainTabState.similarAsked(previously: similarAsked, filters: next)
                     BrainPrefs(filters: next, view: savedView).save(to: prefsDefaults)
@@ -213,18 +213,18 @@ struct BrainTabView: View {
 
     @ViewBuilder
     private var statusBar: some View {
-        if let visible, card == .graph || card == .nothingMatches {
-            BrainStatusBar(
-                line: BrainTabState.statusLine(
-                    visible: visible,
-                    truncated: store.truncatedCount != nil,
-                    stale: store.stale,
-                    rateLimited: store.rateLimited,
-                    refreshError: store.refreshError
-                ),
-                refreshing: store.refreshing,
-                retry: { store.retry() }
+        if let line = BrainTabState.statusLine(
+            card: card,
+            visible: visible,
+            facts: BrainRefreshFacts(
+                truncated: store.truncatedCount != nil,
+                stale: store.stale,
+                rateLimited: store.rateLimited,
+                refreshError: store.refreshError,
+                refreshing: store.refreshing
             )
+        ) {
+            BrainStatusBar(line: line, refreshing: store.refreshing, retry: { store.retry() })
         }
     }
 
@@ -306,11 +306,12 @@ struct BrainTabView: View {
         return nil
     }
 
-    /// Changes whenever a different response is on screen (or none).
-    private var graphKey: String {
-        guard let graph = loadedGraph else { return "none" }
-        let known = store.knownVaults.map(\.id.uuidString).joined(separator: ",")
-        return "\(graph.generatedAt.timeIntervalSince1970)|\(graph.nodes.count)|\(graph.edges.count)|\(known)"
+    /// Changes with every response that lands, even one that looks like the
+    /// last (same counts, same `generatedAt`).
+    private var derivationKey: String {
+        BrainTabState.derivationKey(
+            loadSerial: loadedGraph == nil ? nil : store.loadSerial, knownVaults: store.knownVaults.map(\.id)
+        )
     }
 
     private var colourOrder: [String] {
@@ -367,20 +368,30 @@ private struct BrainStatusBar: View {
                 }
             }
             if let notice = line.notice {
+                // Notice and reason on the left, Retry at the end: the
+                // button keeps a full 44 pt target without padding the
+                // line out.
                 HStack(spacing: LVSpacing.sm) {
-                    Text(notice)
-                        .foregroundStyle(palette.textPrimary)
+                    VStack(alignment: .leading, spacing: LVSpacing.hairline) {
+                        Text(notice)
+                            .foregroundStyle(palette.textPrimary)
+                        if let reason = line.reason {
+                            Text(reason)
+                                .foregroundStyle(palette.textSecondary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    Spacer(minLength: 0)
                     if line.offersRetry {
-                        Button(BrainTabState.retryTitle, action: retry)
-                            .disabled(refreshing)
+                        Button(action: retry) {
+                            Text(BrainTabState.retryTitle)
+                                .frame(minWidth: 44, minHeight: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .disabled(refreshing)
                             .accessibilityIdentifier("brain.status.retry")
                             .accessibilityHint(line.reason ?? "")
                     }
-                }
-                if let reason = line.reason {
-                    Text(reason)
-                        .foregroundStyle(palette.textSecondary)
-                        .accessibilityHidden(true)
                 }
             }
         }
@@ -395,9 +406,11 @@ private struct BrainStatusBar: View {
 
     @ViewBuilder
     private var texts: some View {
-        Text(line.counts)
-            .foregroundStyle(palette.textSecondary)
-            .accessibilityIdentifier("brain.status.counts")
+        if let counts = line.counts {
+            Text(counts)
+                .foregroundStyle(palette.textSecondary)
+                .accessibilityIdentifier("brain.status.counts")
+        }
         if let truncated = line.truncated {
             Text(truncated)
                 .foregroundStyle(palette.textSecondary)

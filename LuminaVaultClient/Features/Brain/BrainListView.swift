@@ -27,7 +27,11 @@ struct BrainListView: View {
             .listStyle(.insetGrouped)
             .overlay {
                 if rows.isEmpty {
-                    ContentUnavailableView.search(text: query)
+                    if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        ContentUnavailableView(BrainTabState.listEmptyText, systemImage: "circle.dashed")
+                    } else {
+                        ContentUnavailableView.search(text: query)
+                    }
                 }
             }
             .navigationTitle("Notes and memories")

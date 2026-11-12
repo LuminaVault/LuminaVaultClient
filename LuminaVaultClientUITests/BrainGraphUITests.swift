@@ -158,6 +158,40 @@ nonisolated final class BrainGraphUITests: XCTestCase {
         waitForLabel(requests(app), "requests: 1")
     }
 
+    /// A response with the same counts and `generatedAt` as the one before
+    /// is still a new response: the screen must show it.
+    @MainActor
+    func testEveryLandedResponseIsShown() {
+        let app = launch("sameStamp")
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        openFilters(app)
+        app.buttons["brain.filter.vault.Work"].tap()
+        closeSheet(app)
+        waitForLabel(requests(app), "requests: 2")
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        search(app, "moved gar", pick: "Moved garden plans")
+        waitForValue(canvas(app), "Selected: Moved garden plans")
+    }
+
+    /// A selected point that a filter hides leaves the selection.
+    @MainActor
+    func testAFilterThatHidesTheSelectionClearsIt() {
+        let app = launch("graph")
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        search(app, "gard", pick: "Garden plans")
+        waitForValue(canvas(app), "Selected: Garden plans")
+        openFilters(app)
+        app.buttons["brain.filter.vault.Personal"].tap()
+        closeSheet(app)
+        waitForValue(canvas(app), "Nothing selected")
+        app.buttons["brain.more"].tap()
+        app.buttons["List"].tap()
+        let row = app.buttons["brain.list.row.N6"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["brain.list.row.N1"].exists)
+        XCTAssertFalse(row.isSelected)
+    }
+
     // MARK: states
 
     @MainActor
@@ -204,6 +238,9 @@ nonisolated final class BrainGraphUITests: XCTestCase {
         settle()
         waitForLabel(requests(app), "requests: 2")
         XCTAssertEqual(app.buttons.matching(identifier: "brain.status.retry").count, 1)
+        let retry = app.buttons["brain.status.retry"].frame
+        XCTAssertGreaterThanOrEqual(retry.height, 44, "Retry is a full tap target")
+        XCTAssertGreaterThanOrEqual(retry.width, 44, "Retry is a full tap target")
         attach(app, "stale")
     }
 

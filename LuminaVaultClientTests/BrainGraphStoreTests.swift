@@ -96,6 +96,22 @@ struct BrainGraphStoreTests {
             == "/v1/brain/graph?links=link%2Csource%2Ctag%2Cauthor%2Centity%2Cspace&limit=800")
     }
 
+    @Test func everyLandedResponseBumpsTheLoadSerialEvenWhenItLooksTheSame() async {
+        let r = rig()
+        #expect(r.store.loadSerial == 0)
+        await r.mock.enqueueOnce(.success(Self.response(at: 1, nodes: [Self.node("A", .note)])))
+        await r.store.load(Self.all)
+        #expect(r.store.loadSerial == 1)
+        // Same `generatedAt`, same counts, different nodes.
+        await r.mock.enqueueOnce(.success(Self.response(at: 1, nodes: [Self.node("B", .note)])))
+        await r.store.load(Self.focused)
+        #expect(r.store.loadSerial == 2)
+        // A failure lands nothing.
+        await r.mock.enqueueOnce(.failure(MockBrainGraphClient.httpError(500)))
+        await r.store.load(Self.all)
+        #expect(r.store.loadSerial == 2)
+    }
+
     @Test func keepsTheGraphSetsRateLimitedAndAsksOnceOn429() async {
         let r = rig()
         await r.mock.enqueueOnce(.success(Self.graph))

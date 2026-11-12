@@ -138,66 +138,149 @@ struct BrainTabStateTests {
 
     // MARK: status line
 
-    @Test func countsLineCountsNotesAndMemoriesAndConnections() {
-        let line = BrainTabState.statusLine(
-            visible: Self.visible(), truncated: false, stale: false, rateLimited: false, refreshError: nil
-        )
+    @Test func countsLineCountsNotesAndMemoriesAndConnections() throws {
+        let line = try #require(BrainTabState.statusLine(
+            card: .graph, visible: Self.visible(), facts: BrainRefreshFacts(
+                truncated: false, stale: false, rateLimited: false, refreshError: nil, refreshing: false
+            )
+        ))
         #expect(line.counts == "3 notes and memories · 3 connections")
         #expect(line.truncated == nil)
         #expect(line.notice == nil)
         #expect(!line.offersRetry)
     }
 
-    @Test func oneConnectionIsSingular() {
+    @Test func oneConnectionIsSingular() throws {
         var filters = BrainGraphModel.defaultFilters()
         filters.links[.tag] = false
-        let line = BrainTabState.statusLine(
-            visible: Self.visible(Self.graph, filters), truncated: false, stale: false, rateLimited: false,
-            refreshError: nil
-        )
+        let line = try #require(BrainTabState.statusLine(
+            card: .graph, visible: Self.visible(Self.graph, filters), facts: BrainRefreshFacts(
+                truncated: false, stale: false, rateLimited: false, refreshError: nil, refreshing: false
+            )
+        ))
         #expect(line.counts == "3 notes and memories · 1 connection")
     }
 
-    @Test func aFilterToggleChangesTheCounts() {
+    @Test func aFilterToggleChangesTheCounts() throws {
         var filters = BrainGraphModel.defaultFilters()
         filters.showOrphans = false
-        let line = BrainTabState.statusLine(
-            visible: Self.visible(Self.graph, filters), truncated: false, stale: false, rateLimited: false,
-            refreshError: nil
-        )
+        let line = try #require(BrainTabState.statusLine(
+            card: .graph, visible: Self.visible(Self.graph, filters), facts: BrainRefreshFacts(
+                truncated: false, stale: false, rateLimited: false, refreshError: nil, refreshing: false
+            )
+        ))
         #expect(line.counts == "2 notes and memories · 3 connections")
     }
 
-    @Test func truncatedSaysMostRecent800() {
-        let line = BrainTabState.statusLine(
-            visible: Self.visible(), truncated: true, stale: false, rateLimited: false, refreshError: nil
-        )
+    @Test func truncatedSaysMostRecent800() throws {
+        let line = try #require(BrainTabState.statusLine(
+            card: .graph, visible: Self.visible(), facts: BrainRefreshFacts(
+                truncated: true, stale: false, rateLimited: false, refreshError: nil, refreshing: false
+            )
+        ))
         #expect(line.truncated == "Most recent 800 shown")
     }
 
-    @Test func staleSaysEarlierGraphWithRetry() {
-        let line = BrainTabState.statusLine(
-            visible: Self.visible(), truncated: false, stale: true, rateLimited: true, refreshError: nil
-        )
+    @Test func staleSaysEarlierGraphWithRetry() throws {
+        let line = try #require(BrainTabState.statusLine(
+            card: .graph, visible: Self.visible(), facts: BrainRefreshFacts(
+                truncated: false, stale: true, rateLimited: true, refreshError: nil, refreshing: false
+            )
+        ))
         #expect(line.notice == "Showing an earlier graph")
         #expect(line.offersRetry)
         #expect(line.reason == BrainGraphErrors.rateLimitedMessage)
     }
 
-    @Test func aRateLimitOverTheSameGraphIsOneNoticeWithRetry() {
-        let line = BrainTabState.statusLine(
-            visible: Self.visible(), truncated: false, stale: false, rateLimited: true, refreshError: nil
-        )
+    @Test func aRateLimitOverTheSameGraphIsOneNoticeWithRetry() throws {
+        let line = try #require(BrainTabState.statusLine(
+            card: .graph, visible: Self.visible(), facts: BrainRefreshFacts(
+                truncated: false, stale: false, rateLimited: true, refreshError: nil, refreshing: false
+            )
+        ))
         #expect(line.notice == BrainGraphErrors.rateLimitedMessage)
         #expect(line.offersRetry)
     }
 
-    @Test func aRefreshErrorIsTheReason() {
-        let line = BrainTabState.statusLine(
-            visible: Self.visible(), truncated: false, stale: true, rateLimited: false, refreshError: "Network unavailable."
-        )
+    @Test func aRefreshErrorIsTheReason() throws {
+        let line = try #require(BrainTabState.statusLine(
+            card: .graph, visible: Self.visible(), facts: BrainRefreshFacts(
+                truncated: false, stale: true, rateLimited: false, refreshError: "Network unavailable.", refreshing: false
+            )
+        ))
         #expect(line.notice == "Showing an earlier graph")
         #expect(line.reason == "Network unavailable.")
+    }
+
+    @Test func oneItemIsSingular() {
+        #expect(BrainTabState.countsText(items: 1, connections: 1) == "1 note or memory · 1 connection")
+        #expect(BrainTabState.countsText(items: 0, connections: 0) == "0 notes and memories · 0 connections")
+        #expect(BrainTabState.countsText(items: 2, connections: 2) == "2 notes and memories · 2 connections")
+    }
+
+    @Test func theEmptyCardCarriesARefusedRefreshWithRetryButNoCounts() throws {
+        let line = try #require(BrainTabState.statusLine(
+            card: .empty, visible: Self.visible(Self.response(nodes: [])), facts: BrainRefreshFacts(
+                truncated: false, stale: true, rateLimited: true, refreshError: nil, refreshing: false
+            )
+        ))
+        #expect(line.counts == nil)
+        #expect(line.notice == "Showing an earlier graph")
+        #expect(line.reason == BrainGraphErrors.rateLimitedMessage)
+        #expect(line.offersRetry)
+        let failed = try #require(BrainTabState.statusLine(
+            card: .empty, visible: nil, facts: BrainRefreshFacts(
+                truncated: false, stale: false, rateLimited: false, refreshError: "Network unavailable.", refreshing: false
+            )
+        ))
+        #expect(failed.notice == "Network unavailable.")
+        #expect(failed.offersRetry)
+    }
+
+    @Test func theEmptyCardShowsALineOnlyWithSomethingToSay() {
+        #expect(BrainTabState.statusLine(
+            card: .empty, visible: nil, facts: BrainRefreshFacts(
+                truncated: false, stale: false, rateLimited: false, refreshError: nil, refreshing: false
+            )
+        ) == nil)
+        let refreshing = BrainTabState.statusLine(
+            card: .empty, visible: nil, facts: BrainRefreshFacts(
+                truncated: false, stale: false, rateLimited: false, refreshError: nil, refreshing: true
+            )
+        )
+        #expect(refreshing?.notice == nil)
+        #expect(refreshing?.counts == nil)
+    }
+
+    @Test func cardsWithTheirOwnMessageHaveNoLine() {
+        for card in [BrainTabCard.firstLoad, .missingFocus, .failed(message: "x", showAllVaults: false)] {
+            #expect(BrainTabState.statusLine(
+                card: card, visible: Self.visible(), facts: BrainRefreshFacts(
+                truncated: true, stale: true, rateLimited: true, refreshError: nil, refreshing: true
+            )
+            ) == nil)
+        }
+    }
+
+    @Test func nothingMatchesStillCounts() throws {
+        let line = try #require(BrainTabState.statusLine(
+            card: .nothingMatches, visible: Self.visible(), facts: BrainRefreshFacts(
+                truncated: false, stale: false, rateLimited: false, refreshError: nil, refreshing: false
+            )
+        ))
+        #expect(line.counts == "3 notes and memories · 3 connections")
+    }
+
+    // MARK: derivation key
+
+    @Test func everyLandedResponseIsANewDerivation() {
+        let known = [Self.v1, Self.v2]
+        #expect(BrainTabState.derivationKey(loadSerial: 1, knownVaults: known)
+            != BrainTabState.derivationKey(loadSerial: 2, knownVaults: known))
+        #expect(BrainTabState.derivationKey(loadSerial: 1, knownVaults: known)
+            != BrainTabState.derivationKey(loadSerial: 1, knownVaults: [Self.v1]))
+        #expect(BrainTabState.derivationKey(loadSerial: nil, knownVaults: known)
+            != BrainTabState.derivationKey(loadSerial: 0, knownVaults: known))
     }
 
     // MARK: request

@@ -2,7 +2,7 @@
 // looking at every state in the simulator without an account or a server.
 //
 //   -BrainUITestScenario graph|empty|failed|missingFocus|stale|refreshing|
-//                        firstLoad|truncated|nothingMatches
+//                        firstLoad|truncated|nothingMatches|sameStamp
 //   -BrainUITestScheme light|dark       (optional)
 //   -BrainUITestTypeSize large|xxxLarge|accessibility3   (optional)
 //   -BrainUITestHideRequests YES        (optional; for screenshots)
@@ -18,6 +18,10 @@ import SwiftUI
 
 enum BrainUITestScenario: String {
     case graph, empty, failed, missingFocus, stale, refreshing, firstLoad, truncated, nothingMatches
+    /// A request that names vaults gets a different graph with the same
+    /// counts and the same `generatedAt`: every item moved into the first
+    /// named vault and renamed.
+    case sameStamp
 
     static var launched: BrainUITestScenario? {
         UserDefaults.standard.string(forKey: "BrainUITestScenario").flatMap(Self.init(rawValue:))
@@ -51,7 +55,7 @@ final class BrainUITestClient: BrainGraphClientProtocol {
         requestCount += 1
         let first = requestCount == 1
         switch scenario {
-        case .graph, .truncated, .nothingMatches:
+        case .graph, .truncated, .nothingMatches, .sameStamp:
             break
         case .empty:
             return Self.response(vaults: [Self.personal], nodes: [], edges: [])
@@ -95,10 +99,15 @@ final class BrainUITestClient: BrainGraphClientProtocol {
     /// items tagged "work", one link. Ten connections in all. The
     /// `nothingMatches` graph is the same items with no connections.
     private func graph(for request: BrainGraphRequest) -> BrainGraphResponse {
-        Self.graph(for: request, linked: scenario != .nothingMatches, truncated: scenario == .truncated)
+        let moveTo = scenario == .sameStamp ? request.vaults?.first : nil
+        return Self.graph(
+            for: request, linked: scenario != .nothingMatches, truncated: scenario == .truncated, moveTo: moveTo
+        )
     }
 
-    private static func graph(for request: BrainGraphRequest, linked: Bool, truncated: Bool) -> BrainGraphResponse {
+    private static func graph(
+        for request: BrainGraphRequest, linked: Bool, truncated: Bool, moveTo: UUID?
+    ) -> BrainGraphResponse {
         let p = personal.id, w = work.id
         func item(_ id: String, _ label: String, _ kind: BrainNodeKindDTO, _ vault: UUID, _ weight: Int) -> BrainGraphNodeDTO {
             BrainGraphNodeDTO(id: id, kind: kind, label: label, vaultID: vault, weight: weight)
@@ -133,7 +142,13 @@ final class BrainUITestClient: BrainGraphClientProtocol {
             ]
         }
         var vaults = [personal, work]
-        if let named = request.vaults, !named.isEmpty {
+        if let moveTo {
+            nodes = nodes.map { n in
+                guard n.vaultID != nil else { return n }
+                return BrainGraphNodeDTO(id: n.id, kind: n.kind, label: "Moved \(n.label.lowercased())", vaultID: moveTo, weight: n.weight)
+            }
+            vaults = vaults.filter { $0.id == moveTo }
+        } else if let named = request.vaults, !named.isEmpty {
             let keep = Set(named)
             vaults = vaults.filter { keep.contains($0.id) }
             nodes = nodes.filter { $0.vaultID.map(keep.contains) ?? true }

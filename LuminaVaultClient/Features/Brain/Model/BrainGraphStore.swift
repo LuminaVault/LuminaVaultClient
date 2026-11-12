@@ -80,6 +80,10 @@ final class BrainGraphStore {
     private(set) var loaded: BrainGraphRequest?
     /// True while a scheduled load waits out its debounce.
     private(set) var pending = false
+    /// Counts the responses that have landed. A new response is new even when
+    /// its counts and `generatedAt` match the one before, so the screen keys
+    /// its derivation on this rather than on the response's contents.
+    private(set) var loadSerial = 0
     /// Every vault of the first unfiltered response; until then, every vault seen.
     private(set) var knownVaults: [BrainGraphVaultDTO] = []
 
@@ -239,6 +243,7 @@ final class BrainGraphStore {
             guard token == seq else { return }
             inFlight = nil
             state = .loaded(graph)
+            loadSerial += 1
             loaded = req
             rateLimited = false
             refreshError = nil

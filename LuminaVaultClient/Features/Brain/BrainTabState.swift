@@ -23,8 +23,9 @@ nonisolated enum BrainTabCard: Equatable, Sendable {
 
 /// The quiet line under the bar.
 nonisolated struct BrainStatusLine: Equatable, Sendable {
-    /// "N notes and memories · M connections".
-    var counts: String
+    /// "N notes and memories · M connections"; nil over the empty card,
+    /// where there is nothing to count.
+    var counts: String?
     /// "Most recent 800 shown" when the response was cut.
     var truncated: String?
     /// One notice at most: the graph shown is an earlier one, or a refresh
@@ -33,6 +34,16 @@ nonisolated struct BrainStatusLine: Equatable, Sendable {
     /// Why, for VoiceOver and a second line: the friendly error.
     var reason: String?
     var offersRetry: Bool
+}
+
+/// What the store says about the graph on screen, for the status line.
+nonisolated struct BrainRefreshFacts: Equatable, Sendable {
+    /// The response was cut at the 800-item window.
+    var truncated = false
+    var stale = false
+    var rateLimited = false
+    var refreshError: String?
+    var refreshing = false
 }
 
 /// One row of `BrainListView`.
@@ -62,6 +73,8 @@ nonisolated enum BrainTabState {
     static let noSimilarText = "No similar notes found."
     static let staleText = "Showing an earlier graph"
     static let searchPrompt = "Search notes and memories"
+    /// The list with nothing visible and nothing typed.
+    static let listEmptyText = "No notes or memories shown"
     static let truncatedText = "Most recent \(BrainGraphRequest.unfocusedLimit) shown"
 
     static func isItem(_ node: BrainGraphNodeDTO) -> Bool {
@@ -105,26 +118,42 @@ nonisolated enum BrainTabState {
     // MARK: Status line
 
     static func countsText(items: Int, connections: Int) -> String {
-        "\(items) notes and memories · \(connectionsText(connections))"
+        let things = items == 1 ? "1 note or memory" : "\(items) notes and memories"
+        return "\(things) · \(connectionsText(connections))"
     }
 
     static func connectionsText(_ n: Int) -> String {
         n == 1 ? "1 connection" : "\(n) connections"
     }
 
-    static func statusLine(
-        visible: VisibleBrainGraph, truncated: Bool, stale: Bool, rateLimited: Bool, refreshError: String?
-    ) -> BrainStatusLine {
-        let items = visible.nodes.count(where: isItem)
-        let reason = rateLimited ? BrainGraphErrors.rateLimitedMessage : refreshError
-        let notice = stale ? staleText : reason
-        return BrainStatusLine(
-            counts: countsText(items: items, connections: visible.edges.count),
-            truncated: truncated ? truncatedText : nil,
-            notice: notice,
-            reason: stale ? reason : nil,
-            offersRetry: notice != nil
+    /// The line under the bar, or nil when there is nothing to say. The graph
+    /// and nothing-matches cards count what is visible; the empty card has
+    /// nothing to count but still carries a refused or failed refresh (a
+    /// vault change, say) with its Retry, and the refresh spinner.
+    static func statusLine(card: BrainTabCard, visible: VisibleBrainGraph?, facts: BrainRefreshFacts) -> BrainStatusLine? {
+        let reason = facts.rateLimited ? BrainGraphErrors.rateLimitedMessage : facts.refreshError
+        let notice = facts.stale ? staleText : reason
+        var line = BrainStatusLine(
+            counts: nil, truncated: nil, notice: notice, reason: facts.stale ? reason : nil, offersRetry: notice != nil
         )
+        switch card {
+        case .graph, .nothingMatches:
+            guard let visible else { return nil }
+            line.counts = countsText(items: visible.nodes.count(where: isItem), connections: visible.edges.count)
+            line.truncated = facts.truncated ? truncatedText : nil
+            return line
+        case .empty:
+            return notice != nil || facts.refreshing ? line : nil
+        case .firstLoad, .failed, .missingFocus:
+            return nil
+        }
+    }
+
+    /// Changes with every response that lands (and with the known vaults,
+    /// which name the vault colours); nil while none is on screen.
+    static func derivationKey(loadSerial: Int?, knownVaults: [UUID]) -> String {
+        guard let loadSerial else { return "none" }
+        return "\(loadSerial)|" + knownVaults.map(\.uuidString).joined(separator: ",")
     }
 
     // MARK: Request
