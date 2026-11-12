@@ -39,9 +39,11 @@ final class AchievementsViewModel {
     func refresh() async {
         list = .loading
         recent = .loading
-        async let listTask: Void = loadList()
-        async let recentTask: Void = loadRecent()
-        _ = await (listTask, recentTask)
+        // A task group, not `async let`: see HomeGlanceViewModel.load().
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.loadList() }
+            group.addTask { await self.loadRecent() }
+        }
     }
 
     func dismissCelebrations() {

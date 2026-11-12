@@ -133,24 +133,15 @@ final class HomeGlanceViewModel {
     }
 
     func load() async {
-        async let summaryState = loadSummary()
-        async let pendingState = loadPending()
-        // Its own call alongside the two above rather than a third `async
-        // let`: the queue settles its own state, and the tile reads it live.
-        async let revisitLoaded: Void = loadResurface()
-        let (summary, pending, _) = await (summaryState, pendingState, revisitLoaded)
-
-        switch summary {
-        case .loading:
-            break
-        case .loaded(let response):
-            memoriesToday = .loaded(response.memoriesToday)
-            streakDays = .loaded(response.streakDays)
-        case .failed(let message):
-            memoriesToday = .failed(message: message)
-            streakDays = .failed(message: message)
+        // A task group, not `async let`: three `async let`s here aborted optimized
+        // builds in the Swift runtime on Home's first load ("freed pointer was not
+        // the last allocation"), which crashed the app on launch for signed-in users.
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.applySummary() }
+            group.addTask { await self.applyPending() }
+            // The queue settles its own state, and the tile reads it live.
+            group.addTask { await self.loadResurface() }
         }
-        pendingFiles = pending
 
         // After the tiles rather than beside them: the strip sits below them,
         // so it settling a beat later is invisible.
@@ -161,14 +152,12 @@ final class HomeGlanceViewModel {
             recap = newRecap
         }
 
-        // Sequenced after the recap, not a fourth `async let` beside the
-        // three above: the row sits further down still, and it keeps its own
-        // state (a failed refresh leaves what is on screen).
+        // Sequenced after the recap: the row sits further down still, and it
+        // keeps its own state (a failed refresh leaves what is on screen).
         await learned?.load()
 
-        // Last, for the same reason: one more `async let` up top crashed the
-        // runtime before (see the recap above). Home only needs the count,
-        // so the commitments behind Open loops wait for the sheet.
+        // Last, for the same reason. Home only needs the count, so the
+        // commitments behind Open loops wait for the sheet.
         await brief?.load(includeCommitments: false)
     }
 
@@ -178,6 +167,23 @@ final class HomeGlanceViewModel {
     func refreshSheetBackedRows() async {
         await learned?.load()
         await brief?.load(includeCommitments: false)
+    }
+
+    private func applySummary() async {
+        switch await loadSummary() {
+        case .loading:
+            break
+        case .loaded(let response):
+            memoriesToday = .loaded(response.memoriesToday)
+            streakDays = .loaded(response.streakDays)
+        case .failed(let message):
+            memoriesToday = .failed(message: message)
+            streakDays = .failed(message: message)
+        }
+    }
+
+    private func applyPending() async {
+        pendingFiles = await loadPending()
     }
 
     private func loadRecap() async -> CardState<MeRecapResponse> {

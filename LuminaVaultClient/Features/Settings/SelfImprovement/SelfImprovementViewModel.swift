@@ -20,20 +20,42 @@ final class SelfImprovementViewModel {
     var pendingChanges: [LVImprovementChange] { changes.filter { $0.state == .pending } }
     var canManage: Bool { status?.availability == .managed }
 
+    private enum Loaded: Sendable {
+        case status(LVImprovementStatus)
+        case runs([LVImprovementRun])
+        case changes([LVImprovementChange])
+        case resources([LVImprovementResource])
+    }
+
     func load() async {
         isLoading = true
         defer { isLoading = false }
         do {
-            async let status = client.status()
-            async let runs = client.runs()
-            async let changes = client.changes()
-            async let resources = client.resources()
-            let values = try await (status, runs, changes, resources)
-            self.status = values.0
-            settings = values.0.settings
-            self.runs = values.1
-            self.changes = values.2
-            self.resources = values.3
+            var loadedStatus: LVImprovementStatus?
+            var loadedRuns: [LVImprovementRun] = []
+            var loadedChanges: [LVImprovementChange] = []
+            var loadedResources: [LVImprovementResource] = []
+            // A task group, not `async let`: see HomeGlanceViewModel.load().
+            try await withThrowingTaskGroup(of: Loaded.self) { group in
+                group.addTask { .status(try await self.client.status()) }
+                group.addTask { .runs(try await self.client.runs()) }
+                group.addTask { .changes(try await self.client.changes()) }
+                group.addTask { .resources(try await self.client.resources()) }
+                for try await item in group {
+                    switch item {
+                    case .status(let value): loadedStatus = value
+                    case .runs(let value): loadedRuns = value
+                    case .changes(let value): loadedChanges = value
+                    case .resources(let value): loadedResources = value
+                    }
+                }
+            }
+            guard let loadedStatus else { return }
+            status = loadedStatus
+            settings = loadedStatus.settings
+            runs = loadedRuns
+            changes = loadedChanges
+            resources = loadedResources
             errorMessage = nil
         } catch { errorMessage = Self.message(error) }
     }

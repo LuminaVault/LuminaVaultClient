@@ -39,13 +39,33 @@ final class CommunityThreadViewModel {
         canReply && !isSending && !replyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private enum Loaded: Sendable {
+        case post(CommunityPostDTO)
+        case page(CommunityPostPageDTO)
+    }
+
     func load() async {
         isLoading = true
         defer { isLoading = false }
         do {
-            async let root = client.post(id: post.id)
-            async let page = client.replies(postID: post.id, cursor: nil, limit: pageSize)
-            let (fresh, first) = try await (root, page)
+            let postID = post.id
+            let limit = pageSize
+            var loadedPost: CommunityPostDTO?
+            var loadedPage: CommunityPostPageDTO?
+            // A task group, not `async let`: see HomeGlanceViewModel.load().
+            try await withThrowingTaskGroup(of: Loaded.self) { group in
+                group.addTask { .post(try await self.client.post(id: postID)) }
+                group.addTask {
+                    .page(try await self.client.replies(postID: postID, cursor: nil, limit: limit))
+                }
+                for try await item in group {
+                    switch item {
+                    case .post(let value): loadedPost = value
+                    case .page(let value): loadedPage = value
+                    }
+                }
+            }
+            guard let fresh = loadedPost, let first = loadedPage else { return }
             post = fresh
             replies = first.items
             nextCursor = first.nextCursor
