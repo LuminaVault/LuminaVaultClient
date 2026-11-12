@@ -1,187 +1,144 @@
-// LuminaVaultClient/LuminaVaultClient/Features/Brain/BrainNodeDetailSheet.swift
-//
-// HER-235 — detail sheet for a tapped graph node, kind-aware (memory vs
-// wiki page). v1 shows title, tags, and timestamp. A follow-up can route a
-// wiki node to its full markdown page once the node DTO carries the vault
-// path, and a memory node to `MemoEditorView`.
+// The tray's Open (and a double tap on a point). A port of the web app's
+// `BrainNodeSheet.svelte`, same strings: a memory shows its body (loaded by
+// `BrainNodeDetail` from its own vault); a note shows its title, vault and
+// Space, which is all the graph knows.
 
 import LuminaVaultShared
 import SwiftUI
 
 struct BrainNodeDetailSheet: View {
-
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.lvPalette) private var palette
 
-    let node: MemoryGraphNodeDTO
-    /// Injected so a memory node can load + show its full content inline
-    /// (HER-235 open-on-click). `nil` keeps the summary-only behaviour.
-    var memoryClient: (any MemoryClientProtocol)?
-
-    @State private var content: String?
-    /// The fetched memory, kept whole rather than reduced to its `content`.
-    /// The geo anchor (`lat`/`lng`/`placeName`) has been arriving on this DTO
-    /// since HER-207 and was being discarded on every load.
-    @State private var memory: MemoryDTO?
-    @State private var isLoadingContent = false
-    @State private var loadFailed = false
+    let detail: BrainNodeDetail
+    let vaultName: String?
+    let spaceName: String?
+    /// The Memories screen edits the active vault only.
+    let activeVaultID: UUID?
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack(spacing: 8) {
-                        LVIconView(kindIcon, size: 13, tint: accentColor)
-                        Text(kindLabel.uppercased())
-                            .font(.caption2.weight(.bold))
-                            .tracking(0.8)
-                            .foregroundStyle(accentColor)
-                    }
-
-                    Text(node.title)
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(palette.textPrimary)
-
-                    HStack(spacing: 8) {
-                        LVIconView(.clock, size: 13, tint: palette.textSecondary)
-                        Text(node.createdAt, style: .date)
-                    }
-                    .font(.footnote)
-                    .foregroundStyle(palette.textSecondary)
-
-                    if !node.tags.isEmpty {
-                        FlowLayout(spacing: 6) {
-                            ForEach(node.tags, id: \.self) { tag in
-                                Text(tag)
-                                    .font(.caption.weight(.medium))
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(accentColor.opacity(0.15))
-                                    .foregroundStyle(accentColor)
-                                    .clipShape(Capsule())
-                            }
-                        }
-                    }
-
-                    // Full memory content (HER-235 open-on-click). Fetched via
-                    // the injected client for memory nodes only.
-                    if node.kind == .memory {
-                        Divider().overlay(palette.textSecondary.opacity(0.2))
-                        if isLoadingContent {
-                            ProgressView().tint(palette.primary)
-                        } else if let content, !content.isEmpty {
-                            Text(content)
-                                .font(.callout)
-                                .foregroundStyle(palette.textPrimary)
-                                .textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        } else if loadFailed {
-                            Text("Couldn't load this memory.")
-                                .font(.footnote)
-                                .foregroundStyle(palette.textSecondary)
-                        }
-
-                        // Where this was captured. Renders nothing when the
-                        // memory carries no coordinate, which is the common case.
-                        if let memory {
-                            MemoryMapCard(memory: memory)
-                        }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Score")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(Color.lvTextMuted)
-                            Text(String(format: "%.2f", node.score))
-                                .font(.body.monospacedDigit())
-                                .foregroundStyle(palette.textPrimary)
-                        }
-                    }
+                if let node = detail.node {
+                    content(node)
+                        .padding(.horizontal, LVSpacing.base + LVSpacing.xs)
+                        .padding(.vertical, LVSpacing.base)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .lvBackground()
-            .navigationTitle(kindLabel)
+            .background(palette.backgroundBase)
+            .navigationTitle(detail.node?.kind == .memory ? "Memory" : "Note")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done", action: dismiss.callAsFunction)
+                }
+            }
         }
         .presentationDetents([.medium, .large])
-        .task(id: node.id) { await loadContentIfNeeded() }
     }
 
-    private func loadContentIfNeeded() async {
-        guard node.kind == .memory, let memoryClient, content == nil else { return }
-        isLoadingContent = true
-        loadFailed = false
-        defer { isLoadingContent = false }
-        do {
-            let fetched = try await memoryClient.get(id: node.id)
-            memory = fetched
-            content = fetched.content
-        } catch {
-            loadFailed = true
-        }
+    /// Ids compare by value, so case never matters.
+    private var elsewhere: Bool {
+        guard let id = detail.node?.vaultID, let activeVaultID else { return false }
+        return id != activeVaultID
     }
 
-    // MARK: - Kind presentation
-
-    private var kindLabel: String {
-        node.kind == .wikiPage ? "Wiki Page" : "Memory"
-    }
-
-    private var kindIcon: LVIcon {
-        node.kind == .wikiPage ? .docText : .brain
-    }
-
-    /// Wiki pages ride the warm channel (gold accent) to match the graph;
-    /// memories ride the cool channel (cyan primary).
-    private var accentColor: Color {
-        node.kind == .wikiPage ? palette.accent : palette.primary
-    }
-}
-
-/// Local tag-list flow layout. SwiftUI's stock `Layout` makes a 10-line
-/// wrap layout trivial; pulling in another component would be overkill.
-private struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
-        let width = proposal.width ?? .infinity
-        let rows = arrange(subviews: subviews, in: width)
-        let height = rows.reduce(0) { $0 + $1.height + spacing } - spacing
-        return CGSize(width: width, height: max(0, height))
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal _: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
-        let rows = arrange(subviews: subviews, in: bounds.width)
-        var y = bounds.minY
-        for row in rows {
-            var x = bounds.minX
-            for (subview, size) in row.items {
-                subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
-                x += size.width + spacing
+    private func content(_ node: BrainGraphNodeDTO) -> some View {
+        VStack(alignment: .leading, spacing: LVSpacing.md) {
+            VStack(alignment: .leading, spacing: LVSpacing.xs) {
+                Text(node.label)
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(palette.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("brain.detail.title")
+                if elsewhere {
+                    Text("In \(vaultName ?? "another vault")")
+                        .font(.subheadline)
+                        .foregroundStyle(palette.textSecondary)
+                }
             }
-            y += row.height + spacing
-        }
-    }
-
-    private struct Row {
-        var items: [(Subviews.Element, CGSize)] = []
-        var height: CGFloat = 0
-    }
-
-    private func arrange(subviews: Subviews, in width: CGFloat) -> [Row] {
-        var rows: [Row] = [Row()]
-        var x: CGFloat = 0
-        for sub in subviews {
-            let size = sub.sizeThatFits(.unspecified)
-            if x + size.width > width, !rows[rows.count - 1].items.isEmpty {
-                rows.append(Row())
-                x = 0
+            facts
+            if node.kind == .memory, let memory = detail.memory {
+                Divider()
+                memoryBody(memory)
             }
-            rows[rows.count - 1].items.append((sub, size))
-            rows[rows.count - 1].height = max(rows[rows.count - 1].height, size.height)
-            x += size.width + spacing
         }
-        return rows
+    }
+
+    @ViewBuilder
+    private var facts: some View {
+        let showVault = vaultName != nil && !elsewhere
+        if showVault || spaceName != nil {
+            VStack(alignment: .leading, spacing: LVSpacing.sm) {
+                if showVault, let vaultName { fact("Vault", vaultName) }
+                if let spaceName { fact("Space", spaceName) }
+            }
+        }
+    }
+
+    private func fact(_ term: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: LVSpacing.md) {
+            Text(term)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
+                .frame(minWidth: 56, alignment: .leading)
+            Text(value)
+                .foregroundStyle(palette.textPrimary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private func memoryBody(_ state: BrainNodeDetail.MemoryState) -> some View {
+        switch state {
+        case .loading:
+            HStack(spacing: LVSpacing.sm) {
+                ProgressView()
+                Text("Loading memory…").foregroundStyle(palette.textSecondary)
+            }
+            .accessibilityElement(children: .combine)
+        case let .failed(message):
+            Text(message).foregroundStyle(.red)
+        case let .loaded(memory):
+            VStack(alignment: .leading, spacing: LVSpacing.md) {
+                Text(Self.markdown(memory.content))
+                    .foregroundStyle(palette.textPrimary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if !memory.tags.isEmpty {
+                    LVFlowLayout(spacing: LVSpacing.xs + LVSpacing.hairline) {
+                        ForEach(memory.tags, id: \.self) { tag in
+                            Text(tag)
+                                .font(.caption.weight(.medium))
+                                .padding(.horizontal, LVSpacing.sm)
+                                .padding(.vertical, LVSpacing.xs)
+                                .background(Capsule().fill(palette.primary.opacity(0.15)))
+                                .foregroundStyle(palette.primary)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Tags: \(memory.tags.joined(separator: ", "))")
+                }
+                // Where it was captured; nothing when it carries no coordinate.
+                MemoryMapCard(memory: memory)
+                if let created = memory.createdAt {
+                    Text("Saved \(created.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.footnote)
+                        .foregroundStyle(palette.textSecondary)
+                }
+                if elsewhere {
+                    Text("Switch to \(vaultName ?? "its vault") to edit this memory.")
+                        .font(.footnote)
+                        .foregroundStyle(palette.textSecondary)
+                }
+            }
+        }
+    }
+
+    /// Inline Markdown (bold, links, code); the text as it is if it does not parse.
+    private static func markdown(_ text: String) -> AttributedString {
+        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        return (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
     }
 }

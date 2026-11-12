@@ -10,7 +10,8 @@
 // Launch arguments of the form `-key value` land in `UserDefaults.standard`.
 // The screen's prefs go to a separate, emptied suite so runs do not leak into
 // each other. The stub counts the requests it answers and shows the count in
-// an element named `brain.uitest.requests`.
+// an element named `brain.uitest.requests`, and the last request's query in
+// `brain.uitest.lastQuery`. Reasoning and memory loads answer from fixed stubs.
 
 #if DEBUG
 import LuminaVaultShared
@@ -45,6 +46,7 @@ extension View {
 @MainActor @Observable
 final class BrainUITestClient: BrainGraphClientProtocol {
     private(set) var requestCount = 0
+    private(set) var lastQuery = ""
     let scenario: BrainUITestScenario
 
     init(scenario: BrainUITestScenario) {
@@ -53,6 +55,7 @@ final class BrainUITestClient: BrainGraphClientProtocol {
 
     func fetchGraph(_ request: BrainGraphRequest) async throws -> BrainGraphResponse {
         requestCount += 1
+        lastQuery = request.query
         let first = requestCount == 1
         switch scenario {
         case .graph, .truncated, .nothingMatches, .sameStamp:
@@ -78,6 +81,8 @@ final class BrainUITestClient: BrainGraphClientProtocol {
     }
 
     // MARK: Fixture
+
+    static var personalID: UUID { personal.id }
 
     private static let personal = BrainGraphVaultDTO(
         id: UUID(uuidString: "00000000-0000-0000-0000-0000000000A1") ?? UUID(), name: "Personal", personal: true
@@ -159,6 +164,76 @@ final class BrainUITestClient: BrainGraphClientProtocol {
     }
 }
 
+/// Answers every question with the same short answer, evidence, path and
+/// one suggestion; explains every pair the same way.
+nonisolated struct BrainUITestKnowledgeClient: KnowledgeGraphClientProtocol {
+    private static let edge = KnowledgeEdgeDTO(
+        id: UUID(), from: UUID(), to: UUID(), predicate: .relatedTo, state: .suggested, confidence: 0.64,
+        rationale: "Both were written the same week."
+    )
+    private static let nodes = [
+        KnowledgeNodeDTO(id: UUID(), kind: .entity, label: "Sleep", confidence: 0.9),
+        KnowledgeNodeDTO(id: UUID(), kind: .entity, label: "Garden", confidence: 0.8),
+    ]
+
+    private static var answer: ReasoningQueryResponse {
+        ReasoningQueryResponse(
+            answer: "",
+            paths: [KnowledgePathDTO(nodes: nodes, edges: [], confidence: 0.72)],
+            evidence: [KnowledgeEvidenceDTO(id: UUID(), memoryID: UUID(), quote: "Slept better after a day in the garden.")],
+            confidence: 0.72,
+            suggestions: [edge]
+        )
+    }
+
+    func fetchGraph(limit _: Int, minimumConfidence _: Double) async throws -> KnowledgeGraphResponse {
+        KnowledgeGraphResponse(nodes: [], edges: [], generatedAt: Date())
+    }
+
+    func reason(query _: String, maxDepth _: Int, limit _: Int) async throws -> ReasoningQueryResponse {
+        Self.answer
+    }
+
+    func reasonStream(query _: String, maxDepth _: Int, limit _: Int) -> AsyncThrowingStream<ReasoningStreamEventDTO, any Error> {
+        AsyncThrowingStream { continuation in
+            continuation.yield(ReasoningStreamEventDTO(type: "context", response: Self.answer))
+            continuation.yield(ReasoningStreamEventDTO(type: "token", message: "Both sit under home: "))
+            continuation.yield(ReasoningStreamEventDTO(type: "token", message: "the sleep log mentions the garden."))
+            continuation.finish()
+        }
+    }
+
+    func explain(from _: UUID, to _: UUID, maxDepth _: Int) async throws -> ConnectionExplanationResponse {
+        ConnectionExplanationResponse(
+            explanation: "They share a tag and a week.", paths: [KnowledgePathDTO(nodes: Self.nodes, edges: [], confidence: 0.7)],
+            confidence: 0.7
+        )
+    }
+
+    func review(edgeID: UUID, action: KnowledgeReviewAction, note _: String?) async throws -> KnowledgeEdgeDTO {
+        KnowledgeEdgeDTO(
+            id: edgeID, from: Self.edge.from, to: Self.edge.to, predicate: Self.edge.predicate,
+            state: action == .confirm ? .confirmed : .dismissed, confidence: Self.edge.confidence
+        )
+    }
+}
+
+/// Every memory has the same short body.
+nonisolated struct BrainUITestMemoryClient: MemoryClientProtocol {
+    func get(id: UUID) async throws -> MemoryDTO {
+        MemoryDTO(
+            id: id, content: "Slept **7 hours**. Woke up once.", tags: ["sleep", "home"],
+            createdAt: Date(timeIntervalSince1970: 1_800_000_000), reviewState: "approved"
+        )
+    }
+
+    func upsert(_: MemoryUpsertRequest) async throws -> MemoryUpsertResponse { throw APIError.unauthorized }
+    func patch(id _: UUID, _: MemoryPatchRequest) async throws -> MemoryDTO { throw APIError.unauthorized }
+    func list(limit _: Int, offset _: Int) async throws -> MemoryListResponse { throw APIError.unauthorized }
+    func search(_: MemorySearchRequest) async throws -> MemorySearchResponse { throw APIError.unauthorized }
+    func delete(id _: UUID) async throws { throw APIError.unauthorized }
+}
+
 struct BrainUITestHarness: View {
     let scenario: BrainUITestScenario
     @State private var client: BrainUITestClient
@@ -197,7 +272,14 @@ struct BrainUITestHarness: View {
 
     var body: some View {
         BrainUITestThemed {
-            BrainTabView(client: client, focus: scenario == .missingFocus ? "N404" : nil, prefs: prefs)
+            BrainTabView(
+                client: client,
+                memoryClient: BrainUITestMemoryClient(),
+                knowledgeClient: BrainUITestKnowledgeClient(),
+                activeVault: { [personal = BrainUITestClient.personalID] in personal },
+                focus: scenario == .missingFocus ? "N404" : nil,
+                prefs: prefs
+            )
         }
         .overlay(alignment: .bottomLeading) {
             if !UserDefaults.standard.bool(forKey: "BrainUITestHideRequests") {
@@ -206,6 +288,11 @@ struct BrainUITestHarness: View {
                     .padding(LVSpacing.xs)
                     .allowsHitTesting(false)
                     .accessibilityIdentifier("brain.uitest.requests")
+                Text(client.lastQuery)
+                    .font(.caption2)
+                    .opacity(0.01)
+                    .allowsHitTesting(false)
+                    .accessibilityIdentifier("brain.uitest.lastQuery")
             }
         }
         .preferredColorScheme(Self.scheme)

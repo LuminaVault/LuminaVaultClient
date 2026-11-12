@@ -323,6 +323,153 @@ nonisolated final class BrainGraphUITests: XCTestCase {
         waitForLabel(requests(app), "requests: 1")
     }
 
+    // MARK: tray
+
+    @MainActor
+    private func trayCount(_ app: XCUIApplication) -> XCUIElement {
+        app.staticTexts["brain.tray.count"]
+    }
+
+    @MainActor
+    private func trayAction(_ app: XCUIApplication, _ id: String) -> XCUIElement {
+        app.buttons["brain.tray.action.\(id)"]
+    }
+
+    @MainActor
+    private func lastQuery(_ app: XCUIApplication) -> String {
+        app.staticTexts["brain.uitest.lastQuery"].label
+    }
+
+    @MainActor
+    func testTwoSelectedEnableExplain() {
+        let app = launch("graph")
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        search(app, "gard", pick: "Garden plans")
+        XCTAssertTrue(trayCount(app).waitForExistence(timeout: 5))
+        waitForLabel(trayCount(app), "1 selected")
+        XCTAssertFalse(trayAction(app, "explain").isEnabled)
+        XCTAssertTrue(trayAction(app, "open").isEnabled)
+        app.buttons["brain.more"].tap()
+        app.buttons["List"].tap()
+        app.buttons["brain.list.row.N3"].tap()
+        closeSheet(app)
+        waitForLabel(trayCount(app), "2 selected")
+        XCTAssertTrue(trayAction(app, "explain").isEnabled)
+        XCTAssertFalse(trayAction(app, "open").isEnabled)
+        XCTAssertFalse(trayAction(app, "focus").isEnabled)
+        attach(app, "tray with two selected")
+        waitForLabel(requests(app), "requests: 1")
+    }
+
+    @MainActor
+    func testRemovingAChipDeselectsIt() {
+        let app = launch("graph")
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        selectGardenAndSleepLog(app, canvas(app))
+        waitForLabel(trayCount(app), "2 selected")
+        app.buttons["Remove Garden plans (Note)"].tap()
+        waitForLabel(trayCount(app), "1 selected")
+        waitForValue(canvas(app), "Selected: Sleep log")
+        XCTAssertFalse(app.buttons["Remove Garden plans (Note)"].exists)
+        XCTAssertTrue(app.buttons["Remove Sleep log (Memory)"].exists)
+    }
+
+    @MainActor
+    func testClearEmptiesTheTray() {
+        let app = launch("graph")
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        selectGardenAndSleepLog(app, canvas(app))
+        app.buttons["brain.tray.clear"].tap()
+        waitForValue(canvas(app), "Nothing selected")
+        XCTAssertFalse(trayCount(app).exists)
+    }
+
+    @MainActor
+    func testFocusMakesOneRequestWithoutAuthorLinks() {
+        let app = launch("graph")
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        XCTAssertTrue(lastQuery(app).contains("author"), "the full graph asks for author links")
+        search(app, "gard", pick: "Garden plans")
+        trayAction(app, "focus").tap()
+        waitForLabel(requests(app), "requests: 2")
+        settle()
+        waitForLabel(requests(app), "requests: 2")
+        let query = lastQuery(app)
+        XCTAssertTrue(query.contains("focus=N1"), query)
+        XCTAssertFalse(query.contains("author"), query)
+        XCTAssertTrue(app.buttons["Full graph"].exists)
+    }
+
+    @MainActor
+    func testAHiddenSelectedPointLeavesTheTray() {
+        let app = launch("graph")
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        search(app, "gard", pick: "Garden plans")
+        app.buttons["brain.more"].tap()
+        app.buttons["List"].tap()
+        app.buttons["brain.list.row.N6"].tap()
+        closeSheet(app)
+        waitForLabel(trayCount(app), "2 selected")
+        openFilters(app)
+        app.buttons["brain.filter.vault.Personal"].tap()
+        closeSheet(app)
+        waitForLabel(trayCount(app), "1 selected")
+        XCTAssertFalse(app.buttons["Remove Garden plans (Note)"].exists)
+        XCTAssertTrue(app.buttons["Remove Meeting notes (Note)"].exists)
+    }
+
+    @MainActor
+    func testAskPrefillsWithoutSending() {
+        let app = launch("graph")
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        selectGardenAndSleepLog(app, canvas(app))
+        trayAction(app, "ask").tap()
+        let question = app.textViews["brain.reasoning.question"].exists
+            ? app.textViews["brain.reasoning.question"] : app.textFields["brain.reasoning.question"]
+        XCTAssertTrue(question.waitForExistence(timeout: 5))
+        XCTAssertEqual(question.value as? String, "What connects Garden plans, Sleep log?")
+        XCTAssertFalse(app.staticTexts["Answer"].exists)
+        XCTAssertTrue(app.staticTexts["Ask how your notes and memories connect."].exists)
+        attach(app, "ask prefilled")
+    }
+
+    /// The reasoning sheet leaves the graph usable; opening Filters from
+    /// behind it closes it first, so the filter sheet does present.
+    @MainActor
+    func testFiltersOpenOverTheReasoningSheet() {
+        let app = launch("graph")
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        search(app, "gard", pick: "Garden plans")
+        trayAction(app, "ask").tap()
+        XCTAssertTrue(app.navigationBars["Ask your graph"].waitForExistence(timeout: 5))
+        app.buttons["brain.filters"].tap()
+        XCTAssertTrue(app.navigationBars["Filters"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.navigationBars["Ask your graph"].exists)
+    }
+
+    @MainActor
+    func testExplainSendsTheQuestion() {
+        let app = launch("graph")
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        selectGardenAndSleepLog(app, canvas(app))
+        trayAction(app, "explain").tap()
+        XCTAssertTrue(app.staticTexts["Answer"].waitForExistence(timeout: 5))
+        attach(app, "explain answered")
+    }
+
+    @MainActor
+    func testOpenShowsANote() {
+        let app = launch("graph")
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        search(app, "gard", pick: "Garden plans")
+        trayAction(app, "open").tap()
+        XCTAssertTrue(app.staticTexts["brain.detail.title"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["brain.detail.title"].label, "Garden plans")
+        XCTAssertTrue(app.staticTexts["Personal"].exists)
+        attach(app, "note detail")
+        waitForLabel(requests(app), "requests: 1")
+    }
+
     /// Search picks (and centres) Garden plans, the list adds Sleep log.
     @MainActor
     private func selectGardenAndSleepLog(_ app: XCUIApplication, _ canvas: XCUIElement) {

@@ -597,7 +597,12 @@ struct MainTabView: View {
     /// toolbar item with it — a `.toolbar` declared out here would have no
     /// bar to attach to.
     private var brainTab: some View {
-        BrainTabView(client: brainGraphClient)
+        BrainTabView(
+            client: brainGraphClient,
+            memoryClient: memoryUpsertClient,
+            knowledgeClient: KnowledgeGraphHTTPClient(client: appState.makeHTTPClient()),
+            activeVault: { [store = appState.activeVaultStore] in await store.selectedVaultID() }
+        )
     }
 
     private var insightsTab: some View {

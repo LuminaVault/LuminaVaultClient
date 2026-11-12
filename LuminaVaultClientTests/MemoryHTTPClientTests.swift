@@ -5,6 +5,7 @@
 import XCTest
 @testable import LuminaVaultClient
 import LuminaVaultShared
+import Synchronization
 
 final class MemoryHTTPClientTests: XCTestCase {
     private var client: MemoryHTTPClient!
@@ -114,6 +115,39 @@ final class MemoryHTTPClientTests: XCTestCase {
         let resp = try await client.upsert(MemoryUpsertRequest(content: "x"))
         XCTAssertEqual(resp.memoryId, memoryID)
     }
+
+    /// The Brain graph spans every vault: opening a memory names its own
+    /// vault, which replaces the active vault's header for that one request.
+    func testGetWithVaultOverridesTheActiveVault() async throws {
+        let active = UUID(), own = UUID(), memoryID = UUID()
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let client = MemoryHTTPClient(client: BaseHTTPClient(
+            session: URLSession(configuration: config),
+            tokenProvider: { "test-bearer" },
+            vaultProvider: { active }
+        ))
+        let seen = VaultHeaderBox()
+        MockURLProtocol.handler = { req in
+            seen.append(req.value(forHTTPHeaderField: "X-Vault-ID"))
+            let body = #"{"id":"\#(memoryID.uuidString)","content":"x","tags":[],"review_state":"approved"}"#
+            return (
+                HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                Data(body.utf8)
+            )
+        }
+
+        _ = try await client.get(id: memoryID, vaultID: own)
+        _ = try await client.get(id: memoryID, vaultID: nil)
+
+        XCTAssertEqual(seen.values, [own.uuidString, active.uuidString])
+    }
+}
+
+private nonisolated final class VaultHeaderBox: Sendable {
+    private let lock = Mutex<[String?]>([])
+    func append(_ value: String?) { lock.withLock { $0.append(value) } }
+    var values: [String?] { lock.withLock { $0 } }
 }
 
 private final class CaptureBox: @unchecked Sendable {

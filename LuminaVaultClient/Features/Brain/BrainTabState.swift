@@ -68,6 +68,8 @@ nonisolated enum BrainTabState {
     static let nothingMatchesText = "Nothing matches these filters"
     static let resetTitle = "Reset"
     static let retryTitle = "Retry"
+    /// Explain and Ask when the screen has no reasoning client (previews only).
+    static let reasoningUnavailable = "Asking is not available here"
     static let showAllVaultsTitle = "Show all vaults"
     static let notShownInFocusText = "Not shown in a focused graph"
     static let noSimilarText = "No similar notes found."

@@ -1,138 +1,372 @@
+// A port of the web app's `reasoning-view-model.test.ts`. Same cases, same
+// order; UUIDs stand in for the web's string ids.
+
 import Foundation
 @testable import LuminaVaultClient
 import LuminaVaultShared
+import Synchronization
 import Testing
 
 @MainActor
 struct KnowledgeReasoningViewModelTests {
-    @Test("Reasoning result and review state flow through the view model")
-    func reasoningAndReview() async throws {
-        let fixture = KnowledgeFixture()
-        let client = KnowledgeGraphClientMock(fixture: fixture)
-        let viewModel = KnowledgeReasoningViewModel(client: client)
-        viewModel.query = "What contradicts my Atlas plan?"
+    private let f = ReasoningFixture()
 
-        await viewModel.reason()
+    @Test("requests an explanation for two knowledge nodes")
+    func explainsTwoNodes() async {
+        let client = ReasoningClientStub()
+        client.explainReply = { [explanation = f.explanation] _ in explanation }
+        let vm = KnowledgeReasoningViewModel(client: client)
+        await vm.explainNodes(from: f.firstNode.id, to: f.secondNode.id).value
 
-        #expect(viewModel.result?.answer == "Atlas has two positions.")
-        #expect(viewModel.result?.suggestions.count == 1)
-        let edge = try #require(viewModel.result?.suggestions.first)
-
-        await viewModel.explain(edge)
-        #expect(viewModel.explanation?.explanation == "The claims use opposing polarity.")
-
-        await viewModel.review(edge, action: .confirm)
-        #expect(viewModel.result?.suggestions.isEmpty == true)
+        #expect(client.explainCalls == [.init(from: f.firstNode.id, to: f.secondNode.id, maxDepth: 4)])
+        #expect(vm.explanation == f.explanation)
+        #expect(vm.loading == false)
+        // The memories behind the explanation's paths light up too.
+        #expect(vm.highlightedMemoryIDs == [f.memNode, f.memEdge])
     }
 
-    @Test("Selecting two graph nodes explains the connection")
-    func nodeSelectionExplainsConnection() async {
-        let fixture = KnowledgeFixture()
-        let viewModel = KnowledgeReasoningViewModel(client: KnowledgeGraphClientMock(fixture: fixture))
-        await viewModel.load()
+    @Test("streams an answer and highlights its evidence")
+    func streamsAnswer() async {
+        let client = ReasoningClientStub()
+        client.streamEvents = [
+            .init(type: "context", response: f.result),
+            .init(type: "token", message: "Because "),
+            .init(type: "token", message: "of recall."),
+        ]
+        let vm = KnowledgeReasoningViewModel(client: client)
+        vm.query = "  What connects A, B?  "
+        await vm.reason()?.value
 
-        let firstExplained = await viewModel.selectNode(fixture.from.id)
-        let secondExplained = await viewModel.selectNode(fixture.to.id)
-
-        #expect(firstExplained == false)
-        #expect(secondExplained)
-        #expect(viewModel.selectedNodeIDs == [fixture.from.id, fixture.to.id])
-        #expect(viewModel.explanation?.confidence == 0.6)
-
-        viewModel.selectedPathID = UUID()
-        viewModel.clearSelection()
-        #expect(viewModel.selectedNodeIDs.isEmpty)
-        #expect(viewModel.selectedPathID == nil)
+        #expect(client.streamCalls == [.init(query: "What connects A, B?", maxDepth: 4, limit: 400)])
+        #expect(vm.result?.answer == "Because of recall.")
+        #expect(vm.highlightedMemoryIDs == [f.memResult, f.memNode, f.memEdge])
     }
 
-    @Test("Knowledge projection preserves IDs, confidence, and active predicates")
-    func graphProjection() {
-        let fixture = KnowledgeFixture()
-        let dismissed = KnowledgeEdgeDTO(
-            id: UUID(), from: fixture.to.id, to: fixture.from.id,
-            predicate: .relatedTo, state: .dismissed, confidence: 1
-        )
-        let graph = KnowledgeGraphResponse(
-            nodes: [fixture.from, fixture.to],
-            edges: [fixture.edge, dismissed],
-            generatedAt: Date(timeIntervalSince1970: 1)
-        )
+    @Test("narrows highlights to the selected path")
+    func narrowsToPath() {
+        let vm = KnowledgeReasoningViewModel(client: ReasoningClientStub())
+        vm.result = f.result
+        vm.selectPath(f.path1)
+        #expect(vm.highlightedMemoryIDs == [f.memResult, f.memNode])
+        vm.selectPath(nil)
+        #expect(vm.highlightedMemoryIDs.contains(f.memEdge))
+    }
 
-        let projected = KnowledgeGraphProjection.make(
-            graph: graph,
-            selectedNodeIDs: [fixture.from.id]
-        )
+    @Test("does not send an empty question")
+    func emptyQuestion() async {
+        let client = ReasoningClientStub()
+        let vm = KnowledgeReasoningViewModel(client: client)
+        vm.query = "   "
+        await vm.reason()?.value
+        #expect(client.streamCalls.isEmpty)
+    }
 
-        #expect(projected.nodes.map(\.id) == [fixture.from.id, fixture.to.id])
-        #expect(projected.nodes.first?.score == 100)
-        #expect(projected.nodes.first?.activity == 1)
-        #expect(projected.edges.count == 1)
-        #expect(projected.edges.first?.kind == .tag)
-        #expect(projected.edges.first?.tag == "contradicts")
+    @Test("reports a stream error event")
+    func streamErrorEvent() async {
+        let client = ReasoningClientStub()
+        client.streamEvents = [.init(type: "error", message: "No knowledge yet")]
+        let vm = KnowledgeReasoningViewModel(client: client)
+        vm.query = "Why?"
+        await vm.reason()?.value
+        #expect(vm.error == "No knowledge yet")
+        #expect(vm.loading == false)
+    }
+
+    @Test("removes a reviewed suggestion")
+    func reviewRemovesSuggestion() async {
+        let client = ReasoningClientStub()
+        let vm = KnowledgeReasoningViewModel(client: client)
+        vm.result = f.result
+        await vm.review(f.suggestion, action: .confirm)?.value
+        #expect(client.reviewCalls == [.init(edgeID: f.suggestion.id, action: .confirm)])
+        #expect(vm.result?.suggestions == [])
+        #expect(vm.reviewing == nil)
+    }
+
+    @Test("abandons an in-flight stream on dispose")
+    func disposeAbandonsStream() async throws {
+        let client = ReasoningClientStub()
+        client.holdStream = true
+        let vm = KnowledgeReasoningViewModel(client: client)
+        vm.query = "Why?"
+        let running = try #require(vm.reason())
+        let stream = try await client.waitForStream()
+        stream.yield(.init(type: "context", response: f.result))
+        try await waitUntil { vm.result != nil }
+        vm.dispose()
+        #expect(running.isCancelled)
+        stream.yield(.init(type: "token", message: "late"))
+        stream.finish()
+        await running.value
+        #expect(vm.result?.answer == "")
+        #expect(vm.loading == false)
+    }
+
+    @Test("keeps the answer and its suggestions when a suggestion is explained")
+    func explainingASuggestionKeepsTheAnswer() async {
+        let client = ReasoningClientStub()
+        client.explainReply = { [explanation = f.explanation] _ in explanation }
+        let vm = KnowledgeReasoningViewModel(client: client)
+        vm.result = f.result
+        vm.explanation = ConnectionExplanationResponse(explanation: "Stale.", paths: [], confidence: 0.81)
+        let pending = vm.explainNodes(from: f.suggestion.from, to: f.suggestion.to)
+        // The stale explanation goes at once; the answer stays.
+        #expect(vm.explanation == nil)
+        await pending.value
+        #expect(vm.result?.suggestions == [f.suggestion])
+        #expect(vm.result?.evidence == f.result.evidence)
+        #expect(vm.explanation == f.explanation)
+    }
+
+    @Test("remembers what an explanation is about until the next question")
+    func explanationSubject() async {
+        let client = ReasoningClientStub()
+        client.explainReply = { [explanation = f.explanation] _ in explanation }
+        let vm = KnowledgeReasoningViewModel(client: client)
+        await vm.explainNodes(from: UUID(), to: UUID(), subject: "Hermes and Cloudflare").value
+        #expect(vm.explanationSubject == "Hermes and Cloudflare")
+        vm.query = "Why?"
+        await vm.reason()?.value
+        #expect(vm.explanationSubject == nil)
+        #expect(vm.explanation == nil)
+    }
+
+    @Test("drops an older explanation when a newer request starts")
+    func newerExplanationWins() async throws {
+        let client = ReasoningClientStub()
+        let gate = Gate()
+        let newer = ConnectionExplanationResponse(explanation: "Newer.", paths: [], confidence: 0.81)
+        let older = f.explanation
+        client.explainReply = { call in
+            if call == 0 {
+                await gate.wait()
+                return older
+            }
+            return newer
+        }
+        let vm = KnowledgeReasoningViewModel(client: client)
+        let first = vm.explainNodes(from: UUID(), to: UUID())
+        try await waitUntil { client.explainCalls.count == 1 }
+        await vm.explainNodes(from: UUID(), to: UUID()).value
+        await gate.open()
+        await first.value
+        #expect(vm.explanation?.explanation == "Newer.")
+    }
+
+    // MARK: errors and prefill
+
+    @Test("says what an API failure was, not a generic line")
+    func friendlyErrors() async {
+        let client = ReasoningClientStub()
+        client.streamError = APIError.rateLimited(retryAfter: nil)
+        let vm = KnowledgeReasoningViewModel(client: client)
+        vm.query = "Why?"
+        await vm.reason()?.value
+        #expect(vm.error == "You've hit today's limit. Try again later.")
+
+        client.explainReply = { _ in throw APIError.networkFailure(URLError(.notConnectedToInternet)) }
+        await vm.explainNodes(from: UUID(), to: UUID()).value
+        #expect(vm.error == "Network unavailable.")
+    }
+
+    @Test("a prefilled question that differs from the answered one clears the answer")
+    func prefillClearsADifferentAnswer() async {
+        let client = ReasoningClientStub()
+        client.streamEvents = [.init(type: "context", response: f.result.with(answer: "Yes."))]
+        let vm = KnowledgeReasoningViewModel(client: client)
+        vm.query = "What connects A, B?"
+        await vm.reason()?.value
+        #expect(vm.result?.answer == "Yes.")
+
+        vm.prefill("What connects A, B?")
+        #expect(vm.result?.answer == "Yes.")
+
+        vm.explanation = f.explanation
+        vm.prefill("What connects A, B, C?")
+        #expect(vm.query == "What connects A, B, C?")
+        #expect(vm.result == nil)
+        #expect(vm.explanation == nil)
+    }
+
+    @Test("never asks for the knowledge graph")
+    func noGraphRequest() async {
+        let client = ReasoningClientStub()
+        client.streamEvents = [.init(type: "context", response: f.result)]
+        client.explainReply = { [explanation = f.explanation] _ in explanation }
+        let vm = KnowledgeReasoningViewModel(client: client)
+        vm.query = "Why?"
+        await vm.reason()?.value
+        await vm.explainNodes(from: UUID(), to: UUID()).value
+        #expect(client.graphCalls == 0)
     }
 }
 
-private struct KnowledgeFixture: Sendable {
-    let evidence: KnowledgeEvidenceDTO
-    let from: KnowledgeNodeDTO
-    let to: KnowledgeNodeDTO
+// MARK: - Fixture
+
+private nonisolated struct ReasoningFixture: Sendable {
+    let memNode = UUID(), memEdge = UUID(), memResult = UUID()
+    let path1 = UUID(), path2 = UUID()
+    let firstNode: KnowledgeNodeDTO
+    let secondNode: KnowledgeNodeDTO
     let edge: KnowledgeEdgeDTO
+    let suggestion: KnowledgeEdgeDTO
+    let explanation: ConnectionExplanationResponse
+    let result: ReasoningQueryResponse
 
     init() {
-        evidence = KnowledgeEvidenceDTO(id: UUID(), memoryID: UUID(), quote: "Atlas is ready. Atlas is not ready.")
-        from = KnowledgeNodeDTO(id: UUID(), kind: .claim, label: "Atlas is ready", confidence: 1)
-        to = KnowledgeNodeDTO(id: UUID(), kind: .claim, label: "Atlas is not ready", confidence: 1)
+        firstNode = KnowledgeNodeDTO(
+            id: UUID(), kind: .claim, label: "AI improves recall", confidence: 0.92,
+            evidence: [KnowledgeEvidenceDTO(id: UUID(), memoryID: memNode, quote: "node quote")]
+        )
+        secondNode = KnowledgeNodeDTO(id: UUID(), kind: .event, label: "Retrieval experiment", confidence: 0.84)
         edge = KnowledgeEdgeDTO(
-            id: UUID(), from: from.id, to: to.id, predicate: .contradicts,
-            state: .suggested, confidence: 0.6, evidence: [evidence]
+            id: UUID(), from: firstNode.id, to: secondNode.id, predicate: .supports, state: .asserted,
+            confidence: 0.81, evidence: [KnowledgeEvidenceDTO(id: UUID(), memoryID: memEdge, quote: "edge quote")]
+        )
+        suggestion = KnowledgeEdgeDTO(
+            id: UUID(), from: firstNode.id, to: secondNode.id, predicate: .supports, state: .suggested,
+            confidence: 0.81, evidence: edge.evidence
+        )
+        explanation = ConnectionExplanationResponse(
+            explanation: "The experiment supports the claim.",
+            paths: [KnowledgePathDTO(id: path1, nodes: [firstNode, secondNode], edges: [edge], confidence: 0.81)],
+            confidence: 0.81
+        )
+        result = ReasoningQueryResponse(
+            answer: "",
+            paths: [
+                KnowledgePathDTO(id: path1, nodes: [firstNode], edges: [], confidence: 0.8),
+                KnowledgePathDTO(id: path2, nodes: [], edges: [edge], confidence: 0.6),
+            ],
+            evidence: [KnowledgeEvidenceDTO(id: UUID(), memoryID: memResult, quote: "result quote")],
+            confidence: 0.7,
+            suggestions: [suggestion]
         )
     }
 }
 
-private actor KnowledgeGraphClientMock: KnowledgeGraphClientProtocol {
-    let fixture: KnowledgeFixture
-    init(fixture: KnowledgeFixture) {
-        self.fixture = fixture
+private extension ReasoningQueryResponse {
+    func with(answer: String) -> ReasoningQueryResponse {
+        ReasoningQueryResponse(
+            answer: answer, paths: paths, evidence: evidence, confidence: confidence,
+            caveats: caveats, suggestions: suggestions
+        )
+    }
+}
+
+@MainActor
+private func waitUntil(_ condition: () -> Bool) async throws {
+    for _ in 0 ..< 400 where !condition() {
+        try await Task.sleep(for: .milliseconds(5))
+    }
+    #expect(condition())
+}
+
+private actor Gate {
+    private var open_ = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        if open_ { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func open() {
+        open_ = true
+        waiters.forEach { $0.resume() }
+        waiters = []
+    }
+}
+
+/// Records every call. A held stream is handed to the test to push events into.
+private nonisolated final class ReasoningClientStub: KnowledgeGraphClientProtocol {
+    struct StreamCall: Equatable { var query: String; var maxDepth: Int; var limit: Int }
+    struct ExplainCall: Equatable { var from: UUID; var to: UUID; var maxDepth: Int }
+    struct ReviewCall: Equatable { var edgeID: UUID; var action: KnowledgeReviewAction }
+
+    private struct State {
+        var streamEvents: [ReasoningStreamEventDTO] = []
+        var streamError: (any Error)?
+        var holdStream = false
+        var held: AsyncThrowingStream<ReasoningStreamEventDTO, any Error>.Continuation?
+        var explainReply: (@Sendable (Int) async throws -> ConnectionExplanationResponse)?
+        var streamCalls: [StreamCall] = []
+        var explainCalls: [ExplainCall] = []
+        var reviewCalls: [ReviewCall] = []
+        var graphCalls = 0
+    }
+
+    private let state = Mutex(State())
+
+    var streamEvents: [ReasoningStreamEventDTO] {
+        get { state.withLock { $0.streamEvents } }
+        set { state.withLock { $0.streamEvents = newValue } }
+    }
+    var streamError: (any Error)? {
+        get { state.withLock { $0.streamError } }
+        set { state.withLock { $0.streamError = newValue } }
+    }
+    var holdStream: Bool {
+        get { state.withLock { $0.holdStream } }
+        set { state.withLock { $0.holdStream = newValue } }
+    }
+    var explainReply: (@Sendable (Int) async throws -> ConnectionExplanationResponse)? {
+        get { state.withLock { $0.explainReply } }
+        set { state.withLock { $0.explainReply = newValue } }
+    }
+    var streamCalls: [StreamCall] { state.withLock { $0.streamCalls } }
+    var explainCalls: [ExplainCall] { state.withLock { $0.explainCalls } }
+    var reviewCalls: [ReviewCall] { state.withLock { $0.reviewCalls } }
+    var graphCalls: Int { state.withLock { $0.graphCalls } }
+
+    func waitForStream() async throws -> AsyncThrowingStream<ReasoningStreamEventDTO, any Error>.Continuation {
+        for _ in 0 ..< 400 {
+            if let held = state.withLock({ $0.held }) { return held }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        throw CancellationError()
     }
 
     func fetchGraph(limit _: Int, minimumConfidence _: Double) async throws -> KnowledgeGraphResponse {
-        KnowledgeGraphResponse(nodes: [fixture.from, fixture.to], edges: [fixture.edge], generatedAt: Date())
+        state.withLock { $0.graphCalls += 1 }
+        return KnowledgeGraphResponse(nodes: [], edges: [], generatedAt: Date())
     }
 
     func reason(query _: String, maxDepth _: Int, limit _: Int) async throws -> ReasoningQueryResponse {
-        ReasoningQueryResponse(
-            answer: "Atlas has two positions.", paths: [], evidence: [fixture.evidence],
-            confidence: 0.6, suggestions: [fixture.edge]
-        )
+        Issue.record("the view model streams; it never asks for a whole answer")
+        throw CancellationError()
     }
 
-    nonisolated func reasonStream(
-        query _: String,
-        maxDepth _: Int,
-        limit _: Int
+    func reasonStream(
+        query: String, maxDepth: Int, limit: Int
     ) -> AsyncThrowingStream<ReasoningStreamEventDTO, any Error> {
-        let fixture = fixture
-        return AsyncThrowingStream { continuation in
-            continuation.yield(ReasoningStreamEventDTO(
-                type: "suggestions",
-                response: ReasoningQueryResponse(
-                    answer: "Atlas has two positions.", paths: [], evidence: [fixture.evidence],
-                    confidence: 0.6, suggestions: [fixture.edge]
-                )
-            ))
-            continuation.finish()
+        let (stream, continuation) = AsyncThrowingStream<ReasoningStreamEventDTO, any Error>.makeStream()
+        let setup = state.withLock { s in
+            s.streamCalls.append(StreamCall(query: query, maxDepth: maxDepth, limit: limit))
+            if s.holdStream { s.held = continuation }
+            return (s.holdStream, s.streamEvents, s.streamError)
         }
+        if !setup.0 {
+            for event in setup.1 { continuation.yield(event) }
+            continuation.finish(throwing: setup.2)
+        }
+        return stream
     }
 
-    func explain(from _: UUID, to _: UUID, maxDepth _: Int) async throws -> ConnectionExplanationResponse {
-        ConnectionExplanationResponse(explanation: "The claims use opposing polarity.", paths: [], confidence: 0.6)
+    func explain(from: UUID, to: UUID, maxDepth: Int) async throws -> ConnectionExplanationResponse {
+        let (n, reply) = state.withLock { s in
+            s.explainCalls.append(ExplainCall(from: from, to: to, maxDepth: maxDepth))
+            return (s.explainCalls.count - 1, s.explainReply)
+        }
+        guard let reply else { throw CancellationError() }
+        return try await reply(n)
     }
 
-    func review(edgeID: UUID, action _: KnowledgeReviewAction, note _: String?) async throws -> KnowledgeEdgeDTO {
-        KnowledgeEdgeDTO(
-            id: edgeID, from: fixture.edge.from, to: fixture.edge.to,
-            predicate: fixture.edge.predicate, state: .confirmed,
-            confidence: fixture.edge.confidence, evidence: fixture.edge.evidence
+    func review(edgeID: UUID, action: KnowledgeReviewAction, note _: String?) async throws -> KnowledgeEdgeDTO {
+        state.withLock { $0.reviewCalls.append(ReviewCall(edgeID: edgeID, action: action)) }
+        return KnowledgeEdgeDTO(
+            id: edgeID, from: UUID(), to: UUID(), predicate: .supports,
+            state: action == .confirm ? .confirmed : .dismissed, confidence: 0.81
         )
     }
 }
