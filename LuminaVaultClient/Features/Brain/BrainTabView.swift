@@ -18,6 +18,8 @@ struct BrainTabView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.captureCoordinator) private var captureCoordinator
     @Environment(\.horizontalSizeClass) private var sizeClass
+    /// The shell's tab selection: the active vault is read again when it changes.
+    @Environment(\.lvActiveTab) private var activeTab
 
     @State private var store: BrainGraphStore
     @State private var selection = BrainSelection()
@@ -47,14 +49,19 @@ struct BrainTabView: View {
     @State private var showReasoning = false
     /// What to present once the reasoning sheet has gone.
     @State private var afterReasoning: (() -> Void)?
-    /// Read when the tab appears; the reasoning routes are scoped to it.
+    /// Read when the tab appears and each time the tab changes; the reasoning
+    /// routes are scoped to it.
     @State private var activeVaultID: UUID?
+    @State private var activeVaultTracker = BrainActiveVaultTracker()
+    /// The entry request last applied (or seeded into the first focus).
+    @State private var appliedEntry: Int?
 
     /// The stored 2D / Constellation choice; nil until one is picked (2D).
     @State private var savedView: BrainViewChoice?
     private let prefsDefaults: UserDefaults?
     private let memoryClient: (any MemoryClientProtocol)?
     private let activeVault: @Sendable () async -> UUID?
+    private let entry: BrainEntryRequest?
 
     /// `memoryClient` loads a memory for Open; `knowledgeClient` answers the
     /// reasoning sheet (Explain and Ask are disabled without it);
@@ -65,8 +72,12 @@ struct BrainTabView: View {
         knowledgeClient: (any KnowledgeGraphClientProtocol)? = nil,
         activeVault: @escaping @Sendable () async -> UUID? = { nil },
         focus: String? = nil,
+        entry: BrainEntryRequest? = nil,
         prefs: UserDefaults? = .standard
     ) {
+        // A request that made this tab is part of its first request, not a
+        // second one after it.
+        let first = BrainEntryRequest.apply(entry, lastApplied: nil)
         let stored = BrainPrefs.load(from: prefs)
         _store = State(initialValue: BrainGraphStore(client: client))
         _detail = State(initialValue: BrainNodeDetail(client: memoryClient))
@@ -75,7 +86,9 @@ struct BrainTabView: View {
         self.activeVault = activeVault
         _filters = State(initialValue: stored.filters)
         _similarAsked = State(initialValue: BrainTabState.similarAsked(previously: false, filters: stored.filters))
-        _focus = State(initialValue: focus)
+        _focus = State(initialValue: first.map(\.focus) ?? focus)
+        _appliedEntry = State(initialValue: first?.token)
+        self.entry = entry
         _savedView = State(initialValue: stored.view)
         prefsDefaults = prefs
     }
@@ -106,7 +119,8 @@ struct BrainTabView: View {
                 .searchable(text: $searchText, isPresented: $searchPresented, prompt: BrainTabState.searchPrompt)
                 .searchSuggestions { searchSuggestions }
                 .task(id: request) { store.sync(request) }
-                .task { activeVaultID = await activeVault() }
+                .task(id: activeTab) { await readActiveVault() }
+                .onChange(of: entry) { applyEntry() }
                 .onChange(of: derivationKey, initial: true) { rederive() }
                 .onChange(of: filters) { _, next in
                     similarAsked = BrainTabState.similarAsked(previously: similarAsked, filters: next)
@@ -327,6 +341,30 @@ struct BrainTabView: View {
             }
             .accessibilityIdentifier("brain.more")
         }
+    }
+
+    // MARK: Entry and vault
+
+    /// A new entry request replaces the focus (or clears it for the full graph)
+    /// at the default depth. The focus point is selected again once it loads.
+    private func applyEntry() {
+        guard let applied = BrainEntryRequest.apply(entry, lastApplied: appliedEntry) else { return }
+        appliedEntry = applied.token
+        depth = applied.depth
+        focusSelectedFor = nil
+        let same = focus == applied.focus
+        focus = applied.focus
+        // Same focus, graph already here: nothing will load, so select now.
+        if same { rederive() }
+    }
+
+    /// The vault the reasoning sheet speaks for. Another tab can change it, so
+    /// it is read again on return; an answer about the old one goes, the
+    /// selection and the graph stay, and no graph is asked for.
+    private func readActiveVault() async {
+        let id = await activeVault()
+        if activeVaultTracker.observe(id) { reasoning?.discardAnswer() }
+        activeVaultID = id
     }
 
     // MARK: Search

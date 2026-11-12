@@ -2,12 +2,15 @@
 // looking at every state in the simulator without an account or a server.
 //
 //   -BrainUITestScenario graph|empty|failed|missingFocus|stale|refreshing|
-//                        firstLoad|truncated|nothingMatches|sameStamp
+//                        firstLoad|truncated|nothingMatches|sameStamp|memoryDetail
 //   -BrainUITestScheme light|dark       (optional)
 //   -BrainUITestTypeSize large|xxxLarge|accessibility3   (optional)
 //   -BrainUITestHideRequests YES        (optional; for screenshots)
 //   -BrainUITestKeepPrefs YES           (optional; keep the last run's prefs)
 //   -BrainUITestView 2d|3d              (optional; start on this view)
+//   -BrainUITestControls YES            (optional; a strip of buttons that play the
+//                                        shell: leave and return to the tab, change the
+//                                        active vault, send entry requests)
 //   -BrainUITestPoints <n>              (optional; graph scenario: n generated
 //                                        notes, memories and hubs instead of the eight)
 //
@@ -27,6 +30,9 @@ enum BrainUITestScenario: String {
     /// counts and the same `generatedAt`: every item moved into the first
     /// named vault and renamed.
     case sameStamp
+    /// Not the Brain: the memory screen with the shell's "Show in graph"
+    /// action stubbed, to look at the control.
+    case memoryDetail
 
     static var launched: BrainUITestScenario? {
         UserDefaults.standard.string(forKey: "BrainUITestScenario").flatMap(Self.init(rawValue:))
@@ -62,7 +68,7 @@ final class BrainUITestClient: BrainGraphClientProtocol {
         lastQuery = request.query
         let first = requestCount == 1
         switch scenario {
-        case .graph, .truncated, .nothingMatches, .sameStamp:
+        case .graph, .truncated, .nothingMatches, .sameStamp, .memoryDetail:
             break
         case .empty:
             return Self.response(vaults: [Self.personal], nodes: [], edges: [])
@@ -87,6 +93,7 @@ final class BrainUITestClient: BrainGraphClientProtocol {
     // MARK: Fixture
 
     static var personalID: UUID { personal.id }
+    static var workID: UUID { work.id }
 
     private static let personal = BrainGraphVaultDTO(
         id: UUID(uuidString: "00000000-0000-0000-0000-0000000000A1") ?? UUID(), name: "Personal", personal: true
@@ -294,10 +301,26 @@ nonisolated struct BrainUITestMemoryClient: MemoryClientProtocol {
     func delete(id _: UUID) async throws { throw APIError.unauthorized }
 }
 
+/// The harness's stand-in for `ActiveVaultStore`.
+private actor BrainUITestActiveVault {
+    private var id: UUID?
+    init(_ id: UUID?) { self.id = id }
+    func current() -> UUID? { id }
+    func select(_ next: UUID?) { id = next }
+}
+
 struct BrainUITestHarness: View {
     let scenario: BrainUITestScenario
     @State private var client: BrainUITestClient
     private let prefs: UserDefaults?
+    /// What the shell would own: the active vault, the selected tab, and the
+    /// latest way into the Brain tab.
+    /// Read through, as the app reads `ActiveVaultStore`: a closure that
+    /// captured a value would only ever see the one it was made with.
+    @State private var vault = BrainUITestActiveVault(BrainUITestClient.personalID)
+    @State private var tab = "brain"
+    @State private var vaultName = "Personal"
+    @State private var entry: BrainEntryRequest?
 
     init(scenario: BrainUITestScenario) {
         self.scenario = scenario
@@ -320,6 +343,35 @@ struct BrainUITestHarness: View {
         self.prefs = prefs
     }
 
+    @ViewBuilder
+    private var controls: some View {
+        if UserDefaults.standard.bool(forKey: "BrainUITestControls") {
+            HStack(spacing: LVSpacing.xs) {
+                control("leave", "Leave") { tab = "home" }
+                control("return", "Return") { tab = "brain" }
+                control("switchVault", "Vault") { vaultName = "Work"; Task { await vault.select(BrainUITestClient.workID) } }
+                control("focusN3", "N3") { send("N3") }
+                control("focusN6", "N6") { send("N6") }
+                control("focusMissing", "Gone") { send("N404") }
+                control("fullGraph", "Full") { send(nil) }
+                Text("Active: \(vaultName)").accessibilityIdentifier("brain.uitest.activeVault")
+            }
+            .font(.caption2)
+            .padding(.horizontal, LVSpacing.xs)
+        }
+    }
+
+    private func control(_ id: String, _ title: String, _ action: @escaping () -> Void) -> some View {
+        Button(title, action: action)
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("brain.uitest.\(id)")
+    }
+
+    private func send(_ focus: String?) {
+        entry = BrainEntryRequest(focus: focus, token: (entry?.token ?? 0) + 1)
+        tab = "brain"
+    }
+
     private static var scheme: ColorScheme? {
         switch UserDefaults.standard.string(forKey: "BrainUITestScheme") {
         case "dark": .dark
@@ -338,16 +390,36 @@ struct BrainUITestHarness: View {
     }
 
     var body: some View {
+        if scenario == .memoryDetail {
+            memoryDetail
+        } else {
+            brain
+        }
+    }
+
+    private var memoryDetail: some View {
+        BrainUITestThemed {
+            MemoryDetailSheet(memoryID: UUID(), client: BrainUITestMemoryClient())
+                .environment(\.lvShowInGraph, { _ in })
+        }
+        .preferredColorScheme(Self.scheme)
+        .modifier(BrainUITestTypeSize(size: Self.typeSize))
+    }
+
+    private var brain: some View {
         BrainUITestThemed {
             BrainTabView(
                 client: client,
                 memoryClient: BrainUITestMemoryClient(),
                 knowledgeClient: BrainUITestKnowledgeClient(),
-                activeVault: { [personal = BrainUITestClient.personalID] in personal },
+                activeVault: { [vault] in await vault.current() },
                 focus: scenario == .missingFocus ? "N404" : nil,
+                entry: entry,
                 prefs: prefs
             )
+            .environment(\.lvActiveTab, tab)
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) { controls }
         .overlay(alignment: .bottomLeading) {
             if !UserDefaults.standard.bool(forKey: "BrainUITestHideRequests") {
                 Text("requests: \(client.requestCount)")

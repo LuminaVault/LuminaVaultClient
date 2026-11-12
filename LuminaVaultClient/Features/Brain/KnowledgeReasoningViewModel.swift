@@ -152,6 +152,18 @@ final class KnowledgeReasoningViewModel {
         reviewing = nil
     }
 
+    /// The answer was about a vault that is no longer the active one: abandons
+    /// what is in flight and clears what is on show. The question stays.
+    func discardAnswer() {
+        dispose()
+        result = nil
+        explanation = nil
+        explanationSubject = nil
+        selectedPathID = nil
+        error = nil
+        answered = nil
+    }
+
     // MARK: private
 
     private var visiblePaths: [KnowledgePathDTO] {

@@ -629,4 +629,87 @@ nonisolated final class BrainGraphUITests: XCTestCase {
         closeSheet(app)
         waitForValue(canvas, "2 selected")
     }
+
+    // MARK: entry points and the active vault
+
+    @MainActor
+    private func control(_ app: XCUIApplication, _ id: String) -> XCUIElement {
+        app.buttons["brain.uitest.\(id)"]
+    }
+
+    @MainActor
+    func testAnEntryRequestFocusesWithOneRequestAndIsAppliedOnce() {
+        let app = launch("graph", ["-BrainUITestControls", "YES"])
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        control(app, "focusN3").tap()
+        waitForLabel(requests(app), "requests: 2")
+        settle()
+        waitForLabel(requests(app), "requests: 2")
+        XCTAssertTrue(lastQuery(app).contains("focus=N3"), lastQuery(app))
+        XCTAssertTrue(app.buttons["Full graph"].exists)
+        // Leaving and returning applies nothing again.
+        control(app, "leave").tap()
+        control(app, "return").tap()
+        settle()
+        waitForLabel(requests(app), "requests: 2")
+        XCTAssertTrue(lastQuery(app).contains("focus=N3"), lastQuery(app))
+        // A new request replaces the focus.
+        control(app, "focusN6").tap()
+        waitForLabel(requests(app), "requests: 3")
+        XCTAssertTrue(lastQuery(app).contains("focus=N6"), lastQuery(app))
+        // The full graph.
+        control(app, "fullGraph").tap()
+        waitForLabel(requests(app), "requests: 4")
+        XCTAssertFalse(app.buttons["Full graph"].exists)
+        attach(app, "entry request")
+    }
+
+    @MainActor
+    func testAnEntryForAMissingNodeShowsTheMissingFocusState() {
+        let app = launch("missingFocus", ["-BrainUITestControls", "YES"])
+        XCTAssertTrue(
+            app.staticTexts["That is no longer in your graph. It may have been deleted."].waitForExistence(timeout: 8)
+        )
+        app.buttons["Show full graph"].tap()
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        waitForLabel(requests(app), "requests: 2")
+        control(app, "focusMissing").tap()
+        XCTAssertTrue(
+            app.staticTexts["That is no longer in your graph. It may have been deleted."].waitForExistence(timeout: 8)
+        )
+        waitForLabel(requests(app), "requests: 3")
+        XCTAssertTrue(app.buttons["Show full graph"].exists, "a way back to the full graph")
+        attach(app, "entry for a missing node")
+    }
+
+    @MainActor
+    func testAnActiveVaultChangeElsewhereMakesNoRequestAndResetsTheAnswer() {
+        let app = launch("graph", ["-BrainUITestControls", "YES"])
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        selectGardenAndSleepLog(app, canvas(app))
+        trayAction(app, "explain").tap()
+        XCTAssertTrue(app.staticTexts["Answer"].waitForExistence(timeout: 5))
+        XCTAssertTrue(reveal(app, app.staticTexts["Answers draw on the knowledge in Personal."]).exists)
+        app.buttons["Done"].tap()
+        control(app, "leave").tap()
+        control(app, "switchVault").tap()
+        control(app, "return").tap()
+        // The selection stays; ask the same question again.
+        trayAction(app, "ask").tap()
+        XCTAssertTrue(app.navigationBars["Ask your graph"].waitForExistence(timeout: 5))
+        XCTAssertTrue(reveal(app, app.staticTexts["Answers draw on the knowledge in Work."]).exists)
+        XCTAssertFalse(app.staticTexts["Answer"].exists, "an answer about the old vault is gone")
+        settle()
+        waitForLabel(requests(app), "requests: 1")
+        attach(app, "new vault")
+    }
+
+    @MainActor
+    func testTheMemoryScreenOffersShowInGraph() {
+        let app = launch("memoryDetail")
+        let button = app.buttons["memory.showInGraph"]
+        XCTAssertTrue(button.waitForExistence(timeout: 8))
+        XCTAssertGreaterThanOrEqual(button.frame.height, 44)
+        attach(app, "memory detail")
+    }
 }

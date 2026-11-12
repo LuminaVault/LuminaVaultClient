@@ -42,6 +42,22 @@ struct KnowledgeReasoningViewModelTests {
         #expect(vm.highlightedMemoryIDs == [f.memResult, f.memNode, f.memEdge])
     }
 
+    @Test("discarding the answer for a vault change disposes and clears it")
+    func discardsTheAnswer() async {
+        let client = ReasoningClientStub()
+        client.streamEvents = [.init(type: "context", response: f.result), .init(type: "token", message: "An answer.")]
+        let vm = KnowledgeReasoningViewModel(client: client)
+        vm.query = "What connects A, B?"
+        await vm.reason()?.value
+        #expect(vm.result != nil)
+        vm.discardAnswer()
+        #expect(vm.result == nil)
+        #expect(vm.explanation == nil)
+        #expect(vm.error == nil)
+        #expect(vm.loading == false)
+        #expect(vm.reviewing == nil)
+    }
+
     @Test("narrows highlights to the selected path")
     func narrowsToPath() {
         let vm = KnowledgeReasoningViewModel(client: ReasoningClientStub())

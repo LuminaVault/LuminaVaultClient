@@ -434,6 +434,11 @@ struct LuminaVaultClientApp: App {
                     // `MainTabView` presents `MeetingBriefSheet`.
                     notificationRouter.pendingDeepLink = .meeting(eventID: eventID)
                     return
+                case let .brain(focus):
+                    // `luminavault://brain[/<node id>]` — `MainTabView` opens
+                    // the Brain tab, focused when an id is given.
+                    notificationRouter.pendingDeepLink = .brain(focus: focus)
+                    return
                 default:
                     break
                 }
