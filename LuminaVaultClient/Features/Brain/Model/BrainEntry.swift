@@ -18,13 +18,43 @@ nonisolated struct BrainEntryRequest: Equatable, Sendable {
         var focus: String?
         var depth: Int
         var token: Int
+
+        /// An entry that names a focus looks at every vault: a memory in a
+        /// vault the filter excluded must be found, not reported deleted.
+        /// An entry without one leaves the filter as it is.
+        func vaults(keeping current: Set<UUID>?) -> Set<UUID>? {
+            focus == nil ? current : nil
+        }
+
+        /// Whether applying this over what the screen shows changes the graph
+        /// request. When it does not, nothing will load, so the tab must
+        /// select the focus point itself; when it does, the load does.
+        func changesRequest(focus current: String?, depth currentDepth: Int, vaults currentVaults: Set<UUID>?) -> Bool {
+            focus != current
+                || (focus != nil && depth != currentDepth)
+                || vaults(keeping: currentVaults) != currentVaults
+        }
     }
 
     static let defaultDepth = 1
 
+    /// The next request after the one with `token` (the shell keeps a counter
+    /// that only grows, so a recreated tab can never mistake a new request
+    /// for one it has applied).
+    static func next(focus: String?, afterToken token: Int) -> BrainEntryRequest {
+        BrainEntryRequest(focus: focus.map(normalized), token: token + 1)
+    }
+
     /// "Show in graph" for a memory: its node id is its uppercased UUID.
-    static func memory(_ id: UUID, after previous: BrainEntryRequest?) -> BrainEntryRequest {
-        BrainEntryRequest(focus: normalized(id.uuidString), token: (previous?.token ?? 0) + 1)
+    static func memory(_ id: UUID, afterToken token: Int) -> BrainEntryRequest {
+        next(focus: id.uuidString, afterToken: token)
+    }
+
+    /// What the shell keeps once the tab has applied `applied`: nothing, unless
+    /// a newer request has arrived since.
+    static func acknowledge(_ current: BrainEntryRequest?, applied: Int?) -> BrainEntryRequest? {
+        guard let current, current.token != applied else { return nil }
+        return current
     }
 
     /// Ids on the wire carry every uuid in uppercase (`SPACE:<UUID>` hubs and

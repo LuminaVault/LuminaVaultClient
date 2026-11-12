@@ -29,6 +29,8 @@ struct MainTabView: View {
     @State private var selection: AppTab = .home
     /// The latest way into the Brain tab; the tab applies each once.
     @State private var brainEntry: BrainEntryRequest?
+    /// Only grows: the token of the last request made, applied or not.
+    @State private var brainEntryToken = 0
     /// Phase 1 — non-nil while an approval / run-completed push is being
     /// shown. `.sheet(item:)` needs an `Identifiable`, and a bare `UUID?`
     /// would re-present for the same run on every republished deep link.
@@ -500,22 +502,26 @@ struct MainTabView: View {
     private func routePendingBrain() {
         guard case let .brain(focus) = notificationRouter.pendingDeepLink else { return }
         _ = notificationRouter.consume()
-        showSettings = false
         openBrain(focus: focus)
     }
 
-    /// "Show in graph" on a memory. Whatever sheets are up give way to the tab.
+    /// "Show in graph" on a memory.
     private func showInGraph(_ memoryID: UUID) {
+        openBrain(focus: memoryID.uuidString)
+    }
+
+    /// The one way into the Brain tab. Every sheet this view presents gives
+    /// way to it (sheets the Home and other tabs present close themselves, see
+    /// `closesOnShowInGraph`).
+    private func openBrain(focus: String?) {
         pendingMemory = nil
         showingLearned = false
         showingBrief = false
         pendingMeeting = nil
         showSettings = false
-        openBrain(focus: BrainEntryRequest.memory(memoryID, after: nil).focus)
-    }
-
-    private func openBrain(focus: String?) {
-        brainEntry = BrainEntryRequest(focus: focus, token: (brainEntry?.token ?? 0) + 1)
+        let request = BrainEntryRequest.next(focus: focus, afterToken: brainEntryToken)
+        brainEntryToken = request.token
+        brainEntry = request
         selection = .brain
     }
 
@@ -630,7 +636,7 @@ struct MainTabView: View {
             memoryClient: memoryUpsertClient,
             knowledgeClient: KnowledgeGraphHTTPClient(client: appState.makeHTTPClient()),
             activeVault: { [store = appState.activeVaultStore] in await store.selectedVaultID() },
-            entry: brainEntry
+            entry: $brainEntry
         )
     }
 

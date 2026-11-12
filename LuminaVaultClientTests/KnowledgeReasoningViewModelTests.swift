@@ -42,20 +42,34 @@ struct KnowledgeReasoningViewModelTests {
         #expect(vm.highlightedMemoryIDs == [f.memResult, f.memNode, f.memEdge])
     }
 
-    @Test("discarding the answer for a vault change disposes and clears it")
+    @Test("discarding the answer for a vault change disposes and clears all of it")
     func discardsTheAnswer() async {
         let client = ReasoningClientStub()
         client.streamEvents = [.init(type: "context", response: f.result), .init(type: "token", message: "An answer.")]
+        client.explainReply = { [explanation = f.explanation] _ in explanation }
         let vm = KnowledgeReasoningViewModel(client: client)
         vm.query = "What connects A, B?"
         await vm.reason()?.value
+        await vm.explainNodes(from: f.firstNode.id, to: f.secondNode.id, subject: "A and B").value
+        vm.selectPath(f.path1)
         #expect(vm.result != nil)
+        #expect(vm.explanation != nil)
+        #expect(vm.explanationSubject == "A and B")
+        #expect(vm.selectedPathID == f.path1)
+
         vm.discardAnswer()
         #expect(vm.result == nil)
         #expect(vm.explanation == nil)
+        #expect(vm.explanationSubject == nil)
+        #expect(vm.selectedPathID == nil)
         #expect(vm.error == nil)
         #expect(vm.loading == false)
         #expect(vm.reviewing == nil)
+        // The question the old answer belonged to is forgotten: prefilling it
+        // again no longer counts as "the same question".
+        vm.result = f.result
+        vm.prefill("What connects A, B?")
+        #expect(vm.result == nil)
     }
 
     @Test("narrows highlights to the selected path")

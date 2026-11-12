@@ -20,7 +20,6 @@ struct MemoryDetailSheet: View {
     var startsEditing = false
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.lvShowInGraph) private var showInGraph
 
     var body: some View {
         NavigationStack {
@@ -38,16 +37,7 @@ struct MemoryDetailSheet: View {
             }
         }
         // The sheet closes itself before the tab changes under it.
-        .environment(\.lvShowInGraph, closingShowInGraph)
-    }
-
-    private var closingShowInGraph: (@MainActor (UUID) -> Void)? {
-        guard let show = showInGraph else { return nil }
-        let close = dismiss
-        return { @MainActor id in
-            close()
-            show(id)
-        }
+        .closesOnShowInGraph()
     }
 }
 

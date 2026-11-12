@@ -61,7 +61,8 @@ struct BrainTabView: View {
     private let prefsDefaults: UserDefaults?
     private let memoryClient: (any MemoryClientProtocol)?
     private let activeVault: @Sendable () async -> UUID?
-    private let entry: BrainEntryRequest?
+    /// The shell's latest request; cleared once applied.
+    @Binding private var entry: BrainEntryRequest?
 
     /// `memoryClient` loads a memory for Open; `knowledgeClient` answers the
     /// reasoning sheet (Explain and Ask are disabled without it);
@@ -72,23 +73,25 @@ struct BrainTabView: View {
         knowledgeClient: (any KnowledgeGraphClientProtocol)? = nil,
         activeVault: @escaping @Sendable () async -> UUID? = { nil },
         focus: String? = nil,
-        entry: BrainEntryRequest? = nil,
+        entry: Binding<BrainEntryRequest?> = .constant(nil),
         prefs: UserDefaults? = .standard
     ) {
         // A request that made this tab is part of its first request, not a
         // second one after it.
-        let first = BrainEntryRequest.apply(entry, lastApplied: nil)
+        let first = BrainEntryRequest.apply(entry.wrappedValue, lastApplied: nil)
         let stored = BrainPrefs.load(from: prefs)
         _store = State(initialValue: BrainGraphStore(client: client))
         _detail = State(initialValue: BrainNodeDetail(client: memoryClient))
         _reasoning = State(initialValue: knowledgeClient.map { KnowledgeReasoningViewModel(client: $0) })
         self.memoryClient = memoryClient
         self.activeVault = activeVault
-        _filters = State(initialValue: stored.filters)
-        _similarAsked = State(initialValue: BrainTabState.similarAsked(previously: false, filters: stored.filters))
+        var startFilters = stored.filters
+        if let first { startFilters.vaults = first.vaults(keeping: startFilters.vaults) }
+        _filters = State(initialValue: startFilters)
+        _similarAsked = State(initialValue: BrainTabState.similarAsked(previously: false, filters: startFilters))
         _focus = State(initialValue: first.map(\.focus) ?? focus)
         _appliedEntry = State(initialValue: first?.token)
-        self.entry = entry
+        _entry = entry
         _savedView = State(initialValue: stored.view)
         prefsDefaults = prefs
     }
@@ -120,7 +123,7 @@ struct BrainTabView: View {
                 .searchSuggestions { searchSuggestions }
                 .task(id: request) { store.sync(request) }
                 .task(id: activeTab) { await readActiveVault() }
-                .onChange(of: entry) { applyEntry() }
+                .onChange(of: entry, initial: true) { applyEntry() }
                 .onChange(of: derivationKey, initial: true) { rederive() }
                 .onChange(of: filters) { _, next in
                     similarAsked = BrainTabState.similarAsked(previously: similarAsked, filters: next)
@@ -348,14 +351,16 @@ struct BrainTabView: View {
     /// A new entry request replaces the focus (or clears it for the full graph)
     /// at the default depth. The focus point is selected again once it loads.
     private func applyEntry() {
+        defer { entry = BrainEntryRequest.acknowledge(entry, applied: appliedEntry) }
         guard let applied = BrainEntryRequest.apply(entry, lastApplied: appliedEntry) else { return }
         appliedEntry = applied.token
+        // Nothing will load when the request does not change: select now.
+        let changes = applied.changesRequest(focus: focus, depth: depth, vaults: filters.vaults)
         depth = applied.depth
         focusSelectedFor = nil
-        let same = focus == applied.focus
         focus = applied.focus
-        // Same focus, graph already here: nothing will load, so select now.
-        if same { rederive() }
+        filters.vaults = applied.vaults(keeping: filters.vaults)
+        if !changes { rederive() }
     }
 
     /// The vault the reasoning sheet speaks for. Another tab can change it, so

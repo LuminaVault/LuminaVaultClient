@@ -712,4 +712,45 @@ nonisolated final class BrainGraphUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(button.frame.height, 44)
         attach(app, "memory detail")
     }
+
+    /// A memory reached through a sheet that is not the memory sheet (what
+    /// Home shows after a save): the sheet goes, the Brain is focused, and one
+    /// request is made.
+    @MainActor
+    func testShowInGraphFromARelatedSheetClosesItAndFocuses() {
+        let app = launch("graph", ["-BrainUITestControls", "YES"])
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        control(app, "related").tap()
+        XCTAssertTrue(app.navigationBars["Connects to"].waitForExistence(timeout: 5))
+        app.staticTexts["Slept 7 hours."].tap()
+        let show = app.buttons["memory.showInGraph"]
+        XCTAssertTrue(show.waitForExistence(timeout: 8))
+        show.tap()
+        waitForLabel(requests(app), "requests: 2")
+        XCTAssertFalse(app.navigationBars["Connects to"].waitForExistence(timeout: 2), "the sheet is gone")
+        XCTAssertTrue(lastQuery(app).contains("focus=00000000-0000-0000-0000-0000000000B1"), lastQuery(app))
+        XCTAssertTrue(app.buttons["Full graph"].exists)
+        settle()
+        waitForLabel(requests(app), "requests: 2")
+        attach(app, "after show in graph")
+    }
+
+    /// A focus in a vault the filter excluded still finds it: one request,
+    /// for all vaults.
+    @MainActor
+    func testAnEntryWithAFocusClearsTheVaultFilterInOneRequest() {
+        let app = launch("graph", ["-BrainUITestControls", "YES"])
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        openFilters(app)
+        app.buttons["brain.filter.vault.Work"].tap()
+        closeSheet(app)
+        waitForLabel(requests(app), "requests: 2")
+        XCTAssertTrue(lastQuery(app).contains("vaults="), lastQuery(app))
+        control(app, "focusN6").tap()
+        waitForLabel(requests(app), "requests: 3")
+        settle()
+        waitForLabel(requests(app), "requests: 3")
+        XCTAssertTrue(lastQuery(app).contains("focus=N6"), lastQuery(app))
+        XCTAssertFalse(lastQuery(app).contains("vaults="), lastQuery(app))
+    }
 }

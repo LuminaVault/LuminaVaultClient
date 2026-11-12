@@ -11,6 +11,8 @@
 //   -BrainUITestControls YES            (optional; a strip of buttons that play the
 //                                        shell: leave and return to the tab, change the
 //                                        active vault, send entry requests)
+//   -BrainUITestEntryFocus <id>         (optional; start as if "Show in graph" had
+//                                        just sent this focus)
 //   -BrainUITestPoints <n>              (optional; graph scenario: n generated
 //                                        notes, memories and hubs instead of the eight)
 //
@@ -301,12 +303,12 @@ nonisolated struct BrainUITestMemoryClient: MemoryClientProtocol {
     func delete(id _: UUID) async throws { throw APIError.unauthorized }
 }
 
-/// The harness's stand-in for `ActiveVaultStore`.
-private actor BrainUITestActiveVault {
-    private var id: UUID?
-    init(_ id: UUID?) { self.id = id }
-    func current() -> UUID? { id }
-    func select(_ next: UUID?) { id = next }
+/// The harness's stand-in for `ActiveVaultStore`. Main-actor state, so a
+/// switch is complete the moment the control's action returns, before any
+/// later tap can read it.
+@MainActor
+private final class BrainUITestActiveVault {
+    var id: UUID? = BrainUITestClient.personalID
 }
 
 struct BrainUITestHarness: View {
@@ -317,10 +319,12 @@ struct BrainUITestHarness: View {
     /// latest way into the Brain tab.
     /// Read through, as the app reads `ActiveVaultStore`: a closure that
     /// captured a value would only ever see the one it was made with.
-    @State private var vault = BrainUITestActiveVault(BrainUITestClient.personalID)
+    @State private var vault = BrainUITestActiveVault()
     @State private var tab = "brain"
-    @State private var vaultName = "Personal"
     @State private var entry: BrainEntryRequest?
+    /// The token of the last entry request made; only grows.
+    @State private var entryToken = 0
+    @State private var showRelated = false
 
     init(scenario: BrainUITestScenario) {
         self.scenario = scenario
@@ -341,6 +345,11 @@ struct BrainUITestHarness: View {
             stored.save(to: prefs)
         }
         self.prefs = prefs
+        if let focus = UserDefaults.standard.string(forKey: "BrainUITestEntryFocus") {
+            let first = BrainEntryRequest.next(focus: focus, afterToken: 0)
+            _entry = State(initialValue: first)
+            _entryToken = State(initialValue: first.token)
+        }
     }
 
     @ViewBuilder
@@ -349,12 +358,12 @@ struct BrainUITestHarness: View {
             HStack(spacing: LVSpacing.xs) {
                 control("leave", "Leave") { tab = "home" }
                 control("return", "Return") { tab = "brain" }
-                control("switchVault", "Vault") { vaultName = "Work"; Task { await vault.select(BrainUITestClient.workID) } }
+                control("switchVault", "Vault") { vault.id = BrainUITestClient.workID }
                 control("focusN3", "N3") { send("N3") }
                 control("focusN6", "N6") { send("N6") }
                 control("focusMissing", "Gone") { send("N404") }
                 control("fullGraph", "Full") { send(nil) }
-                Text("Active: \(vaultName)").accessibilityIdentifier("brain.uitest.activeVault")
+                control("related", "Related") { showRelated = true }
             }
             .font(.caption2)
             .padding(.horizontal, LVSpacing.xs)
@@ -364,13 +373,18 @@ struct BrainUITestHarness: View {
     private func control(_ id: String, _ title: String, _ action: @escaping () -> Void) -> some View {
         Button(title, action: action)
             .buttonStyle(.bordered)
+            .controlSize(.mini)
             .accessibilityIdentifier("brain.uitest.\(id)")
     }
 
     private func send(_ focus: String?) {
-        entry = BrainEntryRequest(focus: focus, token: (entry?.token ?? 0) + 1)
+        let request = BrainEntryRequest.next(focus: focus, afterToken: entryToken)
+        entryToken = request.token
+        entry = request
         tab = "brain"
     }
+
+    private static let relatedMemoryID = UUID(uuidString: "00000000-0000-0000-0000-0000000000B1") ?? UUID()
 
     private static var scheme: ColorScheme? {
         switch UserDefaults.standard.string(forKey: "BrainUITestScheme") {
@@ -412,14 +426,26 @@ struct BrainUITestHarness: View {
                 client: client,
                 memoryClient: BrainUITestMemoryClient(),
                 knowledgeClient: BrainUITestKnowledgeClient(),
-                activeVault: { [vault] in await vault.current() },
+                activeVault: { [vault] in await vault.id },
                 focus: scenario == .missingFocus ? "N404" : nil,
-                entry: entry,
+                entry: $entry,
                 prefs: prefs
             )
             .environment(\.lvActiveTab, tab)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) { controls }
+        .sheet(isPresented: $showRelated) {
+            // What Home shows after a save: a sheet whose rows push a memory.
+            RelatedMemoriesSheet(
+                items: [RelatedMemoryDTO(
+                    id: Self.relatedMemoryID, snippet: "Slept 7 hours.",
+                    createdAt: Date(timeIntervalSince1970: 1_800_000_000), similarity: 0.8
+                )],
+                client: BrainUITestMemoryClient()
+            )
+        }
+        // The shell's action: what `MainTabView` does, minus the sheets it owns.
+        .environment(\.lvShowInGraph, { id in send(id.uuidString) })
         .overlay(alignment: .bottomLeading) {
             if !UserDefaults.standard.bool(forKey: "BrainUITestHideRequests") {
                 Text("requests: \(client.requestCount)")

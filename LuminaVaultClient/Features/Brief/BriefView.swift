@@ -70,6 +70,7 @@ struct BriefView: View {
                     MemoryDetailSheet(memoryID: link.id, client: memoryClient, spacesClient: spacesClient)
                 }
         }
+        .closesOnShowInGraph()
     }
 
     // MARK: - States
