@@ -1192,6 +1192,10 @@ final class ChatViewModel {
                     // being invisible until someone reads this switch.
                     log.debug("ignoring unrecognized stream event: \(rawType, privacy: .public)")
                     continue
+                case .assistantAction:
+                    // Quick Assistant frames only arrive on turns that carry
+                    // `quickAssistant`, which chat never sends.
+                    continue
                 case let .hermesRun(ref):
                     // The turn escalated to an agent run. The chat stream is
                     // about to close; the answer and the tool trail arrive on

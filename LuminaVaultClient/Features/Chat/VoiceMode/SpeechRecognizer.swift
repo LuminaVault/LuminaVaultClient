@@ -48,13 +48,16 @@ final class SystemSpeechRecognizer: SpeechRecognizing, @unchecked Sendable {
 
     func requestAuthorization() async -> Bool {
         let speechOK = await withCheckedContinuation { cont in
-            SFSpeechRecognizer.requestAuthorization { status in
+            // `@Sendable`, so these do not inherit the main actor: both system
+            // callbacks arrive on a background queue, and an inherited isolation
+            // check there traps the app on the first press of the mic.
+            SFSpeechRecognizer.requestAuthorization { @Sendable status in
                 cont.resume(returning: status == .authorized)
             }
         }
         guard speechOK else { return false }
         return await withCheckedContinuation { cont in
-            AVAudioApplication.requestRecordPermission { granted in
+            AVAudioApplication.requestRecordPermission { @Sendable granted in
                 cont.resume(returning: granted)
             }
         }
@@ -79,9 +82,7 @@ final class SystemSpeechRecognizer: SpeechRecognizing, @unchecked Sendable {
         let input = audioEngine.inputNode
         let format = input.outputFormat(forBus: 0)
         input.removeTap(onBus: 0)
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak request] buffer, _ in
-            request?.append(buffer)
-        }
+        Self.installTap(on: input, format: format, feeding: request)
         audioEngine.prepare()
         do {
             try audioEngine.start()
@@ -109,6 +110,19 @@ final class SystemSpeechRecognizer: SpeechRecognizing, @unchecked Sendable {
             }
         }
         return stream
+    }
+
+    /// Audio arrives on a realtime thread. Installed outside the main actor,
+    /// because a block that inherits its isolation traps the app on the first
+    /// buffer.
+    nonisolated static func installTap(
+        on node: AVAudioNode,
+        format: AVAudioFormat?,
+        feeding request: SFSpeechAudioBufferRecognitionRequest
+    ) {
+        node.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak request] buffer, _ in
+            request?.append(buffer)
+        }
     }
 
     func stop() {

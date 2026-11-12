@@ -71,15 +71,24 @@ final class SystemSpeechSynthesizer: NSObject, SpeechSynthesizing, AVSpeechSynth
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         Task { @MainActor in
             onFinish?()
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            Self.deactivateAudioSessionIfStillPlayback()
         }
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
         Task { @MainActor in
             onFinish?()
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            Self.deactivateAudioSessionIfStillPlayback()
         }
+    }
+
+    /// Quick Assistant's mic can interrupt speech. By the time this runs the
+    /// recognizer may own the session, and deactivating it then would stop the
+    /// running audio engine.
+    private static func deactivateAudioSessionIfStillPlayback() {
+        let session = AVAudioSession.sharedInstance()
+        guard session.category == .playback else { return }
+        try? session.setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     /// Pick the highest-quality en-US voice available. iOS bundles a
