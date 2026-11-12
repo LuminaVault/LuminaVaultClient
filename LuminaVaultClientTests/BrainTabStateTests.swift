@@ -438,4 +438,13 @@ struct BrainTabStateTests {
         #expect(BrainTabState.viewTitle(.twoD) == "2D")
         #expect(BrainTabState.viewTitle(.threeD) == "Constellation")
     }
+
+    @Test func anySheetCoversTheGraph() {
+        #expect(!BrainTabState.isCovered(filters: false, list: false, capture: false, detail: false, reasoning: false))
+        #expect(BrainTabState.isCovered(filters: true, list: false, capture: false, detail: false, reasoning: false))
+        #expect(BrainTabState.isCovered(filters: false, list: true, capture: false, detail: false, reasoning: false))
+        #expect(BrainTabState.isCovered(filters: false, list: false, capture: true, detail: false, reasoning: false))
+        #expect(BrainTabState.isCovered(filters: false, list: false, capture: false, detail: true, reasoning: false))
+        #expect(BrainTabState.isCovered(filters: false, list: false, capture: false, detail: false, reasoning: true))
+    }
 }

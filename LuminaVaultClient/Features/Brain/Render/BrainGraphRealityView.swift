@@ -9,13 +9,16 @@
 // survive them. Leaving the view (2D, another tab) releases it all.
 //
 // What runs: the layout, off the main actor, when the visible graph changes
-// (its task is cancelled when the view goes away); a centre ease of 0.4 s
-// after search; the idle turn. Nothing else: at rest no SwiftUI state
-// changes. The idle turn runs only while the view is on screen, the app is in
-// the foreground, nothing is selected, Reduce Motion is off and no finger is
-// down, 5 s after the last touch; it steps at most 30 times a second, for at
-// most 90 s. Labels (at most 24) are a SwiftUI overlay with its own
-// observable store, placed when the camera stops and carried along by the turn.
+// (its task is cancelled when the view goes away, and only a run the view
+// accepts is remembered); a centre ease of 0.4 s after search; the idle turn.
+// Nothing else: at rest no SwiftUI state changes. The idle turn runs only
+// while the view is on screen, the app is in the foreground, no sheet covers
+// it, nothing is selected, Reduce Motion is off and no finger is down, 5 s
+// after the last touch; every step asks `ConstellationIdleTurn.allowed`, at
+// most 30 a second, for at most 90 s. Labels (at most 24) are a SwiftUI
+// overlay with its own observable store, placed when the camera stops and
+// carried along by the turn. The driver (scene, runner, labels) is made once
+// per appearance of the view, not on every re-render of its parent.
 
 import LuminaVaultShared
 import RealityKit
@@ -33,17 +36,35 @@ struct BrainGraphRealityView: View {
     let onOpen: (_ id: String) -> Void
     /// Put this star in the middle (search's one explicit camera move).
     var centreOn: BrainCentreRequest?
+    /// A sheet covers the screen (list, filters, detail, reasoning, capture):
+    /// the idle turn stops.
+    var covered = false
 
     @Environment(\.lvPalette) private var palette
     @Environment(\.colorScheme) private var scheme
+    /// Made once, when the view first appears, and kept for its lifetime: a
+    /// default value here would build (and throw away) a scene on every
+    /// re-render of the parent.
+    @State private var driver: ConstellationDriver?
 
     var body: some View {
-        ConstellationSurface(
-            inputs: self,
-            model: ConstellationModel(graph: graph, colourOf: colourOf),
-            theme: BrainGraphTheme(palette: palette, scheme: scheme),
-            dark: scheme == .dark
-        )
+        let theme = BrainGraphTheme(palette: palette, scheme: scheme)
+        Group {
+            if let driver {
+                ConstellationSurface(
+                    inputs: self,
+                    driver: driver,
+                    model: ConstellationModel(graph: graph, colourOf: colourOf),
+                    theme: theme,
+                    dark: scheme == .dark
+                )
+            } else {
+                theme.background
+            }
+        }
+        .onAppear {
+            if driver == nil { driver = ConstellationDriver() }
+        }
     }
 }
 
@@ -54,7 +75,11 @@ struct BrainGraphRealityView: View {
 private final class ConstellationDriver {
     let scene = ConstellationScene()
     let runner = ConstellationLayoutRunner()
-    var serial = 0
+    let labels = ConstellationLabelStore()
+    /// The memory the sky on screen was laid out from.
+    var layoutState = ConstellationLayoutState()
+    /// What the idle turn checks on every step: kept current by the view.
+    var idleInputs = ConstellationIdleInputs()
     var press: BrainPressTracker?
     var pressBegan = Date.distantPast
     /// The camera and finger position an orbit started from.
@@ -82,6 +107,14 @@ private final class ConstellationDriver {
         textSizes[text] = size
         return size
     }
+}
+
+/// The idle turn's inputs that change while it runs.
+private struct ConstellationIdleInputs: Equatable {
+    var selected = 0
+    var foreground = true
+    var covered = false
+    var reduceMotion = false
 }
 
 /// The labels on screen. Observed only by the overlay, so moving them with
@@ -130,12 +163,12 @@ private struct ConstellationCentring: Equatable {
 
 private struct ConstellationSurface: View {
     let inputs: BrainGraphRealityView
+    let driver: ConstellationDriver
     let model: ConstellationModel
     let theme: BrainGraphTheme
     let dark: Bool
 
-    @State private var driver = ConstellationDriver()
-    @State private var labelStore = ConstellationLabelStore()
+    private var labelStore: ConstellationLabelStore { driver.labels }
     @State private var placement: ConstellationPlacement?
     @State private var centring: ConstellationCentring?
     /// Bumps on every touch, restarting the idle timer.
@@ -158,10 +191,15 @@ private struct ConstellationSurface: View {
 
     private struct IdleKey: Equatable {
         var activity: Int
-        var nothingSelected: Bool
-        var foreground: Bool
-        var reduceMotion: Bool
+        var inputs: ConstellationIdleInputs
         var placed: Bool
+    }
+
+    private var idleInputs: ConstellationIdleInputs {
+        ConstellationIdleInputs(
+            selected: inputs.highlight.selected.count, foreground: inForeground,
+            covered: inputs.covered, reduceMotion: reduceMotion
+        )
     }
 
     private struct LabelKey: Equatable {
@@ -189,10 +227,8 @@ private struct ConstellationSurface: View {
             rerank()
         }
         .task(id: model.layoutKey) { await layout() }
-        .task(id: IdleKey(
-            activity: activity, nothingSelected: inputs.highlight.selected.isEmpty,
-            foreground: inForeground, reduceMotion: reduceMotion, placed: placement != nil
-        )) { await idleTurn() }
+        .onChange(of: idleInputs, initial: true) { _, now in driver.idleInputs = now }
+        .task(id: IdleKey(activity: activity, inputs: idleInputs, placed: placement != nil)) { await idleTurn() }
         .task(id: centring) { await runCentring(centring) }
         .task(id: pressCount) { await longPressTimer(pressCount) }
         .onChange(of: LabelKey(model: model.key, serial: placement?.serial, highlight: inputs.highlight, typeSize: typeSize)) {
@@ -224,11 +260,13 @@ private struct ConstellationSurface: View {
         )
     }
 
+    /// Lays the graph out off the main actor, from the memory the sky on
+    /// screen came from; the new memory is kept only if this task is still
+    /// wanted when the run comes back.
     private func layout() async {
-        let graph = inputs.graph
-        guard let result = await driver.runner.layout(graph), !Task.isCancelled else { return }
-        driver.serial += 1
-        placement = ConstellationPlacement(positions: result.positions, fresh: result.fresh, serial: driver.serial)
+        guard let run = await driver.runner.layout(inputs.graph, from: driver.layoutState.memory) else { return }
+        guard let next = driver.layoutState.accept(run, cancelled: Task.isCancelled) else { return }
+        placement = next
     }
 
     /// Chooses and places the labels for where the camera is now. Not while
@@ -295,27 +333,35 @@ private struct ConstellationSurface: View {
         if centring != nil { centring = nil }
     }
 
+    /// The idle turn. Every step asks `ConstellationIdleTurn.allowed` with
+    /// the current inputs (the driver's copy, kept current by the view), so a
+    /// selection, a sheet, Reduce Motion, a finger or the 90 s cap stops it at
+    /// the next step whatever the task id does.
     private func idleTurn() async {
         do { try await Task.sleep(for: ConstellationIdleTurn.idleDelay) } catch { return }
-        func allowed() -> Bool {
-            ConstellationIdleTurn.allowed(.init(
-                selected: inputs.highlight.selected.count,
+        let driver = driver
+        func allowed(turned: Duration) -> Bool {
+            let now = driver.idleInputs
+            return ConstellationIdleTurn.allowed(.init(
+                selected: now.selected,
                 idle: ContinuousClock.now - driver.lastActivity,
-                visible: inForeground,
-                reduceMotion: reduceMotion,
-                pressing: driver.pressing
+                visible: now.foreground,
+                covered: now.covered,
+                reduceMotion: now.reduceMotion,
+                pressing: driver.pressing,
+                turned: turned
             ))
         }
-        guard placement != nil, allowed() else { return }
+        guard placement != nil, allowed(turned: .zero) else { return }
         var last = ContinuousClock.now
         var turned = Duration.zero
         var sinceRank = Duration.zero
-        while ConstellationIdleTurn.continues(turned: turned) {
+        while true {
             do { try await Task.sleep(for: ConstellationIdleTurn.stepInterval) } catch { return }
-            guard centring == nil, !driver.pressing else { return }
             let now = ContinuousClock.now
             let step = now - last
             last = now
+            guard centring == nil, allowed(turned: turned) else { return }
             turned += step
             sinceRank += step
             driver.scene.setCamera(driver.scene.camera.turned(by: ConstellationIdleTurn.angle(after: step)))

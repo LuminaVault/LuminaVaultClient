@@ -866,19 +866,41 @@ private nonisolated struct SeededRandom {
 
 // MARK: - Off the main actor
 
-/// Holds one `ConstellationLayout` and runs it off the main actor. Owned by
-/// the reality view and released with it. A run whose task is cancelled
-/// returns nil and leaves the memory as it was, so a half-finished layout is
-/// never remembered.
-actor ConstellationLayoutRunner {
-    private var memory = ConstellationLayout()
+/// One finished layout: the positions, whether it started from scratch, and
+/// the memory it leaves behind. The memory is only a candidate until the view
+/// accepts the run (`ConstellationLayoutState.accept`).
+nonisolated struct ConstellationLayoutRun: Sendable {
+    var positions: [String: SIMD3<Float>]
+    var fresh: Bool
+    var memory: ConstellationLayout
+}
 
-    func layout(_ graph: VisibleBrainGraph) -> (positions: [String: SIMD3<Float>], fresh: Bool)? {
+/// Runs a layout off the main actor. Holds no memory of its own: it starts
+/// from the memory it is given and hands the next one back with the result.
+/// A run whose task is cancelled returns nil.
+actor ConstellationLayoutRunner {
+    func layout(_ graph: VisibleBrainGraph, from memory: ConstellationLayout) -> ConstellationLayoutRun? {
         guard !Task.isCancelled else { return nil }
         var next = memory
         let result = next.layout(graph)
         guard !Task.isCancelled else { return nil }
-        memory = next
-        return result
+        return ConstellationLayoutRun(positions: result.positions, fresh: result.fresh, memory: next)
+    }
+}
+
+/// The layout memory the sky on screen was drawn from, and the serial of the
+/// last placement. A run is committed only when the view accepts it (its task
+/// was not cancelled after the run came back), so the next layout is never
+/// measured against a sky the user did not see.
+nonisolated struct ConstellationLayoutState: Sendable {
+    private(set) var memory = ConstellationLayout()
+    private(set) var serial = 0
+
+    /// The placement to draw, or nil when the run is dropped (and nothing is remembered).
+    mutating func accept(_ run: ConstellationLayoutRun, cancelled: Bool) -> ConstellationPlacement? {
+        guard !cancelled else { return nil }
+        memory = run.memory
+        serial += 1
+        return ConstellationPlacement(positions: run.positions, fresh: run.fresh, serial: serial)
     }
 }

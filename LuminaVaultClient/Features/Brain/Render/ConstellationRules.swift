@@ -1,10 +1,10 @@
 // The pure rules behind the 3D Constellation: what each star is (size, colour,
-// label), which lines are drawn at rest and which when something is lit, how a
-// tap finds a star on screen, which stars get one of the 24 labels and where
-// they go, when the idle turn may run, and how the camera frames the sky. A
-// port of the web app's `render-3d-helpers.ts` and `render-3d-labels.ts`, with
-// the same numbers except the hit floor (22 pt for a finger, web 12 px for a
-// cursor). No RealityKit, no state: `BrainGraphRealityView` calls these.
+// label), how large it may look on screen, which lines are drawn at rest and
+// which when something is lit, and how a tap finds a star on screen. Labels
+// are in `ConstellationLabels`, camera framing in `ConstellationFraming`, the
+// idle turn in `ConstellationIdleTurn`. A port of the web app's
+// `render-3d-helpers.ts`, with the same numbers except the hit floor (22 pt
+// for a finger, web 12 px for a cursor). No RealityKit, no state.
 
 import CoreGraphics
 import Foundation
@@ -154,20 +154,6 @@ nonisolated struct ConstellationProjection: Equatable, Sendable {
     func point(_ i: Int) -> CGPoint { CGPoint(x: x[i], y: y[i]) }
 }
 
-/// One placed label: its star and its plate, both in screen points.
-nonisolated struct ConstellationLabel: Equatable, Sendable, Identifiable {
-    var star: Int
-    var text: String
-    var rect: CGRect
-    var selected: Bool
-    var id: Int { star }
-}
-
-/// What can happen to the camera, as far as "is it still the automatic fit" goes.
-nonisolated enum ConstellationCameraEvent: Sendable {
-    case freshGraph, press, userOrbit, userZoom, centreOn, programmatic, idleTurn
-}
-
 nonisolated enum ConstellationRules {
     /// The request limit: never more stars than this.
     static let maxStars = 800
@@ -196,8 +182,17 @@ nonisolated enum ConstellationRules {
     static let litLineAlpha: Float = 0.7
     static let lightRestLineAlpha: Float = 0.14
     static let lightLitLineAlpha: Float = 0.85
-    /// Line thickness in world units: about a point at the fitted distance.
-    static let lineWidth: Float = 0.3
+    /// A line's width on screen, in points (web: 1 px `LineSegments`).
+    static let lineScreenWidth: Float = 1
+    /// A star's sprite on screen, in points, at least and at most (web
+    /// `MIN_STAR_PX`, `MAX_STAR_PX`, `MAX_HUB_PX`): a far star stays a visible
+    /// dot, a near one never fills the view.
+    static let minStarPoints: CGFloat = 5
+    static let maxStarPoints: CGFloat = 58
+    static let maxHubPoints: CGFloat = 15
+    /// How far the camera may move (as a share of its distance to what it
+    /// looks at) before the lines are rebuilt to keep their screen width.
+    static let lineRebuildShare: Float = 0.15
     /// The selection ring's radius on screen, in points (web `RING_PX` / 2).
     static let ringRadius: CGFloat = 12
     /// A selection ring is at least this many times its star's radius, so a
@@ -249,6 +244,59 @@ nonisolated enum ConstellationRules {
         let base = Double(ForceSimulation2D.nodeRadius(weight: weight, isHub: isHub)) * starScale * boost
         if isHub { return min(maxHubRadius, Float(base * hubShare)) }
         return Float(base * coreShare)
+    }
+
+    // MARK: Size on screen
+
+    /// A sprite's size on screen: world size over view depth, times the
+    /// camera's points per world unit at depth 1, clamped (web `starPixelSize`).
+    static func starPixelSize(
+        _ worldSize: CGFloat, depth: CGFloat, pointsPerUnit: CGFloat, min minPoints: CGFloat, max maxPoints: CGFloat
+    ) -> CGFloat {
+        let px = depth > 0 ? worldSize * pointsPerUnit / depth : maxPoints
+        return Swift.min(maxPoints, Swift.max(minPoints, px))
+    }
+
+    /// A star's radius on screen, in points: its sprite (core radius over
+    /// `coreShare`, or a hub's over `hubShare`) clamped as the web clamps it,
+    /// then back to the core. What is drawn and what a tap hits.
+    static func screenRadius(worldRadius: Float, isHub: Bool, depth: CGFloat, pointsPerUnit: CGFloat) -> CGFloat {
+        let share = isHub ? hubShare : coreShare
+        let sprite = CGFloat(Double(worldRadius) / share)
+        let top = isHub ? maxHubPoints : maxStarPoints
+        return starPixelSize(sprite, depth: depth, pointsPerUnit: pointsPerUnit, min: minStarPoints, max: top) * share
+    }
+
+    /// `p` with every star's radius clamped by `screenRadius`.
+    static func clampedRadii(
+        _ p: ConstellationProjection, worldRadii: [Float], isHub: [Bool], pointsPerUnit: CGFloat
+    ) -> ConstellationProjection {
+        var out = p
+        for i in 0 ..< Swift.min(p.count, worldRadii.count, isHub.count) where p.depth[i].isFinite {
+            out.radius[i] = screenRadius(
+                worldRadius: worldRadii[i], isHub: isHub[i], depth: p.depth[i], pointsPerUnit: pointsPerUnit
+            )
+        }
+        return out
+    }
+
+    /// The scale a star's unit mesh needs so it is drawn `radius` points
+    /// across at `depth`: its world radius when nothing is clamped.
+    static func drawnScale(radius: CGFloat, depth: CGFloat, pointsPerUnit: CGFloat) -> Float {
+        Float(radius * depth / pointsPerUnit)
+    }
+
+    /// A line's world width at `depth` that is `lineScreenWidth` points on screen.
+    static func lineWorldWidth(depth: Float, pointsPerUnit: Float) -> Float {
+        guard pointsPerUnit > 0 else { return 0 }
+        return lineScreenWidth * Swift.max(depth, ConstellationCamera.near) / pointsPerUnit
+    }
+
+    /// Whether lines built for a camera at `builtEye` are too thick or thin
+    /// for one at `eye`, `distance` from what it looks at.
+    static func linesNeedRebuild(builtEye: SIMD3<Float>?, eye: SIMD3<Float>, distance: Float) -> Bool {
+        guard let builtEye else { return true }
+        return simd_distance(builtEye, eye) > lineRebuildShare * distance
     }
 
     // MARK: Lines
@@ -325,177 +373,8 @@ nonisolated enum ConstellationRules {
         return best
     }
 
-    // MARK: Labels
-
-    /// How many labels a view of this size can carry without crowding: 8 to 24.
-    static func labelQuota(_ size: CGSize, max top: Int = maxLabels) -> Int {
-        max(8, min(top, Int((size.width * size.height / 14000).rounded())))
-    }
-
-    /// Stars to offer a label, best first: by tier (selected, lit, other).
-    /// Inside the selected and lit tiers the nearest comes first; inside the
-    /// resting tier the heaviest does, nearness breaking ties. Hidden stars,
-    /// stars behind the camera and stars off the view are left out.
-    static func rankLabels(_ p: ConstellationProjection, tiers: [ConstellationTier], weights: [Double]) -> [Int] {
-        let w = p.size.width, h = p.size.height
-        let shown = (0 ..< p.count).filter { i in
-            tiers[i] != .hidden && p.x[i] >= 0 && p.x[i] <= w && p.y[i] >= 0 && p.y[i] <= h
-        }
-        return shown.sorted { a, b in
-            if tiers[a] != tiers[b] { return tiers[a] < tiers[b] }
-            if tiers[a] == .other, weights[a] != weights[b] { return weights[a] > weights[b] }
-            if p.depth[a] != p.depth[b] { return p.depth[a] < p.depth[b] }
-            return a < b
-        }
-    }
-
-    /// Chooses and places up to 24 labels (fewer in a small view): selected
-    /// first, then lit, then the heaviest. Selection rings claim their space
-    /// first, so no label covers one; in a small graph every star does, as the
-    /// 2D view keeps labels off points. A lower-ranked label that would
-    /// collide is dropped; a selected one is always placed, slid onto the view.
-    /// How far a selected star's ring reaches on screen, in points.
-    static func selectionReach(_ starRadius: CGFloat) -> CGFloat {
-        max(ringRadius, starRadius * ringToStar)
-    }
-
-    static func placeLabels(
-        _ p: ConstellationProjection,
-        tiers: [ConstellationTier],
-        weights: [Double],
-        texts: [String],
-        textSize: (String) -> CGSize
-    ) -> [ConstellationLabel] {
-        guard !p.x.isEmpty, p.size.width > 0, p.size.height > 0 else { return [] }
-        let ranked = rankLabels(p, tiers: tiers, weights: weights)
-        var boxes = BrainLabelBoxes(canvas: p.size)
-        let everyStar = p.count <= BrainGraphCanvasLogic.smallGraph
-        for i in ranked {
-            let selected = tiers[i] == .selected
-            if !selected, !everyStar { break }
-            let half = selected ? selectionReach(p.radius[i]) + 1 : p.radius[i] * labelClear + 1
-            boxes.occupy(CGRect(x: p.x[i] - half, y: p.y[i] - half, width: half * 2, height: half * 2))
-        }
-        let quota = labelQuota(p.size)
-        var out: [ConstellationLabel] = []
-        for i in ranked where out.count < quota {
-            let selected = tiers[i] == .selected
-            let reach = (selected ? selectionReach(p.radius[i]) : p.radius[i] * labelClear) + 2
-            let size = textSize(texts[i])
-            let spots = BrainGraphCanvasLogic.labelSpots(centre: p.point(i), radius: reach, text: size)
-            guard let spot = boxes.place(spots, canvas: p.size, force: selected) else { continue }
-            out.append(ConstellationLabel(star: i, text: texts[i], rect: spot.rect, selected: selected))
-        }
-        return out
-    }
-
-    // MARK: Camera
-
-    /// Whether the camera is still the automatic fit after `event`. A fresh
-    /// graph returns to it; a real orbit or zoom, or an explicit centre,
-    /// leaves it; a press alone, the renderer's own moves and the idle turn do not.
-    static func nextCameraAutoView(_ autoView: Bool, _ event: ConstellationCameraEvent) -> Bool {
-        switch event {
-        case .freshGraph: true
-        case .userOrbit, .userZoom, .centreOn: false
-        case .press, .programmatic, .idleTurn: autoView
-        }
-    }
-
-    /// Where to aim and how far back to stand to frame the stars: a robust
-    /// centroid (the mean of the points within the `share` percentile of
-    /// distance from the plain mean), and the distance that fits the
-    /// `share`-percentile radius around it, times `frameMargin`, into the
-    /// narrower of the camera's two angles. The caller clamps the distance.
-    static func frameCloud(
-        _ points: [SIMD3<Float>], fieldOfView: Float = fieldOfView, aspect: Double, share: Double = frameShare
-    ) -> (centre: SIMD3<Float>, distance: Float) {
-        let n = Double(max(1, points.count))
-        var c = SIMD3<Double>.zero
-        for p in points { c += SIMD3<Double>(p) / n }
-        // Distances are kept at Float precision, as the web keeps them in a
-        // Float32Array: points mirrored about the centre then tie exactly and
-        // the cut keeps or drops both, so a symmetric cloud stays centred.
-        func distances(from c: SIMD3<Double>) -> [Double] {
-            points.map { Double(Float(simd_length(SIMD3<Double>($0) - c))) }
-        }
-        func percentile(_ values: [Double]) -> Double {
-            guard !values.isEmpty else { return 0 }
-            let s = values.sorted()
-            return s[max(0, Int((Double(s.count) * share).rounded(.up)) - 1)]
-        }
-        let d = distances(from: c)
-        let cut = percentile(d)
-        // One trimming pass: re-centre on the points inside the cut.
-        var r = SIMD3<Double>.zero
-        var k = 0.0
-        for (i, p) in points.enumerated() where d[i] <= cut {
-            r += SIMD3<Double>(p)
-            k += 1
-        }
-        if k > 0 { c = r / k }
-        let radius = percentile(distances(from: c))
-        let vHalf = Double(fieldOfView) * .pi / 360
-        let hHalf = atan(tan(vHalf) * max(1e-3, aspect))
-        return (SIMD3<Float>(c), Float(radius * frameMargin / sin(min(vHalf, hHalf))))
-    }
-
-    /// How far an automatic fit stands, and how far the user may then zoom
-    /// out: `maxDistance`, or the fit's own distance when that is farther.
-    static func automaticFit(_ distance: Float) -> (distance: Float, maxDistance: Float) {
-        let d = min(maxFitDistance, max(minFitDistance, distance))
-        return (d, max(maxDistance, d))
-    }
-
-    static func easeInOutCubic(_ t: Double) -> Double {
-        if t <= 0 { return 0 }
-        if t >= 1 { return 1 }
-        return t < 0.5 ? 4 * t * t * t : 1 - pow(-2 * t + 2, 3) / 2
-    }
-
     /// The view is one VoiceOver element; the list is the way to browse.
     static func accessibilityLabel(itemCount: Int) -> String {
         "Constellation of \(itemCount) notes and memories. Use the list to browse."
-    }
-}
-
-// MARK: - Idle turn
-
-/// The slow turn of an untouched sky. It runs only with nothing selected, the
-/// tab visible, Reduce Motion off and no finger down, after 5 s without a
-/// touch; steps at most 30 times a second; and stops for good (until the next
-/// touch) after 90 s.
-nonisolated enum ConstellationIdleTurn {
-    static let idleDelay: Duration = .seconds(5)
-    /// One step per thirtieth of a second at most.
-    static let maxStepsPerSecond = 30
-    static let stepInterval: Duration = .microseconds(1_000_000 / maxStepsPerSecond + 1)
-    static let maxTurn: Duration = .seconds(90)
-    /// One revolution per three minutes.
-    static let radiansPerSecond: Double = 2 * .pi / 180
-    /// While turning, labels are re-chosen this often.
-    static let rerankInterval: Duration = .seconds(2)
-
-    nonisolated struct State: Equatable, Sendable {
-        var selected: Int
-        var idle: Duration
-        var visible: Bool
-        var reduceMotion: Bool
-        var pressing: Bool
-    }
-
-    static func allowed(_ s: State) -> Bool {
-        s.selected == 0 && s.idle >= idleDelay && s.visible && !s.reduceMotion && !s.pressing
-    }
-
-    /// Whether a turn that has run for `turned` may take another step.
-    static func continues(turned: Duration, max: Duration = maxTurn) -> Bool {
-        turned < max
-    }
-
-    /// How far a step after `elapsed` turns.
-    static func angle(after elapsed: Duration) -> Double {
-        let c = elapsed.components
-        return radiansPerSecond * (Double(c.seconds) + Double(c.attoseconds) / 1e18)
     }
 }

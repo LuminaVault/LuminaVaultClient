@@ -5,7 +5,9 @@
 // the camera. Built once when the view is made and changed in place after
 // that: `apply` compares what it is given with what it last drew and touches
 // only what differs, so the camera, the entities and the meshes survive
-// selection, filters and theme changes. Rules live in `ConstellationRules`.
+// selection, filters and theme changes. Stars and lines are held to a size on
+// screen (the web's sprite bounds, 1 pt lines) as the camera moves. Rules
+// live in `ConstellationRules`.
 
 import LuminaVaultShared
 import RealityKit
@@ -14,7 +16,7 @@ import UIKit
 
 /// The layout's answer for one graph: positions by id, whether it was laid
 /// out from scratch, and a serial that changes with every answer.
-nonisolated struct ConstellationPlacement: Sendable {
+nonisolated struct ConstellationPlacement: Equatable, Sendable {
     var positions: [String: SIMD3<Float>]
     var fresh: Bool
     var serial: Int
@@ -48,6 +50,12 @@ final class ConstellationScene {
     private var serial: Int?
     private var placedIDs = Set<String>()
     private var selectedStars: [Int] = []
+    /// Where the camera stood when the lines were last built.
+    private var linesBuiltEye: SIMD3<Float>?
+    /// How many times the line mesh has been built, for tests.
+    private(set) var lineBuilds = 0
+    /// The stars that carry a selection ring now, for tests.
+    var selectedStarIndices: [Int] { selectedStars }
 
     /// Called by the view's `make` closure, once.
     func install(into content: inout RealityViewCameraContent) {
@@ -56,21 +64,9 @@ final class ConstellationScene {
             near: ConstellationCamera.near, far: ConstellationCamera.far,
             fieldOfViewInDegrees: ConstellationRules.fieldOfView, fieldOfViewOrientation: .vertical
         )
-        root.addChild(starsRoot)
-        root.addChild(ringsRoot)
-        root.addChild(lineEntity)
-        root.addChild(backdropEntity)
+        prepare()
         content.add(root)
         content.add(cameraEntity)
-        starMesh = MeshResource.generateSphere(radius: 1)
-        ringMesh = ConstellationMeshes.meshResource(ConstellationMeshes.ring(), name: "ring")
-        if let sky = ConstellationMeshes.meshResource(
-            ConstellationMeshes.backdrop(count: ConstellationRules.backdropCount, radius: ConstellationRules.backdropRadius),
-            name: "sky"
-        ) {
-            backdropEntity.model = ModelComponent(mesh: sky, materials: [])
-        }
-        backdropEntity.isEnabled = false
         // `make` is asynchronous: an `apply` may already have run against an
         // empty scene. Forget what it drew, so the next `update` draws it all.
         theme = nil
@@ -78,6 +74,22 @@ final class ConstellationScene {
         model = .empty
         placedIDs = []
         applyCamera()
+    }
+
+    /// Builds the entity tree and the shared meshes, once. `install` calls it;
+    /// tests call it to drive the scene without a RealityView.
+    func prepare() {
+        guard starMesh == nil else { return }
+        root.addChild(starsRoot)
+        root.addChild(ringsRoot)
+        root.addChild(lineEntity)
+        root.addChild(backdropEntity)
+        starMesh = ConstellationSharedMeshes.sphere
+        ringMesh = ConstellationSharedMeshes.ring
+        if let sky = ConstellationSharedMeshes.sky {
+            backdropEntity.model = ModelComponent(mesh: sky, materials: [])
+        }
+        backdropEntity.isEnabled = false
     }
 
     // MARK: Updates
@@ -97,6 +109,7 @@ final class ConstellationScene {
             let sky = materials.backdrop
             backdropEntity.model?.materials = [sky]
             backdropEntity.isEnabled = nextDark
+            for ring in rings { ring.model?.materials = [materials.selection] }
         }
         let dataChanged = next.key != model.key || placement?.serial != serial || stars.count < next.ids.count
         var moved = false
@@ -104,6 +117,10 @@ final class ConstellationScene {
             let freshPlacement = placement.map { $0.fresh && $0.serial != serial } ?? false
             model = next
             serial = placement?.serial
+            // The rings and the lines index the old model until the look is
+            // worked out below, and a refit redraws both: forget them first.
+            selectedStars = []
+            look = ConstellationLook(tiers: [], lines: [], linesLit: false)
             let nan = SIMD3<Float>(repeating: .nan)
             points = next.ids.map { placement?.positions[$0] ?? nan }
             let ids = Set(next.ids.indices.filter { points[$0].x.isFinite }.map { next.ids[$0] })
@@ -115,12 +132,16 @@ final class ConstellationScene {
         }
         let nextLook = ConstellationRules.look(model, highlight: highlight)
         if dataChanged || themeChanged || nextLook != look {
-            let linesChanged = dataChanged || themeChanged || nextLook.lines != look.lines || nextLook.linesLit != look.linesLit
+            let linesChanged = dataChanged || nextLook.lines != look.lines || nextLook.linesLit != look.linesLit
             look = nextLook
             paintStars()
-            if linesChanged { drawLines() }
+            if linesChanged {
+                drawLines()
+            } else if themeChanged {
+                lineEntity.model?.materials = lineMaterials()
+            }
             selectedStars = look.tiers.indices.filter { look.tiers[$0] == .selected && points[$0].x.isFinite }
-            placeRings()
+            placeRings(projection())
         }
         return moved
     }
@@ -154,16 +175,38 @@ final class ConstellationScene {
     }
 
     /// Where every star is on screen now.
+    /// Radii are clamped as they are drawn, so a tap hits what is seen.
     func projection() -> ConstellationProjection {
-        camera.project(points, radii: model.radius, size: size)
+        ConstellationRules.clampedRadii(
+            camera.project(points, radii: model.radius, size: size),
+            worldRadii: model.radius, isHub: model.isHub, pointsPerUnit: ConstellationCamera.pointsPerUnit(size)
+        )
     }
 
     // MARK: Drawing
 
+    /// The camera, and everything whose size is held on screen: star
+    /// scales, selection rings, and the lines once the camera has moved far
+    /// enough that their width would drift.
     private func applyCamera() {
         cameraEntity.position = camera.position
         cameraEntity.orientation = camera.orientation
-        placeRings()
+        let p = projection()
+        scaleStars(p)
+        placeRings(p)
+        if !look.lines.isEmpty,
+           ConstellationRules.linesNeedRebuild(builtEye: linesBuiltEye, eye: camera.position, distance: camera.distance) {
+            drawLines()
+        }
+    }
+
+    /// Each star's mesh scaled so it is drawn at its clamped screen radius.
+    private func scaleStars(_ p: ConstellationProjection) {
+        let k = ConstellationCamera.pointsPerUnit(size)
+        guard k > 0 else { return }
+        for i in 0 ..< min(stars.count, p.count) where p.depth[i].isFinite {
+            stars[i].scale = SIMD3(repeating: ConstellationRules.drawnScale(radius: p.radius[i], depth: p.depth[i], pointsPerUnit: k))
+        }
     }
 
     private func placeStars() {
@@ -190,6 +233,7 @@ final class ConstellationScene {
             entity.scale = SIMD3(repeating: model.radius[i])
             entity.isEnabled = true
         }
+        scaleStars(projection())
     }
 
     private func paintStars() {
@@ -207,47 +251,72 @@ final class ConstellationScene {
         let slots = BrainLinkKindDTO.allCases
         var segments: [ConstellationMeshes.Segment] = []
         segments.reserveCapacity(look.lines.count)
-        for e in look.lines {
+        for e in look.lines where e < model.edges.count {
             let edge = model.edges[e]
             let a = points[edge.a], b = points[edge.b]
             guard a.x.isFinite, b.x.isFinite else { continue }
             segments.append(.init(a: a, b: b, slot: UInt32(slots.firstIndex(of: edge.kind) ?? 0)))
         }
-        let geometry = ConstellationMeshes.lines(segments, width: ConstellationRules.lineWidth)
+        let eye = camera.position
+        let forward = camera.orientation.act(SIMD3<Float>(0, 0, -1))
+        let k = Float(ConstellationCamera.pointsPerUnit(size))
+        let geometry = ConstellationMeshes.lines(segments) { end in
+            ConstellationRules.lineWorldWidth(depth: simd_dot(end - eye, forward), pointsPerUnit: k)
+        }
+        linesBuiltEye = eye
+        lineBuilds += 1
         guard let mesh = ConstellationMeshes.meshResource(geometry, name: "lines") else {
             lineEntity.model = nil
             return
         }
-        let alpha = ConstellationRules.lineAlpha(lit: look.linesLit, light: !dark)
-        lineEntity.model = ModelComponent(mesh: mesh, materials: materials.lines(alpha: alpha))
+        lineEntity.model = ModelComponent(mesh: mesh, materials: lineMaterials())
     }
 
-    /// A ring round each selected star, about `ringRadius` points on screen
-    /// wherever the camera stands.
-    private func placeRings() {
+    private func lineMaterials() -> [UnlitMaterial] {
+        materials.lines(alpha: ConstellationRules.lineAlpha(lit: look.linesLit, light: !dark))
+    }
+
+    /// A ring round each selected star, `selectionReach` of its drawn
+    /// radius on screen (at least `ringRadius` points) wherever the camera stands.
+    private func placeRings(_ p: ConstellationProjection) {
         guard let ringMesh else { return }
         while rings.count < selectedStars.count {
-            let ring = ModelEntity(mesh: ringMesh, materials: [])
+            let ring = ModelEntity(mesh: ringMesh, materials: [materials.selection])
             ring.components.set(BillboardComponent())
             ringsRoot.addChild(ring)
             rings.append(ring)
         }
-        let k = Float(ConstellationCamera.pointsPerUnit(size))
-        let eye = camera.position
+        let k = ConstellationCamera.pointsPerUnit(size)
         for (r, ring) in rings.enumerated() {
             guard r < selectedStars.count, k > 0 else {
                 ring.isEnabled = false
                 continue
             }
             let i = selectedStars[r]
-            let p = points[i]
-            let screenRadius = Float(ConstellationRules.ringRadius) * simd_distance(p, eye) / k
-            ring.position = p
-            ring.scale = SIMD3(repeating: max(screenRadius, model.radius[i] * Float(ConstellationRules.ringToStar)))
-            ring.model?.materials = [materials.selection]
+            guard i < points.count, i < p.count, points[i].x.isFinite, p.depth[i].isFinite else {
+                ring.isEnabled = false
+                continue
+            }
+            let reach = ConstellationRules.selectionReach(p.radius[i])
+            ring.position = points[i]
+            ring.scale = SIMD3(repeating: ConstellationRules.drawnScale(radius: reach, depth: p.depth[i], pointsPerUnit: k))
             ring.isEnabled = true
         }
     }
+}
+
+// MARK: - Shared meshes
+
+/// The meshes every scene draws the same: made once per process, so leaving
+/// and reopening the Constellation does not make (and leave behind) new ones.
+@MainActor
+private enum ConstellationSharedMeshes {
+    static let sphere = MeshResource.generateSphere(radius: 1)
+    static let ring = ConstellationMeshes.meshResource(ConstellationMeshes.ring(), name: "ring")
+    static let sky = ConstellationMeshes.meshResource(
+        ConstellationMeshes.backdrop(count: ConstellationRules.backdropCount, radius: ConstellationRules.backdropRadius),
+        name: "sky"
+    )
 }
 
 // MARK: - Materials

@@ -277,6 +277,11 @@ nonisolated enum BrainTabState {
         return (BrainPrefs(filters: filters, view: next), switchNote(next))
     }
 
+    /// Whether a sheet covers the graph, so nothing on it should move.
+    static func isCovered(filters: Bool, list: Bool, capture: Bool, detail: Bool, reasoning: Bool) -> Bool {
+        filters || list || capture || detail || reasoning
+    }
+
     // MARK: Selection
 
     /// The canvas's accessibility value.

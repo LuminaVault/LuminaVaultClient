@@ -201,7 +201,11 @@ struct BrainTabView: View {
                 onTap: { id, additive in selection.click(id, additive: additive) },
                 onBackgroundTap: { selection.clear() },
                 onOpen: { id in open(id, index: index) },
-                centreOn: centre
+                centreOn: centre,
+                covered: BrainTabState.isCovered(
+                    filters: showFilters, list: showList, capture: showCapture,
+                    detail: detail.isOpen, reasoning: showReasoning
+                )
             )
             .accessibilityIdentifier("brain.constellation")
             .accessibilityValue(summary)

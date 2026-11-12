@@ -1,6 +1,7 @@
 // The Constellation's generated geometry, as plain vertex and index arrays:
 // the ring every hub and selection mark shares, the lines (one mesh for all of
-// them, rebuilt only when the lit set or the data changes) and the far sky.
+// them, rebuilt when the lit set or the data changes, or when the camera has
+// moved far enough that their screen width would drift) and the far sky.
 // `meshResource` turns one into a RealityKit mesh; everything else is pure.
 
 import Foundation
@@ -46,22 +47,28 @@ nonisolated enum ConstellationMeshes {
     /// width from any side: four triangles a line, each in the line's slot.
     /// Segments too short to have a direction are left out.
     static func lines(_ segments: [Segment], width: Float) -> ConstellationGeometry {
+        lines(segments) { _ in width }
+    }
+
+    /// As above, each end `width(end)` wide: the scene passes the width that
+    /// is the same number of points on screen at that end's depth.
+    static func lines(_ segments: [Segment], width: (SIMD3<Float>) -> Float) -> ConstellationGeometry {
         var g = ConstellationGeometry()
         g.positions.reserveCapacity(segments.count * 8)
         g.indices.reserveCapacity(segments.count * 12)
         g.faceMaterials.reserveCapacity(segments.count * 4)
-        let half = width / 2
         for s in segments {
             let d = s.b - s.a
             let len = simd_length(d)
             guard len > 1e-4, len.isFinite else { continue }
             let dir = d / len
             let helper: SIMD3<Float> = abs(dir.y) < 0.9 ? [0, 1, 0] : [1, 0, 0]
-            let u = simd_normalize(simd_cross(dir, helper)) * half
-            let v = simd_normalize(simd_cross(dir, u)) * half
+            let u = simd_normalize(simd_cross(dir, helper))
+            let v = simd_normalize(simd_cross(dir, u))
+            let ha = width(s.a) / 2, hb = width(s.b) / 2
             for side in [u, v] {
                 let base = UInt32(g.positions.count)
-                g.positions += [s.a + side, s.a - side, s.b - side, s.b + side]
+                g.positions += [s.a + side * ha, s.a - side * ha, s.b - side * hb, s.b + side * hb]
                 g.indices += [base, base + 1, base + 2, base, base + 2, base + 3]
                 g.faceMaterials += [s.slot, s.slot]
             }

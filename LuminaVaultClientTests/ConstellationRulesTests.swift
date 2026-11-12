@@ -277,6 +277,79 @@ struct ConstellationModelTests {
     }
 }
 
+struct ConstellationScreenSizeTests {
+    // Web `starPixelSize`.
+    @Test func shrinksWithDistanceButNeverBelowTheFloorOrAboveTheCeiling() {
+        #expect(abs(ConstellationRules.starPixelSize(10, depth: 100, pointsPerUnit: 500, min: 3, max: 64) - 50) < 1e-9)
+        #expect(abs(ConstellationRules.starPixelSize(10, depth: 200, pointsPerUnit: 500, min: 3, max: 64) - 25) < 1e-9)
+        #expect(ConstellationRules.starPixelSize(10, depth: 1e6, pointsPerUnit: 500, min: 3, max: 64) == 3)
+        #expect(ConstellationRules.starPixelSize(10, depth: 1, pointsPerUnit: 500, min: 3, max: 64) == 64)
+        #expect(ConstellationRules.starPixelSize(10, depth: 0, pointsPerUnit: 500, min: 3, max: 64) == 64)
+    }
+
+    @Test func aStarsRadiusIsItsSpriteClampedToTheWebsBoundsThenBackToTheCore() {
+        let core = ConstellationRules.coreShare
+        // Unclamped: world radius over depth, times points per unit.
+        let mid = ConstellationRules.screenRadius(worldRadius: 2, isHub: false, depth: 100, pointsPerUnit: 700)
+        #expect(abs(mid - 14) < 1e-6)
+        // Close up: never past the 58 pt sprite.
+        let near = ConstellationRules.screenRadius(worldRadius: 2, isHub: false, depth: 3, pointsPerUnit: 700)
+        #expect(abs(near - ConstellationRules.maxStarPoints * core) < 1e-6)
+        // Far away: never under the 5 pt sprite.
+        let far = ConstellationRules.screenRadius(worldRadius: 2, isHub: false, depth: 1e5, pointsPerUnit: 700)
+        #expect(abs(far - ConstellationRules.minStarPoints * core) < 1e-6)
+        // A hub stays a small mark: 15 pt at most.
+        let hub = ConstellationRules.screenRadius(worldRadius: 2, isHub: true, depth: 3, pointsPerUnit: 700)
+        #expect(abs(hub - ConstellationRules.maxHubPoints * ConstellationRules.hubShare) < 1e-6)
+    }
+
+    @Test func theProjectionCarriesTheClampedRadiusSoATapHitsWhatIsDrawn() {
+        let raw = projection([(200, 200, 3), (100, 100, .nan)], radii: [466, 0], size: CGSize(width: 400, height: 400))
+        let p = ConstellationRules.clampedRadii(raw, worldRadii: [2, 2], isHub: [false, false], pointsPerUnit: 700)
+        let top = ConstellationRules.maxStarPoints * ConstellationRules.coreShare
+        #expect(abs(p.radius[0] - top) < 1e-6)
+        #expect(p.radius[1] == 0)
+        // 30 pt away was inside the unclamped 466 pt disc; it is outside the
+        // drawn 18 pt one and the 22 pt fingertip.
+        #expect(ConstellationRules.pickStar(raw, at: CGPoint(x: 230, y: 200)) == 0)
+        #expect(ConstellationRules.pickStar(p, at: CGPoint(x: 230, y: 200)) == nil)
+        #expect(ConstellationRules.pickStar(p, at: CGPoint(x: 220, y: 200)) == 0)
+    }
+
+    @Test func aStarIsScaledSoItIsDrawnAtItsClampedRadius() {
+        let k: CGFloat = 700
+        let r = ConstellationRules.screenRadius(worldRadius: 2, isHub: false, depth: 3, pointsPerUnit: k)
+        let scale = ConstellationRules.drawnScale(radius: r, depth: 3, pointsPerUnit: k)
+        #expect(abs(CGFloat(scale) * k / 3 - r) < 1e-4)
+        // Unclamped, the scale is the world radius.
+        let free = ConstellationRules.screenRadius(worldRadius: 2, isHub: false, depth: 100, pointsPerUnit: k)
+        #expect(abs(ConstellationRules.drawnScale(radius: free, depth: 100, pointsPerUnit: k) - 2) < 1e-5)
+    }
+
+    @Test func aLineIsOnePointWideAtAnyDepth() {
+        let k: Float = 700
+        for depth: Float in [20, 300, 1500] {
+            let w = ConstellationRules.lineWorldWidth(depth: depth, pointsPerUnit: k)
+            #expect(abs(w * k / depth - ConstellationRules.lineScreenWidth) < 1e-5)
+        }
+        // Behind or at the eye: the near plane's width, not zero or negative.
+        #expect(ConstellationRules.lineWorldWidth(depth: -5, pointsPerUnit: k) > 0)
+    }
+
+    @Test func linesAreRebuiltOnceTheCameraHasMovedFarEnough() {
+        #expect(ConstellationRules.linesNeedRebuild(builtEye: nil, eye: .zero, distance: 300))
+        #expect(!ConstellationRules.linesNeedRebuild(builtEye: [0, 0, 300], eye: [0, 0, 290], distance: 300))
+        #expect(ConstellationRules.linesNeedRebuild(builtEye: [0, 0, 300], eye: [0, 0, 150], distance: 150))
+        #expect(ConstellationRules.linesNeedRebuild(builtEye: [0, 0, 300], eye: [100, 0, 280], distance: 300))
+    }
+
+    @Test func endsOfOneLineGetTheirOwnWidths() {
+        let g = ConstellationMeshes.lines([.init(a: [0, 0, 0], b: [10, 0, 0], slot: 0)]) { end in end.x == 0 ? 1 : 3 }
+        #expect(abs(simd_distance(g.positions[0], g.positions[1]) - 1) < 1e-5)
+        #expect(abs(simd_distance(g.positions[2], g.positions[3]) - 3) < 1e-5)
+    }
+}
+
 struct ConstellationIdleTurnTests {
     private let idle = ConstellationIdleTurn.State(
         selected: 0, idle: .seconds(6), visible: true, reduceMotion: false, pressing: false
@@ -298,6 +371,20 @@ struct ConstellationIdleTurnTests {
         #expect(!ConstellationIdleTurn.allowed(s))
         s = idle
         s.pressing = true
+        #expect(!ConstellationIdleTurn.allowed(s))
+    }
+
+    @Test func stopsWhileASheetCoversTheScreen() {
+        var s = idle
+        s.covered = true
+        #expect(!ConstellationIdleTurn.allowed(s))
+    }
+
+    @Test func everyStepIsRefusedOnceTheTurnHasRun90s() {
+        var s = idle
+        s.turned = .milliseconds(89_999)
+        #expect(ConstellationIdleTurn.allowed(s))
+        s.turned = .seconds(90)
         #expect(!ConstellationIdleTurn.allowed(s))
     }
 
