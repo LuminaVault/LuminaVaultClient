@@ -591,7 +591,7 @@ Leading edge is for navigation, plus Home's Settings entry point.
 
 ### 13.9 When a surface may still be cinematic
 
-Onboarding, the paywall, empty states and `CaptureSheet`. These are moments rather than places: they are entered deliberately, they are not scrolled through daily, and the language in §5 and §14 is what makes them feel like the product rather than a settings screen. Match the energy of the HER-299 reference frames there, and nowhere else.
+Onboarding, the paywall, empty states, `CaptureSheet` and the Brain tab's Constellation. The Constellation is an owner-approved exception: it is the product's signature view of the vault, and it is opt-in behind the 2D / Constellation switch. These are moments rather than places: they are entered deliberately, they are not scrolled through daily, and the language in §5 and §14 is what makes them feel like the product rather than a settings screen. Match the energy of the HER-299 reference frames there, and nowhere else.
 
 ## 14. Motif Kit & Kickers (identity-deepening pass, 2026-07)
 

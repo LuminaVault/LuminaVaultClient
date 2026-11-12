@@ -6,10 +6,14 @@
 //   -BrainUITestScheme light|dark       (optional)
 //   -BrainUITestTypeSize large|xxxLarge|accessibility3   (optional)
 //   -BrainUITestHideRequests YES        (optional; for screenshots)
+//   -BrainUITestKeepPrefs YES           (optional; keep the last run's prefs)
+//   -BrainUITestView 2d|3d              (optional; start on this view)
+//   -BrainUITestPoints <n>              (optional; graph scenario: n generated
+//                                        notes, memories and hubs instead of the eight)
 //
 // Launch arguments of the form `-key value` land in `UserDefaults.standard`.
-// The screen's prefs go to a separate, emptied suite so runs do not leak into
-// each other. The stub counts the requests it answers and shows the count in
+// The screen's prefs go to a separate suite, emptied at launch (unless
+// `-BrainUITestKeepPrefs YES`) so runs do not leak into each other. The stub counts the requests it answers and shows the count in
 // an element named `brain.uitest.requests`, whose accessibility value is the
 // last request's query. Reasoning and memory loads answer from fixed stubs.
 
@@ -104,6 +108,8 @@ final class BrainUITestClient: BrainGraphClientProtocol {
     /// items tagged "work", one link. Ten connections in all. The
     /// `nothingMatches` graph is the same items with no connections.
     private func graph(for request: BrainGraphRequest) -> BrainGraphResponse {
+        let points = UserDefaults.standard.integer(forKey: "BrainUITestPoints")
+        if scenario == .graph, points > 0 { return Self.generated(points) }
         let moveTo = scenario == .sameStamp ? request.vaults?.first : nil
         return Self.graph(
             for: request, linked: scenario != .nothingMatches, truncated: scenario == .truncated, moveTo: moveTo
@@ -161,6 +167,60 @@ final class BrainUITestClient: BrainGraphClientProtocol {
             edges = edges.filter { alive.contains($0.from) && alive.contains($0.to) }
         }
         return response(vaults: vaults, nodes: nodes, edges: edges, truncated: truncated)
+    }
+
+    /// About `count` points for looking at large skies: notes and memories in
+    /// three vaults (every fourth item a memory, half of those with a server
+    /// position), a tag per item, an author per item, a link to an earlier
+    /// item for half of them. Deterministic.
+    private static func generated(_ count: Int) -> BrainGraphResponse {
+        let words = [
+            "Garden", "Reading", "Sleep", "Travel", "Budget", "Meeting", "Design", "Hiring", "Recipes", "Running",
+            "Music", "Physics", "History", "Coffee", "Writing", "Ideas",
+        ]
+        let family = BrainGraphVaultDTO(
+            id: UUID(uuidString: "00000000-0000-0000-0000-0000000000A3") ?? UUID(), name: "Family", personal: false
+        )
+        let vaults = [personal, work, family]
+        let tags = max(2, count / 25)
+        let authors = max(2, count / 100)
+        let items = max(1, count - tags - authors)
+        var rng: UInt64 = 0x5EED
+        func next(_ n: Int) -> Int {
+            rng = rng &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+            return Int((rng >> 33) % UInt64(max(1, n)))
+        }
+        var nodes: [BrainGraphNodeDTO] = []
+        var edges: [BrainGraphEdgeDTO] = []
+        var degree: [String: Int] = [:]
+        func link(_ from: String, _ to: String, _ kind: BrainLinkKindDTO) {
+            edges.append(BrainGraphEdgeDTO(from: from, to: to, kind: kind))
+            degree[from, default: 0] += 1
+            degree[to, default: 0] += 1
+        }
+        for i in 0 ..< items {
+            let id = "P\(i)"
+            link(id, "tag:t\(next(tags))", .tag)
+            link(id, "author:a\(next(authors))", .author)
+            if i > 0, next(2) == 0 { link(id, "P\(next(i))", .link) }
+        }
+        for i in 0 ..< items {
+            let id = "P\(i)"
+            let memory = i % 4 == 3
+            let pos = memory && next(2) == 0
+                ? GraphPosition3D(x: Double(next(200)) - 100, y: Double(next(200)) - 100, z: Double(next(200)) - 100)
+                : nil
+            nodes.append(BrainGraphNodeDTO(
+                id: id, kind: memory ? .memory : .note,
+                label: "\(words[next(words.count)]) \(words[next(words.count)].lowercased()) \(i)",
+                vaultID: vaults[i % vaults.count].id, weight: degree[id] ?? 0, pos: pos
+            ))
+        }
+        for t in 0 ..< tags { nodes.append(BrainGraphNodeDTO(id: "tag:t\(t)", kind: .tag, label: "tag \(t)", weight: degree["tag:t\(t)"] ?? 0)) }
+        for a in 0 ..< authors {
+            nodes.append(BrainGraphNodeDTO(id: "author:a\(a)", kind: .author, label: "Author \(a + 1)", weight: degree["author:a\(a)"] ?? 0))
+        }
+        return response(vaults: vaults, nodes: nodes, edges: edges)
     }
 }
 
@@ -244,10 +304,17 @@ struct BrainUITestHarness: View {
         _client = State(initialValue: BrainUITestClient(scenario: scenario))
         let suite = "brain-uitest"
         let prefs = UserDefaults(suiteName: suite)
-        prefs?.removePersistentDomain(forName: suite)
+        if !UserDefaults.standard.bool(forKey: "BrainUITestKeepPrefs") {
+            prefs?.removePersistentDomain(forName: suite)
+        }
         if scenario == .nothingMatches {
             var stored = BrainPrefs.defaults()
             stored.filters.showOrphans = false
+            stored.save(to: prefs)
+        }
+        if let view = UserDefaults.standard.string(forKey: "BrainUITestView").flatMap(BrainViewChoice.init(rawValue:)) {
+            var stored = BrainPrefs.load(from: prefs)
+            stored.view = view
             stored.save(to: prefs)
         }
         self.prefs = prefs

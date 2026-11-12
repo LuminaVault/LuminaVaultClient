@@ -1,8 +1,9 @@
 // The Brain tab: one graph of notes and memories across every vault. This view
 // wires the store (when to ask the server), the model (what is visible), the
-// selection, the 2D canvas, the selection tray, the detail sheet and the
-// reasoning sheet, and owns no rules of its own: which card shows, the badge,
-// the status line and the request come from `BrainTabState`; what the tray
+// selection, the renderer (the 2D canvas, or the Constellation once picked),
+// the selection tray, the detail sheet and the reasoning sheet, and owns no
+// rules of its own: which card shows, the badge, the status line, the request
+// and the 2D / Constellation switch come from `BrainTabState`; what the tray
 // offers comes from `BrainTrayActions`.
 //
 // Derivation order on every change: build `visible` → `selection.prune` →
@@ -49,7 +50,8 @@ struct BrainTabView: View {
     /// Read when the tab appears; the reasoning routes are scoped to it.
     @State private var activeVaultID: UUID?
 
-    private let savedView: BrainViewChoice?
+    /// The stored 2D / Constellation choice; nil until one is picked (2D).
+    @State private var savedView: BrainViewChoice?
     private let prefsDefaults: UserDefaults?
     private let memoryClient: (any MemoryClientProtocol)?
     private let activeVault: @Sendable () async -> UUID?
@@ -74,7 +76,7 @@ struct BrainTabView: View {
         _filters = State(initialValue: stored.filters)
         _similarAsked = State(initialValue: BrainTabState.similarAsked(previously: false, filters: stored.filters))
         _focus = State(initialValue: focus)
-        savedView = stored.view
+        _savedView = State(initialValue: stored.view)
         prefsDefaults = prefs
     }
 
@@ -165,25 +167,58 @@ struct BrainTabView: View {
         }
     }
 
+    /// The renderer on screen: only one exists at a time, so the
+    /// Constellation's scene is made only once it is picked.
+    @ViewBuilder
     private func canvas(_ visible: VisibleBrainGraph) -> some View {
         let theme = BrainGraphTheme(palette: palette, scheme: scheme)
         let by = filters.colourBy
         let order = colourOrder
         let index = visible.index
-        return BrainGraphCanvas(
-            graph: visible,
-            highlight: highlight(index),
-            colourOf: { node in
-                theme.categoryColour(for: BrainGraphModel.colourKey(node, by: by, index: index), order: order)
-            },
-            onTap: { id, additive in selection.click(id, additive: additive) },
-            onBackgroundTap: { selection.clear() },
-            // A double tap opens a point, as the tray's Open does.
-            onOpen: { id in open(id, index: index) },
-            centreOn: centre
-        )
-        .accessibilityIdentifier("brain.canvas")
-        .accessibilityValue(BrainTabState.selectionSummary(selection.selected, index: index))
+        let colourOf: (BrainGraphNodeDTO) -> Color = { node in
+            theme.categoryColour(for: BrainGraphModel.colourKey(node, by: by, index: index), order: order)
+        }
+        let summary = BrainTabState.selectionSummary(selection.selected, index: index)
+        switch shownView {
+        case .twoD:
+            BrainGraphCanvas(
+                graph: visible,
+                highlight: highlight(index),
+                colourOf: colourOf,
+                onTap: { id, additive in selection.click(id, additive: additive) },
+                onBackgroundTap: { selection.clear() },
+                // A double tap opens a point, as the tray's Open does.
+                onOpen: { id in open(id, index: index) },
+                centreOn: centre
+            )
+            .accessibilityIdentifier("brain.canvas")
+            .accessibilityValue(summary)
+        case .threeD:
+            BrainGraphRealityView(
+                graph: visible,
+                highlight: highlight(index),
+                colourOf: colourOf,
+                onTap: { id, additive in selection.click(id, additive: additive) },
+                onBackgroundTap: { selection.clear() },
+                onOpen: { id in open(id, index: index) },
+                centreOn: centre
+            )
+            .accessibilityIdentifier("brain.constellation")
+            .accessibilityValue(summary)
+        }
+    }
+
+    private var shownView: BrainViewChoice {
+        BrainPrefs(filters: filters, view: savedView).effectiveView(explicit: nil)
+    }
+
+    /// The overflow menu's 2D / Constellation choice. Never asks for a graph
+    /// and keeps the selection.
+    private func show(_ next: BrainViewChoice) {
+        guard let change = BrainTabState.switchView(shown: shownView, to: next, filters: filters) else { return }
+        savedView = next
+        change.prefs.save(to: prefsDefaults)
+        AccessibilityNotification.Announcement(change.note).post()
     }
 
     private var emptyCard: some View {
@@ -274,6 +309,13 @@ struct BrainTabView: View {
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
+                Picker(BrainTabState.viewMenuTitle, selection: Binding(get: { shownView }, set: { show($0) })) {
+                    Label(BrainTabState.twoDTitle, systemImage: "circle.grid.cross")
+                        .tag(BrainViewChoice.twoD)
+                    Label(BrainTabState.constellationTitle, systemImage: "sparkles")
+                        .tag(BrainViewChoice.threeD)
+                }
+                .pickerStyle(.inline)
                 Button("List", systemImage: "list.bullet") { present { showList = true } }
                 Button("Reload", systemImage: "arrow.clockwise") { store.retry() }
             } label: {

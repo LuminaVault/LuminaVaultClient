@@ -245,6 +245,38 @@ nonisolated enum BrainTabState {
             }
     }
 
+    // MARK: 2D / Constellation
+
+    static let viewMenuTitle = "View"
+    static let twoDTitle = "2D"
+    static let constellationTitle = "Constellation"
+
+    static func viewTitle(_ view: BrainViewChoice) -> String {
+        switch view {
+        case .twoD: twoDTitle
+        case .threeD: constellationTitle
+        }
+    }
+
+    /// What VoiceOver hears once a switch has happened (web `SWITCH_NOTES`).
+    static func switchNote(_ view: BrainViewChoice) -> String {
+        switch view {
+        case .threeD: "Showing the 3D constellation"
+        case .twoD: "Showing the 2D graph"
+        }
+    }
+
+    /// Picking `next` while `shown` is on screen: the prefs to store and the
+    /// note to announce, or nil when it is already shown (nothing is created,
+    /// stored or said). A switch never asks for a graph and keeps the
+    /// selection: both live outside the renderer.
+    static func switchView(
+        shown: BrainViewChoice, to next: BrainViewChoice, filters: BrainGraphFilters
+    ) -> (prefs: BrainPrefs, note: String)? {
+        guard next != shown else { return nil }
+        return (BrainPrefs(filters: filters, view: next), switchNote(next))
+    }
+
     // MARK: Selection
 
     /// The canvas's accessibility value.

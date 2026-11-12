@@ -531,6 +531,92 @@ nonisolated final class BrainGraphUITests: XCTestCase {
         waitForLabel(requests(app), "requests: 1")
     }
 
+    // MARK: Constellation
+
+    @MainActor
+    private func constellation(_ app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any)["brain.constellation"]
+    }
+
+    @MainActor
+    private func pickView(_ app: XCUIApplication, _ title: String) {
+        app.buttons["brain.more"].tap()
+        let item = app.buttons[title]
+        XCTAssertTrue(item.waitForExistence(timeout: 5))
+        item.tap()
+    }
+
+    /// The switch lives outside the renderer: no request, same selection.
+    @MainActor
+    func testSwitchingToTheConstellationAndBackKeepsTheSelection() {
+        let app = launch("graph")
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        search(app, "gard", pick: "Garden plans")
+        waitForValue(canvas(app), "Selected: Garden plans")
+        pickView(app, "Constellation")
+        XCTAssertTrue(constellation(app).waitForExistence(timeout: 8))
+        waitForValue(constellation(app), "Selected: Garden plans")
+        XCTAssertFalse(canvas(app).exists)
+        settle()
+        attach(app, "constellation with Garden plans selected")
+        pickView(app, "2D")
+        XCTAssertTrue(canvas(app).waitForExistence(timeout: 5))
+        waitForValue(canvas(app), "Selected: Garden plans")
+        settle()
+        waitForLabel(requests(app), "requests: 1")
+    }
+
+    @MainActor
+    func testTheViewChoiceSurvivesARelaunch() {
+        var app = launch("graph")
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        pickView(app, "Constellation")
+        XCTAssertTrue(constellation(app).waitForExistence(timeout: 8))
+        app.terminate()
+        app = launch("graph", ["-BrainUITestKeepPrefs", "YES"])
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        XCTAssertTrue(constellation(app).waitForExistence(timeout: 8))
+        XCTAssertFalse(canvas(app).exists)
+        // Back to 2D, so the stored choice is the default again.
+        pickView(app, "2D")
+        XCTAssertTrue(canvas(app).waitForExistence(timeout: 5))
+    }
+
+    /// Search centres the star; taps on it toggle, a tap on empty sky clears,
+    /// a drag orbits (the middle is then empty) and a pinch zooms.
+    @MainActor
+    func testConstellationTapsSelect() {
+        let app = launch("graph", ["-BrainUITestView", "3d"])
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        let sky = constellation(app)
+        XCTAssertTrue(sky.waitForExistence(timeout: 8))
+        let centre = sky.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let corner = sky.coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: 0.04))
+        search(app, "gard", pick: "Garden plans")
+        waitForValue(sky, "Selected: Garden plans")
+        settle()
+        attach(app, "constellation centred on Garden plans")
+
+        centre.tap()
+        waitForValue(sky, "Nothing selected")
+        centre.tap()
+        waitForValue(sky, "Selected: Garden plans")
+        corner.tap()
+        waitForValue(sky, "Nothing selected")
+
+        centre.tap()
+        waitForValue(sky, "Selected: Garden plans")
+        corner.press(forDuration: 0.05, thenDragTo: sky.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.2)))
+        settle()
+        attach(app, "constellation after an orbit")
+        waitForValue(sky, "Selected: Garden plans")
+        sky.pinch(withScale: 0.5, velocity: -1)
+        settle()
+        attach(app, "constellation after a pinch")
+        waitForValue(sky, "Selected: Garden plans")
+        waitForLabel(requests(app), "requests: 1")
+    }
+
     /// Search picks (and centres) Garden plans, the list adds Sleep log.
     @MainActor
     private func selectGardenAndSleepLog(_ app: XCUIApplication, _ canvas: XCUIElement) {

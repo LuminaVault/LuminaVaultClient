@@ -410,4 +410,32 @@ struct BrainTabStateTests {
         #expect(BrainTabState.spaceName(UUID(), in: graph) == nil)
         #expect(BrainTabState.spaceName(space, in: nil) == nil)
     }
+    // MARK: 2D / Constellation (ports of renderer-switch.test.ts where they apply:
+    // the iOS switch has no lazy load and no WebGL to fail, so the loading,
+    // late-load and fallback cases have no counterpart)
+
+    @Test func askingForTheViewOnScreenAgainChangesNothing() {
+        let f = BrainGraphModel.defaultFilters()
+        #expect(BrainTabState.switchView(shown: .twoD, to: .twoD, filters: f) == nil)
+        #expect(BrainTabState.switchView(shown: .threeD, to: .threeD, filters: f) == nil)
+    }
+
+    @Test func switchingTo3DStoresTheChoiceWithTheFiltersAndAnnouncesIt() throws {
+        var f = BrainGraphModel.defaultFilters()
+        f.showOrphans = false
+        let next = try #require(BrainTabState.switchView(shown: .twoD, to: .threeD, filters: f))
+        #expect(next.prefs == BrainPrefs(filters: f, view: .threeD))
+        #expect(next.note == "Showing the 3D constellation")
+    }
+
+    @Test func threeDBackTo2DSwapsAndAnnounces2D() throws {
+        let next = try #require(BrainTabState.switchView(shown: .threeD, to: .twoD, filters: BrainGraphModel.defaultFilters()))
+        #expect(next.prefs.view == .twoD)
+        #expect(next.note == "Showing the 2D graph")
+    }
+
+    @Test func theMenuNamesTheViews() {
+        #expect(BrainTabState.viewTitle(.twoD) == "2D")
+        #expect(BrainTabState.viewTitle(.threeD) == "Constellation")
+    }
 }
