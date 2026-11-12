@@ -9,7 +9,7 @@ import Testing
 
 @MainActor
 struct BrainNodeDetailTests {
-    private static let memoryID = UUID(uuidString: "AAAAAAAA-0000-4000-8000-000000000004")!
+    private static let memoryID = UUID(uuid: (0xAA, 0xAA, 0xAA, 0xAA, 0, 0, 0x40, 0, 0x80, 0, 0, 0, 0, 0, 0, 4))
     private let memory = BrainGraphNodeDTO(id: memoryID.uuidString, kind: .memory, label: "Migration retro", weight: 1)
     private let note = BrainGraphNodeDTO(
         id: "AAAAAAAA-0000-4000-8000-000000000001", kind: .note, label: "Migration retro", weight: 1

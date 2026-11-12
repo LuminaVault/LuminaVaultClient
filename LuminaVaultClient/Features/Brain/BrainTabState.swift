@@ -68,8 +68,6 @@ nonisolated enum BrainTabState {
     static let nothingMatchesText = "Nothing matches these filters"
     static let resetTitle = "Reset"
     static let retryTitle = "Retry"
-    /// Explain and Ask when the screen has no reasoning client (previews only).
-    static let reasoningUnavailable = "Asking is not available here"
     static let showAllVaultsTitle = "Show all vaults"
     static let notShownInFocusText = "Not shown in a focused graph"
     static let noSimilarText = "No similar notes found."
@@ -78,6 +76,12 @@ nonisolated enum BrainTabState {
     /// The list with nothing visible and nothing typed.
     static let listEmptyText = "No notes or memories shown"
     static let truncatedText = "Most recent \(BrainGraphRequest.unfocusedLimit) shown"
+
+    /// The Space hub's label in `graph`. Ids in hub ids are uppercase on the wire.
+    static func spaceName(_ id: UUID, in graph: BrainGraphResponse?) -> String? {
+        let key = "space:\(id.uuidString)"
+        return graph?.nodes.first { $0.id == key }?.label
+    }
 
     static func isItem(_ node: BrainGraphNodeDTO) -> Bool {
         node.kind == .note || node.kind == .memory

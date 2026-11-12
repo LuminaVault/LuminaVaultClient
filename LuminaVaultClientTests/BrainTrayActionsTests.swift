@@ -239,4 +239,34 @@ struct BrainTrayActionsTests {
         #expect(BrainTrayActions.withReasoning(base, memoryIDs: ["missing"], index: Self.visible.index) == base)
         #expect(BrainTrayActions.withReasoning(base, memoryIDs: [], index: Self.visible.index) == base)
     }
+
+    // MARK: screen rules (iOS only)
+
+    @Test func withoutAReasoningClientExplainAndAskSayWhyNot() throws {
+        let nodes = [Self.note(1), Self.note(2)]
+        let actions = BrainTrayActions.actions(for: nodes, index: Self.visible.index, reasoningAvailable: false)
+        let byID = Dictionary(uniqueKeysWithValues: actions.map { ($0.id, $0) })
+        #expect(byID[.explain]?.reason == BrainTrayActions.reasoningUnavailable)
+        #expect(byID[.ask]?.reason == BrainTrayActions.reasoningUnavailable)
+        // The rest are as the web rules have them.
+        #expect(byID[.open] == BrainTrayActions.actions(for: nodes, index: Self.visible.index).first { $0.id == .open })
+        #expect(BrainTrayActions.run(
+            .ask, nodes: nodes, index: Self.visible.index, activeVault: Self.vault, reasoningAvailable: false
+        ) == nil)
+        #expect(BrainTrayActions.run(
+            .explain, nodes: nodes, index: Self.visible.index, activeVault: Self.vault, reasoningAvailable: false
+        ) == nil)
+    }
+
+    @Test func anExplanationIsAboutBothLabelsInOrder() {
+        #expect(BrainTrayActions.explainSubject([Self.note(1), Self.note(2)]) == "Item 1 and Item 2")
+        #expect(BrainTrayActions.explainSubject([Self.note(1)]) == nil)
+        #expect(BrainTrayActions.explainSubject([Self.note(1), Self.note(2), Self.note(3)]) == nil)
+    }
+
+    /// A double tap runs Open on the point alone: an item opens, a group does not.
+    @Test func openingOnePointOpensItemsNotGroups() {
+        #expect(run(.open, [Self.note(2, .memory)]) == .open(Self.note(2, .memory)))
+        #expect(run(.open, [Self.tag]) == nil)
+    }
 }

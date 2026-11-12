@@ -54,8 +54,26 @@ nonisolated enum BrainTrayActions {
         BrainTrayAction(id: id, label: label, availability: why.map { .disabled(reason: $0) } ?? .enabled)
     }
 
-    /// `index` is the graph on screen; Select group needs members there to select.
-    static func actions(for nodes: [BrainGraphNodeDTO], index: BrainGraphIndex?) -> [BrainTrayAction] {
+    /// Explain and Ask when the screen has no reasoning client (previews only).
+    static let reasoningUnavailable = "Asking is not available here"
+
+    /// `index` is the graph on screen; Select group needs members there to
+    /// select. Without `reasoningAvailable`, Explain and Ask say why not.
+    static func actions(
+        for nodes: [BrainGraphNodeDTO], index: BrainGraphIndex?, reasoningAvailable: Bool = true
+    ) -> [BrainTrayAction] {
+        let all = webActions(for: nodes, index: index)
+        guard !reasoningAvailable else { return all }
+        return all.map { action in
+            guard action.id == .explain || action.id == .ask else { return action }
+            var off = action
+            off.availability = .disabled(reason: reasoningUnavailable)
+            return off
+        }
+    }
+
+    /// The web's `trayActions`, rule for rule.
+    private static func webActions(for nodes: [BrainGraphNodeDTO], index: BrainGraphIndex?) -> [BrainTrayAction] {
         let one = nodes.count == 1 ? nodes[0] : nil
         let openWhy: String? = if let one {
             BrainGraphModel.isHub(one) ? "A group cannot be opened; use Select group" : nil
@@ -85,9 +103,11 @@ nonisolated enum BrainTrayActions {
 
     /// Runs `id` for `nodes`. Returns `nil`, doing nothing, when it does not apply.
     static func run(
-        _ id: BrainTrayActionID, nodes: [BrainGraphNodeDTO], index: BrainGraphIndex, activeVault: UUID?
+        _ id: BrainTrayActionID, nodes: [BrainGraphNodeDTO], index: BrainGraphIndex, activeVault: UUID?,
+        reasoningAvailable: Bool = true
     ) -> BrainTrayOutcome? {
-        guard actions(for: nodes, index: index).first(where: { $0.id == id })?.isEnabled == true else {
+        let available = actions(for: nodes, index: index, reasoningAvailable: reasoningAvailable)
+        guard available.first(where: { $0.id == id })?.isEnabled == true else {
             return nil
         }
         switch id {
@@ -121,6 +141,12 @@ nonisolated enum BrainTrayActions {
     private static func ref(in node: BrainGraphNodeDTO, vault: UUID) -> UUID? {
         guard node.kind == .entity else { return nil }
         return node.refs?.first { $0.vaultID == vault }?.id
+    }
+
+    /// What an explanation of two points is about, for its heading
+    /// ("Hermes and Cloudflare"); `nil` unless exactly two are given.
+    static func explainSubject(_ nodes: [BrainGraphNodeDTO]) -> String? {
+        nodes.count == 2 ? "\(nodes[0].label) and \(nodes[1].label)" : nil
     }
 
     static func askQuery(_ labels: [String]) -> String {

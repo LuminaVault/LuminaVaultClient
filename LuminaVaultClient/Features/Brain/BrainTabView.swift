@@ -125,11 +125,7 @@ struct BrainTabView: View {
                 .fullScreenCover(isPresented: $showList) { listSheet }
                 .captureSheet(isPresented: $showCapture, initialMode: .photo)
                 .sheet(isPresented: $detail.isOpen) { detailSheet }
-                .sheet(isPresented: $showReasoning, onDismiss: {
-                    let next = afterReasoning
-                    afterReasoning = nil
-                    next?()
-                }) { reasoningSheet }
+                .sheet(isPresented: $showReasoning, onDismiss: presentAfterReasoning, content: { reasoningSheet })
         }
     }
 
@@ -149,7 +145,7 @@ struct BrainTabView: View {
         case .graph:
             if let visible {
                 canvas(visible)
-                    // The tray sits in the bottom safe area, over the canvas.
+                    // A bar pinned to the bottom edge, as the status line is to the top.
                     .safeAreaInset(edge: .bottom, spacing: 0) { tray(visible) }
             }
         case .empty:
@@ -332,31 +328,21 @@ struct BrainTabView: View {
         if !nodes.isEmpty {
             BrainSelectionTray(
                 nodes: nodes,
-                actions: trayActions(nodes, index: visible.index),
+                actions: BrainTrayActions.actions(
+                    for: nodes, index: visible.index, reasoningAvailable: reasoning != nil
+                ),
                 onRemove: { selection.remove($0) },
                 onClear: { selection.clear() },
                 onAction: { runTray($0, nodes: nodes, index: visible.index) }
             )
-            .transition(.move(edge: .bottom).combined(with: .opacity))
-        }
-    }
-
-    /// Explain and Ask need the reasoning routes; without a client they say so.
-    private func trayActions(_ nodes: [BrainGraphNodeDTO], index: BrainGraphIndex) -> [BrainTrayAction] {
-        let actions = BrainTrayActions.actions(for: nodes, index: index)
-        guard reasoning == nil else { return actions }
-        return actions.map { action in
-            guard action.id == .explain || action.id == .ask else { return action }
-            var off = action
-            off.availability = .disabled(reason: BrainTabState.reasoningUnavailable)
-            return off
         }
     }
 
     /// Nothing in a tray action asks for the graph except Focus.
     private func runTray(_ id: BrainTrayActionID, nodes: [BrainGraphNodeDTO], index: BrainGraphIndex) {
-        guard let outcome = BrainTrayActions.run(id, nodes: nodes, index: index, activeVault: activeVaultID)
-        else { return }
+        guard let outcome = BrainTrayActions.run(
+            id, nodes: nodes, index: index, activeVault: activeVaultID, reasoningAvailable: reasoning != nil
+        ) else { return }
         switch outcome {
         case let .select(ids):
             selection.selectGroup(ids, additive: false)
@@ -370,8 +356,7 @@ struct BrainTabView: View {
             // A fresh question: the answer to an earlier one no longer applies.
             reasoning.result = nil
             showReasoning = true
-            let subject = nodes.count == 2 ? "\(nodes[0].label) and \(nodes[1].label)" : nil
-            reasoning.explainNodes(from: from, to: to, subject: subject)
+            reasoning.explainNodes(from: from, to: to, subject: BrainTrayActions.explainSubject(nodes))
         case let .ask(query, send):
             guard let reasoning else { return }
             reasoning.prefill(query)
@@ -380,12 +365,21 @@ struct BrainTabView: View {
         }
     }
 
-    /// A double tap: selects the point if it is not already, and opens it
-    /// when it is a note or memory (a group is selected, not opened).
+    /// A double tap: selects the point if it is not already, then runs the
+    /// tray's Open on it alone (a group is selected, not opened).
     private func open(_ id: String, index: BrainGraphIndex) {
         guard let node = index.byID[id] else { return }
         if !selection.selected.contains(id) { selection.selectGroup([id], additive: false) }
-        if BrainTabState.isItem(node) { present { detail.show(node) } }
+        if case let .open(point)? = BrainTrayActions.run(.open, nodes: [node], index: index, activeVault: activeVaultID) {
+            present { detail.show(point) }
+        }
+    }
+
+    /// Runs what `present` queued once the reasoning sheet has gone.
+    private func presentAfterReasoning() {
+        let next = afterReasoning
+        afterReasoning = nil
+        next?()
     }
 
     /// One sheet at a time: the reasoning sheet leaves the graph usable
@@ -406,7 +400,7 @@ struct BrainTabView: View {
         return BrainNodeDetailSheet(
             detail: detail,
             vaultName: vaultName(node?.vaultID),
-            spaceName: node?.spaceID.flatMap(spaceName),
+            spaceName: node?.spaceID.flatMap { BrainTabState.spaceName($0, in: loadedGraph) },
             activeVaultID: activeVaultID
         )
     }
@@ -425,13 +419,6 @@ struct BrainTabView: View {
     private func vaultName(_ id: UUID?) -> String? {
         guard let id else { return nil }
         return store.knownVaults.first { $0.id == id }?.name
-    }
-
-    /// The Space hub's label in the loaded graph.
-    private func spaceName(_ id: UUID) -> String? {
-        guard let graph = loadedGraph else { return nil }
-        let keys = ["space:\(id.uuidString)", "space:\(id.uuidString.lowercased())"]
-        return graph.nodes.first { keys.contains($0.id) }?.label
     }
 
     private var filterSheet: some View {

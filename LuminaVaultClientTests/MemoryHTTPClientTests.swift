@@ -131,10 +131,10 @@ final class MemoryHTTPClientTests: XCTestCase {
         MockURLProtocol.handler = { req in
             seen.append(req.value(forHTTPHeaderField: "X-Vault-ID"))
             let body = #"{"id":"\#(memoryID.uuidString)","content":"x","tags":[],"review_state":"approved"}"#
-            return (
-                HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
-                Data(body.utf8)
-            )
+            guard let url = req.url,
+                  let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)
+            else { throw URLError(.badServerResponse) }
+            return (response, Data(body.utf8))
         }
 
         _ = try await client.get(id: memoryID, vaultID: own)

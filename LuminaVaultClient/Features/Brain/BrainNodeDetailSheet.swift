@@ -99,7 +99,7 @@ struct BrainNodeDetailSheet: View {
             }
             .accessibilityElement(children: .combine)
         case let .failed(message):
-            Text(message).foregroundStyle(.red)
+            BrainErrorLine(message: message)
         case let .loaded(memory):
             VStack(alignment: .leading, spacing: LVSpacing.md) {
                 Text(Self.markdown(memory.content))
@@ -113,7 +113,7 @@ struct BrainNodeDetailSheet: View {
                                 .font(.caption.weight(.medium))
                                 .padding(.horizontal, LVSpacing.sm)
                                 .padding(.vertical, LVSpacing.xs)
-                                .background(Capsule().fill(palette.primary.opacity(0.15)))
+                                .background(Capsule().fill(palette.surfaceElevated))
                                 .foregroundStyle(palette.primary)
                         }
                     }
@@ -140,5 +140,25 @@ struct BrainNodeDetailSheet: View {
     private static func markdown(_ text: String) -> AttributedString {
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         return (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
+    }
+}
+
+/// A failure inside a Brain sheet. The palette has no error slot, so this
+/// follows the Brain failed card: a warning glyph in `accent` (whose role
+/// includes warnings) and the message in `textPrimary`.
+struct BrainErrorLine: View {
+    @Environment(\.lvPalette) private var palette
+
+    let message: String
+
+    var body: some View {
+        Label {
+            Text(message).foregroundStyle(palette.textPrimary)
+        } icon: {
+            Image(systemName: "exclamationmark.triangle")
+                .foregroundStyle(palette.accent)
+                .accessibilityHidden(true)
+        }
+        .accessibilityElement(children: .combine)
     }
 }

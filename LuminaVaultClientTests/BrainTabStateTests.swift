@@ -398,4 +398,16 @@ struct BrainTabStateTests {
         #expect(BrainTabState.selectionSummary(["A"], index: index) == "Selected: Alpha")
         #expect(BrainTabState.selectionSummary(["A", "B"], index: index) == "2 selected")
     }
+
+    // MARK: Space name
+
+    @Test func spaceNameIsTheSpaceHubsLabel() {
+        let space = UUID(uuid: (0x5A, 0x5A, 0x5A, 0x5A, 0, 0, 0x40, 0, 0x80, 0, 0, 0, 0, 0, 0, 1))
+        let graph = Self.response(nodes: [
+            BrainGraphNodeDTO(id: "space:\(space.uuidString)", kind: .space, label: "Garden", vaultID: Self.v1, weight: 1),
+        ])
+        #expect(BrainTabState.spaceName(space, in: graph) == "Garden")
+        #expect(BrainTabState.spaceName(UUID(), in: graph) == nil)
+        #expect(BrainTabState.spaceName(space, in: nil) == nil)
+    }
 }

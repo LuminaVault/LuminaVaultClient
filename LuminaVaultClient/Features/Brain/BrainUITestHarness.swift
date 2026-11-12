@@ -10,8 +10,8 @@
 // Launch arguments of the form `-key value` land in `UserDefaults.standard`.
 // The screen's prefs go to a separate, emptied suite so runs do not leak into
 // each other. The stub counts the requests it answers and shows the count in
-// an element named `brain.uitest.requests`, and the last request's query in
-// `brain.uitest.lastQuery`. Reasoning and memory loads answer from fixed stubs.
+// an element named `brain.uitest.requests`, whose accessibility value is the
+// last request's query. Reasoning and memory loads answer from fixed stubs.
 
 #if DEBUG
 import LuminaVaultShared
@@ -288,11 +288,7 @@ struct BrainUITestHarness: View {
                     .padding(LVSpacing.xs)
                     .allowsHitTesting(false)
                     .accessibilityIdentifier("brain.uitest.requests")
-                Text(client.lastQuery)
-                    .font(.caption2)
-                    .opacity(0.01)
-                    .allowsHitTesting(false)
-                    .accessibilityIdentifier("brain.uitest.lastQuery")
+                    .accessibilityValue(client.lastQuery)
             }
         }
         .preferredColorScheme(Self.scheme)

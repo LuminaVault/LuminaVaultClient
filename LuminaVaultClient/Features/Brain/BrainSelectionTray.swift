@@ -3,6 +3,10 @@
 // (kind icon, label, remove), scrolling sideways when they do not fit, and the
 // actions from `BrainTrayActions`. An action that does not apply stays put,
 // disabled, and says why as its accessibility hint.
+//
+// It is a bar, not a card: the caller pins it to the bottom edge with
+// `safeAreaInset`, and it draws `.bar` behind itself so it reads as part of the
+// bottom chrome (DESIGN_SYSTEM §13.5). Every control has a 44 × 44 pt target.
 
 import LuminaVaultShared
 import SwiftUI
@@ -17,62 +21,83 @@ struct BrainSelectionTray: View {
     let onClear: () -> Void
     let onAction: (BrainTrayActionID) -> Void
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
-        VStack(alignment: .leading, spacing: LVSpacing.sm) {
-            HStack(spacing: LVSpacing.sm) {
-                Text("\(nodes.count) selected")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(palette.textSecondary)
-                    .fixedSize()
-                    .accessibilityIdentifier("brain.tray.count")
+        VStack(alignment: .leading, spacing: LVSpacing.xs) {
+            if typeSize.isAccessibilitySize {
+                // Large type: the chips get the whole width, and the actions
+                // scroll sideways instead of wrapping over the graph.
+                HStack {
+                    count
+                    Spacer(minLength: LVSpacing.sm)
+                    clear
+                }
+                chips
                 ScrollView(.horizontal) {
-                    HStack(spacing: LVSpacing.xs + LVSpacing.hairline) {
-                        ForEach(nodes, id: \.id) { node in
-                            BrainTrayChip(node: node) { onRemove(node.id) }
-                        }
-                    }
-                    .padding(.vertical, LVSpacing.hairline)
+                    HStack(spacing: LVSpacing.sm) { actionButtons }
                 }
                 .scrollIndicators(.hidden)
-                .scrollClipDisabled(false)
-                .accessibilityLabel("Selected")
-            }
-            LVFlowLayout(spacing: LVSpacing.xs + LVSpacing.hairline) {
-                ForEach(actions, id: \.id) { action in
-                    Button(action.label) { onAction(action.id) }
-                        .buttonStyle(.bordered)
-                        .tint(action.isEnabled ? palette.primary : nil)
-                        .disabled(!action.isEnabled)
-                        .accessibilityHint(action.reason ?? "")
-                        .accessibilityIdentifier("brain.tray.action.\(Self.key(action.id))")
+            } else {
+                HStack(spacing: LVSpacing.sm) {
+                    count
+                    chips
+                    clear
                 }
-                Button(action: onClear) {
-                    // A bordered button's padding, so Clear lines up with the
-                    // actions in the flow layout's top-aligned row.
-                    Text("Clear")
-                        .padding(.horizontal, LVSpacing.sm + LVSpacing.hairline)
-                        .padding(.vertical, LVSpacing.xs + LVSpacing.hairline + 1)
-                        .contentShape(Rectangle())
-                }
-                    .buttonStyle(.borderless)
-                    .accessibilityIdentifier("brain.tray.clear")
+                LVFlowLayout(spacing: LVSpacing.sm) { actionButtons }
             }
-            .font(.subheadline)
         }
-        .padding(LVSpacing.sm + LVSpacing.hairline)
-        .frame(maxWidth: 640, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(palette.surfaceStroke, lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
-        .padding(.horizontal, LVSpacing.md)
+        .font(.subheadline)
+        .padding(.horizontal, LVSpacing.base)
+        .padding(.top, LVSpacing.xs)
         .padding(.bottom, LVSpacing.sm)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.bar)
+        .overlay(alignment: .top) { Divider() }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Selection")
         .accessibilityIdentifier("brain.tray")
+    }
+
+    private var count: some View {
+        Text("\(nodes.count) selected")
+            .font(.footnote.monospacedDigit())
+            .foregroundStyle(palette.textSecondary)
+            .fixedSize()
+            .accessibilityIdentifier("brain.tray.count")
+    }
+
+    private var chips: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: LVSpacing.xs) {
+                ForEach(nodes, id: \.id) { node in
+                    BrainTrayChip(node: node) { onRemove(node.id) }
+                }
+            }
+        }
+        .scrollIndicators(.hidden)
+        .accessibilityLabel("Selected")
+    }
+
+    private var clear: some View {
+        Button(action: onClear) {
+            Text("Clear")
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .accessibilityIdentifier("brain.tray.clear")
+    }
+
+    private var actionButtons: some View {
+        ForEach(actions, id: \.id) { action in
+            Button(action.label) { onAction(action.id) }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .disabled(!action.isEnabled)
+                .accessibilityHint(action.reason ?? "")
+                .accessibilityIdentifier("brain.tray.action.\(Self.key(action.id))")
+        }
     }
 
     static func key(_ id: BrainTrayActionID) -> String {
@@ -109,7 +134,8 @@ struct BrainSelectionTray: View {
 }
 
 /// One selected point: kind icon, its label cut to 24 characters, and a
-/// remove button with a full 44 pt target.
+/// remove button. The capsule is drawn inside the 44 pt row the remove
+/// button's target sets, and grows with the text at large type sizes.
 private struct BrainTrayChip: View {
     @Environment(\.lvPalette) private var palette
 
@@ -118,7 +144,7 @@ private struct BrainTrayChip: View {
 
     var body: some View {
         let kind = BrainSelectionTray.kindName(node.kind)
-        HStack(spacing: LVSpacing.xs + LVSpacing.hairline) {
+        HStack(spacing: 0) {
             HStack(spacing: LVSpacing.xs + LVSpacing.hairline) {
                 // Runtime symbol name per kind.
                 Image(systemName: BrainSelectionTray.kindIcon(node.kind))
@@ -129,24 +155,28 @@ private struct BrainTrayChip: View {
                     .foregroundStyle(palette.textPrimary)
                     .lineLimit(1)
             }
+            .padding(.vertical, LVSpacing.xs)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(node.label) (\(kind))")
             Button(action: onRemove) {
-                Image(systemName: "xmark")
-                    .font(.caption2.weight(.semibold))
+                Image(systemName: "xmark.circle.fill")
+                    .font(.body)
+                    .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(palette.textSecondary)
-                    .frame(width: 22, height: 22)
-                    .background(Circle().fill(palette.textSecondary.opacity(0.12)))
-                    .frame(width: 32, height: 44)
+                    .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Remove \(node.label) (\(kind))")
         }
         .padding(.leading, LVSpacing.sm + LVSpacing.hairline)
-        .frame(height: 32)
-        .background(Capsule().fill(palette.highlight.opacity(0.12)))
-        .overlay(Capsule().strokeBorder(palette.highlight.opacity(0.55), lineWidth: 1))
-        .padding(.vertical, LVSpacing.xs + LVSpacing.hairline)
+        .frame(minHeight: 44)
+        .background {
+            Capsule()
+                .fill(palette.surfaceElevated)
+                .overlay(Capsule().strokeBorder(palette.highlight.opacity(0.55), lineWidth: 1))
+                .padding(.vertical, LVSpacing.xs + LVSpacing.hairline)
+                .padding(.trailing, LVSpacing.xs)
+        }
     }
 }

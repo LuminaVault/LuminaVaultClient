@@ -337,7 +337,7 @@ nonisolated final class BrainGraphUITests: XCTestCase {
 
     @MainActor
     private func lastQuery(_ app: XCUIApplication) -> String {
-        app.staticTexts["brain.uitest.lastQuery"].label
+        requests(app).value as? String ?? ""
     }
 
     @MainActor
@@ -359,6 +359,65 @@ nonisolated final class BrainGraphUITests: XCTestCase {
         XCTAssertFalse(trayAction(app, "focus").isEnabled)
         attach(app, "tray with two selected")
         waitForLabel(requests(app), "requests: 1")
+    }
+
+    /// Picks rows in the List (taps add to the selection). Works on iPhone
+    /// and iPad alike, where search suggestions present differently.
+    @MainActor
+    private func selectFromTheList(_ app: XCUIApplication, _ ids: [String]) {
+        app.buttons["brain.more"].tap()
+        app.buttons["List"].tap()
+        for id in ids {
+            let row = app.buttons["brain.list.row.\(id)"]
+            XCTAssertTrue(row.waitForExistence(timeout: 5))
+            row.tap()
+        }
+        closeSheet(app)
+    }
+
+    /// Every tray control is at least 44 × 44 pt.
+    @MainActor
+    private func assertFullTargets(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        var controls = ["open", "focus", "group", "explain", "ask"].map { ("action \($0)", trayAction(app, $0)) }
+        controls.append(("Clear", app.buttons["brain.tray.clear"]))
+        controls.append(("remove Garden plans", app.buttons["Remove Garden plans (Note)"]))
+        controls.append(("remove Sleep log", app.buttons["Remove Sleep log (Memory)"]))
+        for (name, control) in controls {
+            XCTAssertTrue(control.exists, "\(name) exists", file: file, line: line)
+            // Rounded: a frame inside a scroll view can read 43.99999999999994.
+            let frame = control.frame
+            XCTAssertGreaterThanOrEqual(frame.height.rounded(), 44, "\(name) height \(frame.height)", file: file, line: line)
+            XCTAssertGreaterThanOrEqual(frame.width.rounded(), 44, "\(name) width \(frame.width)", file: file, line: line)
+        }
+    }
+
+    @MainActor
+    func testTrayTargetsAreFullSize() {
+        let app = launch("graph", ["-BrainUITestHideRequests", "YES"])
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        selectFromTheList(app, ["N1", "N3"])
+        waitForLabel(trayCount(app), "2 selected")
+        assertFullTargets(app)
+        attach(app, "tray light")
+    }
+
+    @MainActor
+    func testTrayAtAccessibilitySize() {
+        let app = launch("graph", ["-BrainUITestHideRequests", "YES", "-BrainUITestTypeSize", "accessibility3"])
+        XCTAssertTrue(counts(app).waitForExistence(timeout: 8))
+        selectFromTheList(app, ["N1", "N3"])
+        waitForLabel(trayCount(app), "2 selected")
+        assertFullTargets(app)
+        attach(app, "tray accessibility3")
+    }
+
+    @MainActor
+    func testTrayInDark() {
+        let app = launch("graph", ["-BrainUITestHideRequests", "YES", "-BrainUITestScheme", "dark"])
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        selectFromTheList(app, ["N1", "N3"])
+        waitForLabel(trayCount(app), "2 selected")
+        attach(app, "tray dark")
     }
 
     @MainActor
@@ -414,6 +473,8 @@ nonisolated final class BrainGraphUITests: XCTestCase {
         app.buttons["brain.filter.vault.Personal"].tap()
         closeSheet(app)
         waitForLabel(trayCount(app), "1 selected")
+        // The selection itself drops the hidden point, not only the tray.
+        waitForValue(canvas(app), "Selected: Meeting notes")
         XCTAssertFalse(app.buttons["Remove Garden plans (Note)"].exists)
         XCTAssertTrue(app.buttons["Remove Meeting notes (Note)"].exists)
     }

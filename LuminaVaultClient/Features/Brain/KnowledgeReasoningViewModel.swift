@@ -147,6 +147,9 @@ final class KnowledgeReasoningViewModel {
         running?.cancel()
         running = nil
         loading = false
+        // The review in flight can no longer clear it (its generation is
+        // stale), and a kept view model would leave Confirm and Dismiss off.
+        reviewing = nil
     }
 
     // MARK: private

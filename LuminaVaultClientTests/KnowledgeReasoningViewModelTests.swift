@@ -98,8 +98,30 @@ struct KnowledgeReasoningViewModelTests {
         stream.yield(.init(type: "token", message: "late"))
         stream.finish()
         await running.value
-        #expect(vm.result?.answer == "")
+        #expect(vm.result?.answer.isEmpty == true)
         #expect(vm.loading == false)
+    }
+
+    @Test("dispose during a review leaves the next review free to start")
+    func disposeClearsReviewing() async throws {
+        let client = ReasoningClientStub()
+        let gate = Gate()
+        client.reviewGate = gate
+        let vm = KnowledgeReasoningViewModel(client: client)
+        vm.result = f.result
+        let first = try #require(vm.review(f.suggestion, action: .confirm))
+        #expect(vm.reviewing == f.suggestion.id)
+        vm.dispose()
+        #expect(vm.reviewing == nil)
+        await gate.open()
+        await first.value
+        // The late reply lands nowhere: the reviewing flag stays clear and the
+        // suggestion is still there to review again.
+        #expect(vm.reviewing == nil)
+        #expect(vm.result?.suggestions == [f.suggestion])
+        client.reviewGate = nil
+        await vm.review(f.suggestion, action: .dismiss)?.value
+        #expect(vm.result?.suggestions == [])
     }
 
     @Test("keeps the answer and its suggestions when a suggestion is explained")
@@ -294,6 +316,7 @@ private nonisolated final class ReasoningClientStub: KnowledgeGraphClientProtoco
         var explainCalls: [ExplainCall] = []
         var reviewCalls: [ReviewCall] = []
         var graphCalls = 0
+        var reviewGate: Gate?
     }
 
     private let state = Mutex(State())
@@ -318,6 +341,10 @@ private nonisolated final class ReasoningClientStub: KnowledgeGraphClientProtoco
     var explainCalls: [ExplainCall] { state.withLock { $0.explainCalls } }
     var reviewCalls: [ReviewCall] { state.withLock { $0.reviewCalls } }
     var graphCalls: Int { state.withLock { $0.graphCalls } }
+    var reviewGate: Gate? {
+        get { state.withLock { $0.reviewGate } }
+        set { state.withLock { $0.reviewGate = newValue } }
+    }
 
     func waitForStream() async throws -> AsyncThrowingStream<ReasoningStreamEventDTO, any Error>.Continuation {
         for _ in 0 ..< 400 {
@@ -363,7 +390,11 @@ private nonisolated final class ReasoningClientStub: KnowledgeGraphClientProtoco
     }
 
     func review(edgeID: UUID, action: KnowledgeReviewAction, note _: String?) async throws -> KnowledgeEdgeDTO {
-        state.withLock { $0.reviewCalls.append(ReviewCall(edgeID: edgeID, action: action)) }
+        let gate = state.withLock { s in
+            s.reviewCalls.append(ReviewCall(edgeID: edgeID, action: action))
+            return s.reviewGate
+        }
+        if let gate { await gate.wait() }
         return KnowledgeEdgeDTO(
             id: edgeID, from: UUID(), to: UUID(), predicate: .supports,
             state: action == .confirm ? .confirmed : .dismissed, confidence: 0.81

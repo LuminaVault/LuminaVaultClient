@@ -36,7 +36,7 @@ struct KnowledgeReasoningSheet: View {
 
                 if let error = viewModel.error {
                     Section {
-                        Text(error).foregroundStyle(.red)
+                        BrainErrorLine(message: error)
                     }
                 }
 
@@ -154,7 +154,7 @@ struct KnowledgeReasoningSheet: View {
                     .foregroundStyle(palette.textSecondary)
             }
         }
-        .listRowBackground(selected ? palette.accent.opacity(0.14) : nil)
+        .listRowBackground(selected ? palette.surfaceElevated : nil)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
