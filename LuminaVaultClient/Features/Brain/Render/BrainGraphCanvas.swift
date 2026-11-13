@@ -40,6 +40,13 @@ struct BrainGraphCanvas: View {
     /// Put this point in the middle, at the current zoom (search's one
     /// explicit camera move). A new token is a new request.
     var centreOn: BrainCentreRequest?
+    /// What covers the bottom of the canvas (the selection tray, overlaid so
+    /// the canvas never resizes when it comes and goes). Used only to centre
+    /// a searched point in the part above it; the automatic fit ignores it.
+    var bottomInset: CGFloat = 0
+    /// The scene built by the screen when its inputs change (graph, colours,
+    /// theme). Nil (tests, previews): built here from `graph` and `colourOf`.
+    var scene: BrainCanvasScene?
     /// Tests and previews: draw this snapshot and never start a layout.
     var fixedSnapshot: LayoutSnapshot?
     /// Tests and previews: this view instead of the automatic fit.
@@ -230,12 +237,24 @@ private struct BrainGraphCanvasSurface: View {
 
     /// The view now, a running motion included.
     private func currentViewport(positions: [CGPoint]) -> BrainGraphViewport {
+        #if DEBUG
+        .preference(key: BrainUITestProbeKey.self, value: probe(positions: points))
+        #endif
         shownViewport(at: .now, positions: positions, size: size)
     }
 
     /// Stops any motion where it is: the user has taken hold of the view.
     private func takeHold(positions: [CGPoint]) {
         guard motion != nil else { return }
+    #if DEBUG
+    /// Where the UI tests' probe point is on screen, when one was asked for.
+    private func probe(positions: [CGPoint]) -> CGPoint? {
+        guard let id = BrainUITestProbeKey.probedID, size != .zero, positions.count == scene.ids.count,
+              let i = scene.ids.firstIndex(of: id), positions[i].x.isFinite else { return nil }
+        return currentViewport(positions: positions).screen(positions[i])
+    }
+    #endif
+
         viewport = currentViewport(positions: positions)
         motion = nil
     }
@@ -264,7 +283,8 @@ private struct BrainGraphCanvasSurface: View {
         }
         let current = currentViewport(positions: positions)
         guard let target = BrainCentreRequest.view(
-            centring: request.id, ids: scene.ids, positions: positions, current: current, size: size
+            centring: request.id, ids: scene.ids, positions: positions, current: current, size: size,
+            bottomInset: inputs.bottomInset
         ) else {
             driver.pendingCentre = request
             return

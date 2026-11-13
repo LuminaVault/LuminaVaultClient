@@ -15,6 +15,8 @@
 //                                        just sent this focus)
 //   -BrainUITestPoints <n>              (optional; graph scenario: n generated
 //                                        notes, memories and hubs instead of the eight)
+//   -BrainUITestProbe <id>              (optional; mark where that point is on screen
+//                                        with an element named `brain.uitest.probe`)
 //
 // Launch arguments of the form `-key value` land in `UserDefaults.standard`.
 // The screen's prefs go to a separate suite, emptied at launch (unless
@@ -468,6 +470,40 @@ private struct BrainUITestThemed<Content: View>: View {
         content.environment(\.lvPalette, LVTheme.cyanGold.palette(for: scheme))
     }
 }
+/// `-BrainUITestProbe <id>`: the renderer on screen reports where that point
+/// is (canvas coordinates), and the screen marks it with an element named
+/// `brain.uitest.probe`, so a test can tap the point and see whether it moved.
+/// The 2D canvas reports on every change of view or layout; the Constellation
+/// when its labels are placed (the camera at rest).
+enum BrainUITestProbeKey: PreferenceKey {
+    static let probedID: String? = UserDefaults.standard.string(forKey: "BrainUITestProbe")
+
+    static var defaultValue: CGPoint? { nil }
+
+    static func reduce(value: inout CGPoint?, nextValue: () -> CGPoint?) {
+        value = value ?? nextValue()
+    }
+}
+
+/// The probe's mark: a small ring on the point, never hit-tested.
+struct BrainUITestProbeMark: View {
+    let point: CGPoint?
+
+    var body: some View {
+        if let point {
+            Circle()
+                .stroke(.red, lineWidth: 1)
+                .frame(width: 6, height: 6)
+                .accessibilityElement()
+                .accessibilityLabel("probe")
+                .accessibilityValue("\(Int(point.x.rounded())),\(Int(point.y.rounded()))")
+                .accessibilityIdentifier("brain.uitest.probe")
+                .position(point)
+                .allowsHitTesting(false)
+        }
+    }
+}
+
 
 private struct BrainUITestTypeSize: ViewModifier {
     let size: DynamicTypeSize?

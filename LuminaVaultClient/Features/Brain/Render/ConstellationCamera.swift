@@ -81,6 +81,18 @@ nonisolated struct ConstellationCamera: Equatable, Sendable {
         return next
     }
 
+    /// As `centred(on:)`, with the star in the middle of the part of a view of
+    /// `size` above `bottomInset` (the selection tray): the target is moved
+    /// down the camera's up axis so the star shows half the inset higher.
+    func centred(on point: SIMD3<Float>, bottomInset: CGFloat, size: CGSize) -> ConstellationCamera {
+        var next = centred(on: point)
+        let lift = BrainCentreRequest.heldInset(bottomInset, height: size.height) / 2
+        guard lift > 0, size.height > 0 else { return next }
+        let up = next.orientation.act(SIMD3<Float>(0, 1, 0))
+        next.target = point - up * Float(lift * CGFloat(next.distance) / Self.pointsPerUnit(size))
+        return next
+    }
+
     /// The idle turn: `angle` radians about the world's up axis.
     func turned(by angle: Double) -> ConstellationCamera {
         var next = self

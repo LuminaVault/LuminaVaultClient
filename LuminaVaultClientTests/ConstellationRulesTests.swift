@@ -527,6 +527,27 @@ struct ConstellationCameraTests {
         #expect(!c.autoView)
     }
 
+    /// The selection tray covers the bottom of the sky: a searched star is
+    /// centred in the part above it, from the same direction.
+    @Test func centringAboveTheTrayPutsTheStarInTheMiddleOfWhatIsUncovered() {
+        for (yaw, pitch) in [(Float(0.7), Float(0.3)), (-2.0, -1.0)] {
+            let base = ConstellationCamera(target: .zero, yaw: yaw, pitch: pitch, distance: 300)
+            let c = base.centred(on: [20, 30, 40], bottomInset: 120, size: size)
+            let p = c.project([[20, 30, 40]], radii: [1], size: size)
+            #expect(abs(p.x[0] - 200) < 0.01)
+            #expect(abs(p.y[0] - 340) < 0.01)
+            #expect(c.distance == ConstellationRules.comfortDistance)
+            #expect(simd_length(c.direction - base.direction) < 1e-6)
+            #expect(!c.autoView)
+        }
+        // No inset: the plain centre. An inset past half the view is held there.
+        let base = ConstellationCamera(target: .zero, yaw: 0, pitch: 0, distance: 300)
+        #expect(base.centred(on: [1, 2, 3], bottomInset: 0, size: size).target == [1, 2, 3])
+        let tall = base.centred(on: [1, 2, 3], bottomInset: 10_000, size: size)
+        let q = tall.project([[1, 2, 3]], radii: [1], size: size)
+        #expect(abs(q.y[0] - 200) < 0.01)
+    }
+
     @Test func theIdleTurnTurnsAboutUpAndKeepsTheAutomaticView() {
         let base = ConstellationCamera(target: [1, 2, 3], yaw: 0, pitch: 0.2, distance: 250)
         let t = base.turned(by: 0.1)

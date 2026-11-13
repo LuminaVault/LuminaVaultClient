@@ -35,6 +35,15 @@ struct BrainTabView: View {
     // Derived by `rederive()`.
     @State private var visible: VisibleBrainGraph?
     @State private var legend: (keys: [BrainLegendKey], more: Int) = ([], 0)
+    /// What the renderer on screen draws, built only when the graph, the
+    /// colours, the theme or the view change (`rebuildScene`), never on a
+    /// search keystroke or a selection.
+    @State private var canvasScene: BrainCanvasScene?
+    @State private var skyModel: ConstellationModel?
+    /// The selection tray's last measured height. The tray is overlaid, so
+    /// selecting never resizes the renderer; this only centres a searched
+    /// point above it. Kept when the tray goes, for the next search.
+    @State private var trayHeight = BrainTabState.trayHeightEstimate
 
     @State private var searchText = ""
     @State private var searchPresented = false
@@ -164,8 +173,13 @@ struct BrainTabView: View {
         case .graph:
             if let visible {
                 canvas(visible)
-                    // A bar pinned to the bottom edge, as the status line is to the top.
-                    .safeAreaInset(edge: .bottom, spacing: 0) { tray(visible) }
+                    // Over the renderer, not a safe-area inset: the renderer
+                    // keeps its size when the tray comes and goes, so
+                    // selecting never refits or recentres the camera.
+                    .overlay(alignment: .bottom) { tray(visible) }
+                #if DEBUG
+                    .overlayPreferenceValue(BrainUITestProbeKey.self) { BrainUITestProbeMark(point: $0) }
+                #endif
             }
         case .empty:
             emptyCard
@@ -206,7 +220,9 @@ struct BrainTabView: View {
                 onBackgroundTap: { selection.clear() },
                 // A double tap opens a point, as the tray's Open does.
                 onOpen: { id in open(id, index: index) },
-                centreOn: centre
+                centreOn: centre,
+                bottomInset: trayHeight,
+                scene: canvasScene
             )
             .accessibilityIdentifier("brain.canvas")
             .accessibilityValue(summary)
@@ -249,7 +265,9 @@ struct BrainTabView: View {
                     mascot: .thinking,
                     headline: BrainTabState.emptyHeadline,
                     supporting: BrainTabState.emptySupporting
-                )
+                ),
+                bottomInset: trayHeight,
+                model: skyModel
                 Button(BrainTabState.captureTitle, systemImage: "plus") { showCapture = true }
                     .buttonStyle(.lvProminent)
                     .controlSize(.large)
@@ -489,6 +507,12 @@ struct BrainTabView: View {
 
     private var detailSheet: some View {
         let node = detail.node
+            // An overlay offers the whole height, and the chips' horizontal
+            // scroll view would take it: the tray keeps its own height.
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self, of: \.size.height) { height in
+                if height > 0 { trayHeight = height }
+            }
         return BrainNodeDetailSheet(
             detail: detail,
             vaultName: vaultName(node?.vaultID),

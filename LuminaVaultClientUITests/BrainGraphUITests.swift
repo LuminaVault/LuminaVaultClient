@@ -259,25 +259,49 @@ nonisolated final class BrainGraphUITests: XCTestCase {
 
     // MARK: gestures
 
-    /// Search puts a point in the middle of the canvas; everything else is
-    /// driven from there. Selection shows in the canvas's accessibility value.
+    /// The element the harness puts on the probed point (`-BrainUITestProbe`).
+    @MainActor
+    private func probe(_ app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any)["brain.uitest.probe"]
+    }
+
+    /// Where the probed point is on screen now.
+    @MainActor
+    private func probed(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) -> CGPoint {
+        let mark = probe(app)
+        XCTAssertTrue(mark.waitForExistence(timeout: 8), "no probe", file: file, line: line)
+        return CGPoint(x: mark.frame.midX, y: mark.frame.midY)
+    }
+
+    @MainActor
+    private func at(_ app: XCUIApplication, _ point: CGPoint) -> XCUICoordinate {
+        app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: point.x, dy: point.y))
+    }
+
+    /// Search puts a point in the middle of the part of the canvas above the
+    /// tray; everything else is driven from where the probe says it is.
+    /// Selection shows in the canvas's accessibility value.
     @MainActor
     func testCanvasGestures() {
-        let app = launch("graph")
+        let app = launch("graph", ["-BrainUITestProbe", "N1"])
         waitForLabel(counts(app), "8 notes and memories · 10 connections")
         let canvas = canvas(app)
-        let centre = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         let corner = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: 0.04))
 
         search(app, "gard", pick: "Garden plans")
         waitForValue(canvas, "Selected: Garden plans")
         settle()
         attach(app, "centred on Garden plans")
+        let here = probed(app)
+        // Centred across, and above the middle by half the tray.
+        XCTAssertEqual(here.x, canvas.frame.midX, accuracy: 2)
+        XCTAssertLessThan(here.y, canvas.frame.midY - 20)
+        let point = at(app, here)
 
         // Tap the only selected point: it toggles off. Tap again: back on.
-        centre.tap()
+        point.tap()
         waitForValue(canvas, "Nothing selected")
-        centre.tap()
+        point.tap()
         waitForValue(canvas, "Selected: Garden plans")
 
         // Tap the background: clears.
@@ -285,42 +309,88 @@ nonisolated final class BrainGraphUITests: XCTestCase {
         waitForValue(canvas, "Nothing selected")
 
         // Long press adds to the selection without replacing it.
-        centre.tap()
+        point.tap()
         app.buttons["brain.more"].tap()
         app.buttons["List"].tap()
         app.buttons["brain.list.row.N3"].tap()
         closeSheet(app)
         waitForValue(canvas, "2 selected")
-        centre.press(forDuration: 0.9)
+        point.press(forDuration: 0.9)
         waitForValue(canvas, "Selected: Sleep log")
-        centre.press(forDuration: 0.9)
+        point.press(forDuration: 0.9)
         waitForValue(canvas, "2 selected")
 
         // Two selected from here on, so a tap that hits Garden plans reads
         // "Selected: Garden plans" and one that misses reads "Nothing selected".
 
-        // Drag on the background pans the view: the middle is empty now.
+        // Drag on the background pans the view: the point is not there now.
         corner.press(forDuration: 0.05, thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.3)))
         settle()
         attach(app, "after panning")
-        centre.tap()
+        point.tap()
         waitForValue(canvas, "Nothing selected")
 
-        // Pinch zooms around the middle: the centred point stays put.
+        // Pinch zooms; the point is still where the probe says.
         selectGardenAndSleepLog(app, canvas)
         canvas.pinch(withScale: 2.5, velocity: 2)
         settle()
         attach(app, "after pinch in")
-        centre.tap()
+        at(app, probed(app)).tap()
         waitForValue(canvas, "Selected: Garden plans")
 
-        // Drag on the point moves it off the middle; a tap there now misses.
+        // Drag on the point moves it; a tap where it was now misses.
         selectGardenAndSleepLog(app, canvas)
-        centre.press(forDuration: 0.05, thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.2)))
+        let before = probed(app)
+        at(app, before).press(forDuration: 0.05, thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.2)))
         attach(app, "after dragging the point")
-        centre.tap()
+        at(app, before).tap()
         waitForValue(canvas, "Nothing selected")
         waitForLabel(requests(app), "requests: 1")
+    }
+
+    /// A double tap on a point nobody selected opens it: the first tap
+    /// selects it and brings the tray, which must not move the point out from
+    /// under the second.
+    @MainActor
+    func testDoubleTapOpensAnUnselectedPoint() {
+        let app = launch("graph", ["-BrainUITestProbe", "N1"])
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        settle()
+        waitForValue(canvas(app), "Nothing selected")
+        at(app, probed(app)).doubleTap()
+        XCTAssertTrue(app.staticTexts["brain.detail.title"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["brain.detail.title"].label, "Garden plans")
+        attach(app, "double tap opened Garden plans")
+        waitForLabel(requests(app), "requests: 1")
+    }
+
+    /// Selecting never moves the camera: the tray comes up over the graph and
+    /// the point stays exactly where it was.
+    @MainActor
+    func testSelectingDoesNotMoveThePoint() {
+        let app = launch("graph", ["-BrainUITestProbe", "N1"])
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        settle()
+        let canvas = canvas(app)
+        let frame = canvas.frame
+        let before = probed(app)
+        attach(app, "before selecting")
+        at(app, before).tap()
+        waitForValue(canvas, "Selected: Garden plans")
+        XCTAssertTrue(app.staticTexts["brain.tray.count"].waitForExistence(timeout: 5))
+        settle()
+        attach(app, "after selecting")
+        let after = probed(app)
+        XCTAssertEqual(after.x, before.x, accuracy: 1)
+        XCTAssertEqual(after.y, before.y, accuracy: 1)
+        XCTAssertEqual(canvas.frame, frame)
+        // And back: clearing takes the tray away without a move either.
+        app.buttons["brain.tray.clear"].tap()
+        waitForValue(canvas, "Nothing selected")
+        settle()
+        let cleared = probed(app)
+        XCTAssertEqual(cleared.x, before.x, accuracy: 1)
+        XCTAssertEqual(cleared.y, before.y, accuracy: 1)
     }
 
     // MARK: tray
@@ -586,11 +656,10 @@ nonisolated final class BrainGraphUITests: XCTestCase {
     /// a drag orbits (the middle is then empty) and a pinch zooms.
     @MainActor
     func testConstellationTapsSelect() {
-        let app = launch("graph", ["-BrainUITestView", "3d"])
+        let app = launch("graph", ["-BrainUITestView", "3d", "-BrainUITestProbe", "N1"])
         waitForLabel(counts(app), "8 notes and memories · 10 connections")
         let sky = constellation(app)
         XCTAssertTrue(sky.waitForExistence(timeout: 8))
-        let centre = sky.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         let corner = sky.coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: 0.04))
         search(app, "gard", pick: "Garden plans")
         waitForValue(sky, "Selected: Garden plans")
@@ -620,6 +689,11 @@ nonisolated final class BrainGraphUITests: XCTestCase {
     /// Search picks (and centres) Garden plans, the list adds Sleep log.
     @MainActor
     private func selectGardenAndSleepLog(_ app: XCUIApplication, _ canvas: XCUIElement) {
+        // Centred across, and above the middle by half the tray.
+        let here = probed(app)
+        XCTAssertEqual(here.x, sky.frame.midX, accuracy: 2)
+        XCTAssertLessThan(here.y, sky.frame.midY - 20)
+        let centre = at(app, here)
         search(app, "gard", pick: "Garden plans")
         waitForValue(canvas, "Selected: Garden plans")
         settle()
@@ -641,6 +715,42 @@ nonisolated final class BrainGraphUITests: XCTestCase {
     func testAnEntryRequestFocusesWithOneRequestAndIsAppliedOnce() {
         let app = launch("graph", ["-BrainUITestControls", "YES"])
         waitForLabel(counts(app), "8 notes and memories · 10 connections")
+    /// Selecting a star never moves the camera either.
+    @MainActor
+    func testConstellationSelectingDoesNotMoveTheStar() {
+        let app = launch("graph", ["-BrainUITestView", "3d", "-BrainUITestProbe", "N1"])
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        let sky = constellation(app)
+        XCTAssertTrue(sky.waitForExistence(timeout: 8))
+        settle()
+        // A touch holds the idle turn off for the next 5 s.
+        sky.coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: 0.04)).tap()
+        settle()
+        let before = probed(app)
+        at(app, before).tap()
+        waitForValue(sky, "Selected: Garden plans")
+        XCTAssertTrue(app.staticTexts["brain.tray.count"].waitForExistence(timeout: 5))
+        settle()
+        let after = probed(app)
+        XCTAssertEqual(after.x, before.x, accuracy: 1)
+        XCTAssertEqual(after.y, before.y, accuracy: 1)
+    }
+
+    /// A double tap on an unselected star opens it.
+    @MainActor
+    func testConstellationDoubleTapOpensAnUnselectedStar() {
+        let app = launch("graph", ["-BrainUITestView", "3d", "-BrainUITestProbe", "N1"])
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        XCTAssertTrue(constellation(app).waitForExistence(timeout: 8))
+        settle()
+        // A touch holds the idle turn off for the next 5 s.
+        constellation(app).coordinate(withNormalizedOffset: CGVector(dx: 0.04, dy: 0.04)).tap()
+        settle()
+        at(app, probed(app)).doubleTap()
+        XCTAssertTrue(app.staticTexts["brain.detail.title"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["brain.detail.title"].label, "Garden plans")
+    }
+
         control(app, "focusN3").tap()
         waitForLabel(requests(app), "requests: 2")
         settle()

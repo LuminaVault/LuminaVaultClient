@@ -39,6 +39,13 @@ struct BrainGraphRealityView: View {
     /// A sheet covers the screen (list, filters, detail, reasoning, capture):
     /// the idle turn stops.
     var covered = false
+    /// What covers the bottom of the sky (the selection tray, overlaid so the
+    /// view never resizes when it comes and goes). Used only to centre a
+    /// searched star in the part above it.
+    var bottomInset: CGFloat = 0
+    /// The model built by the screen when its inputs change (graph, colours,
+    /// theme). Nil (tests, previews): built here from `graph` and `colourOf`.
+    var model: ConstellationModel?
 
     @Environment(\.lvPalette) private var palette
     @Environment(\.colorScheme) private var scheme
@@ -122,12 +129,28 @@ private struct ConstellationIdleInputs: Equatable {
 @MainActor @Observable
 private final class ConstellationLabelStore {
     private(set) var labels: [ConstellationLabel] = []
+    #if DEBUG
+    /// The UI tests' probe star on screen, placed and carried with the labels.
+    private(set) var probe: CGPoint?
+    @ObservationIgnored var probeStar: Int?
+
+    private func placeProbe(_ p: ConstellationProjection) {
+        guard let i = probeStar, i < p.count, p.x[i].isFinite, p.y[i].isFinite else {
+            probe = nil
+            return
+        }
+        probe = CGPoint(x: p.x[i], y: p.y[i])
+    }
+    #endif
     /// Each label's plate origin relative to its star, for following.
     @ObservationIgnored private var offsets: [CGPoint] = []
 
     func show(_ next: [ConstellationLabel], projection p: ConstellationProjection) {
         offsets = next.map { CGPoint(x: $0.rect.minX - p.x[$0.star], y: $0.rect.minY - p.y[$0.star]) }
         labels = next
+        #if DEBUG
+        placeProbe(p)
+        #endif
     }
 
     func hide() {
@@ -138,6 +161,9 @@ private final class ConstellationLabelStore {
 
     /// The same labels, moved with their stars.
     func follow(_ p: ConstellationProjection) {
+        #if DEBUG
+        placeProbe(p)
+        #endif
         guard !labels.isEmpty else { return }
         var next: [ConstellationLabel] = []
         var nextOffsets: [CGPoint] = []
@@ -283,6 +309,9 @@ private struct ConstellationSurface: View {
     }
 
     private func noteActivity() {
+        #if DEBUG
+        labelStore.probeStar = BrainUITestProbeKey.probedID.flatMap { scene.model.index[$0] }
+        #endif
         driver.lastActivity = .now
         activity += 1
     }
@@ -303,7 +332,7 @@ private struct ConstellationSurface: View {
         }
         driver.pendingCentre = nil
         let from = driver.scene.camera
-        let to = from.centred(on: point)
+        let to = from.centred(on: point, bottomInset: inputs.bottomInset, size: driver.scene.size)
         if reduceMotion {
             centring = nil
             driver.scene.setCamera(to)
@@ -500,3 +529,6 @@ private struct ConstellationLabelsOverlay: View {
         .accessibilityHidden(true)
     }
 }
+        #if DEBUG
+        .preference(key: BrainUITestProbeKey.self, value: store.probe)
+        #endif

@@ -4,9 +4,10 @@
 // actions from `BrainTrayActions`. An action that does not apply stays put,
 // disabled, and says why as its accessibility hint.
 //
-// It is a bar, not a card: the caller pins it to the bottom edge with
-// `safeAreaInset`, and it draws `.bar` behind itself so it reads as part of the
-// bottom chrome (DESIGN_SYSTEM §13.5). Every control has a 44 × 44 pt target.
+// It is a bar, not a card: the caller lays it over the bottom edge of the
+// graph (an overlay, so the graph never resizes when it comes and goes), and it
+// draws `.bar` behind itself so it reads as part of the bottom chrome
+// (DESIGN_SYSTEM §13.5). Every control has a 44 × 44 pt target.
 
 import LuminaVaultShared
 import SwiftUI

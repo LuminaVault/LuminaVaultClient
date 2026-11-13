@@ -277,6 +277,10 @@ nonisolated enum BrainTabState {
         return (BrainPrefs(filters: filters, view: next), switchNote(next))
     }
 
+    /// The selection tray's height before it has been measured once: one row
+    /// of chips and one of actions.
+    static let trayHeightEstimate: CGFloat = 120
+
     /// Whether a sheet covers the graph, so nothing on it should move.
     static func isCovered(filters: Bool, list: Bool, capture: Bool, detail: Bool, reasoning: Bool) -> Bool {
         filters || list || capture || detail || reasoning
