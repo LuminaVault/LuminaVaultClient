@@ -586,12 +586,14 @@ Leading edge is for navigation, plus Home's Settings entry point.
 - Wordmarks, brand headers, mascots-as-chrome.
 - Decorative ordinals, kickers, mono small-caps eyebrows (§14 is for marketing and onboarding copy, not for list headers).
 - Glows, glass, gold rings, particle fields, starfields, aurora backdrops (§5).
-- Floating buttons over the tab bar.
+- Floating buttons over the tab bar. This ban does not cover the Quick Assistant card (§13.9): it is a transient modal opened by long-pressing the AI tab, gone when it is dismissed, and it leaves no control over the bar.
 - A second control that duplicates one the navigation bar already offers — `.searchable` is the search field; a drawn one underneath it is a bug.
 
 ### 13.9 When a surface may still be cinematic
 
-Onboarding, the paywall, empty states, `CaptureSheet` and the Brain tab's Constellation. The Constellation is an owner-approved exception: it is the product's signature view of the vault, and it is opt-in behind the 2D / Constellation switch. These are moments rather than places: they are entered deliberately, they are not scrolled through daily, and the language in §5 and §14 is what makes them feel like the product rather than a settings screen. Match the energy of the HER-299 reference frames there, and nowhere else.
+Onboarding, the paywall, empty states, `CaptureSheet`, the Quick Assistant card and the Brain tab's Constellation. The Constellation is an owner-approved exception: it is the product's signature view of the vault, and it is opt-in behind the 2D / Constellation switch. These are moments rather than places: they are entered deliberately, they are not scrolled through daily, and the language in §5 and §14 is what makes them feel like the product rather than a settings screen. Match the energy of the HER-299 reference frames there, and nowhere else.
+
+**Quick Assistant card** (`Features/QuickAssistant/QuickAssistantCard.swift`). Long-pressing the AI tab opens it over whatever is on screen; iPad has no trigger. A black dim, then a floating `lvGlassCard` at `LVRadius.sheet` with a soft, slowly breathing halo in `glowPrimary`, `glowSecondary` and `accent`. The halo holds still under Reduce Motion (§8). It sits above the tab bar, or just above the keyboard while the field is focused. It is not a sheet: tapping the dim or the VoiceOver escape gesture closes it, and anything about to present a sheet closes it first. The field and `MicHoldButton` wait for the user; opening it never starts listening.
 
 ## 14. Motif Kit & Kickers (identity-deepening pass, 2026-07)
 

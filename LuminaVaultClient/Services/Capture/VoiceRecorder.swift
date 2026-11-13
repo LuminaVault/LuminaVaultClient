@@ -140,7 +140,10 @@ final class VoiceRecorder {
 
     private static func requestPermission() async -> Bool {
         await withCheckedContinuation { continuation in
-            AVAudioApplication.requestRecordPermission { granted in
+            // `@Sendable`, so this does not inherit the main actor: the system
+            // answers on a background queue, and an inherited isolation check
+            // there traps the app on the first recording.
+            AVAudioApplication.requestRecordPermission { @Sendable granted in
                 continuation.resume(returning: granted)
             }
         }
