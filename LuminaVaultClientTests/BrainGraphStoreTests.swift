@@ -725,6 +725,21 @@ struct BrainGraphStoreTests {
         #expect(ids(r.store.knownVaults) == [Self.v0, Self.v1])
     }
 
+    /// A vault created, joined or left during the session shows on the next
+    /// unfiltered response, not after a relaunch.
+    @Test func everyUnfilteredResponseReplacesKnownVaults() async {
+        let r = rig()
+        await r.mock.enqueueOnce(.success(Self.response(at: 1, vaults: [Self.personal])))
+        await r.store.load(Self.all)
+        #expect(ids(r.store.knownVaults) == [Self.v1])
+        await r.mock.enqueueOnce(.success(Self.response(at: 2, vaults: [Self.personal, Self.acme])))
+        await r.store.load(Self.all)
+        #expect(ids(r.store.knownVaults) == [Self.v2, Self.v1])
+        await r.mock.enqueueOnce(.success(Self.response(at: 3, vaults: [Self.acme])))
+        await r.store.load(Self.all)
+        #expect(ids(r.store.knownVaults) == [Self.v2])
+    }
+
     @Test func knownVaultsSortsAccentedNamesAsTheWebDoes() async {
         let r = rig()
         let accented = BrainGraphVaultDTO(id: Self.v1, name: "Été", personal: false)

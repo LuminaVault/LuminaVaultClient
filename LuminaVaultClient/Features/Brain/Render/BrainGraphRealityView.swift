@@ -61,7 +61,7 @@ struct BrainGraphRealityView: View {
                 ConstellationSurface(
                     inputs: self,
                     driver: driver,
-                    model: ConstellationModel(graph: graph, colourOf: colourOf),
+                    model: model ?? ConstellationModel(graph: graph, colourOf: colourOf),
                     theme: theme,
                     dark: scheme == .dark
                 )
@@ -273,6 +273,10 @@ private struct ConstellationSurface: View {
         .sensoryFeedback(.selection, trigger: longPresses)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(ConstellationRules.accessibilityLabel(itemCount: model.itemCount))
+        // VoiceOver's double tap would otherwise arrive as a tap at the
+        // element's centre and clear or change the selection; selection is
+        // made from the list there.
+        .accessibilityAction {}
     }
 
     // MARK: Scene
@@ -305,13 +309,13 @@ private struct ConstellationSurface: View {
         let labels = ConstellationRules.placeLabels(
             p, tiers: scene.look.tiers, weights: scene.model.labelWeight, texts: scene.model.text
         ) { driver.textSize($0, typeSize: typeSize) }
+        #if DEBUG
+        labelStore.probeStar = BrainUITestProbeKey.probedID.flatMap { scene.model.index[$0] }
+        #endif
         labelStore.show(labels, projection: p)
     }
 
     private func noteActivity() {
-        #if DEBUG
-        labelStore.probeStar = BrainUITestProbeKey.probedID.flatMap { scene.model.index[$0] }
-        #endif
         driver.lastActivity = .now
         activity += 1
     }
@@ -415,10 +419,6 @@ private struct ConstellationSurface: View {
     private var pressGesture: some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .local)
             .onChanged { value in
-                guard var press = driver.press else {
-                    takeHold()
-                    driver.press = BrainPressTracker(start: value.startLocation, hitID: hit(at: value.startLocation))
-                    driver.pressBegan = .now
                 // A drag cancelled without `onEnded` left its press (and with
                 // it `pressing`, which holds the idle turn) behind.
                 if case .restart = BrainPressTracker.recovery(
@@ -428,6 +428,10 @@ private struct ConstellationSurface: View {
                     driver.pinchBase = nil
                     driver.orbit = nil
                 }
+                guard var press = driver.press else {
+                    takeHold()
+                    driver.press = BrainPressTracker(start: value.startLocation, hitID: hit(at: value.startLocation))
+                    driver.pressBegan = .now
                     pressCount += 1
                     noteActivity()
                     return
@@ -536,8 +540,8 @@ private struct ConstellationLabelsOverlay: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
-    }
-}
         #if DEBUG
         .preference(key: BrainUITestProbeKey.self, value: store.probe)
         #endif
+    }
+}

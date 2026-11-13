@@ -58,7 +58,7 @@ struct BrainGraphCanvas: View {
     var body: some View {
         BrainGraphCanvasSurface(
             inputs: self,
-            scene: BrainCanvasScene(graph: graph, colourOf: colourOf),
+            scene: scene ?? BrainCanvasScene(graph: graph, colourOf: colourOf),
             theme: BrainGraphTheme(palette: palette, scheme: scheme)
         )
     }
@@ -134,6 +134,12 @@ private final class BrainCanvasDriver {
     }
 }
 
+/// Holds the canvas's driver, made on first use.
+@MainActor
+private final class BrainCanvasDriverBox {
+    private(set) lazy var driver = BrainCanvasDriver()
+}
+
 private struct BrainGraphCanvasSurface: View {
     /// The canvas's own inputs: graph, highlight, callbacks, fixed snapshot.
     let inputs: BrainGraphCanvas
@@ -144,7 +150,12 @@ private struct BrainGraphCanvasSurface: View {
     private var highlight: BrainHighlight { inputs.highlight }
     private var fixedSnapshot: LayoutSnapshot? { inputs.fixedSnapshot }
 
-    @State private var driver = BrainCanvasDriver()
+    /// The box is all a re-render of the parent allocates; the driver, its
+    /// layout actor and scratch are made once, on first use, for the life of
+    /// this view. (Not `onAppear`, as the Constellation does: `ImageRenderer`
+    /// never calls it, and the snapshot tests draw through it.)
+    @State private var drivers = BrainCanvasDriverBox()
+    private var driver: BrainCanvasDriver { drivers.driver }
     /// The newest accepted snapshot, and a count of them, so positions are
     /// aligned once per (snapshot, scene) pair rather than per body evaluation.
     @State private var snapshot: LayoutSnapshot?
@@ -226,7 +237,23 @@ private struct BrainGraphCanvasSurface: View {
         .sensoryFeedback(.selection, trigger: longPresses)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(BrainGraphCanvasLogic.accessibilityLabel(itemCount: scene.itemCount))
+        // VoiceOver's double tap would otherwise arrive as a tap at the
+        // element's centre and clear or change the selection; selection is
+        // made from the list there.
+        .accessibilityAction {}
+        #if DEBUG
+        .preference(key: BrainUITestProbeKey.self, value: probe(positions: points))
+        #endif
     }
+
+    #if DEBUG
+    /// Where the UI tests' probe point is on screen, when one was asked for.
+    private func probe(positions: [CGPoint]) -> CGPoint? {
+        guard let id = BrainUITestProbeKey.probedID, size != .zero, positions.count == scene.ids.count,
+              let i = scene.ids.firstIndex(of: id), positions[i].x.isFinite else { return nil }
+        return currentViewport(positions: positions).screen(positions[i])
+    }
+    #endif
 
     // MARK: View
 
@@ -237,24 +264,12 @@ private struct BrainGraphCanvasSurface: View {
 
     /// The view now, a running motion included.
     private func currentViewport(positions: [CGPoint]) -> BrainGraphViewport {
-        #if DEBUG
-        .preference(key: BrainUITestProbeKey.self, value: probe(positions: points))
-        #endif
         shownViewport(at: .now, positions: positions, size: size)
     }
 
     /// Stops any motion where it is: the user has taken hold of the view.
     private func takeHold(positions: [CGPoint]) {
         guard motion != nil else { return }
-    #if DEBUG
-    /// Where the UI tests' probe point is on screen, when one was asked for.
-    private func probe(positions: [CGPoint]) -> CGPoint? {
-        guard let id = BrainUITestProbeKey.probedID, size != .zero, positions.count == scene.ids.count,
-              let i = scene.ids.firstIndex(of: id), positions[i].x.isFinite else { return nil }
-        return currentViewport(positions: positions).screen(positions[i])
-    }
-    #endif
-
         viewport = currentViewport(positions: positions)
         motion = nil
     }
@@ -401,6 +416,14 @@ private struct BrainGraphCanvasSurface: View {
     private func pressGesture(positions: [CGPoint]) -> some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .local)
             .onChanged { value in
+                // A drag cancelled without `onEnded` left its press behind.
+                if case let .restart(release) = BrainPressTracker.recovery(
+                    current: driver.press, gestureStart: value.startLocation
+                ) {
+                    if let release { driver.release(release) }
+                    driver.press = nil
+                    driver.pinchBase = nil
+                }
                 guard var press = driver.press else {
                     takeHold(positions: positions)
                     driver.press = BrainPressTracker(start: value.startLocation, hitID: hit(at: value.startLocation, positions: positions))
@@ -416,14 +439,6 @@ private struct BrainGraphCanvasSurface: View {
                 switch phase {
                 case .panning:
                     let from = before == .panning ? driver.lastLocation : value.startLocation
-                // A drag cancelled without `onEnded` left its press behind.
-                if case let .restart(release) = BrainPressTracker.recovery(
-                    current: driver.press, gestureStart: value.startLocation
-                ) {
-                    if let release { driver.release(release) }
-                    driver.press = nil
-                    driver.pinchBase = nil
-                }
                     var next = currentViewport(positions: positions)
                         .panned(by: CGSize(width: value.location.x - from.x, height: value.location.y - from.y))
                     next.isAutomatic = BrainGraphCanvasLogic.nextAutoView(next.isAutomatic, .userPan)

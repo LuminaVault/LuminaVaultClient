@@ -70,7 +70,8 @@ struct BrainSelectionTray: View {
 
     private var chips: some View {
         ScrollView(.horizontal) {
-            HStack(spacing: LVSpacing.xs) {
+            // Lazy: "Select group" on a large hub selects up to 800 points.
+            LazyHStack(spacing: LVSpacing.xs) {
                 ForEach(nodes, id: \.id) { node in
                     BrainTrayChip(node: node) { onRemove(node.id) }
                 }

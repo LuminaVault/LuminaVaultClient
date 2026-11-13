@@ -87,7 +87,7 @@ final class BrainGraphStore {
     /// its counts and `generatedAt` match the one before, so the screen keys
     /// its derivation on this rather than on the response's contents.
     private(set) var loadSerial = 0
-    /// Every vault of the first unfiltered response; until then, every vault seen.
+    /// Every vault of the latest unfiltered response; until one, every vault seen.
     private(set) var knownVaults: [BrainGraphVaultDTO] = []
 
     @ObservationIgnored private let client: any BrainGraphClientProtocol
@@ -330,13 +330,18 @@ final class BrainGraphStore {
         }
     }
 
+    /// Every unfiltered response names every vault, so it replaces the list:
+    /// a vault created, joined or left during the session shows on the next
+    /// one. A filtered response only adds, and only until the first
+    /// unfiltered one.
     private func learnVaults(_ vaults: [BrainGraphVaultDTO], unfiltered: Bool) {
-        if sawAllVaults { return }
         if unfiltered {
             sawAllVaults = true
-            knownVaults = Self.sorted(vaults)
+            let next = Self.sorted(vaults)
+            if next != knownVaults { knownVaults = next }
             return
         }
+        if sawAllVaults { return }
         let fresh = vaults.filter { v in !knownVaults.contains { $0.id == v.id } }
         if !fresh.isEmpty { knownVaults = Self.sorted(knownVaults + fresh) }
     }

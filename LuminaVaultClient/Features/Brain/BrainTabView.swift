@@ -7,8 +7,8 @@
 // offers comes from `BrainTrayActions`.
 //
 // Derivation order on every change: build `visible` → `selection.prune` →
-// renderer data (colours) → renderer highlight. The first two run in
-// `rederive()`; the last two are read in `body` from what it left.
+// renderer data (colours, the scene) → renderer highlight. The first three run
+// in `rederive()`; the highlight is read in `body` from what it left.
 
 import LuminaVaultShared
 import SwiftUI
@@ -138,6 +138,9 @@ struct BrainTabView: View {
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                     refreshIfShown()
                 }
+                .onChange(of: scheme) { rebuildScene() }
+                .onChange(of: palette) { rebuildScene() }
+                .onChange(of: shownView) { rebuildScene() }
                 .onChange(of: entry, initial: true) { applyEntry() }
                 .onChange(of: derivationKey, initial: true) { rederive() }
                 .onChange(of: filters) { _, next in
@@ -158,15 +161,15 @@ struct BrainTabView: View {
                 }
                 .fullScreenCover(isPresented: $showList) { listSheet }
                 .captureSheet(isPresented: $showCapture, initialMode: .photo)
-                .sheet(isPresented: $detail.isOpen) { detailSheet }
-                .sheet(isPresented: $showReasoning, onDismiss: presentAfterReasoning, content: { reasoningSheet })
-        }
                 .onChange(of: showCapture) { _, open in
                     // Once, when the empty state's Capture closes: the graph
                     // may have its first point now. Capture is processed
                     // later, so the age refresh on return still counts.
                     if !open { store.retry() }
                 }
+                .sheet(isPresented: $detail.isOpen) { detailSheet }
+                .sheet(isPresented: $showReasoning, onDismiss: presentAfterReasoning, content: { reasoningSheet })
+        }
     }
 
     // MARK: Content
@@ -199,8 +202,12 @@ struct BrainTabView: View {
             failedCard(message, showAllVaults: showAllVaults)
         case .missingFocus:
             messageCard(BrainTabState.missingFocusText) {
-                Button(BrainTabState.showFullGraphTitle) { focus = nil }
-                    .buttonStyle(.lvProminent)
+                if store.pending {
+                    pendingProgress
+                } else {
+                    Button(BrainTabState.showFullGraphTitle) { focus = nil }
+                        .buttonStyle(.lvProminent)
+                }
             }
         case .nothingMatches:
             messageCard(BrainTabState.nothingMatchesText) {
@@ -214,13 +221,8 @@ struct BrainTabView: View {
     /// Constellation's scene is made only once it is picked.
     @ViewBuilder
     private func canvas(_ visible: VisibleBrainGraph) -> some View {
-        let theme = BrainGraphTheme(palette: palette, scheme: scheme)
-        let by = filters.colourBy
-        let order = colourOrder
         let index = visible.index
-        let colourOf: (BrainGraphNodeDTO) -> Color = { node in
-            theme.categoryColour(for: BrainGraphModel.colourKey(node, by: by, index: index), order: order)
-        }
+        let colourOf = colours(visible)
         let summary = BrainTabState.selectionSummary(selection.selected, index: index)
         switch shownView {
         case .twoD:
@@ -259,14 +261,43 @@ struct BrainTabView: View {
         }
     }
 
-    private var shownView: BrainViewChoice {
-        BrainPrefs(filters: filters, view: savedView).effectiveView(explicit: nil)
+    /// Each point's colour: by vault or by the legend's order, in the theme.
+    private func colours(_ visible: VisibleBrainGraph) -> (BrainGraphNodeDTO) -> Color {
+        let theme = BrainGraphTheme(palette: palette, scheme: scheme)
+        let by = filters.colourBy
+        let order = colourOrder
+        let index = visible.index
+        return { node in
+            theme.categoryColour(for: BrainGraphModel.colourKey(node, by: by, index: index), order: order)
+        }
+    }
+
+    /// Builds what the renderer on screen draws, for the graph, colours,
+    /// theme and view now. Only the shown renderer's.
+    private func rebuildScene() {
+        guard let visible else {
+            canvasScene = nil
+            skyModel = nil
+            return
+        }
+        switch shownView {
+        case .twoD:
+            canvasScene = BrainCanvasScene(graph: visible, colourOf: colours(visible))
+            skyModel = nil
+        case .threeD:
+            skyModel = ConstellationModel(graph: visible, colourOf: colours(visible))
+            canvasScene = nil
+        }
+    }
+
     /// The tab is on screen again (or the app is): fetch an old graph again.
     private func refreshIfShown() {
         guard BrainTabState.isShown(activeTab: activeTab) else { return }
         store.refreshIfStale()
     }
 
+    private var shownView: BrainViewChoice {
+        BrainPrefs(filters: filters, view: savedView).effectiveView(explicit: nil)
     }
 
     /// The overflow menu's 2D / Constellation choice. Never asks for a graph
@@ -300,14 +331,27 @@ struct BrainTabView: View {
 
     private func failedCard(_ message: String, showAllVaults: Bool) -> some View {
         messageCard(message, icon: "exclamationmark.triangle") {
-            Button(BrainTabState.retryTitle) { store.retry() }
-                .buttonStyle(.lvProminent)
-                .accessibilityIdentifier("brain.failed.retry")
-            if showAllVaults {
-                Button(BrainTabState.showAllVaultsTitle) { filters.vaults = nil }
-                    .buttonStyle(.bordered)
+            if store.pending {
+                pendingProgress
+            } else {
+                Button(BrainTabState.retryTitle) { store.retry() }
+                    .buttonStyle(.lvProminent)
+                    .accessibilityIdentifier("brain.failed.retry")
+                if showAllVaults {
+                    Button(BrainTabState.showAllVaultsTitle) { filters.vaults = nil }
+                        .buttonStyle(.bordered)
+                }
             }
         }
+    }
+
+    /// "Show full graph" and "Show all vaults" change the request, which waits
+    /// out the store's debounce before it is sent: say so at once.
+    private var pendingProgress: some View {
+        ProgressView()
+            .controlSize(.large)
+            .accessibilityLabel(BrainTabState.firstLoadText)
+            .accessibilityIdentifier("brain.pending")
     }
 
     private func messageCard(
@@ -463,6 +507,12 @@ struct BrainTabView: View {
                 onClear: { selection.clear() },
                 onAction: { runTray($0, nodes: nodes, index: visible.index) }
             )
+            // An overlay offers the whole height, and the chips' horizontal
+            // scroll view would take it: the tray keeps its own height.
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self, of: \.size.height) { height in
+                if height > 0 { trayHeight = height }
+            }
         }
     }
 
@@ -507,12 +557,6 @@ struct BrainTabView: View {
     private func presentAfterReasoning() {
         let next = afterReasoning
         afterReasoning = nil
-            // An overlay offers the whole height, and the chips' horizontal
-            // scroll view would take it: the tray keeps its own height.
-            .fixedSize(horizontal: false, vertical: true)
-            .onGeometryChange(for: CGFloat.self, of: \.size.height) { height in
-                if height > 0 { trayHeight = height }
-            }
         next?()
     }
 
@@ -606,6 +650,7 @@ struct BrainTabView: View {
         guard let graph = loadedGraph else {
             visible = nil
             legend = ([], 0)
+            rebuildScene()
             return
         }
         let next = BrainGraphModel.visible(graph, filters: filters)
@@ -618,6 +663,7 @@ struct BrainTabView: View {
         }
         let labels = Dictionary(graph.nodes.map { ($0.id, $0.label) }, uniquingKeysWith: { a, _ in a })
         legend = BrainGraphModel.colourLegend(next, by: filters.colourBy) { labels[$0] }
+        rebuildScene()
     }
 }
 
