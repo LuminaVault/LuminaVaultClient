@@ -22,6 +22,12 @@ protocol MemoryClientProtocol: Sendable {
     /// wikilink previews.
     func get(id: UUID) async throws -> MemoryDTO
 
+    /// GET /v1/memory/{id} in the vault `vaultID` names instead of the active
+    /// one (the Brain graph spans every vault); `nil` uses the active vault.
+    /// The default ignores the vault, so existing stubs keep working; the
+    /// real HTTP client overrides it.
+    func get(id: UUID, vaultID: UUID?) async throws -> MemoryDTO
+
     /// HER-290 — PATCH /v1/memory/{id} with a reviewState body. Server
     /// validates only `pending → approved` / `pending → rejected`.
     func patch(id: UUID, _ request: MemoryPatchRequest) async throws -> MemoryDTO
@@ -61,6 +67,10 @@ protocol MemoryClientProtocol: Sendable {
 }
 
 extension MemoryClientProtocol {
+    func get(id: UUID, vaultID _: UUID?) async throws -> MemoryDTO {
+        try await get(id: id)
+    }
+
     func upsert(_ request: MemoryUpsertRequest, spaceID _: UUID?) async throws -> MemoryUpsertResponse {
         try await upsert(request)
     }

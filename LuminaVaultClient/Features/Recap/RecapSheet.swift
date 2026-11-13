@@ -104,6 +104,7 @@ struct RecapSheet: View {
                 }
             }
         }
+        .closesOnShowInGraph()
     }
 
     // MARK: - States

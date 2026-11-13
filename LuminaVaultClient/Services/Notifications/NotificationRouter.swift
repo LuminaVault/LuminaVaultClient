@@ -36,6 +36,9 @@ enum APNSDeepLink: Sendable, Equatable {
     /// calendar event, opened as a sheet. The opt-in `meeting` push carries
     /// it (and the id as `eventID`); a tap and its "Open" action alike.
     case meeting(eventID: UUID)
+    /// `luminavault://brain[/<node id>]` — the Brain tab, on the full graph or
+    /// focused on one node (a memory's id, uppercased).
+    case brain(focus: String?)
     case none
 }
 
@@ -147,6 +150,7 @@ final class NotificationRouter {
     /// * `luminavault://learned` — "What I learned this week".
     /// * `luminavault://brief` — today's brief.
     /// * `luminavault://meeting/<eventID>` — one meeting's brief.
+    /// * `luminavault://brain` and `luminavault://brain/<nodeID>` — the Brain tab.
     ///
     /// Everything else is `.none`, so `onOpenURL` can fall through to its
     /// other handlers.
@@ -158,6 +162,13 @@ final class NotificationRouter {
         }
         if url.host?.lowercased() == "brief" {
             return segments.isEmpty ? .brief : .none
+        }
+        if url.host?.lowercased() == "brain" {
+            switch segments.count {
+            case 0: return .brain(focus: nil)
+            case 1: return .brain(focus: BrainEntryRequest.normalized(segments[0]))
+            default: return .none
+            }
         }
         guard segments.count == 1, let id = UUID(uuidString: segments[0]) else { return .none }
         switch url.host?.lowercased() {
@@ -183,6 +194,8 @@ final class NotificationRouter {
         if case .brief = link { return false }
         // So is the pre-meeting brief's: a note before a meeting, not a summons.
         if case .meeting = link { return false }
+        // And for the Brain: a banner is not a reason to leave the tab you are on.
+        if case .brain = link { return false }
         return link != .none
     }
 

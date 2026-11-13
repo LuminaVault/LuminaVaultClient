@@ -351,4 +351,45 @@ struct NotificationRouterTests {
         let url = try #require(URL(string: "luminavault://meeting/\(id.uuidString.lowercased())"))
         #expect(WikilinkMarkdownView.inAppLink(for: url) == .meeting(eventID: id))
     }
+
+    // MARK: - Brain
+
+    @Test
+    func `the brain link without an id opens the full graph`() throws {
+        let url = try #require(URL(string: "luminavault://brain"))
+        #expect(NotificationRouter.deepLink(from: url) == .brain(focus: nil))
+    }
+
+    @Test
+    func `the brain link with a memory id focuses it, uppercased`() throws {
+        let id = UUID()
+        let url = try #require(URL(string: "luminavault://brain/\(id.uuidString.lowercased())"))
+        #expect(NotificationRouter.deepLink(from: url) == .brain(focus: id.uuidString.uppercased()))
+    }
+
+    @Test
+    func `the brain link keeps a node id that is not a uuid as it is`() throws {
+        let url = try #require(URL(string: "luminavault://brain/tag:home"))
+        #expect(NotificationRouter.deepLink(from: url) == .brain(focus: "tag:home"))
+    }
+
+    @Test
+    func `a brain link with more than one segment is ignored`() throws {
+        let url = try #require(URL(string: "luminavault://brain/a/b"))
+        #expect(NotificationRouter.deepLink(from: url) == .none)
+    }
+
+    @Test
+    func `a push whose deep link is brain opens the brain`() {
+        let router = NotificationRouter()
+        #expect(router.deepLink(from: [
+            "category": "someFutureCategory",
+            "deepLink": "luminavault://brain",
+        ]) == .brain(focus: nil))
+    }
+
+    @Test
+    func `a brain link waits for a tap when the app is open`() {
+        #expect(!NotificationRouter.routesOnForegroundDelivery(.brain(focus: nil)))
+    }
 }

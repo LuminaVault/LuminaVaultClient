@@ -37,6 +37,7 @@ struct RelatedMemoriesSheet: View {
                 }
             }
         }
+        .closesOnShowInGraph()
     }
 }
 

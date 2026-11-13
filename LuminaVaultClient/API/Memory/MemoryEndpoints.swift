@@ -10,6 +10,10 @@ nonisolated enum MemoryEndpoints {
     nonisolated struct Get: Endpoint {
         typealias Response = MemoryDTO
         let id: UUID
+        /// The vault the memory lives in, when it is not the active one. The
+        /// server looks the memory up in the vault the request names, and
+        /// `BaseHTTPClient` applies this after the active vault's header.
+        var vaultID: UUID?
 
         var path: String {
             "/v1/memory/\(id.uuidString.lowercased())"
@@ -17,6 +21,10 @@ nonisolated enum MemoryEndpoints {
 
         var method: HTTPMethod {
             .get
+        }
+
+        var additionalHeaders: [String: String] {
+            vaultID.map { ["X-Vault-ID": $0.uuidString] } ?? [:]
         }
     }
 

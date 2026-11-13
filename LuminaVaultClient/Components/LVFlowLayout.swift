@@ -10,8 +10,8 @@
 //
 // Lifted out of the Dashboard's skills panel, which held the original
 // private copy, when that screen was deleted.
-// `BrainNodeDetailSheet` and `WikilinkMarkdownView` still carry their own
-// private duplicates; they can adopt this and drop them.
+// `WikilinkMarkdownView` still carries its own private duplicate; it can
+// adopt this and drop it.
 
 import SwiftUI
 

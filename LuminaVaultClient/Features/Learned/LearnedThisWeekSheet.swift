@@ -56,6 +56,7 @@ struct LearnedThisWeekSheet: View {
                     )
                 })
         }
+        .closesOnShowInGraph()
     }
 
     // MARK: - States

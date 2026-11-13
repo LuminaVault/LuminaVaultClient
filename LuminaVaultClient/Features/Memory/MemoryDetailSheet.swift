@@ -36,6 +36,8 @@ struct MemoryDetailSheet: View {
                 }
             }
         }
+        // The sheet closes itself before the tab changes under it.
+        .closesOnShowInGraph()
     }
 }
 
@@ -52,6 +54,7 @@ struct MemoryDetailView: View {
     @State private var opensEditorOnLoad: Bool
     @Environment(\.dismiss) private var dismiss
     @Environment(\.lvPalette) private var palette
+    @Environment(\.lvShowInGraph) private var showInGraph
 
     private let client: any MemoryClientProtocol
     private let spacesClient: (any SpacesClientProtocol)?
@@ -181,6 +184,16 @@ struct MemoryDetailView: View {
             }
 
             relatedSection
+
+            if let showInGraph {
+                Section {
+                    Button(BrainShowInGraph.title, systemImage: "brain") {
+                        showInGraph(memory.id)
+                    }
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("memory.showInGraph")
+                }
+            }
 
             Section {
                 Button("Delete memory", systemImage: "trash", role: .destructive) {

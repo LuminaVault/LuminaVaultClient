@@ -1,182 +1,239 @@
-import Foundation
+// Ask how things connect: the question box, the streamed answer, the evidence
+// behind it, the reasoning paths, and the connections the extractor proposed
+// for review. A port of the web app's `BrainReasoningPanel.svelte`, same
+// strings. A sheet that stops at medium height with the graph still usable
+// behind it, so the memories an answer names can be seen lighting up.
+
 import LuminaVaultShared
 import SwiftUI
 
 struct KnowledgeReasoningSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.lvPalette) private var palette
-    @State var viewModel: KnowledgeReasoningViewModel
+
+    let viewModel: KnowledgeReasoningViewModel
+    /// The active vault's name; answers come from it alone.
+    let vaultName: String?
     let memoryClient: (any MemoryClientProtocol)?
+
     @State private var selectedEvidence: KnowledgeEvidenceDTO?
 
     var body: some View {
+        @Bindable var viewModel = viewModel
         NavigationStack {
             List {
-                if !viewModel.selectedNodes.isEmpty {
-                    Section("Selected connection") {
-                        Text(viewModel.selectedNodes.map(\.label).joined(separator: "  ↔  "))
-                        if viewModel.selectedNodes.count == 1 {
-                            Text("Select another node in the graph to explain their connection.")
-                                .font(.caption)
-                                .foregroundStyle(palette.textSecondary)
-                        }
-                        Button("Clear selection", systemImage: "xmark.circle") {
-                            viewModel.clearSelection()
-                        }
-                    }
-                }
-
-                Section("Ask your graph") {
-                    TextField("What changed my view on…?", text: $viewModel.query, axis: .vertical)
+                Section {
+                    TextField("Ask how your notes connect…", text: $viewModel.query, axis: .vertical)
                         .lineLimit(2 ... 5)
-                    Button("Trace evidence", systemImage: "point.3.connected.trianglepath.dotted", action: runReasoning)
-                        .disabled(viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isReasoning)
+                        .submitLabel(.send)
+                        .onSubmit { viewModel.reason() }
+                        .accessibilityLabel("Question")
+                        .accessibilityIdentifier("brain.reasoning.question")
+                    Button(viewModel.loading ? "Asking…" : "Ask") { viewModel.reason() }
+                        .disabled(viewModel.loading || viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .accessibilityIdentifier("brain.reasoning.ask")
                 }
 
-                if viewModel.isReasoning {
-                    Section { ProgressView("Following connections…") }
+                if let error = viewModel.error {
+                    Section {
+                        BrainErrorLine(message: error)
+                    }
                 }
 
-                if let result = viewModel.result {
-                    Section("Grounded answer") {
-                        Text(result.answer)
-                        LabeledContent("Confidence", value: result.confidence, format: .percent.precision(.fractionLength(0)))
-                        ForEach(result.caveats, id: \.self) { caveat in
-                            Label(caveat, systemImage: "exclamationmark.triangle")
-                                .foregroundStyle(palette.accent)
+                if viewModel.loading, viewModel.result == nil, viewModel.explanation == nil {
+                    Section {
+                        HStack(spacing: LVSpacing.sm) {
+                            ProgressView()
+                            Text(Self.tracingText).foregroundStyle(palette.textSecondary)
                         }
-                    }
-                    if !result.evidence.isEmpty {
-                        Section("Evidence") {
-                            ForEach(result.evidence) { evidence in
-                                Button {
-                                    selectedEvidence = evidence
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        Text(evidence.quote)
-                                            .font(.callout)
-                                            .foregroundStyle(palette.textPrimary)
-                                        Label("Open source memory", systemImage: "doc.text.magnifyingglass")
-                                            .font(.caption)
-                                            .foregroundStyle(palette.primary)
-                                    }
-                                }
-                                .accessibilityLabel("Open evidence: \(evidence.quote)")
-                            }
-                        }
-                    }
-                    if !result.paths.isEmpty {
-                        Section("Reasoning paths") {
-                            ForEach(result.paths) { path in
-                                Button {
-                                    viewModel.selectPath(path.id)
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text(path.nodes.map(\.label).joined(separator: "  →  "))
-                                            .font(.callout)
-                                        LabeledContent(
-                                            "Path confidence",
-                                            value: path.confidence,
-                                            format: .percent.precision(.fractionLength(0))
-                                        )
-                                        .font(.caption)
-                                        .foregroundStyle(palette.textSecondary)
-                                    }
-                                }
-                                .listRowBackground(viewModel.selectedPathID == path.id ? palette.accent.opacity(0.14) : Color.clear)
-                                .accessibilityElement(children: .combine)
-                            }
-                        }
-                    }
-                    if !result.suggestions.isEmpty {
-                        Section("Connections to review") {
-                            ForEach(result.suggestions) { edge in
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Button(edge.predicate.accessibleLabel, systemImage: "questionmark.circle") {
-                                        Task { await viewModel.explain(edge) }
-                                    }
-                                    Text(edge.rationale ?? "Machine-inferred connection")
-                                        .font(.caption)
-                                        .foregroundStyle(palette.textSecondary)
-                                    if let counterEvidence = edge.counterEvidence, !counterEvidence.isEmpty {
-                                        Label(counterEvidence, systemImage: "exclamationmark.triangle")
-                                            .font(.caption)
-                                            .foregroundStyle(palette.accent)
-                                            .accessibilityLabel("Uncertainty: \(counterEvidence)")
-                                    }
-                                    HStack {
-                                        Button("Confirm", systemImage: "checkmark.circle") {
-                                            Task { await viewModel.review(edge, action: .confirm) }
-                                        }
-                                        Button("Dismiss", systemImage: "xmark.circle") {
-                                            Task { await viewModel.review(edge, action: .dismiss) }
-                                        }
-                                    }
-                                    .buttonStyle(.bordered)
-                                }
-                            }
-                        }
+                        .accessibilityElement(children: .combine)
                     }
                 }
 
                 if let explanation = viewModel.explanation {
-                    Section("Why this connects") {
-                        Text(explanation.explanation)
-                        LabeledContent("Path confidence", value: explanation.confidence, format: .percent.precision(.fractionLength(0)))
-                        ForEach(explanation.caveats, id: \.self) { caveat in
-                            Label(caveat, systemImage: "sparkles")
-                        }
-                        ForEach(explanation.paths) { path in
-                            Button {
-                                viewModel.selectPath(path.id)
-                            } label: {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(path.nodes.map(\.label).joined(separator: "  →  "))
-                                        .font(.callout)
-                                    Text(path.confidence, format: .percent.precision(.fractionLength(0)))
-                                        .font(.caption)
-                                        .foregroundStyle(palette.textSecondary)
-                                }
-                            }
-                            .listRowBackground(viewModel.selectedPathID == path.id ? palette.accent.opacity(0.14) : Color.clear)
-                        }
-                    }
+                    explanationSection(explanation)
                 }
 
-                if let error = viewModel.errorMessage {
-                    Section { Text(error).foregroundStyle(.red) }
+                if let result = viewModel.result {
+                    resultSections(result)
+                }
+
+                // The vault line stays with an answer on show: the graph spans
+                // every vault, the answers do not.
+                Section {
+                    if !viewModel.loading, viewModel.result == nil, viewModel.explanation == nil, viewModel.error == nil {
+                        Text("Ask how your notes and memories connect.")
+                            .foregroundStyle(palette.textPrimary)
+                    }
+                    Text("Answers draw on the knowledge in \(vaultName ?? "your current vault").")
+                        .font(.footnote)
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
-            .navigationTitle("Reasoning")
+            .textCase(nil)
+            // The answer arrives below the fold of a medium sheet: say when
+            // the work starts and how it ended.
+            .onAppear { if viewModel.loading { announceProgress() } }
+            .onChange(of: viewModel.loading) { announceProgress() }
+            .navigationTitle("Ask your graph")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done", action: dismiss.callAsFunction)
                 }
             }
-            .task { await viewModel.loadIfNeeded() }
             .sheet(item: $selectedEvidence) { evidence in
                 KnowledgeEvidenceDetailSheet(evidence: evidence, memoryClient: memoryClient)
             }
         }
+        .presentationDetents([.medium, .large])
+        // No focus on open (the web panel does focus its question box): the
+        // keyboard would lift the sheet to full height and cover the graph
+        // and the memories the answer lights up.
+        .presentationBackgroundInteraction(.enabled(upThrough: .medium))
     }
 
-    private func runReasoning() {
-        Task { await viewModel.reason() }
-    }
-}
+    // MARK: Sections
 
-private extension KnowledgeEdgePredicateDTO {
-    var accessibleLabel: String {
-        switch self {
-        case .mentions: "Explain mention"
-        case .about: "Explain topic connection"
-        case .supports: "Explain supporting connection"
-        case .contradicts: "Explain contradiction"
-        case .causes: "Explain causal connection"
-        case .precedes: "Explain timeline connection"
-        case .relatedTo: "Explain related connection"
-        case .derivedFrom: "Explain source connection"
+    private func explanationSection(_ explanation: ConnectionExplanationResponse) -> some View {
+        Section("Why this connects") {
+            if let subject = viewModel.explanationSubject {
+                Text(subject).font(.headline)
+            }
+            Text(explanation.explanation)
+            confidence(explanation.confidence, "confidence")
+            ForEach(explanation.caveats, id: \.self, content: caveat)
+            ForEach(explanation.paths, content: pathRow)
         }
+    }
+
+    @ViewBuilder
+    private func resultSections(_ result: ReasoningQueryResponse) -> some View {
+        Section("Answer") {
+            Text(result.answer.isEmpty ? " " : result.answer)
+                .textSelection(.enabled)
+            confidence(result.confidence, "confidence")
+            ForEach(result.caveats, id: \.self, content: caveat)
+        }
+
+        if !result.evidence.isEmpty {
+            Section("Evidence") {
+                ForEach(result.evidence) { evidence in
+                    Button { selectedEvidence = evidence } label: {
+                        VStack(alignment: .leading, spacing: LVSpacing.xs) {
+                            Text(evidence.quote)
+                                .foregroundStyle(palette.textPrimary)
+                            Text("Open memory")
+                                .font(.caption)
+                                .foregroundStyle(palette.primary)
+                        }
+                    }
+                }
+            }
+        }
+
+        if !result.paths.isEmpty {
+            Section("Paths") {
+                ForEach(result.paths, content: pathRow)
+            }
+        }
+
+        if !result.suggestions.isEmpty {
+            Section("Connections to review") {
+                ForEach(result.suggestions, content: suggestionRow)
+            }
+        }
+    }
+
+    private func pathRow(_ path: KnowledgePathDTO) -> some View {
+        let selected = viewModel.selectedPathID == path.id
+        return Button {
+            viewModel.selectPath(selected ? nil : path.id)
+        } label: {
+            VStack(alignment: .leading, spacing: LVSpacing.xs) {
+                Text(Self.pathLabel(path))
+                    .foregroundStyle(palette.textPrimary)
+                Text("\(Self.pct(path.confidence)) path confidence")
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+            }
+        }
+        .listRowBackground(selected ? palette.surfaceElevated : nil)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func suggestionRow(_ edge: KnowledgeEdgeDTO) -> some View {
+        VStack(alignment: .leading, spacing: LVSpacing.sm) {
+            Button("\(Self.predicate(edge)) · \(Self.pct(edge.confidence))") {
+                viewModel.explainNodes(from: edge.from, to: edge.to)
+            }
+            .buttonStyle(.borderless)
+            if let rationale = edge.rationale, !rationale.isEmpty {
+                Text(rationale)
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+            }
+            if let counter = edge.counterEvidence, !counter.isEmpty {
+                caveat(counter).font(.caption)
+            }
+            HStack(spacing: LVSpacing.sm) {
+                Button("Confirm") { viewModel.review(edge, action: .confirm) }
+                    .buttonStyle(.bordered)
+                Button("Dismiss") { viewModel.review(edge, action: .dismiss) }
+                    .buttonStyle(.borderless)
+            }
+            .disabled(viewModel.reviewing != nil)
+        }
+        .padding(.vertical, LVSpacing.xs)
+    }
+
+    private func confidence(_ value: Double, _ noun: String) -> some View {
+        Text("\(Self.pct(value)) \(noun)")
+            .font(.caption)
+            .foregroundStyle(palette.textSecondary)
+    }
+
+    private func caveat(_ text: String) -> some View {
+        Label(text, systemImage: "exclamationmark.triangle")
+            .foregroundStyle(palette.accent)
+    }
+
+    // MARK: VoiceOver
+
+    static let tracingText = "Tracing the connection…"
+    static let answerReadyText = "Answer ready"
+
+    /// What VoiceOver hears as the sheet's work starts or ends: the progress
+    /// line, the error, or that an answer is there; nil when there is none.
+    /// On open it is said only while the work is under way, never for an
+    /// answer already on show.
+    static func progressNote(loading: Bool, error: String?, answered: Bool) -> String? {
+        if loading { return tracingText }
+        if let error { return error }
+        return answered ? answerReadyText : nil
+    }
+
+    private func announceProgress() {
+        guard let note = Self.progressNote(
+            loading: viewModel.loading,
+            error: viewModel.error,
+            answered: viewModel.result != nil || viewModel.explanation != nil
+        ) else { return }
+        AccessibilityNotification.Announcement(note).post()
+    }
+
+    // MARK: Formatting (the web panel's helpers)
+
+    static func pct(_ n: Double) -> String {
+        "\(Int((n * 100).rounded()))%"
+    }
+
+    static func pathLabel(_ path: KnowledgePathDTO) -> String {
+        let label = path.nodes.map(\.label).joined(separator: " → ")
+        return label.isEmpty ? "Path" : label
+    }
+
+    static func predicate(_ edge: KnowledgeEdgeDTO) -> String {
+        edge.predicate.rawValue.replacingOccurrences(of: "_", with: " ")
     }
 }

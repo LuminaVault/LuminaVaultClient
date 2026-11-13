@@ -28,6 +28,10 @@ struct MainTabView: View {
     @Environment(\.lvPalette) private var palette
 
     @State private var selection: AppTab = .home
+    /// The latest way into the Brain tab; the tab applies each once.
+    @State private var brainEntry: BrainEntryRequest?
+    /// Only grows: the token of the last request made, applied or not.
+    @State private var brainEntryToken = 0
     /// Phase 1 — non-nil while an approval / run-completed push is being
     /// shown. `.sheet(item:)` needs an `Identifiable`, and a bare `UUID?`
     /// would re-present for the same run on every republished deep link.
@@ -141,6 +145,7 @@ struct MainTabView: View {
         .accessibilityHidden(quickAssistant != nil)
         .lvAnimation(LVMotion.standard, value: shellActivity.busy && selection != .think)
         .environment(shellActivity)
+        .environment(\.lvShowInGraph, { id in showInGraph(id) })
         .background { keyboardShortcuts }
         .sheet(isPresented: $showCommandPalette, onDismiss: {
             if communityAfterPalette {
@@ -372,6 +377,7 @@ struct MainTabView: View {
             routePendingLearned()
             routePendingBrief()
             routePendingMeeting()
+            routePendingBrain()
         }
         .task(id: captureCoordinator?.queue == nil) {
             guard captureFailures == nil, captureCoordinator?.queue != nil else { return }
@@ -629,6 +635,34 @@ struct MainTabView: View {
         }
     }
 
+    /// `luminavault://brain[/<node id>]`. A place to go, not a sheet: the Brain
+    /// tab, on the full graph or focused on the node.
+    private func routePendingBrain() {
+        guard case let .brain(focus) = notificationRouter.pendingDeepLink else { return }
+        _ = notificationRouter.consume()
+        openBrain(focus: focus)
+    }
+
+    /// "Show in graph" on a memory.
+    private func showInGraph(_ memoryID: UUID) {
+        openBrain(focus: memoryID.uuidString)
+    }
+
+    /// The one way into the Brain tab. Every sheet this view presents gives
+    /// way to it (sheets the Home and other tabs present close themselves, see
+    /// `closesOnShowInGraph`).
+    private func openBrain(focus: String?) {
+        pendingMemory = nil
+        showingLearned = false
+        showingBrief = false
+        pendingMeeting = nil
+        showSettings = false
+        let request = BrainEntryRequest.next(focus: focus, afterToken: brainEntryToken)
+        brainEntryToken = request.token
+        brainEntry = request
+        selection = .brain
+    }
+
     /// `luminavault://learned` — the weekly "What I learned" push, its
     /// Review action, or the URL. A sheet over whatever tab is up, like a
     /// memory, and routed from `.task(id:)` for the same cold-start reason.
@@ -736,9 +770,11 @@ struct MainTabView: View {
     /// bar to attach to.
     private var brainTab: some View {
         BrainTabView(
-            client: memoryGraphClient,
-            knowledgeClient: knowledgeGraphClient,
-            memoryClient: memoryUpsertClient
+            client: brainGraphClient,
+            memoryClient: memoryUpsertClient,
+            knowledgeClient: KnowledgeGraphHTTPClient(client: appState.makeHTTPClient()),
+            activeVault: { [store = appState.activeVaultStore] in await store.selectedVaultID() },
+            entry: $brainEntry
         )
     }
 
@@ -847,12 +883,9 @@ struct MainTabView: View {
         return viewModel
     }
 
-    private var memoryGraphClient: MemoryGraphClientProtocol {
-        MemoryGraphHTTPClient(client: appState.makeHTTPClient())
-    }
-
-    private var knowledgeGraphClient: KnowledgeGraphClientProtocol {
-        KnowledgeGraphHTTPClient(client: appState.makeHTTPClient())
+    /// `GET /v1/brain/graph`.
+    private var brainGraphClient: BrainGraphClientProtocol {
+        BrainGraphHTTPClient(client: appState.makeHTTPClient())
     }
 
     private var jobsClient: JobsClientProtocol {

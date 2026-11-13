@@ -1,575 +1,803 @@
-// LuminaVaultClient/LuminaVaultClient/Features/Brain/BrainTabView.swift
+// The Brain tab: one graph of notes and memories across every vault. This view
+// wires the store (when to ask the server), the model (what is visible), the
+// selection, the renderer (the 2D canvas, or the Constellation once picked),
+// the selection tray, the detail sheet and the reasoning sheet, and owns no
+// rules of its own: which card shows, the badge, the status line, the request
+// and the 2D / Constellation switch come from `BrainTabState`; what the tray
+// offers comes from `BrainTrayActions`.
 //
-// HER-235 — root view for the Brain tab. Owns the view-model, runs the
-// initial fetch on appear, and routes graph node taps through the detail
-// sheet. The sci-fi background (nebula + star field) comes from the
-// existing `.lvBackground()` modifier so the graph sits naturally inside
-// the app's visual identity.
+// Derivation order on every change: build `visible` → `selection.prune` →
+// renderer data (colours, the scene) → renderer highlight. The first three run
+// in `rederive()`; the highlight is read in `body` from what it left.
 
 import LuminaVaultShared
 import SwiftUI
 
 struct BrainTabView: View {
-    private enum GraphLayer: String, CaseIterable, Identifiable {
-        case knowledge = "Knowledge"
-        case memories = "Memories"
+    @Environment(\.lvPalette) private var palette
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.captureCoordinator) private var captureCoordinator
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The shell's tab selection: the active vault is read again when it changes.
+    @Environment(\.lvActiveTab) private var activeTab
 
-        var id: Self {
-            self
-        }
+    @State private var store: BrainGraphStore
+    @State private var selection = BrainSelection()
+    @State private var filters: BrainGraphFilters
+    /// The point the graph is focused on, and how many steps out. View state,
+    /// set by the tray or a deep link.
+    @State private var focus: String?
+    @State private var depth = 1
+    @State private var similarAsked: Bool
+    /// The focus whose point has been selected once already.
+    @State private var focusSelectedFor: String?
+
+    // Derived by `rederive()`.
+    @State private var visible: VisibleBrainGraph?
+    @State private var legend: (keys: [BrainLegendKey], more: Int) = ([], 0)
+    /// What the renderer on screen draws, built only when the graph, the
+    /// colours, the theme or the view change (`rebuildScene`), never on a
+    /// search keystroke or a selection.
+    @State private var canvasScene: BrainCanvasScene?
+    @State private var skyModel: ConstellationModel?
+    /// The selection tray's last measured height. The tray is overlaid, so
+    /// selecting never resizes the renderer; this only centres a searched
+    /// point above it. Kept when the tray goes, for the next search.
+    @State private var trayHeight = BrainTabState.trayHeightEstimate
+    /// The renderer's height, which caps the tray's.
+    @State private var canvasHeight: CGFloat = 0
+
+    @State private var searchText = ""
+    @State private var searchPresented = false
+    @State private var centre: BrainCentreRequest?
+    @State private var showFilters = false
+    @State private var showList = false
+    @State private var showCapture = false
+
+    // Tray, detail and reasoning.
+    @State private var detail: BrainNodeDetail
+    @State private var reasoning: KnowledgeReasoningViewModel?
+    @State private var showReasoning = false
+    /// What to present once the reasoning sheet has gone.
+    @State private var afterReasoning: (() -> Void)?
+    /// Read when the tab appears and each time the tab changes; the reasoning
+    /// routes are scoped to it.
+    @State private var activeVaultID: UUID?
+    @State private var activeVaultTracker = BrainActiveVaultTracker()
+    /// The entry request last applied (or seeded into the first focus).
+    @State private var appliedEntry: Int?
+
+    /// The stored 2D / Constellation choice; nil until one is picked (2D).
+    @State private var savedView: BrainViewChoice?
+    private let prefsDefaults: UserDefaults?
+    private let memoryClient: (any MemoryClientProtocol)?
+    private let activeVault: @Sendable () async -> UUID?
+    /// The shell's latest request; cleared once applied.
+    @Binding private var entry: BrainEntryRequest?
+
+    /// `memoryClient` loads a memory for Open; `knowledgeClient` answers the
+    /// reasoning sheet (Explain and Ask are disabled without it);
+    /// `activeVault` names the vault those answers come from.
+    init(
+        client: any BrainGraphClientProtocol,
+        memoryClient: (any MemoryClientProtocol)? = nil,
+        knowledgeClient: (any KnowledgeGraphClientProtocol)? = nil,
+        activeVault: @escaping @Sendable () async -> UUID? = { nil },
+        focus: String? = nil,
+        entry: Binding<BrainEntryRequest?> = .constant(nil),
+        prefs: UserDefaults? = .standard,
+        refreshAge: TimeInterval = BrainGraphStore.refreshAge
+    ) {
+        // A request that made this tab is part of its first request, not a
+        // second one after it.
+        let first = BrainEntryRequest.apply(entry.wrappedValue, lastApplied: nil)
+        let stored = BrainPrefs.load(from: prefs)
+        _store = State(initialValue: BrainGraphStore(client: client, refreshAge: refreshAge))
+        _detail = State(initialValue: BrainNodeDetail(client: memoryClient))
+        _reasoning = State(initialValue: knowledgeClient.map { KnowledgeReasoningViewModel(client: $0) })
+        self.memoryClient = memoryClient
+        self.activeVault = activeVault
+        var startFilters = stored.filters
+        if let first { startFilters.vaults = first.vaults(keeping: startFilters.vaults) }
+        _filters = State(initialValue: startFilters)
+        _similarAsked = State(initialValue: BrainTabState.similarAsked(previously: false, filters: startFilters))
+        _focus = State(initialValue: first.map(\.focus) ?? focus)
+        _appliedEntry = State(initialValue: first?.token)
+        _entry = entry
+        _savedView = State(initialValue: stored.view)
+        prefsDefaults = prefs
     }
 
-    @Environment(\.lvPalette) private var palette
-    @Environment(AppState.self) private var appState
+    private var request: BrainGraphRequest {
+        BrainTabState.request(
+            vaults: filters.vaults, known: store.knownVaults.map(\.id),
+            focus: focus, depth: depth, similarAsked: similarAsked
+        )
+    }
 
-    private static let initialGraphLimit = 200
-    private static let edgeKindOrder: [MemoryEdgeKindDTO] = [.wikilink, .tag, .space, .semantic, .temporal]
-
-    @State private var vm: BrainGraphViewModel
-    @State private var reasoningViewModel: KnowledgeReasoningViewModel
-    @State private var reloadTask: Task<Void, Never>?
-    @State private var showReasoning = false
-    /// Prefer Memories until Knowledge has nodes — most tenants land empty
-    /// on Knowledge (confidence floor / extraction lag) and read as "broken".
-    @State private var graphLayer: GraphLayer = .memories
-    @State private var didAutoPickLayer = false
-
-    /// Loads a single memory's full content when a memory node is opened
-    /// (HER-235 open-on-click). Passed through to `BrainNodeDetailSheet`.
-    private let memoryClient: (any MemoryClientProtocol)?
-
-    /// Client-side edge-kind filter. The server returns every kind by
-    /// default; toggling a chip hides that kind in-place with no refetch.
-    /// Memory-centric reframe: `.temporal` starts OFF (its day-chains add
-    /// hairball noise to the knowledge network); still toggleable.
-    @State private var activeEdgeKinds: Set<MemoryEdgeKindDTO> = [
-        .wikilink, .tag, .space, .semantic,
-    ]
-    /// Source nodes = the user's captures (notes, saved links, images). They
-    /// start visible so captured content shows on the graph, but render as
-    /// small dim satellites (see `BrainGraphEngine`) so memories stay primary.
-    /// `filtered(_:)` drops them and any edge touching them with no refetch.
-    @State private var showWikiPages = true
-
-    init(
-        client: any MemoryGraphClientProtocol,
-        knowledgeClient: any KnowledgeGraphClientProtocol,
-        memoryClient: (any MemoryClientProtocol)? = nil
-    ) {
-        _vm = State(initialValue: BrainGraphViewModel(client: client))
-        _reasoningViewModel = State(initialValue: KnowledgeReasoningViewModel(client: knowledgeClient))
-        self.memoryClient = memoryClient
+    private var card: BrainTabCard {
+        BrainTabState.card(state: store.state, request: store.request, visible: visible)
     }
 
     var body: some View {
         NavigationStack {
             content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(palette.backgroundBase)
                 .navigationTitle("Brain")
                 .navigationBarTitleDisplayMode(.inline)
-                // The graph's own controls belong to the navigation bar and a
-                // bottom bar, not to buttons floating over the canvas: the
-                // native tab bar already owns that corner of the screen.
-                .safeAreaInset(edge: .bottom) { filterBar }
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button("Reason", systemImage: "point.3.connected.trianglepath.dotted") {
-                            showReasoning = true
-                        }
-                    }
-                    ToolbarItem(placement: .principal) {
-                        graphLayerPicker
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            reloadTask?.cancel()
-                            Task { await loadGraph() }
-                        } label: {
-                            LVIconView(.arrowClockwise, label: "Reload graph")
-                        }
-                        .disabled(isLoading)
-                    }
-                }
-                // Declared inside the stack, beside the toolbar above: a
-                // `.toolbar` on the view that *contains* a `NavigationStack`
-                // has no bar to attach to and is silently dropped.
+                .safeAreaInset(edge: .top, spacing: 0) { statusBar }
+                .toolbar { toolbar }
+                // Declared inside the stack: a `.toolbar` on the view that
+                // contains a `NavigationStack` has no bar to attach to.
                 .captureToolbarItem()
-                .task { await loadGraph() }
-                .onChange(of: showWikiPages) { _, _ in scheduleGraphReload() }
-                .onChange(of: activeEdgeKinds) { _, _ in scheduleGraphReload() }
-                .onDisappear { reloadTask?.cancel() }
-                .sheet(item: selectedBinding) { node in
-                    BrainNodeDetailSheet(node: node, memoryClient: memoryClient)
+                .searchable(text: $searchText, isPresented: $searchPresented, prompt: BrainTabState.searchPrompt)
+                .searchSuggestions { searchSuggestions }
+                .task(id: request) { store.sync(request) }
+                .task(id: activeTab) { await readActiveVault() }
+                // Back on the tab or in the app: an old graph is fetched again.
+                .onChange(of: activeTab) { refreshIfShown() }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                    refreshIfShown()
                 }
-                .sheet(isPresented: $showReasoning) {
-                    KnowledgeReasoningSheet(viewModel: reasoningViewModel, memoryClient: memoryClient)
+                .onChange(of: scheme) { rebuildScene() }
+                .onChange(of: palette) { rebuildScene() }
+                .onChange(of: shownView) { rebuildScene() }
+                .onChange(of: entry, initial: true) { applyEntry() }
+                .onChange(of: derivationKey, initial: true) { rederive() }
+                .onChange(of: filters) { _, next in
+                    similarAsked = BrainTabState.similarAsked(previously: similarAsked, filters: next)
+                    BrainPrefs(filters: next, view: savedView).save(to: prefsDefaults)
+                    rederive()
                 }
+                .onChange(of: focus) { _, next in
+                    if next == nil {
+                        depth = 1
+                        focusSelectedFor = nil
+                    }
+                }
+                .sheet(isPresented: $showFilters) {
+                    filterSheet
+                        // A medium form sheet on an iPad shows two rows.
+                        .presentationDetents(sizeClass == .regular ? [.large] : [.medium, .large])
+                }
+                .fullScreenCover(isPresented: $showList) { listSheet }
+                .captureSheet(isPresented: $showCapture, initialMode: .photo)
+                .onChange(of: showCapture) { _, open in
+                    // Once, when the empty state's Capture closes: the graph
+                    // may have its first point now. Capture is processed
+                    // later, so the age refresh on return still counts.
+                    if !open { store.retry() }
+                }
+                .sheet(isPresented: $detail.isOpen) { detailSheet }
+                .sheet(isPresented: $showReasoning, onDismiss: presentAfterReasoning, content: { reasoningSheet })
         }
     }
+
+    // MARK: Content
 
     @ViewBuilder
     private var content: some View {
-        switch vm.state {
-        case .loading:
-            loadingState
-        case .idle:
-            // `.idle` after `.task { loadGraph() }` has run means the load was
-            // aborted, not that it is still in flight. Rendering it as
-            // `loadingState` is what made the Brain tab spin on "Building your
-            // brain…" forever when TLS pinning cancelled every request.
-            idleState
-        case let .loaded(graph):
-            Group {
-                if graphLayer == .knowledge {
-                    knowledgeGraphContent
-                } else if graph.nodes.isEmpty {
-                    emptyState
-                } else if #available(iOS 18.0, *) {
-                    BrainGraphRealityView(graph: filtered(graph)) { id in
-                        vm.selectedNodeID = id
-                    }
-                    .lvBackground()
-                } else {
-                    BrainGraphCanvas(graph: filtered(graph)) { id in
-                        vm.selectedNodeID = id
-                    }
-                    .lvBackground()
-                }
-            }
-            .onAppear { pickInitialLayerIfNeeded(memoryGraph: graph) }
-            .onChange(of: reasoningViewModel.graphState) { _, _ in
-                pickInitialLayerIfNeeded(memoryGraph: graph)
-            }
-        case let .failed(message):
-            // Memory failure must not own the whole tab — Knowledge may still
-            // work, and the layer picker in the bar is the way back to it.
-            if graphLayer == .knowledge {
-                knowledgeGraphContent
-            } else {
-                errorState(message)
-            }
-        }
-    }
-
-    /// The bottom bar under the graph: the edge-kind filters on the memory
-    /// layer, the selection/explain controls on the knowledge one. Empty —
-    /// and therefore absent — until there is a graph to filter.
-    @ViewBuilder
-    private var filterBar: some View {
-        if case let .loaded(graph) = vm.state {
-            if graphLayer == .knowledge {
-                barStrip {
-                    KnowledgeSelectionBar(viewModel: reasoningViewModel) {
-                        showReasoning = true
-                    }
-                }
-            } else if !graph.nodes.isEmpty {
-                barStrip {
-                    GraphLegend(
-                        activeEdgeKinds: $activeEdgeKinds,
-                        showWikiPages: $showWikiPages,
-                        hasWikiPages: graph.nodes.contains { $0.kind == .wikiPage }
-                    )
-                }
-            }
-        }
-    }
-
-    /// Standard bar chrome. Horizontal padding is the content's own so a
-    /// horizontally scrolling row can still run to both edges.
-    private func barStrip(@ViewBuilder _ content: () -> some View) -> some View {
-        content()
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity)
-            .background(.bar)
-    }
-
-    private func pickInitialLayerIfNeeded(memoryGraph: MemoryGraphResponse) {
-        guard !didAutoPickLayer else { return }
-        switch reasoningViewModel.graphState {
-        case let .ready(knowledge) where !knowledge.nodes.isEmpty:
-            graphLayer = .knowledge
-            didAutoPickLayer = true
-        case .ready, .unavailable:
-            graphLayer = memoryGraph.nodes.isEmpty ? .knowledge : .memories
-            didAutoPickLayer = true
-        case .idle, .loading:
-            break
-        }
-    }
-
-    // MARK: - States
-
-    private var isLoading: Bool {
-        if case .loading = vm.state {
-            return true
-        }
-        return false
-    }
-
-    private var requestKinds: [MemoryEdgeKindDTO] {
-        Self.edgeKindOrder.filter { activeEdgeKinds.contains($0) }
-    }
-
-    private func loadGraph() async {
-        await vm.load(
-            limit: Self.initialGraphLimit,
-            includeWikiPages: showWikiPages,
-            kinds: requestKinds
-        )
-        await reasoningViewModel.load()
-    }
-
-    @ViewBuilder
-    private var knowledgeGraphContent: some View {
-        switch reasoningViewModel.graphState {
-        case .idle, .loading:
-            loadingState
-        case let .unavailable(message):
-            VStack(spacing: 12) {
-                LVIconView(.exclamationmarkTriangleFill, size: 38, tint: palette.accent)
-                Text("Reasoning graph unavailable")
-                    .font(.headline)
-                    .foregroundStyle(palette.textPrimary)
-                Text(message)
-                    .font(.caption)
-                    .multilineTextAlignment(.center)
+        switch card {
+        case .firstLoad:
+            VStack(spacing: LVSpacing.base) {
+                ProgressView().controlSize(.large)
+                Text(BrainTabState.firstLoadText)
+                    .font(.callout)
                     .foregroundStyle(palette.textSecondary)
-                Button("Show memory graph") { graphLayer = .memories }
-                    .buttonStyle(.lvProminent)
             }
-            .padding(32)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .lvBackground()
-        case let .ready(graph) where graph.nodes.isEmpty:
-            VStack(spacing: 16) {
-                LVEmptyState(
-                    mascot: .thinking,
-                    headline: "No reasoning graph yet.",
-                    supporting: "New memories are converted into claims, entities, events, and evidence-backed connections."
-                )
-                Button("Show memory graph") { graphLayer = .memories }
-                    .buttonStyle(.lvProminent)
-                    .tint(palette.primary)
+            .accessibilityElement(children: .combine)
+        case .graph:
+            if let visible {
+                canvas(visible)
+                    .onGeometryChange(for: CGFloat.self, of: \.size.height) { canvasHeight = $0 }
+                    // Over the renderer, not a safe-area inset: the renderer
+                    // keeps its size when the tray comes and goes, so
+                    // selecting never refits or recentres the camera.
+                    .overlay(alignment: .bottom) {
+                        tray(visible)
+                            .animation(trayMotion, value: selection.selected.isEmpty)
+                    }
+                #if DEBUG
+                    .overlayPreferenceValue(BrainUITestProbeKey.self) { BrainUITestProbeMark(point: $0) }
+                #endif
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .lvBackground()
-        case let .ready(graph):
-            let projected = KnowledgeGraphProjection.make(
-                graph: graph,
-                focusedPath: reasoningViewModel.selectedPath,
-                selectedNodeIDs: Set(reasoningViewModel.selectedNodeIDs)
-            )
-            let identity = "\(reasoningViewModel.selectedPathID?.uuidString ?? "all")-\(reasoningViewModel.selectedNodeIDs.map(\.uuidString).joined())"
-            if projected.nodes.isEmpty {
-                VStack(spacing: 12) {
-                    Text("Nothing to show for this path.")
-                        .font(.headline)
-                        .foregroundStyle(palette.textPrimary)
-                    Button("Show all memories") { graphLayer = .memories }
+        case .empty:
+            emptyCard
+        case let .failed(message, showAllVaults):
+            failedCard(message, showAllVaults: showAllVaults)
+        case .missingFocus:
+            messageCard(BrainTabState.missingFocusText, icon: "questionmark.circle") {
+                if store.pending {
+                    pendingProgress
+                } else {
+                    Button(BrainTabState.showFullGraphTitle) { focus = nil }
                         .buttonStyle(.lvProminent)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .lvBackground()
-            } else if #available(iOS 18.0, *) {
-                BrainGraphRealityView(graph: projected, onSelect: selectKnowledgeNode)
-                    .id(identity)
-                    .lvBackground()
-            } else {
-                BrainGraphCanvas(graph: projected, onSelect: selectKnowledgeNode)
-                    .id(identity)
-                    .lvBackground()
+            }
+        case .nothingMatches:
+            messageCard(BrainTabState.nothingMatchesText, icon: "line.3.horizontal.decrease.circle") {
+                Button(BrainTabState.resetFiltersTitle, action: resetFilters)
+                    .buttonStyle(.lvProminent)
             }
         }
     }
 
-    private var graphLayerPicker: some View {
-        Picker("Graph layer", selection: $graphLayer) {
-            ForEach(GraphLayer.allCases) { layer in
-                Text(layer.rawValue).tag(layer)
-            }
-        }
-        .pickerStyle(.segmented)
-        .accessibilityHint("Switch between the reasoning graph and captured memories")
-    }
-
-    private func selectKnowledgeNode(_ id: UUID) {
-        Task {
-            let explained = await reasoningViewModel.selectNode(id)
-            if explained {
-                // The answer can land after a long-press on the AI tab has opened
-                // the Quick Assistant card, and the sheet would open over it.
-                appState.sheetRequestToken += 1
-                showReasoning = true
-            }
-        }
-    }
-
-    private func scheduleGraphReload() {
-        reloadTask?.cancel()
-        reloadTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled else { return }
-            await loadGraph()
-        }
-    }
-
-    private var loadingState: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .controlSize(.large)
-                .tint(palette.primary)
-            Text("Building your brain…")
-                .font(.callout)
-                .foregroundStyle(palette.textSecondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .lvBackground()
-    }
-
-    /// Shown when a load ended without producing a graph and without a hard
-    /// error — an interrupted first load. Offers a way out instead of an
-    /// indefinite spinner.
-    private var idleState: some View {
-        VStack(spacing: 12) {
-            LVIconView(.exclamationmarkTriangleFill, size: 42, tint: palette.accent)
-            Text("Brain didn't finish loading")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(palette.textPrimary)
-            Text("The request was interrupted before your graph arrived.")
-                .font(.callout)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(palette.textSecondary)
-                .padding(.horizontal, 32)
-            Button("Try again") { Task { await loadGraph() } }
-                .buttonStyle(.lvProminent)
-                .tint(palette.primary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .lvBackground()
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            LVEmptyState(
-                mascot: .thinking,
-                headline: "No memory graph yet.",
-                supporting: "Capture or save memories to grow your brain."
+    /// The renderer on screen: only one exists at a time, so the
+    /// Constellation's scene is made only once it is picked.
+    @ViewBuilder
+    private func canvas(_ visible: VisibleBrainGraph) -> some View {
+        let index = visible.index
+        let colourOf = colours(visible)
+        let summary = BrainTabState.selectionSummary(selection.selected, index: index)
+        switch shownView {
+        case .twoD:
+            BrainGraphCanvas(
+                graph: visible,
+                highlight: highlight(index),
+                colourOf: colourOf,
+                onTap: { id, additive in selection.click(id, additive: additive) },
+                onBackgroundTap: { selection.clear() },
+                // A double tap opens a point, as the tray's Open does.
+                onOpen: { id in open(id, index: index) },
+                centreOn: centre,
+                bottomInset: trayHeight,
+                scene: canvasScene
             )
-            Button("Check reasoning graph") { graphLayer = .knowledge }
-                .buttonStyle(.bordered)
+            .accessibilityIdentifier("brain.canvas")
+            .accessibilityValue(summary)
+        case .threeD:
+            BrainGraphRealityView(
+                graph: visible,
+                highlight: highlight(index),
+                colourOf: colourOf,
+                onTap: { id, additive in selection.click(id, additive: additive) },
+                onBackgroundTap: { selection.clear() },
+                onOpen: { id in open(id, index: index) },
+                centreOn: centre,
+                covered: BrainTabState.isCovered(
+                    filters: showFilters, list: showList, capture: showCapture,
+                    detail: detail.isOpen, reasoning: showReasoning
+                ),
+                bottomInset: trayHeight,
+                model: skyModel
+            )
+            .accessibilityIdentifier("brain.constellation")
+            .accessibilityValue(summary)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .lvBackground()
     }
 
-    private func errorState(_ message: String) -> some View {
-        VStack(spacing: 12) {
-            LVIconView(.exclamationmarkTriangleFill, size: 42, tint: palette.accent)
-            Text("Couldn't load your brain")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(palette.textPrimary)
-            Text(message)
-                .font(.callout)
+    /// Each point's colour: by vault or by the legend's order, in the theme.
+    private func colours(_ visible: VisibleBrainGraph) -> (BrainGraphNodeDTO) -> Color {
+        let theme = BrainGraphTheme(palette: palette, scheme: scheme)
+        let by = filters.colourBy
+        let order = colourOrder
+        let index = visible.index
+        return { node in
+            theme.categoryColour(for: BrainGraphModel.colourKey(node, by: by, index: index), order: order)
+        }
+    }
+
+    /// Builds what the renderer on screen draws, for the graph, colours,
+    /// theme and view now. Only the shown renderer's.
+    private func rebuildScene() {
+        guard let visible else {
+            canvasScene = nil
+            skyModel = nil
+            return
+        }
+        switch shownView {
+        case .twoD:
+            canvasScene = BrainCanvasScene(graph: visible, colourOf: colours(visible))
+            skyModel = nil
+        case .threeD:
+            skyModel = ConstellationModel(graph: visible, colourOf: colours(visible))
+            canvasScene = nil
+        }
+    }
+
+    /// The tab is on screen again (or the app is): fetch an old graph again.
+    private func refreshIfShown() {
+        guard BrainTabState.isShown(activeTab: activeTab) else { return }
+        store.refreshIfStale()
+    }
+
+    private var shownView: BrainViewChoice {
+        BrainPrefs(filters: filters, view: savedView).effectiveView(explicit: nil)
+    }
+
+    /// The overflow menu's 2D / Constellation choice. Never asks for a graph
+    /// and keeps the selection.
+    private func show(_ next: BrainViewChoice) {
+        guard let change = BrainTabState.switchView(shown: shownView, to: next, filters: filters) else { return }
+        savedView = next
+        change.prefs.save(to: prefsDefaults)
+        AccessibilityNotification.Announcement(change.note).post()
+    }
+
+    private var emptyCard: some View {
+        ScrollView {
+            VStack(spacing: LVSpacing.base) {
+                LVEmptyState(
+                    mascot: .thinking,
+                    headline: BrainTabState.emptyHeadline,
+                    supporting: BrainTabState.emptySupporting
+                )
+                Button(BrainTabState.captureTitle, systemImage: "plus") { showCapture = true }
+                    .buttonStyle(.lvProminent)
+                    .controlSize(.large)
+                    .disabled(captureCoordinator?.queue == nil || captureCoordinator?.ingestionClient == nil)
+                    .accessibilityIdentifier("brain.empty.capture")
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, LVSpacing.xl)
+        }
+        .defaultScrollAnchor(.center)
+    }
+
+    private func failedCard(_ message: String, showAllVaults: Bool) -> some View {
+        // The error names what went wrong; the line above it says what it
+        // means for the screen.
+        messageCard(
+            BrainTabState.failedTitle,
+            detail: BrainTabState.failedDetail(message),
+            icon: "exclamationmark.triangle"
+        ) {
+            if store.pending {
+                pendingProgress
+            } else {
+                Button(BrainTabState.retryTitle) { store.retry() }
+                    .buttonStyle(.lvProminent)
+                    .accessibilityIdentifier("brain.failed.retry")
+                if showAllVaults {
+                    Button(BrainTabState.showAllVaultsTitle) { filters.vaults = nil }
+                        .buttonStyle(.bordered)
+                }
+            }
+        }
+    }
+
+    /// "Show full graph" and "Show all vaults" change the request, which waits
+    /// out the store's debounce before it is sent: say so at once.
+    private var pendingProgress: some View {
+        ProgressView()
+            .controlSize(.large)
+            .accessibilityLabel(BrainTabState.firstLoadText)
+            .accessibilityIdentifier("brain.pending")
+    }
+
+    private func messageCard(
+        _ text: String, detail: String? = nil, icon: String, @ViewBuilder actions: () -> some View
+    ) -> some View {
+        ScrollView {
+            VStack(spacing: LVSpacing.base) {
+                Image(systemName: icon)
+                    .font(.largeTitle)
+                    .foregroundStyle(palette.textSecondary)
+                    .accessibilityHidden(true)
+                VStack(spacing: LVSpacing.xs) {
+                    Text(text)
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    if let detail {
+                        Text(detail)
+                            .font(.subheadline)
+                            .foregroundStyle(palette.textSecondary)
+                    }
+                }
                 .multilineTextAlignment(.center)
-                .foregroundStyle(palette.textSecondary)
-                .padding(.horizontal, 32)
-            Button("Try again") { Task { await loadGraph() } }
-                .buttonStyle(.lvProminent)
-                .tint(palette.primary)
+                actions()
+                    .controlSize(.large)
+                    .padding(.top, LVSpacing.xs)
+            }
+            .padding(LVSpacing.xl)
+            .frame(maxWidth: 520)
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .lvBackground()
+        .defaultScrollAnchor(.center)
     }
 
-    // MARK: - Filtering
+    // MARK: Bar
 
-    /// Applies the in-place node/edge filters. Drops wiki-page nodes when
-    /// hidden, then keeps only edges of an active kind whose endpoints both
-    /// survive — so no edge dangles to a filtered-out node.
-    private func filtered(_ graph: MemoryGraphResponse) -> MemoryGraphResponse {
-        var nodes = graph.nodes
-        if !showWikiPages {
-            nodes = nodes.filter { $0.kind != .wikiPage }
+    @ViewBuilder
+    private var statusBar: some View {
+        if let line = BrainTabState.statusLine(
+            card: card,
+            visible: visible,
+            facts: BrainRefreshFacts(
+                truncated: store.truncatedCount != nil,
+                stale: store.stale,
+                rateLimited: store.rateLimited,
+                refreshError: store.refreshError,
+                refreshing: store.refreshing
+            )
+        ) {
+            BrainStatusBar(line: line, refreshing: store.refreshing, retry: { store.retry() })
         }
-        // Space hubs only read as hubs with their star edges; drop them when
-        // the Space edge kind is off so no orphan hubs float.
-        if !activeEdgeKinds.contains(.space) {
-            nodes = nodes.filter { $0.kind != .space }
-        }
-        let liveIDs = Set(nodes.map(\.id))
-        let edges = graph.edges.filter {
-            activeEdgeKinds.contains($0.kind) && liveIDs.contains($0.from) && liveIDs.contains($0.to)
-        }
-        return MemoryGraphResponse(nodes: nodes, edges: edges, generatedAt: graph.generatedAt)
     }
 
-    // MARK: - Sheet binding
+    @ToolbarContentBuilder
+    private var toolbar: some ToolbarContent {
+        if focus != nil {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(BrainTabState.fullGraphTitle) { focus = nil }
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            BrainFiltersButton(changed: BrainTabState.badgeCount(filters)) { present { showFilters = true } }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Picker(BrainTabState.viewMenuTitle, selection: Binding(get: { shownView }, set: { show($0) })) {
+                    Label(BrainTabState.twoDTitle, systemImage: "circle.grid.cross")
+                        .tag(BrainViewChoice.twoD)
+                    Label(BrainTabState.constellationTitle, systemImage: "sparkles")
+                        .tag(BrainViewChoice.threeD)
+                }
+                .pickerStyle(.inline)
+                Button("List", systemImage: "list.bullet") { present { showList = true } }
+                Button("Reload", systemImage: "arrow.clockwise") { store.retry() }
+            } label: {
+                Label("More", systemImage: "ellipsis.circle")
+            }
+            .accessibilityIdentifier("brain.more")
+        }
+    }
 
-    /// Bridges `selectedNodeID` + the current graph into an `Identifiable`
-    /// node for the sheet API.
-    private var selectedBinding: Binding<MemoryGraphNodeDTO?> {
-        Binding(
-            get: { vm.selectedNodeID.flatMap(vm.node(for:)) },
-            set: { node in vm.selectedNodeID = node?.id }
+    // MARK: Entry and vault
+
+    /// A new entry request replaces the focus (or clears it for the full graph)
+    /// at the default depth. The focus point is selected again once it loads.
+    private func applyEntry() {
+        defer { entry = BrainEntryRequest.acknowledge(entry, applied: appliedEntry) }
+        guard let applied = BrainEntryRequest.apply(entry, lastApplied: appliedEntry) else { return }
+        appliedEntry = applied.token
+        // Nothing will load when the request does not change: select now.
+        let changes = applied.changesRequest(
+            focus: focus, depth: depth, vaults: filters.vaults,
+            known: store.knownVaults.map(\.id), similarAsked: similarAsked
+        )
+        depth = applied.depth
+        focusSelectedFor = nil
+        focus = applied.focus
+        filters.vaults = applied.vaults(keeping: filters.vaults)
+        if !changes { rederive() }
+    }
+
+    /// The vault the reasoning sheet speaks for. Another tab can change it, so
+    /// it is read again on return; an answer about the old one goes, the
+    /// selection and the graph stay, and no graph is asked for.
+    private func readActiveVault() async {
+        let id = await activeVault()
+        if activeVaultTracker.observe(id) { reasoning?.discardAnswer() }
+        activeVaultID = id
+    }
+
+    // MARK: Search
+
+    @ViewBuilder
+    private var searchSuggestions: some View {
+        if let visible {
+            ForEach(BrainGraphModel.search(visible.nodes, query: searchText), id: \.id) { node in
+                Button { pick(node.id) } label: {
+                    Label(node.label, systemImage: BrainTabState.isItem(node) ? "doc.text" : "circle.circle")
+                }
+                .accessibilityIdentifier("brain.search.\(node.label)")
+            }
+        }
+    }
+
+    /// Selects the point and centres the view on it: search's one camera move.
+    private func pick(_ id: String) {
+        selection.selectGroup([id], additive: false)
+        centre = BrainCentreRequest(id: id, token: (centre?.token ?? 0) + 1)
+        searchText = ""
+        searchPresented = false
+    }
+
+    // MARK: Tray
+
+    /// In the order picked; a point a filter hides drops out at once.
+    private func selectedNodes(_ index: BrainGraphIndex) -> [BrainGraphNodeDTO] {
+        selection.selected.compactMap { index.byID[$0] }
+    }
+
+    /// The selection's highlight, plus the memories a reasoning answer names
+    /// while the reasoning sheet is open.
+    private func highlight(_ index: BrainGraphIndex) -> BrainHighlight {
+        let base = selection.highlight(index: index)
+        guard showReasoning, let reasoning else { return base }
+        return BrainTrayActions.withReasoning(
+            base, memoryIDs: reasoning.highlightedMemoryIDs.map(\.uuidString), index: index
         )
     }
+
+    @ViewBuilder
+    private func tray(_ visible: VisibleBrainGraph) -> some View {
+        let nodes = selectedNodes(visible.index)
+        if !nodes.isEmpty {
+            BrainSelectionTray(
+                nodes: nodes,
+                actions: BrainTrayActions.actions(
+                    for: nodes, index: visible.index, reasoningAvailable: reasoning != nil
+                ),
+                onRemove: { selection.remove($0) },
+                onClear: { selection.clear() },
+                onAction: { runTray($0, nodes: nodes, index: visible.index) }
+            )
+            .onGeometryChange(for: CGFloat.self, of: \.size.height) { height in
+                if height > 0 { trayHeight = height }
+            }
+            // An overlay offers the whole height: the tray keeps its own
+            // height up to half the canvas, and scrolls past that, so large
+            // type in landscape never covers the search bar.
+            .frame(maxHeight: BrainTabState.trayMaxHeight(canvas: canvasHeight), alignment: .bottom)
+            .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    /// The tray's arrival and departure (DESIGN_SYSTEM §7's spring), a fade
+    /// under Reduce Motion.
+    private var trayMotion: Animation {
+        reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.3, dampingFraction: 0.7)
+    }
+
+    /// Nothing in a tray action asks for the graph except Focus.
+    private func runTray(_ id: BrainTrayActionID, nodes: [BrainGraphNodeDTO], index: BrainGraphIndex) {
+        guard let outcome = BrainTrayActions.run(
+            id, nodes: nodes, index: index, activeVault: activeVaultID, reasoningAvailable: reasoning != nil
+        ) else { return }
+        switch outcome {
+        case let .select(ids):
+            selection.selectGroup(ids, additive: false)
+        case let .focus(id):
+            depth = 1
+            focus = id
+        case let .open(node):
+            present { detail.show(node) }
+        case let .explain(from, to):
+            guard let reasoning else { return }
+            // A fresh question: the answer to an earlier one no longer applies.
+            reasoning.result = nil
+            showReasoning = true
+            reasoning.explainNodes(from: from, to: to, subject: BrainTrayActions.explainSubject(nodes))
+        case let .ask(query, send):
+            guard let reasoning else { return }
+            reasoning.prefill(query)
+            showReasoning = true
+            if send { reasoning.reason() }
+        }
+    }
+
+    /// A double tap: selects the point if it is not already, then runs the
+    /// tray's Open on it alone (a group is selected, not opened).
+    private func open(_ id: String, index: BrainGraphIndex) {
+        guard let node = index.byID[id] else { return }
+        if !selection.selected.contains(id) { selection.selectGroup([id], additive: false) }
+        if case let .open(point)? = BrainTrayActions.run(.open, nodes: [node], index: index, activeVault: activeVaultID) {
+            present { detail.show(point) }
+        }
+    }
+
+    /// Runs what `present` queued once the reasoning sheet has gone.
+    private func presentAfterReasoning() {
+        let next = afterReasoning
+        afterReasoning = nil
+        next?()
+    }
+
+    /// One sheet at a time: the reasoning sheet leaves the graph usable
+    /// behind it, so it closes (keeping its answer) before another opens,
+    /// as the web's reasoning and filter panels never share the screen.
+    private func present(_ show: @escaping () -> Void) {
+        guard showReasoning else { return show() }
+        // Runs from the sheet's onDismiss: the next sheet cannot present
+        // until the dismissal has landed.
+        afterReasoning = show
+        showReasoning = false
+    }
+
+    // MARK: Sheets
+
+    private var detailSheet: some View {
+        let node = detail.node
+        return BrainNodeDetailSheet(
+            detail: detail,
+            vaultName: vaultName(node?.vaultID),
+            spaceName: node?.spaceID.flatMap { BrainTabState.spaceName($0, in: loadedGraph) },
+            activeVaultID: activeVaultID
+        )
+    }
+
+    @ViewBuilder
+    private var reasoningSheet: some View {
+        if let reasoning {
+            KnowledgeReasoningSheet(
+                viewModel: reasoning,
+                vaultName: vaultName(activeVaultID),
+                memoryClient: memoryClient
+            )
+        }
+    }
+
+    private func vaultName(_ id: UUID?) -> String? {
+        guard let id else { return nil }
+        return store.knownVaults.first { $0.id == id }?.name
+    }
+
+    private var filterSheet: some View {
+        BrainFilterSheet(
+            filters: $filters,
+            depth: $depth,
+            focus: focus,
+            knownVaults: store.knownVaults,
+            legend: legend,
+            noSimilarFound: BrainGraphModel.noSimilarFound(
+                loadedGraph, loaded: store.loaded, similarOn: filters.links[.similar] ?? false
+            ),
+            onReset: resetFilters
+        )
+    }
+
+    private var listSheet: some View {
+        BrainListView(
+            visible: visible,
+            vaults: store.knownVaults,
+            selection: selection
+        )
+    }
+
+    private func resetFilters() {
+        filters = BrainGraphModel.defaultFilters()
+    }
+
+    // MARK: Derivation
+
+    private var loadedGraph: BrainGraphResponse? {
+        if case let .loaded(graph) = store.state { return graph }
+        return nil
+    }
+
+    /// Changes with every response that lands, even one that looks like the
+    /// last (same counts, same `generatedAt`).
+    private var derivationKey: String {
+        BrainTabState.derivationKey(
+            loadSerial: loadedGraph == nil ? nil : store.loadSerial, knownVaults: store.knownVaults.map(\.id)
+        )
+    }
+
+    private var colourOrder: [String] {
+        filters.colourBy == .vault ? store.knownVaults.map(\.id.uuidString) : legend.keys.map(\.key)
+    }
+
+    /// `visible`, then the selection pruned to it, then the focus point
+    /// selected once and the colour legend.
+    private func rederive() {
+        guard let graph = loadedGraph else {
+            visible = nil
+            legend = ([], 0)
+            rebuildScene()
+            return
+        }
+        let next = BrainGraphModel.visible(graph, filters: filters)
+        visible = next
+        let ids = Set(next.index.byID.keys)
+        selection.prune(visible: ids)
+        if let id = BrainTabState.focusToSelect(focus: focus, selectedFor: focusSelectedFor, visibleIDs: ids) {
+            selection.selectGroup([id], additive: false)
+            focusSelectedFor = id
+        }
+        let labels = Dictionary(graph.nodes.map { ($0.id, $0.label) }, uniquingKeysWith: { a, _ in a })
+        legend = BrainGraphModel.colourLegend(next, by: filters.colourBy) { labels[$0] }
+        rebuildScene()
+    }
 }
 
-// MARK: - Knowledge selection
+// MARK: - Bar pieces
 
-private struct KnowledgeSelectionBar: View {
+/// The quiet line under the navigation bar.
+private struct BrainStatusBar: View {
     @Environment(\.lvPalette) private var palette
 
-    let viewModel: KnowledgeReasoningViewModel
-    let showExplanation: () -> Void
+    let line: BrainStatusLine
+    let refreshing: Bool
+    let retry: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                legendDot("Claims", color: palette.accent)
-                legendDot("Events", color: palette.secondary)
-                legendDot("Entities", color: palette.primary)
-                Spacer(minLength: 0)
-            }
-            HStack(spacing: 10) {
-                legendDot("Supports", color: palette.primary)
-                legendDot("Contradicts", color: Color(red: 0.98, green: 0.32, blue: 0.42))
-                legendDot("Causal", color: palette.textSecondary)
-                Spacer(minLength: 0)
-            }
-
-            HStack(spacing: 8) {
-                Image(systemName: "point.3.connected.trianglepath.dotted")
-                    .foregroundStyle(palette.primary)
-                Text(selectionText)
-                    .font(.caption)
-                    .foregroundStyle(palette.textPrimary)
-                    .lineLimit(2)
-                Spacer(minLength: 8)
-                if viewModel.selectedPathID != nil {
-                    Button("All") { viewModel.selectPath(nil) }
-                        .font(.caption.weight(.semibold))
-                        .accessibilityLabel("Show all knowledge graph paths")
+        VStack(alignment: .leading, spacing: LVSpacing.xs) {
+            HStack(alignment: .firstTextBaseline, spacing: LVSpacing.sm) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: LVSpacing.sm) { texts }
+                    VStack(alignment: .leading, spacing: LVSpacing.hairline) { texts }
                 }
-                if viewModel.explanation != nil {
-                    Button("Explain connection", action: showExplanation)
-                        .font(.caption.weight(.semibold))
-                        .accessibilityLabel("Explain this connection")
+                Spacer(minLength: 0)
+                if refreshing {
+                    // The graph stays; this says a newer one is on its way.
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Updating the graph")
+                        .accessibilityAddTraits(.updatesFrequently)
+                        .accessibilityIdentifier("brain.status.refreshing")
                 }
-                if !viewModel.selectedNodeIDs.isEmpty {
-                    Button {
-                        viewModel.clearSelection()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
+            }
+            if let notice = line.notice {
+                // Notice and reason on the left, Retry at the end: the
+                // button keeps a full 44 pt target without padding the
+                // line out.
+                HStack(spacing: LVSpacing.sm) {
+                    VStack(alignment: .leading, spacing: LVSpacing.hairline) {
+                        Text(notice)
+                            .foregroundStyle(palette.textPrimary)
+                        if let reason = line.reason {
+                            Text(reason)
+                                .foregroundStyle(palette.textSecondary)
+                                .accessibilityHidden(true)
+                        }
                     }
-                    .accessibilityLabel("Clear selected knowledge nodes")
+                    Spacer(minLength: 0)
+                    if line.offersRetry {
+                        Button(action: retry) {
+                            Text(BrainTabState.retryTitle)
+                                .frame(minWidth: 44, minHeight: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .disabled(refreshing)
+                            .accessibilityIdentifier("brain.status.retry")
+                            .accessibilityHint(line.reason ?? "")
+                    }
                 }
             }
         }
-        // No card of its own: it sits on the bottom bar's material.
-        .padding(.horizontal, 16)
+        .font(.footnote)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, LVSpacing.base)
+        .padding(.vertical, LVSpacing.xs)
+        // The canvas's own ground: since iOS 26 the bar above has no
+        // material at rest, and a material strip here read as a band.
+        .background(palette.backgroundBase)
     }
 
-    private var selectionText: String {
-        switch viewModel.selectedNodes.count {
-        case 0: "Select two nodes to explain their connection"
-        case 1: "\(viewModel.selectedNodes[0].label) selected — choose another"
-        default: viewModel.selectedNodes.map(\.label).joined(separator: " ↔ ")
+    @ViewBuilder
+    private var texts: some View {
+        if let counts = line.counts {
+            Text(counts)
+                .foregroundStyle(palette.textSecondary)
+                .accessibilityIdentifier("brain.status.counts")
         }
-    }
-
-    private func legendDot(_ label: String, color: Color) -> some View {
-        Label {
-            Text(label).font(.caption2)
-        } icon: {
-            Circle().fill(color).frame(width: 7, height: 7)
+        if let truncated = line.truncated {
+            Text(truncated)
+                .foregroundStyle(palette.textSecondary)
         }
-        .foregroundStyle(palette.textSecondary)
     }
 }
 
-// MARK: - Legend
-
-/// Compact, glassy filter legend pinned to the bottom of the graph. Each
-/// chip both documents the colour channel and toggles that edge kind.
-private struct GraphLegend: View {
+/// The screen's primary action, with a count of changed settings.
+private struct BrainFiltersButton: View {
     @Environment(\.lvPalette) private var palette
 
-    @Binding var activeEdgeKinds: Set<MemoryEdgeKindDTO>
-    @Binding var showWikiPages: Bool
-    let hasWikiPages: Bool
-
-    private static let order: [MemoryEdgeKindDTO] = [.wikilink, .tag, .space, .semantic, .temporal]
+    let changed: Int
+    let action: () -> Void
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                if hasWikiPages {
-                    // "Sources" = the raw vault-file pages behind your memories
-                    // (the wire still calls these `wikiPage`; cosmetic rename).
-                    chip(
-                        label: "Sources",
-                        color: palette.accent,
-                        isOn: showWikiPages
-                    ) { showWikiPages.toggle() }
-                }
-                ForEach(Self.order, id: \.self) { kind in
-                    chip(
-                        label: Self.label(for: kind),
-                        color: color(for: kind),
-                        isOn: activeEdgeKinds.contains(kind)
-                    ) { toggle(kind) }
-                }
-            }
-            .padding(.horizontal, 16)
-        }
-    }
-
-    private func toggle(_ kind: MemoryEdgeKindDTO) {
-        if activeEdgeKinds.contains(kind) {
-            activeEdgeKinds.remove(kind)
-        } else {
-            activeEdgeKinds.insert(kind)
-        }
-    }
-
-    /// A stock bordered capsule. The dot keeps the legend's job — naming the
-    /// colour channel each edge kind is drawn in — while the tint carries
-    /// the on/off state the way any iOS filter chip does.
-    private func chip(label: String, color: Color, isOn: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(color)
-                    .frame(width: 8, height: 8)
-                Text(label)
-            }
-            .font(.subheadline)
+            Image(systemName: changed > 0
+                ? "line.3.horizontal.decrease.circle.fill"
+                : "line.3.horizontal.decrease.circle")
+                .overlay(alignment: .topTrailing) {
+                    if changed > 0 {
+                        Text("\(changed)")
+                            .font(.caption2.weight(.bold).monospacedDigit())
+                            .foregroundStyle(palette.onPrimary)
+                            .padding(.horizontal, 4)
+                            .background(Capsule().fill(palette.primary))
+                            .offset(x: 8, y: -6)
+                            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    }
+                }
         }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.capsule)
-        .controlSize(.small)
-        .tint(isOn ? color : Color.secondary)
-        .accessibilityAddTraits(isOn ? .isSelected : [])
-    }
-
-    private func color(for kind: MemoryEdgeKindDTO) -> Color {
-        switch kind {
-        case .wikilink: return palette.accent
-        case .tag: return palette.accent.opacity(0.7)
-        case .space: return palette.secondary
-        case .semantic: return palette.primary
-        case .temporal: return palette.textSecondary
-        }
-    }
-
-    private static func label(for kind: MemoryEdgeKindDTO) -> String {
-        switch kind {
-        case .wikilink: return "Links"
-        case .tag: return "Tags"
-        case .space: return "Spaces"
-        case .semantic: return "Similar"
-        case .temporal: return "Time"
-        }
+        .accessibilityLabel(changed > 0 ? "Filters, \(changed) changed" : "Filters")
+        .accessibilityIdentifier("brain.filters")
     }
 }

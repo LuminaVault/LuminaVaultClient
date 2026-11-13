@@ -11,17 +11,8 @@ import XCTest
 
 final class PaywallInterceptorPolicyTests: XCTestCase {
     func testBrainGraphReadsDoNotPresentThePaywall() {
-        let memory = MemoryGraphEndpoints.Graph(
-            limit: 200,
-            similarityThreshold: nil,
-            maxEdgesPerNode: nil,
-            includeWikiPages: true,
-            kinds: nil
-        )
-        XCTAssertFalse(memory.presentsPaywallOn402)
-
-        let knowledge = KnowledgeGraphEndpoints.Graph(limit: 200, minimumConfidence: 0.5)
-        XCTAssertFalse(knowledge.presentsPaywallOn402)
+        let graph = BrainGraphEndpoints.Graph(request: BrainGraphRequest())
+        XCTAssertFalse(graph.presentsPaywallOn402)
     }
 
     /// The default must stay on, or HER-211 regresses and a user who taps a
