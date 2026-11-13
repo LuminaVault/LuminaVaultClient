@@ -416,6 +416,14 @@ private struct BrainGraphCanvasSurface: View {
                 switch phase {
                 case .panning:
                     let from = before == .panning ? driver.lastLocation : value.startLocation
+                // A drag cancelled without `onEnded` left its press behind.
+                if case let .restart(release) = BrainPressTracker.recovery(
+                    current: driver.press, gestureStart: value.startLocation
+                ) {
+                    if let release { driver.release(release) }
+                    driver.press = nil
+                    driver.pinchBase = nil
+                }
                     var next = currentViewport(positions: positions)
                         .panned(by: CGSize(width: value.location.x - from.x, height: value.location.y - from.y))
                     next.isAutomatic = BrainGraphCanvasLogic.nextAutoView(next.isAutomatic, .userPan)

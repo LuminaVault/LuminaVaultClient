@@ -419,6 +419,15 @@ private struct ConstellationSurface: View {
                     takeHold()
                     driver.press = BrainPressTracker(start: value.startLocation, hitID: hit(at: value.startLocation))
                     driver.pressBegan = .now
+                // A drag cancelled without `onEnded` left its press (and with
+                // it `pressing`, which holds the idle turn) behind.
+                if case .restart = BrainPressTracker.recovery(
+                    current: driver.press, gestureStart: value.startLocation
+                ) {
+                    driver.press = nil
+                    driver.pinchBase = nil
+                    driver.orbit = nil
+                }
                     pressCount += 1
                     noteActivity()
                     return

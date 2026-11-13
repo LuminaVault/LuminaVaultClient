@@ -481,6 +481,25 @@ nonisolated struct BrainPressTracker: Equatable, Sendable {
     mutating func pinchBegan() {
         phase = .pinching
     }
+
+    /// What to do with the press on record when a drag reports a change.
+    enum Recovery: Equatable, Sendable {
+        /// Nothing on record, or the same gesture: carry on.
+        case none
+        /// The press on record belongs to a gesture that was cancelled
+        /// without `onEnded` (a second finger, the system): drop it and start
+        /// a new one, letting go of the point it held, if any.
+        case restart(release: String?)
+    }
+
+    /// `DragGesture.onEnded` is not called when a drag is cancelled, so the
+    /// first change of the next gesture finds the old press still recorded.
+    /// A drag's start never moves while it lasts: a press recorded with
+    /// another start is stale.
+    static func recovery(current: BrainPressTracker?, gestureStart: CGPoint) -> Recovery {
+        guard let current, current.start != gestureStart else { return .none }
+        return .restart(release: current.phase == .draggingPoint ? current.hitID : nil)
+    }
 }
 
 // MARK: - Motion

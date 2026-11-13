@@ -528,6 +528,38 @@ extension BrainGraphCanvasLogicTests {
             let long = p.longPressElapsed()
             #expect(!long)
         }
+
+        // A cancelled drag never reaches `onEnded`: the next gesture's first
+        // change finds the old press, with another start.
+
+        @Test func noPressOrTheSameStartNeedsNoRecovery() {
+            #expect(BrainPressTracker.recovery(current: nil, gestureStart: .zero) == .none)
+            var p = BrainPressTracker(start: CGPoint(x: 10, y: 10), hitID: "a")
+            _ = p.move(to: CGPoint(x: 40, y: 10))
+            #expect(BrainPressTracker.recovery(current: p, gestureStart: CGPoint(x: 10, y: 10)) == .none)
+        }
+
+        @Test func aPressFromAnotherStartIsStaleAndRestarts() {
+            let pending = BrainPressTracker(start: CGPoint(x: 10, y: 10), hitID: "a")
+            #expect(BrainPressTracker.recovery(current: pending, gestureStart: CGPoint(x: 90, y: 10))
+                == .restart(release: nil))
+            var pinch = BrainPressTracker(start: .zero, hitID: nil)
+            pinch.pinchBegan()
+            #expect(BrainPressTracker.recovery(current: pinch, gestureStart: CGPoint(x: 5, y: 5))
+                == .restart(release: nil))
+            var pan = BrainPressTracker(start: .zero, hitID: nil)
+            _ = pan.move(to: CGPoint(x: 50, y: 0))
+            #expect(BrainPressTracker.recovery(current: pan, gestureStart: CGPoint(x: 5, y: 5))
+                == .restart(release: nil))
+        }
+
+        @Test func aCancelledPointDragReleasesItsPin() {
+            var p = BrainPressTracker(start: .zero, hitID: "a")
+            _ = p.move(to: CGPoint(x: 50, y: 0))
+            #expect(p.phase == .draggingPoint)
+            #expect(BrainPressTracker.recovery(current: p, gestureStart: CGPoint(x: 200, y: 200))
+                == .restart(release: "a"))
+        }
     }
 }
 
