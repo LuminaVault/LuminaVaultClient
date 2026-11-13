@@ -67,7 +67,12 @@ nonisolated enum BrainTabState {
     static let fullGraphTitle = "Full graph"
     static let nothingMatchesText = "Nothing matches these filters"
     static let resetTitle = "Reset"
+    /// The nothing-matches card's button, away from the filter sheet that
+    /// would say what "Reset" resets.
+    static let resetFiltersTitle = "Reset filters"
     static let retryTitle = "Retry"
+    /// The failed card's headline; the error itself goes under it.
+    static let failedTitle = "The graph did not load"
     static let showAllVaultsTitle = "Show all vaults"
     static let notShownInFocusText = "Not shown in a focused graph"
     static let noSimilarText = "No similar notes found."
@@ -81,6 +86,13 @@ nonisolated enum BrainTabState {
     static func spaceName(_ id: UUID, in graph: BrainGraphResponse?) -> String? {
         let key = "space:\(id.uuidString)"
         return graph?.nodes.first { $0.id == key }?.label
+    }
+
+    /// The failed card's second line: the error, unless it only repeats the
+    /// headline.
+    static func failedDetail(_ message: String) -> String? {
+        let text = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty || text == BrainGraphErrors.didNotLoadMessage ? nil : text
     }
 
     static func isItem(_ node: BrainGraphNodeDTO) -> Bool {
@@ -289,6 +301,14 @@ nonisolated enum BrainTabState {
     /// The selection tray's height before it has been measured once: one row
     /// of chips and one of actions.
     static let trayHeightEstimate: CGFloat = 120
+
+    /// The tallest the tray may be over a canvas this tall: half of it, so a
+    /// tray grown by large type never covers the search bar or most of the
+    /// graph (its content scrolls past that). Unlimited before the canvas
+    /// has been measured.
+    static func trayMaxHeight(canvas: CGFloat) -> CGFloat {
+        canvas > 0 ? (canvas / 2).rounded(.down) : .infinity
+    }
 
     /// Whether a sheet covers the graph, so nothing on it should move.
     static func isCovered(filters: Bool, list: Bool, capture: Bool, detail: Bool, reasoning: Bool) -> Bool {

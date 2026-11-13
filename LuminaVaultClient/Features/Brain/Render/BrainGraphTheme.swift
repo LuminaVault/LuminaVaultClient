@@ -29,6 +29,8 @@ nonisolated struct BrainGraphTheme: Equatable, Sendable {
     private static let categoryHueStep: Double = 135
     /// Connection kinds start a little off the category hues.
     private static let linkHueOffset: Double = 22
+    /// Coprime with the seven connection kinds, so every slot is used once.
+    private static let linkSlotStride = 3
 
     @MainActor
     init(palette: LVPalette, scheme: ColorScheme) {
@@ -54,7 +56,11 @@ nonisolated struct BrainGraphTheme: Equatable, Sendable {
         let kinds = BrainLinkKindDTO.allCases.count
         let (ll, lc) = dark ? (0.70, 0.11) : (0.50, 0.12)
         links = (0 ..< kinds).map { i in
-            BrainOKLCH(l: ll, c: lc, h: base + Self.linkHueOffset + Double(i) * 360 / Double(kinds))
+            // Kinds take every third hue slot, so neighbours in the list (and
+            // Links and Similar, first and last, which would otherwise sit
+            // one slot apart) are far apart on the wheel.
+            let slot = (i * Self.linkSlotStride) % kinds
+            return BrainOKLCH(l: ll, c: lc, h: base + Self.linkHueOffset + Double(slot) * 360 / Double(kinds))
                 .standingOff(bg, contrast: 3, lighter: dark).color
         }
     }

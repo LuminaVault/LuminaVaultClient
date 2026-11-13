@@ -239,6 +239,16 @@ struct KnowledgeReasoningViewModelTests {
         #expect(vm.result == nil)
         #expect(vm.explanation == nil)
     }
+
+    @Test("VoiceOver hears the work start, then the error or that an answer is ready")
+    func progressNotes() {
+        typealias Sheet = KnowledgeReasoningSheet
+        #expect(Sheet.progressNote(loading: true, error: nil, answered: false) == Sheet.tracingText)
+        #expect(Sheet.progressNote(loading: true, error: nil, answered: true) == Sheet.tracingText)
+        #expect(Sheet.progressNote(loading: false, error: "Network unavailable.", answered: false) == "Network unavailable.")
+        #expect(Sheet.progressNote(loading: false, error: nil, answered: true) == Sheet.answerReadyText)
+        #expect(Sheet.progressNote(loading: false, error: nil, answered: false) == nil)
+    }
 }
 
 // MARK: - Fixture

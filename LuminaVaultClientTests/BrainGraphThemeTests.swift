@@ -47,6 +47,21 @@ struct BrainGraphThemeTests {
         }
     }
 
+    @Test func linksAndSimilarAndNeighbouringKindsAreFarApartInHue() {
+        for (name, palette, scheme) in Self.palettes {
+            let theme = BrainGraphTheme(palette: palette, scheme: scheme)
+            func apart(_ a: Color, _ b: Color) -> Double {
+                let d = abs(BrainOKLCH(BrainOKLCH.RGB(a, scheme: scheme)).h - BrainOKLCH(BrainOKLCH.RGB(b, scheme: scheme)).h)
+                    .truncatingRemainder(dividingBy: 360)
+                return min(d, 360 - d)
+            }
+            #expect(apart(theme.link(.link), theme.link(.similar)) >= 120, "\(name) links vs similar")
+            for i in 1 ..< theme.links.count {
+                #expect(apart(theme.links[i], theme.links[i - 1]) >= 80, "\(name) kind \(i)")
+            }
+        }
+    }
+
     @Test func pointsHubsAndTheSelectionStandOffTheBackgroundInEveryPalette() {
         for (name, palette, scheme) in Self.palettes {
             let theme = BrainGraphTheme(palette: palette, scheme: scheme)

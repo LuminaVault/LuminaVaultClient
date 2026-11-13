@@ -44,7 +44,7 @@ struct KnowledgeReasoningSheet: View {
                     Section {
                         HStack(spacing: LVSpacing.sm) {
                             ProgressView()
-                            Text("Tracing the connection…").foregroundStyle(palette.textSecondary)
+                            Text(Self.tracingText).foregroundStyle(palette.textSecondary)
                         }
                         .accessibilityElement(children: .combine)
                     }
@@ -71,6 +71,10 @@ struct KnowledgeReasoningSheet: View {
                 }
             }
             .textCase(nil)
+            // The answer arrives below the fold of a medium sheet: say when
+            // the work starts and how it ended.
+            .onAppear { if viewModel.loading { announceProgress() } }
+            .onChange(of: viewModel.loading) { announceProgress() }
             .navigationTitle("Ask your graph")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -192,6 +196,30 @@ struct KnowledgeReasoningSheet: View {
     private func caveat(_ text: String) -> some View {
         Label(text, systemImage: "exclamationmark.triangle")
             .foregroundStyle(palette.accent)
+    }
+
+    // MARK: VoiceOver
+
+    static let tracingText = "Tracing the connection…"
+    static let answerReadyText = "Answer ready"
+
+    /// What VoiceOver hears as the sheet's work starts or ends: the progress
+    /// line, the error, or that an answer is there; nil when there is none.
+    /// On open it is said only while the work is under way, never for an
+    /// answer already on show.
+    static func progressNote(loading: Bool, error: String?, answered: Bool) -> String? {
+        if loading { return tracingText }
+        if let error { return error }
+        return answered ? answerReadyText : nil
+    }
+
+    private func announceProgress() {
+        guard let note = Self.progressNote(
+            loading: viewModel.loading,
+            error: viewModel.error,
+            answered: viewModel.result != nil || viewModel.explanation != nil
+        ) else { return }
+        AccessibilityNotification.Announcement(note).post()
     }
 
     // MARK: Formatting (the web panel's helpers)

@@ -448,6 +448,18 @@ struct BrainTabStateTests {
         #expect(BrainTabState.isCovered(filters: false, list: false, capture: false, detail: false, reasoning: true))
     }
 
+    @Test func theTrayIsCappedAtHalfTheCanvasOnceItIsMeasured() {
+        #expect(BrainTabState.trayMaxHeight(canvas: 0) == .infinity)
+        #expect(BrainTabState.trayMaxHeight(canvas: 300) == 150)
+        #expect(BrainTabState.trayMaxHeight(canvas: 301) == 150)
+    }
+
+    @Test func theFailedCardShowsTheErrorUnderItsHeadlineUnlessItRepeatsIt() {
+        #expect(BrainTabState.failedDetail("Server error (500).") == "Server error (500).")
+        #expect(BrainTabState.failedDetail(BrainGraphErrors.didNotLoadMessage) == nil)
+        #expect(BrainTabState.failedDetail("  ") == nil)
+    }
+
     @Test func theTabIsShownWhenTheShellSelectsItOrOutsideTheShell() {
         #expect(BrainTabState.isShown(activeTab: "brain"))
         #expect(BrainTabState.isShown(activeTab: ""))

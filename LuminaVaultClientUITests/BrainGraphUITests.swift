@@ -14,6 +14,9 @@ nonisolated final class BrainGraphUITests: XCTestCase {
 
     @MainActor
     private func launch(_ scenario: String, _ extra: [String] = []) -> XCUIApplication {
+        // A test stopped by a failure skips its own cleanup: every launch
+        // starts upright.
+        XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launchArguments = ["-BrainUITestScenario", scenario] + extra
         app.launch()
@@ -503,6 +506,30 @@ nonisolated final class BrainGraphUITests: XCTestCase {
         waitForLabel(trayCount(app), "2 selected")
         assertFullTargets(app)
         attach(app, "tray accessibility3")
+    }
+
+    /// Large type in landscape: the tray stops at half the canvas and
+    /// scrolls, leaving the search bar and the graph above it uncovered.
+    @MainActor
+    func testTrayAtAccessibilitySizeInLandscapeLeavesTheSearchBar() {
+        let app = launch("graph", ["-BrainUITestHideRequests", "YES", "-BrainUITestTypeSize", "accessibility3"])
+        XCTAssertTrue(counts(app).waitForExistence(timeout: 8))
+        selectFromTheList(app, ["N1", "N3"])
+        waitForLabel(trayCount(app), "2 selected")
+        XCUIDevice.shared.orientation = .landscapeLeft
+        settle()
+        let tray = app.descendants(matching: .any)["brain.tray"].frame
+        let graph = canvas(app).frame
+        let field = app.searchFields.firstMatch
+        XCTAssertTrue(field.exists)
+        // The tray's bar material runs on into the bottom safe area under the
+        // search field, as in portrait; its top edge is what the cap holds.
+        XCTAssertGreaterThanOrEqual(
+            tray.minY.rounded(), (graph.maxY - graph.height / 2).rounded() - 1, "tray \(tray), canvas \(graph)"
+        )
+        XCTAssertTrue(field.isHittable, "search \(field.frame)")
+        attach(app, "tray accessibility3 landscape")
+        XCUIDevice.shared.orientation = .portrait
     }
 
     @MainActor

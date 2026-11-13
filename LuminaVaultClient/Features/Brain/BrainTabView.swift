@@ -18,6 +18,7 @@ struct BrainTabView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.captureCoordinator) private var captureCoordinator
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The shell's tab selection: the active vault is read again when it changes.
     @Environment(\.lvActiveTab) private var activeTab
 
@@ -44,6 +45,8 @@ struct BrainTabView: View {
     /// selecting never resizes the renderer; this only centres a searched
     /// point above it. Kept when the tray goes, for the next search.
     @State private var trayHeight = BrainTabState.trayHeightEstimate
+    /// The renderer's height, which caps the tray's.
+    @State private var canvasHeight: CGFloat = 0
 
     @State private var searchText = ""
     @State private var searchPresented = false
@@ -188,10 +191,14 @@ struct BrainTabView: View {
         case .graph:
             if let visible {
                 canvas(visible)
+                    .onGeometryChange(for: CGFloat.self, of: \.size.height) { canvasHeight = $0 }
                     // Over the renderer, not a safe-area inset: the renderer
                     // keeps its size when the tray comes and goes, so
                     // selecting never refits or recentres the camera.
-                    .overlay(alignment: .bottom) { tray(visible) }
+                    .overlay(alignment: .bottom) {
+                        tray(visible)
+                            .animation(trayMotion, value: selection.selected.isEmpty)
+                    }
                 #if DEBUG
                     .overlayPreferenceValue(BrainUITestProbeKey.self) { BrainUITestProbeMark(point: $0) }
                 #endif
@@ -201,7 +208,7 @@ struct BrainTabView: View {
         case let .failed(message, showAllVaults):
             failedCard(message, showAllVaults: showAllVaults)
         case .missingFocus:
-            messageCard(BrainTabState.missingFocusText) {
+            messageCard(BrainTabState.missingFocusText, icon: "questionmark.circle") {
                 if store.pending {
                     pendingProgress
                 } else {
@@ -210,8 +217,8 @@ struct BrainTabView: View {
                 }
             }
         case .nothingMatches:
-            messageCard(BrainTabState.nothingMatchesText) {
-                Button(BrainTabState.resetTitle, action: resetFilters)
+            messageCard(BrainTabState.nothingMatchesText, icon: "line.3.horizontal.decrease.circle") {
+                Button(BrainTabState.resetFiltersTitle, action: resetFilters)
                     .buttonStyle(.lvProminent)
             }
         }
@@ -330,7 +337,13 @@ struct BrainTabView: View {
     }
 
     private func failedCard(_ message: String, showAllVaults: Bool) -> some View {
-        messageCard(message, icon: "exclamationmark.triangle") {
+        // The error names what went wrong; the line above it says what it
+        // means for the screen.
+        messageCard(
+            BrainTabState.failedTitle,
+            detail: BrainTabState.failedDetail(message),
+            icon: "exclamationmark.triangle"
+        ) {
             if store.pending {
                 pendingProgress
             } else {
@@ -355,22 +368,28 @@ struct BrainTabView: View {
     }
 
     private func messageCard(
-        _ text: String, icon: String? = nil, @ViewBuilder actions: () -> some View
+        _ text: String, detail: String? = nil, icon: String, @ViewBuilder actions: () -> some View
     ) -> some View {
         ScrollView {
             VStack(spacing: LVSpacing.base) {
-                if let icon {
-                    Image(systemName: icon)
-                        .font(.largeTitle)
-                        .foregroundStyle(palette.textSecondary)
-                        .accessibilityHidden(true)
+                Image(systemName: icon)
+                    .font(.largeTitle)
+                    .foregroundStyle(palette.textSecondary)
+                    .accessibilityHidden(true)
+                VStack(spacing: LVSpacing.xs) {
+                    Text(text)
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    if let detail {
+                        Text(detail)
+                            .font(.subheadline)
+                            .foregroundStyle(palette.textSecondary)
+                    }
                 }
-                Text(text)
-                    .font(.headline)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(palette.textPrimary)
+                .multilineTextAlignment(.center)
                 actions()
                     .controlSize(.large)
+                    .padding(.top, LVSpacing.xs)
             }
             .padding(LVSpacing.xl)
             .frame(maxWidth: 520)
@@ -507,13 +526,21 @@ struct BrainTabView: View {
                 onClear: { selection.clear() },
                 onAction: { runTray($0, nodes: nodes, index: visible.index) }
             )
-            // An overlay offers the whole height, and the chips' horizontal
-            // scroll view would take it: the tray keeps its own height.
-            .fixedSize(horizontal: false, vertical: true)
             .onGeometryChange(for: CGFloat.self, of: \.size.height) { height in
                 if height > 0 { trayHeight = height }
             }
+            // An overlay offers the whole height: the tray keeps its own
+            // height up to half the canvas, and scrolls past that, so large
+            // type in landscape never covers the search bar.
+            .frame(maxHeight: BrainTabState.trayMaxHeight(canvas: canvasHeight), alignment: .bottom)
+            .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
         }
+    }
+
+    /// The tray's arrival and departure (DESIGN_SYSTEM §7's spring), a fade
+    /// under Reduce Motion.
+    private var trayMotion: Animation {
+        reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.3, dampingFraction: 0.7)
     }
 
     /// Nothing in a tray action asks for the graph except Focus.

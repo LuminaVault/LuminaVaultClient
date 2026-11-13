@@ -25,20 +25,35 @@ struct BrainSelectionTray: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
+        // At its own height while that fits what the caller allows (it caps
+        // the tray at half the canvas); past that, the same content scrolls.
+        ViewThatFits(in: .vertical) {
+            content
+                .fixedSize(horizontal: false, vertical: true)
+            ScrollView(.vertical) { content }
+                .scrollBounceBehavior(.basedOnSize)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.bar)
+        .overlay(alignment: .top) { Divider() }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Selection")
+        .accessibilityIdentifier("brain.tray")
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: LVSpacing.xs) {
             if typeSize.isAccessibilitySize {
                 // Large type: the chips get the whole width, and the actions
-                // scroll sideways instead of wrapping over the graph.
+                // stack full width, so none of them sits off-screen to one
+                // side; the tray scrolls up and down instead.
                 HStack {
                     count
                     Spacer(minLength: LVSpacing.sm)
                     clear
                 }
                 chips
-                ScrollView(.horizontal) {
-                    HStack(spacing: LVSpacing.sm) { actionButtons }
-                }
-                .scrollIndicators(.hidden)
+                VStack(alignment: .leading, spacing: LVSpacing.sm) { actionButtons }
             } else {
                 HStack(spacing: LVSpacing.sm) {
                     count
@@ -52,12 +67,6 @@ struct BrainSelectionTray: View {
         .padding(.horizontal, LVSpacing.base)
         .padding(.top, LVSpacing.xs)
         .padding(.bottom, LVSpacing.sm)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.bar)
-        .overlay(alignment: .top) { Divider() }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Selection")
-        .accessibilityIdentifier("brain.tray")
     }
 
     private var count: some View {
@@ -96,6 +105,16 @@ struct BrainSelectionTray: View {
             Button(action.label) { onAction(action.id) }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+                // The theme's tint wherever the tray is hosted.
+                .tint(palette.primary)
+                // The system ignores tint once disabled and its translucent
+                // fill reads near-black on the dark bar: a disabled action
+                // sits on the elevated surface, same capsule, instead.
+                .background {
+                    if !action.isEnabled {
+                        Capsule().fill(palette.surfaceElevated)
+                    }
+                }
                 .disabled(!action.isEnabled)
                 .accessibilityHint(action.reason ?? "")
                 .accessibilityIdentifier("brain.tray.action.\(Self.key(action.id))")
