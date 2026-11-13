@@ -1398,8 +1398,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/LuminaVault/LuminaVaultShared.git";
 			requirement = {
-				kind = branch;
-				branch = "feat/brain-graph";
+				kind = revision;
+				revision = 28a262c128605ad02354ef18ddf9c46c6b7bc638;
 			};
 		};
 		60GRP000C2FAE1200006F894F /* XCRemoteSwiftPackageReference "Grape" */ = {
