@@ -21,7 +21,12 @@
 // fit or gliding after a fling; at rest it is paused and nothing is drawn.
 
 import LuminaVaultShared
+import os
 import SwiftUI
+
+/// One interval per canvas draw (`draw`), for Instruments and the
+/// performance measurements: at rest there are none.
+nonisolated private let canvasSignposter = OSSignposter(subsystem: "com.luminavault", category: "brain.canvas")
 
 struct BrainGraphCanvas: View {
     let graph: VisibleBrainGraph
@@ -177,7 +182,9 @@ private struct BrainGraphCanvasSurface: View {
                     theme: theme,
                     typeSize: typeSize
                 )
+                let draw = canvasSignposter.beginInterval("draw")
                 BrainCanvasPainter.paint(&context, size: canvasSize, frame: frame, scratch: driver.scratch)
+                canvasSignposter.endInterval("draw", draw)
             }
         }
         .background(theme.background)

@@ -239,18 +239,6 @@ struct KnowledgeReasoningViewModelTests {
         #expect(vm.result == nil)
         #expect(vm.explanation == nil)
     }
-
-    @Test("never asks for the knowledge graph")
-    func noGraphRequest() async {
-        let client = ReasoningClientStub()
-        client.streamEvents = [.init(type: "context", response: f.result)]
-        client.explainReply = { [explanation = f.explanation] _ in explanation }
-        let vm = KnowledgeReasoningViewModel(client: client)
-        vm.query = "Why?"
-        await vm.reason()?.value
-        await vm.explainNodes(from: UUID(), to: UUID()).value
-        #expect(client.graphCalls == 0)
-    }
 }
 
 // MARK: - Fixture
@@ -345,7 +333,6 @@ private nonisolated final class ReasoningClientStub: KnowledgeGraphClientProtoco
         var streamCalls: [StreamCall] = []
         var explainCalls: [ExplainCall] = []
         var reviewCalls: [ReviewCall] = []
-        var graphCalls = 0
         var reviewGate: Gate?
     }
 
@@ -370,7 +357,6 @@ private nonisolated final class ReasoningClientStub: KnowledgeGraphClientProtoco
     var streamCalls: [StreamCall] { state.withLock { $0.streamCalls } }
     var explainCalls: [ExplainCall] { state.withLock { $0.explainCalls } }
     var reviewCalls: [ReviewCall] { state.withLock { $0.reviewCalls } }
-    var graphCalls: Int { state.withLock { $0.graphCalls } }
     var reviewGate: Gate? {
         get { state.withLock { $0.reviewGate } }
         set { state.withLock { $0.reviewGate = newValue } }
@@ -382,11 +368,6 @@ private nonisolated final class ReasoningClientStub: KnowledgeGraphClientProtoco
             try await Task.sleep(for: .milliseconds(5))
         }
         throw CancellationError()
-    }
-
-    func fetchGraph(limit _: Int, minimumConfidence _: Double) async throws -> KnowledgeGraphResponse {
-        state.withLock { $0.graphCalls += 1 }
-        return KnowledgeGraphResponse(nodes: [], edges: [], generatedAt: Date())
     }
 
     func reason(query _: String, maxDepth _: Int, limit _: Int) async throws -> ReasoningQueryResponse {

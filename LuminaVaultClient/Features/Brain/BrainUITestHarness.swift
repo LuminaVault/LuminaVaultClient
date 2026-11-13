@@ -255,10 +255,6 @@ nonisolated struct BrainUITestKnowledgeClient: KnowledgeGraphClientProtocol {
         )
     }
 
-    func fetchGraph(limit _: Int, minimumConfidence _: Double) async throws -> KnowledgeGraphResponse {
-        KnowledgeGraphResponse(nodes: [], edges: [], generatedAt: Date())
-    }
-
     func reason(query _: String, maxDepth _: Int, limit _: Int) async throws -> ReasoningQueryResponse {
         Self.answer
     }
@@ -437,10 +433,12 @@ struct BrainUITestHarness: View {
         .sheet(isPresented: $showRelated) {
             // What Home shows after a save: a sheet whose rows push a memory.
             RelatedMemoriesSheet(
-                items: [RelatedMemoryDTO(
-                    id: Self.relatedMemoryID, snippet: "Slept 7 hours.",
-                    createdAt: Date(timeIntervalSince1970: 1_800_000_000), similarity: 0.8
-                )],
+                items: [
+                    RelatedMemoryDTO(
+                        id: Self.relatedMemoryID, snippet: "Slept 7 hours.",
+                        createdAt: Date(timeIntervalSince1970: 1_800_000_000), similarity: 0.8
+                    ),
+                ],
                 client: BrainUITestMemoryClient()
             )
         }

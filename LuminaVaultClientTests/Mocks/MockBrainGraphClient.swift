@@ -14,7 +14,7 @@ import LuminaVaultShared
 import Synchronization
 
 /// One response the test releases by hand.
-final class HeldBrainResponse: Sendable {
+nonisolated final class HeldBrainResponse: Sendable {
     private struct State {
         var continuation: CheckedContinuation<BrainGraphResponse, Error>?
         var released: Result<BrainGraphResponse, Error>?

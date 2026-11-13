@@ -8,10 +8,6 @@ final class KnowledgeGraphHTTPClient: KnowledgeGraphClientProtocol {
         self.client = client
     }
 
-    func fetchGraph(limit: Int, minimumConfidence: Double) async throws -> KnowledgeGraphResponse {
-        try await client.execute(KnowledgeGraphEndpoints.Graph(limit: limit, minimumConfidence: minimumConfidence))
-    }
-
     func reason(query: String, maxDepth: Int, limit: Int) async throws -> ReasoningQueryResponse {
         try await client.execute(KnowledgeGraphEndpoints.Reason(
             request: ReasoningQueryRequest(query: query, maxDepth: maxDepth, limit: limit)
