@@ -393,6 +393,30 @@ nonisolated final class BrainGraphUITests: XCTestCase {
         XCTAssertEqual(cleared.y, before.y, accuracy: 1)
     }
 
+    /// Back on the tab after the graph has aged: one new request, and the
+    /// same data keeps the selection and the point where it was.
+    @MainActor
+    func testAnOldGraphIsFetchedAgainOnReturnKeepingSelectionAndPlace() {
+        let app = launch("graph", ["-BrainUITestControls", "YES", "-BrainUITestRefreshAge", "1", "-BrainUITestProbe", "N1"])
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
+        settle()
+        let canvas = canvas(app)
+        at(app, probed(app)).tap()
+        waitForValue(canvas, "Selected: Garden plans")
+        settle()
+        let before = probed(app)
+        control(app, "leave").tap()
+        control(app, "return").tap()
+        waitForLabel(requests(app), "requests: 2")
+        settle()
+        waitForValue(canvas, "Selected: Garden plans")
+        let after = probed(app)
+        XCTAssertEqual(after.x, before.x, accuracy: 1)
+        XCTAssertEqual(after.y, before.y, accuracy: 1)
+        // (A graph younger than the age asks nothing: the store's unit tests
+        // hold that; a one-second age cannot be beaten by UI taps.)
+    }
+
     // MARK: tray
 
     @MainActor
@@ -665,6 +689,11 @@ nonisolated final class BrainGraphUITests: XCTestCase {
         waitForValue(sky, "Selected: Garden plans")
         settle()
         attach(app, "constellation centred on Garden plans")
+        // Centred across, and above the middle by half the tray.
+        let here = probed(app)
+        XCTAssertEqual(here.x, sky.frame.midX, accuracy: 2)
+        XCTAssertLessThan(here.y, sky.frame.midY - 20)
+        let centre = at(app, here)
 
         centre.tap()
         waitForValue(sky, "Nothing selected")
@@ -686,35 +715,6 @@ nonisolated final class BrainGraphUITests: XCTestCase {
         waitForLabel(requests(app), "requests: 1")
     }
 
-    /// Search picks (and centres) Garden plans, the list adds Sleep log.
-    @MainActor
-    private func selectGardenAndSleepLog(_ app: XCUIApplication, _ canvas: XCUIElement) {
-        // Centred across, and above the middle by half the tray.
-        let here = probed(app)
-        XCTAssertEqual(here.x, sky.frame.midX, accuracy: 2)
-        XCTAssertLessThan(here.y, sky.frame.midY - 20)
-        let centre = at(app, here)
-        search(app, "gard", pick: "Garden plans")
-        waitForValue(canvas, "Selected: Garden plans")
-        settle()
-        app.buttons["brain.more"].tap()
-        app.buttons["List"].tap()
-        app.buttons["brain.list.row.N3"].tap()
-        closeSheet(app)
-        waitForValue(canvas, "2 selected")
-    }
-
-    // MARK: entry points and the active vault
-
-    @MainActor
-    private func control(_ app: XCUIApplication, _ id: String) -> XCUIElement {
-        app.buttons["brain.uitest.\(id)"]
-    }
-
-    @MainActor
-    func testAnEntryRequestFocusesWithOneRequestAndIsAppliedOnce() {
-        let app = launch("graph", ["-BrainUITestControls", "YES"])
-        waitForLabel(counts(app), "8 notes and memories · 10 connections")
     /// Selecting a star never moves the camera either.
     @MainActor
     func testConstellationSelectingDoesNotMoveTheStar() {
@@ -751,6 +751,30 @@ nonisolated final class BrainGraphUITests: XCTestCase {
         XCTAssertEqual(app.staticTexts["brain.detail.title"].label, "Garden plans")
     }
 
+    /// Search picks (and centres) Garden plans, the list adds Sleep log.
+    @MainActor
+    private func selectGardenAndSleepLog(_ app: XCUIApplication, _ canvas: XCUIElement) {
+        search(app, "gard", pick: "Garden plans")
+        waitForValue(canvas, "Selected: Garden plans")
+        settle()
+        app.buttons["brain.more"].tap()
+        app.buttons["List"].tap()
+        app.buttons["brain.list.row.N3"].tap()
+        closeSheet(app)
+        waitForValue(canvas, "2 selected")
+    }
+
+    // MARK: entry points and the active vault
+
+    @MainActor
+    private func control(_ app: XCUIApplication, _ id: String) -> XCUIElement {
+        app.buttons["brain.uitest.\(id)"]
+    }
+
+    @MainActor
+    func testAnEntryRequestFocusesWithOneRequestAndIsAppliedOnce() {
+        let app = launch("graph", ["-BrainUITestControls", "YES"])
+        waitForLabel(counts(app), "8 notes and memories · 10 connections")
         control(app, "focusN3").tap()
         waitForLabel(requests(app), "requests: 2")
         settle()

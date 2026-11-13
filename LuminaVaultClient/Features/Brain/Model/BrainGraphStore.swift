@@ -62,6 +62,9 @@ nonisolated enum BrainGraphErrors {
 final class BrainGraphStore {
     /// The free tier allows about 10 graph requests a minute; refetches wait this long.
     static let debounce: Duration = .milliseconds(400)
+    /// A graph on screen is fetched again when the screen comes back to it at
+    /// least this long after the last request was sent.
+    static let refreshAge: TimeInterval = 60
 
     private(set) var state: BrainGraphLoadState = .loading
     /// True while a refetch runs with a graph already on screen.
@@ -89,6 +92,8 @@ final class BrainGraphStore {
 
     @ObservationIgnored private let client: any BrainGraphClientProtocol
     @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
+    @ObservationIgnored private let now: () -> Date
+    @ObservationIgnored private let refreshAge: TimeInterval
     @ObservationIgnored private var sawAllVaults = false
     @ObservationIgnored private var started = false
     /// The newest request asked for; what `retry` loads.
@@ -100,13 +105,19 @@ final class BrainGraphStore {
     /// The request whose load is running right now; nil once it has landed,
     /// failed, or been abandoned. `loadTask` itself is not cleared on completion.
     @ObservationIgnored private var inFlight: BrainGraphRequest?
+    /// When the last request was sent.
+    @ObservationIgnored private var lastSentAt: Date?
 
     init(
         client: any BrainGraphClientProtocol,
-        sleep: @escaping @Sendable (Duration) async throws -> Void = { try await ContinuousClock().sleep(for: $0) }
+        sleep: @escaping @Sendable (Duration) async throws -> Void = { try await ContinuousClock().sleep(for: $0) },
+        now: @escaping () -> Date = { Date() },
+        refreshAge: TimeInterval = BrainGraphStore.refreshAge
     ) {
         self.client = client
         self.sleep = sleep
+        self.now = now
+        self.refreshAge = refreshAge
     }
 
     /// A graph is on screen but the request asked for since was refused or
@@ -161,6 +172,21 @@ final class BrainGraphStore {
         return startLoad(wanted)
     }
 
+    /// Fetches the graph on screen again when the last request was sent at
+    /// least `refreshAge` ago: the screen calls this when it comes back (tab
+    /// selected, app in the foreground). Age counts from the last request
+    /// sent, not the last that landed, so a refused or failed refresh waits
+    /// another `refreshAge` too and the ~10 a minute are never spent on this.
+    /// Nothing while a request is in flight or scheduled, and nothing without
+    /// a graph on screen (a failure has its own Retry). Returns whether it asked.
+    @discardableResult
+    func refreshIfStale() -> Bool {
+        guard case .loaded = state, inFlight == nil, !pending, let sent = lastSentAt,
+              now().timeIntervalSince(sent) >= refreshAge else { return false }
+        startLoad(wanted)
+        return true
+    }
+
     /// Fetches now and returns when this load is over (or superseded).
     /// Cancelling the caller does not cancel the load: it runs in the store's
     /// own Task and is cancelled only by a newer request, `sync` or `dispose`.
@@ -184,6 +210,7 @@ final class BrainGraphStore {
             state = .loading
         }
         inFlight = req
+        lastSentAt = now()
         let task = Task { await self.perform(req, token: mine, previous: previous) }
         loadTask = task
         return task

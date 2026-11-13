@@ -596,6 +596,102 @@ struct BrainGraphStoreTests {
         #expect(r.store.loaded == Self.focused)
     }
 
+    // MARK: refresh when stale
+
+    /// A clock the test moves by hand.
+    private final class TestNow {
+        var date = Date(timeIntervalSince1970: 1_000)
+        func advance(_ seconds: TimeInterval) { date += seconds }
+    }
+
+    private func clocked() async -> (Rig, TestNow) {
+        let now = TestNow()
+        let mock = MockBrainGraphClient(results: [])
+        let sleeper = TestSleeper()
+        let store = BrainGraphStore(client: mock, sleep: sleeper.sleep, now: { now.date })
+        await mock.enqueueOnce(.success(Self.graph))
+        store.sync(Self.all)
+        await store.waitUntilIdle()
+        return (Rig(mock: mock, sleeper: sleeper, store: store), now)
+    }
+
+    @Test func refreshIfStaleAsksNothingUntilTheGraphIsAMinuteOld() async {
+        let (r, now) = await clocked()
+        now.advance(59)
+        #expect(!r.store.refreshIfStale())
+        await r.store.waitUntilIdle()
+        #expect(await r.mock.callCount == 1)
+        now.advance(1)
+        await r.mock.enqueueOnce(.success(Self.other))
+        #expect(r.store.refreshIfStale())
+        await r.store.waitUntilIdle()
+        #expect(await r.mock.callCount == 2)
+        #expect(stamp(r.store) == 2)
+        // Fresh again: the next one waits another minute.
+        now.advance(30)
+        #expect(!r.store.refreshIfStale())
+        #expect(await r.mock.callCount == 2)
+    }
+
+    @Test func refreshIfStaleRefetchesTheRequestOnScreenAndKeepsItWithoutAStaleFlag() async {
+        let (r, now) = await clocked()
+        now.advance(61)
+        await r.mock.enqueueOnce(.success(Self.other))
+        r.store.refreshIfStale()
+        #expect(r.store.refreshing)
+        await r.store.waitUntilIdle()
+        #expect(r.store.loaded == Self.all)
+        #expect(!r.store.stale)
+        #expect(r.store.loadSerial == 2)
+    }
+
+    @Test func refreshIfStaleAsksNothingWhileARequestIsInFlightOrScheduled() async {
+        let (r, now) = await clocked()
+        let held = await r.mock.enqueueHeld()
+        r.store.retry()
+        await r.mock.waitForCalls(2)
+        now.advance(120)
+        #expect(!r.store.refreshIfStale())
+        held.release(Self.other)
+        await r.store.waitUntilIdle()
+        #expect(await r.mock.callCount == 2)
+
+        now.advance(120)
+        r.store.sync(Self.focused)
+        #expect(r.store.pending)
+        #expect(!r.store.refreshIfStale())
+        #expect(await r.mock.callCount == 2)
+        r.store.cancel()
+    }
+
+    @Test func aRateLimitedRefreshKeepsTheGraphAndWaitsAnotherMinute() async {
+        let (r, now) = await clocked()
+        now.advance(60)
+        await r.mock.enqueueOnce(.failure(MockBrainGraphClient.rateLimited()))
+        #expect(r.store.refreshIfStale())
+        await r.store.waitUntilIdle()
+        #expect(stamp(r.store) == 1)
+        #expect(r.store.rateLimited)
+        now.advance(30)
+        #expect(!r.store.refreshIfStale())
+        #expect(await r.mock.callCount == 2)
+    }
+
+    @Test func refreshIfStaleNeedsAGraphOnScreen() async {
+        let now = TestNow()
+        let mock = MockBrainGraphClient(results: [])
+        let store = BrainGraphStore(client: mock, sleep: TestSleeper().sleep, now: { now.date })
+        // Nothing asked yet: the screen's first `sync` does that.
+        #expect(!store.refreshIfStale())
+        await mock.enqueueOnce(.failure(MockBrainGraphClient.httpError(500)))
+        store.sync(Self.all)
+        await store.waitUntilIdle()
+        now.advance(120)
+        // A failure has its own Retry.
+        #expect(!store.refreshIfStale())
+        #expect(await mock.callCount == 1)
+    }
+
     // MARK: knownVaults
 
     private static let personal = BrainGraphVaultDTO(id: v1, name: "Personal", personal: true)

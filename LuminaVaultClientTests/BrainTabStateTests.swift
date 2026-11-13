@@ -447,4 +447,11 @@ struct BrainTabStateTests {
         #expect(BrainTabState.isCovered(filters: false, list: false, capture: false, detail: true, reasoning: false))
         #expect(BrainTabState.isCovered(filters: false, list: false, capture: false, detail: false, reasoning: true))
     }
+
+    @Test func theTabIsShownWhenTheShellSelectsItOrOutsideTheShell() {
+        #expect(BrainTabState.isShown(activeTab: "brain"))
+        #expect(BrainTabState.isShown(activeTab: ""))
+        #expect(!BrainTabState.isShown(activeTab: "home"))
+        #expect(BrainTabState.tabID == MainTabView.AppTab.brain.rawValue)
+    }
 }

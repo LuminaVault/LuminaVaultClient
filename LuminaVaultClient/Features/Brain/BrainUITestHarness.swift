@@ -17,6 +17,8 @@
 //                                        notes, memories and hubs instead of the eight)
 //   -BrainUITestProbe <id>              (optional; mark where that point is on screen
 //                                        with an element named `brain.uitest.probe`)
+//   -BrainUITestRefreshAge <seconds>    (optional; how old a graph must be before
+//                                        coming back to the tab fetches it again)
 //
 // Launch arguments of the form `-key value` land in `UserDefaults.standard`.
 // The screen's prefs go to a separate suite, emptied at launch (unless
@@ -392,6 +394,12 @@ struct BrainUITestHarness: View {
         }
     }
 
+    private static var refreshAge: TimeInterval {
+        let key = "BrainUITestRefreshAge"
+        return UserDefaults.standard.object(forKey: key) == nil
+            ? BrainGraphStore.refreshAge : UserDefaults.standard.double(forKey: key)
+    }
+
     private static var typeSize: DynamicTypeSize? {
         switch UserDefaults.standard.string(forKey: "BrainUITestTypeSize") {
         case "large": .large
@@ -427,7 +435,8 @@ struct BrainUITestHarness: View {
                 activeVault: { [vault] in await vault.id },
                 focus: scenario == .missingFocus ? "N404" : nil,
                 entry: $entry,
-                prefs: prefs
+                prefs: prefs,
+                refreshAge: Self.refreshAge
             )
             .environment(\.lvActiveTab, tab)
         }
@@ -461,15 +470,6 @@ struct BrainUITestHarness: View {
     }
 }
 
-/// The app's palette for whichever scheme is showing.
-private struct BrainUITestThemed<Content: View>: View {
-    @ViewBuilder let content: Content
-    @Environment(\.colorScheme) private var scheme
-
-    var body: some View {
-        content.environment(\.lvPalette, LVTheme.cyanGold.palette(for: scheme))
-    }
-}
 /// `-BrainUITestProbe <id>`: the renderer on screen reports where that point
 /// is (canvas coordinates), and the screen marks it with an element named
 /// `brain.uitest.probe`, so a test can tap the point and see whether it moved.
@@ -504,6 +504,15 @@ struct BrainUITestProbeMark: View {
     }
 }
 
+/// The app's palette for whichever scheme is showing.
+private struct BrainUITestThemed<Content: View>: View {
+    @ViewBuilder let content: Content
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        content.environment(\.lvPalette, LVTheme.cyanGold.palette(for: scheme))
+    }
+}
 
 private struct BrainUITestTypeSize: ViewModifier {
     let size: DynamicTypeSize?

@@ -277,6 +277,15 @@ nonisolated enum BrainTabState {
         return (BrainPrefs(filters: filters, view: next), switchNote(next))
     }
 
+    /// The shell's tab id for this screen (`MainTabView.AppTab.brain`).
+    static let tabID = "brain"
+
+    /// Whether the Brain tab is the one on screen. Outside the shell (no tab
+    /// set) the screen is on screen whenever it exists.
+    static func isShown(activeTab: String) -> Bool {
+        activeTab.isEmpty || activeTab == tabID
+    }
+
     /// The selection tray's height before it has been measured once: one row
     /// of chips and one of actions.
     static let trayHeightEstimate: CGFloat = 120

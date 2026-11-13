@@ -83,13 +83,14 @@ struct BrainTabView: View {
         activeVault: @escaping @Sendable () async -> UUID? = { nil },
         focus: String? = nil,
         entry: Binding<BrainEntryRequest?> = .constant(nil),
-        prefs: UserDefaults? = .standard
+        prefs: UserDefaults? = .standard,
+        refreshAge: TimeInterval = BrainGraphStore.refreshAge
     ) {
         // A request that made this tab is part of its first request, not a
         // second one after it.
         let first = BrainEntryRequest.apply(entry.wrappedValue, lastApplied: nil)
         let stored = BrainPrefs.load(from: prefs)
-        _store = State(initialValue: BrainGraphStore(client: client))
+        _store = State(initialValue: BrainGraphStore(client: client, refreshAge: refreshAge))
         _detail = State(initialValue: BrainNodeDetail(client: memoryClient))
         _reasoning = State(initialValue: knowledgeClient.map { KnowledgeReasoningViewModel(client: $0) })
         self.memoryClient = memoryClient
@@ -132,6 +133,11 @@ struct BrainTabView: View {
                 .searchSuggestions { searchSuggestions }
                 .task(id: request) { store.sync(request) }
                 .task(id: activeTab) { await readActiveVault() }
+                // Back on the tab or in the app: an old graph is fetched again.
+                .onChange(of: activeTab) { refreshIfShown() }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                    refreshIfShown()
+                }
                 .onChange(of: entry, initial: true) { applyEntry() }
                 .onChange(of: derivationKey, initial: true) { rederive() }
                 .onChange(of: filters) { _, next in
@@ -155,6 +161,12 @@ struct BrainTabView: View {
                 .sheet(isPresented: $detail.isOpen) { detailSheet }
                 .sheet(isPresented: $showReasoning, onDismiss: presentAfterReasoning, content: { reasoningSheet })
         }
+                .onChange(of: showCapture) { _, open in
+                    // Once, when the empty state's Capture closes: the graph
+                    // may have its first point now. Capture is processed
+                    // later, so the age refresh on return still counts.
+                    if !open { store.retry() }
+                }
     }
 
     // MARK: Content
@@ -238,7 +250,9 @@ struct BrainTabView: View {
                 covered: BrainTabState.isCovered(
                     filters: showFilters, list: showList, capture: showCapture,
                     detail: detail.isOpen, reasoning: showReasoning
-                )
+                ),
+                bottomInset: trayHeight,
+                model: skyModel
             )
             .accessibilityIdentifier("brain.constellation")
             .accessibilityValue(summary)
@@ -247,6 +261,12 @@ struct BrainTabView: View {
 
     private var shownView: BrainViewChoice {
         BrainPrefs(filters: filters, view: savedView).effectiveView(explicit: nil)
+    /// The tab is on screen again (or the app is): fetch an old graph again.
+    private func refreshIfShown() {
+        guard BrainTabState.isShown(activeTab: activeTab) else { return }
+        store.refreshIfStale()
+    }
+
     }
 
     /// The overflow menu's 2D / Constellation choice. Never asks for a graph
@@ -265,9 +285,7 @@ struct BrainTabView: View {
                     mascot: .thinking,
                     headline: BrainTabState.emptyHeadline,
                     supporting: BrainTabState.emptySupporting
-                ),
-                bottomInset: trayHeight,
-                model: skyModel
+                )
                 Button(BrainTabState.captureTitle, systemImage: "plus") { showCapture = true }
                     .buttonStyle(.lvProminent)
                     .controlSize(.large)
@@ -489,6 +507,12 @@ struct BrainTabView: View {
     private func presentAfterReasoning() {
         let next = afterReasoning
         afterReasoning = nil
+            // An overlay offers the whole height, and the chips' horizontal
+            // scroll view would take it: the tray keeps its own height.
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self, of: \.size.height) { height in
+                if height > 0 { trayHeight = height }
+            }
         next?()
     }
 
@@ -507,12 +531,6 @@ struct BrainTabView: View {
 
     private var detailSheet: some View {
         let node = detail.node
-            // An overlay offers the whole height, and the chips' horizontal
-            // scroll view would take it: the tray keeps its own height.
-            .fixedSize(horizontal: false, vertical: true)
-            .onGeometryChange(for: CGFloat.self, of: \.size.height) { height in
-                if height > 0 { trayHeight = height }
-            }
         return BrainNodeDetailSheet(
             detail: detail,
             vaultName: vaultName(node?.vaultID),
