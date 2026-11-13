@@ -446,7 +446,6 @@ private extension ForceSimulation2D {
         var farX: [CGFloat] = []
         var farY: [CGFloat] = []
         var occupied: [Int32] = []
-        var predicted: [CGPoint] = []
         var width = 0
         var height = 0
         var size: CGFloat = ForceSimulation2D.cellSize
@@ -528,7 +527,6 @@ private extension ForceSimulation2D {
             Self.grow(&cellOfPoint, to: count, with: 0)
             Self.grow(&slotOfPoint, to: count, with: 0)
             Self.grow(&members, to: count, with: 0)
-            Self.grow(&predicted, to: count, with: .zero)
             Self.grow(&start, to: cells + 1, with: 0)
             Self.grow(&centreX, to: cells, with: 0)
             Self.grow(&centreY, to: cells, with: 0)
@@ -710,20 +708,24 @@ private extension ForceSimulation2D {
             #endif
         }
 
-        /// d3 `forceCollide(r + 2)`, one iteration, on predicted positions. Each
-        /// point takes its own share of every overlap, so a pair separates by
-        /// the full overlap as in d3. Crowded cells are sampled by the same
-        /// symmetric rule as charge.
+        /// d3 `forceCollide(r + 2)`, one iteration, resolved pair by pair as
+        /// d3 does: points in index order, each against its partners of a
+        /// higher index only, read live (`pos + vel` with every correction so
+        /// far), and both velocities written at once, split by radius. Summing
+        /// every correction against positions predicted before any of them
+        /// pushed a point overlapping several neighbours by the sum, so it
+        /// overshot and crowded clusters shimmered. Index order is id order, so
+        /// the result stays deterministic. Crowded cells are sampled by the
+        /// same symmetric rule as charge, so a sampled pair is still visited
+        /// once, from its lower index.
         mutating func applyCollision(pos: [CGPoint], vel: inout [CGPoint], radius: [CGFloat], tick: Int) {
             let count = pos.count
-            for i in 0 ..< count {
-                predicted[i] = CGPoint(x: pos[i].x + vel[i].x, y: pos[i].y + vel[i].y)
-            }
             let w = width, h = height
             for i in 0 ..< count {
                 let c = Int(cellOfPoint[i])
                 guard c >= 0 else { continue }
-                let qx = predicted[i].x, qy = predicted[i].y
+                // d3 reads this point once, before its own pairs.
+                let qx = pos[i].x + vel[i].x, qy = pos[i].y + vel[i].y
                 let ri = radius[i], ri2 = ri * ri
                 let slot = Int(slotOfPoint[i])
                 let ownStep = Self.sampleStep(Int(start[c + 1] - start[c]))
@@ -739,10 +741,10 @@ private extension ForceSimulation2D {
                         while k < hi {
                             let j = Int(members[k])
                             k += step
-                            if j == i { continue }
+                            if j <= i { continue }
                             let rj = radius[j]
                             let r = ri + rj
-                            var dx = qx - predicted[j].x, dy = qy - predicted[j].y
+                            var dx = qx - pos[j].x - vel[j].x, dy = qy - pos[j].y - vel[j].y
                             var l = dx * dx + dy * dy
                             if l >= r * r { continue }
                             if l == 0 {
@@ -752,9 +754,15 @@ private extension ForceSimulation2D {
                                 l = dx * dx + dy * dy
                             }
                             l = l.squareRoot()
-                            let push = (r - l) / l * (rj * rj / (ri2 + rj * rj))
-                            vx += dx * push
-                            vy += dy * push
+                            let push = (r - l) / l
+                            dx *= push
+                            dy *= push
+                            let rj2 = rj * rj
+                            let share = rj2 / (ri2 + rj2)
+                            vx += dx * share
+                            vy += dy * share
+                            vel[j].x -= dx * (1 - share)
+                            vel[j].y -= dy * (1 - share)
                         }
                     }
                 }

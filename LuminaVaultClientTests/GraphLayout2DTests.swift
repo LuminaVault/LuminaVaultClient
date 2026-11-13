@@ -474,6 +474,76 @@ nonisolated struct ForceSimulation2DTests {
         #expect(sim.smallestGap() >= 0)
     }
 
+    /// Per tick while the layout cools: the largest step any point takes, the
+    /// summed squared steps (kinetic energy), and how many points step back
+    /// against their last step by more than a quarter point (shimmer).
+    private struct Motion {
+        var maxStep: [CGFloat] = []
+        var energy: [CGFloat] = []
+        var reversals: [Int] = []
+        var alpha: [CGFloat] = []
+    }
+
+    private static func cool(_ sim: inout ForceSimulation2D) -> Motion {
+        var out = Motion()
+        var last = sim.positions
+        var lastStep = [CGPoint](repeating: .zero, count: last.count)
+        var ticks = 0
+        while ticks < 400 {
+            ticks += 1
+            let more = sim.tick()
+            var biggest: CGFloat = 0, energy: CGFloat = 0, back = 0
+            for i in sim.positions.indices {
+                let step = CGPoint(x: sim.positions[i].x - last[i].x, y: sim.positions[i].y - last[i].y)
+                let length = hypot(step.x, step.y)
+                biggest = max(biggest, length)
+                energy += length * length
+                if length > 0.25, step.x * lastStep[i].x + step.y * lastStep[i].y < 0 { back += 1 }
+                lastStep[i] = step
+            }
+            out.maxStep.append(biggest)
+            out.energy.append(energy)
+            out.reversals.append(back)
+            out.alpha.append(sim.alpha)
+            last = sim.positions
+            if !more { break }
+        }
+        return out
+    }
+
+    /// A crowded cluster (1,000 points on one hub) comes to rest instead of
+    /// shimmering: once cool, kinetic energy only falls (5% slack per tick),
+    /// and almost no point steps back and forth. Collision summed against
+    /// positions predicted before any correction measured, over the last 30
+    /// ticks, 730 (author) and 713 (burst) of 1,000 points reversing in one
+    /// tick and a largest step of 1.2-1.4 pt at rest; resolved pair by pair,
+    /// 2 and 0, and 0.3-0.4 pt.
+    @Test(arguments: ["author", "burst"])
+    func aCrowdedClusterComesToRestWithoutShimmer(_ shape: String) {
+        var sim = ForceSimulation2D()
+        let author = "author:user:AAAAAAAA-0000-4000-8000-000000000001"
+        if shape == "author" {
+            sim.setGraph(Fixture.singleAuthor(1000))
+        } else {
+            sim.setGraph(Fixture.graph([Fixture.hub(author, .author, weight: 2), Fixture.note("z-seed")], [Fixture.edge("z-seed", author, .author)]))
+            sim.settle()
+            let ids = ["z-seed"] + (0 ..< 1000).map { String(format: "a%05d", $0) }
+            sim.setGraph(Fixture.graph(
+                [Fixture.hub(author, .author, weight: ids.count)] + ids.map { Fixture.note($0) },
+                ids.map { Fixture.edge($0, author, .author) }
+            ))
+        }
+        let m = Self.cool(&sim)
+        let late = m.alpha.indices.filter { m.alpha[$0] < 0.1 }
+        let rises = late.dropFirst().filter { m.energy[$0] > m.energy[$0 - 1] * 1.05 }.count
+        let tail = m.reversals.suffix(30)
+        let worstReversals = tail.max() ?? 0
+        #expect(m.alpha.count <= 300)
+        #expect(rises == 0, "kinetic energy rose on \(rises) late ticks")
+        #expect(worstReversals <= 10, "\(worstReversals) points shimmer in one late tick")
+        #expect(sim.smallestGap() >= 0)
+    }
+
     /// A point held far away stays out of the grid's extent, so the rest lay
     /// out exactly as if it were not there (it has no links to pull them).
     @Test func aFarPinLeavesTheRestUntouched() {
