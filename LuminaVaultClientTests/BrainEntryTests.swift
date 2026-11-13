@@ -95,25 +95,86 @@ struct BrainEntryTests {
 
     // MARK: whether the request changes
 
+    private static let work = UUID(uuidString: "00000000-0000-4000-8000-0000000000A1") ?? UUID()
+    private static let home = UUID(uuidString: "00000000-0000-4000-8000-0000000000A2") ?? UUID()
+    private static let known = [work, home]
+
+    private func changes(
+        _ applied: BrainEntryRequest.Applied, focus: String?, depth: Int, vaults: Set<UUID>?
+    ) -> Bool {
+        applied.changesRequest(focus: focus, depth: depth, vaults: vaults, known: Self.known, similarAsked: false)
+    }
+
     @Test func theSameFocusAtTheSameDepthAndVaultsChangesNothing() throws {
         let applied = try #require(BrainEntryRequest.apply(.init(focus: "N3", token: 2), lastApplied: nil))
-        #expect(applied.changesRequest(focus: "N3", depth: 1, vaults: nil) == false)
+        #expect(changes(applied, focus: "N3", depth: 1, vaults: nil) == false)
     }
 
     @Test func aDeeperCurrentDepthOrANarrowedVaultSetChangesTheRequest() throws {
         let applied = try #require(BrainEntryRequest.apply(.init(focus: "N3", token: 2), lastApplied: nil))
-        #expect(applied.changesRequest(focus: "N3", depth: 3, vaults: nil))
-        #expect(applied.changesRequest(focus: "N3", depth: 1, vaults: [UUID()]))
-        #expect(applied.changesRequest(focus: "N4", depth: 1, vaults: nil))
-        #expect(applied.changesRequest(focus: nil, depth: 1, vaults: nil))
+        #expect(changes(applied, focus: "N3", depth: 3, vaults: nil))
+        #expect(changes(applied, focus: "N3", depth: 1, vaults: [Self.work]))
+        #expect(changes(applied, focus: "N4", depth: 1, vaults: nil))
+        #expect(changes(applied, focus: nil, depth: 1, vaults: nil))
     }
 
     @Test func theFullGraphEntryChangesNothingWhenAlreadyOnTheFullGraph() throws {
         let applied = try #require(BrainEntryRequest.apply(.init(focus: nil, token: 2), lastApplied: nil))
-        #expect(applied.changesRequest(focus: nil, depth: 1, vaults: nil) == false)
-        #expect(applied.changesRequest(focus: "N1", depth: 1, vaults: nil))
-        #expect(applied.changesRequest(focus: nil, depth: 1, vaults: [UUID()]) == false,
+        #expect(changes(applied, focus: nil, depth: 1, vaults: nil) == false)
+        #expect(changes(applied, focus: "N1", depth: 1, vaults: nil))
+        #expect(changes(applied, focus: nil, depth: 1, vaults: [Self.work]) == false,
                 "an entry without a focus leaves the filter, so it asks for nothing new")
+    }
+
+    /// The tab sends `BrainTabState.request`, so that is what is compared: a
+    /// filter value that asks for the same graph as the arrival's is no
+    /// change, and nothing will load to select the focus.
+    @Test func filterValuesThatAskForTheSameGraphAreNoChange() throws {
+        let focused = try #require(BrainEntryRequest.apply(.init(focus: "N3", token: 2), lastApplied: nil))
+        // An empty vault set asks for every vault, as nil does.
+        #expect(changes(focused, focus: "N3", depth: 1, vaults: []) == false)
+        let full = try #require(BrainEntryRequest.apply(.init(focus: nil, token: 3), lastApplied: nil))
+        // An empty focus is the full graph; so is the depth it was left at.
+        #expect(changes(full, focus: "", depth: 2, vaults: nil) == false)
+    }
+
+    /// A set naming every known vault is sent as a `vaults=` list, so the
+    /// arrival's "every vault" (no list) is a new request and its load selects
+    /// the focus point.
+    @Test func aSetOfEveryKnownVaultIsSentAsAListSoClearingItIsAChange() throws {
+        let focused = try #require(BrainEntryRequest.apply(.init(focus: "N3", token: 2), lastApplied: nil))
+        #expect(changes(focused, focus: "N3", depth: 1, vaults: Set(Self.known)))
+        let unchanged = BrainTabState.request(
+            vaults: Set(Self.known), known: Self.known, focus: "N3", depth: 1, similarAsked: false
+        )
+        let arrived = BrainTabState.request(vaults: nil, known: Self.known, focus: "N3", depth: 1, similarAsked: false)
+        #expect(unchanged.query != arrived.query)
+    }
+
+    // MARK: an arrival's vault clear is not saved
+
+    /// What is stored, as the string `BrainPrefs` writes.
+    private func stored(_ filters: BrainGraphFilters) throws -> String {
+        let suite = "brain-entry-tests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        BrainPrefs(filters: filters, view: nil).save(to: defaults)
+        return try #require(defaults.string(forKey: BrainPrefs.key))
+    }
+
+    /// An arrival clears the vault filter for the visit. Whether the tab
+    /// saves the filters after that (the live path does, through the filters'
+    /// change) or not (the path that made the tab), what is stored is the
+    /// same: the vault set is never part of what is saved.
+    @Test func anArrivalsVaultClearStoresNothingDifferent() throws {
+        let applied = try #require(BrainEntryRequest.apply(.init(focus: "N6", token: 1), lastApplied: nil))
+        var before = BrainGraphModel.defaultFilters()
+        before.vaults = [Self.work]
+        before.showOrphans.toggle()
+        var after = before
+        after.vaults = applied.vaults(keeping: before.vaults)
+        #expect(after.vaults == nil)
+        #expect(try stored(after) == stored(before))
     }
 
     // MARK: active vault

@@ -29,10 +29,21 @@ nonisolated struct BrainEntryRequest: Equatable, Sendable {
         /// Whether applying this over what the screen shows changes the graph
         /// request. When it does not, nothing will load, so the tab must
         /// select the focus point itself; when it does, the load does.
-        func changesRequest(focus current: String?, depth currentDepth: Int, vaults currentVaults: Set<UUID>?) -> Bool {
-            focus != current
-                || (focus != nil && depth != currentDepth)
-                || vaults(keeping: currentVaults) != currentVaults
+        /// Compares the requests the tab sends (`BrainTabState.request`, as
+        /// the store does), not the raw filter values: an empty vault set and
+        /// nil ask for the same graph.
+        func changesRequest(
+            focus current: String?, depth currentDepth: Int, vaults currentVaults: Set<UUID>?,
+            known: [UUID], similarAsked: Bool
+        ) -> Bool {
+            let now = BrainTabState.request(
+                vaults: currentVaults, known: known, focus: current, depth: currentDepth, similarAsked: similarAsked
+            )
+            let next = BrainTabState.request(
+                vaults: vaults(keeping: currentVaults), known: known, focus: focus, depth: depth,
+                similarAsked: similarAsked
+            )
+            return now.query != next.query
         }
     }
 

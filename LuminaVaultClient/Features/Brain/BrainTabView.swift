@@ -355,7 +355,10 @@ struct BrainTabView: View {
         guard let applied = BrainEntryRequest.apply(entry, lastApplied: appliedEntry) else { return }
         appliedEntry = applied.token
         // Nothing will load when the request does not change: select now.
-        let changes = applied.changesRequest(focus: focus, depth: depth, vaults: filters.vaults)
+        let changes = applied.changesRequest(
+            focus: focus, depth: depth, vaults: filters.vaults,
+            known: store.knownVaults.map(\.id), similarAsked: similarAsked
+        )
         depth = applied.depth
         focusSelectedFor = nil
         focus = applied.focus
