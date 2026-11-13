@@ -37,6 +37,9 @@ final class ConstellationScene {
     private var starMesh: MeshResource?
     private var ringMesh: MeshResource?
     private var stars: [ModelEntity] = []
+    /// The scale last written to each star, so a camera step that leaves a
+    /// star's size alone writes nothing to it.
+    private var writtenScales: [Float] = []
     private var rings: [ModelEntity] = []
     private var materials = ConstellationMaterials()
 
@@ -56,6 +59,14 @@ final class ConstellationScene {
     private(set) var lineBuilds = 0
     /// The stars that carry a selection ring now, for tests.
     var selectedStarIndices: [Int] { selectedStars }
+    /// How many star scales have been written, for tests.
+    private(set) var scaleWrites = 0
+
+    /// The scale star `i` is drawn at now, or nil when it is not drawn. For tests.
+    func drawnScale(ofStar i: Int) -> Float? {
+        guard i < stars.count, stars[i].isEnabled else { return nil }
+        return stars[i].scale.x
+    }
 
     /// Called by the view's `make` closure, once.
     func install(into content: inout RealityViewCameraContent) {
@@ -150,13 +161,21 @@ final class ConstellationScene {
         guard next != size, next.width > 0, next.height > 0 else { return false }
         size = next
         if camera.autoView { return fit() }
+        // Star, ring and line sizes are held in points, so they follow the
+        // view's height: redraw them for the new size now, not at the next
+        // camera move. The eye has not moved, so the lines are rebuilt here.
+        applyCamera()
+        if !look.lines.isEmpty { drawLines() }
         return false
     }
 
     /// Moves the camera entity to `camera`, and the selection rings with it.
-    func setCamera(_ next: ConstellationCamera) {
+    /// Returns where every star is on screen from there, for the labels to
+    /// follow without projecting again.
+    @discardableResult
+    func setCamera(_ next: ConstellationCamera) -> ConstellationProjection {
         camera = next
-        applyCamera()
+        return applyCamera()
     }
 
     /// Frames the placed stars from the current direction. Returns whether there was anything to frame.
@@ -188,7 +207,8 @@ final class ConstellationScene {
     /// The camera, and everything whose size is held on screen: star
     /// scales, selection rings, and the lines once the camera has moved far
     /// enough that their width would drift.
-    private func applyCamera() {
+    @discardableResult
+    private func applyCamera() -> ConstellationProjection {
         cameraEntity.position = camera.position
         cameraEntity.orientation = camera.orientation
         let p = projection()
@@ -198,14 +218,20 @@ final class ConstellationScene {
            ConstellationRules.linesNeedRebuild(builtEye: linesBuiltEye, eye: camera.position, distance: camera.distance) {
             drawLines()
         }
+        return p
     }
 
     /// Each star's mesh scaled so it is drawn at its clamped screen radius.
+    /// Only stars whose scale changed are written.
     private func scaleStars(_ p: ConstellationProjection) {
         let k = ConstellationCamera.pointsPerUnit(size)
         guard k > 0 else { return }
-        for i in 0 ..< min(stars.count, p.count) where p.depth[i].isFinite {
-            stars[i].scale = SIMD3(repeating: ConstellationRules.drawnScale(radius: p.radius[i], depth: p.depth[i], pointsPerUnit: k))
+        for i in 0 ..< min(stars.count, p.count, writtenScales.count) where p.depth[i].isFinite {
+            let scale = ConstellationRules.drawnScale(radius: p.radius[i], depth: p.depth[i], pointsPerUnit: k)
+            guard scale != writtenScales[i] else { continue }
+            stars[i].scale = SIMD3(repeating: scale)
+            writtenScales[i] = scale
+            scaleWrites += 1
         }
     }
 
@@ -215,6 +241,7 @@ final class ConstellationScene {
             let entity = ModelEntity()
             starsRoot.addChild(entity)
             stars.append(entity)
+            writtenScales.append(.nan)
         }
         for (i, entity) in stars.enumerated() {
             guard i < model.ids.count, points[i].x.isFinite else {
@@ -231,6 +258,7 @@ final class ConstellationScene {
             }
             entity.position = points[i]
             entity.scale = SIMD3(repeating: model.radius[i])
+            writtenScales[i] = model.radius[i]
             entity.isEnabled = true
         }
         scaleStars(projection())

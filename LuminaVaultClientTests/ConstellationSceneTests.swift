@@ -153,6 +153,67 @@ struct ConstellationSceneUpdateTests {
             #expect(p.radius[i] >= ConstellationRules.minStarPoints * ConstellationRules.coreShare - 1e-6)
         }
     }
+
+    /// The scale each placed star should be drawn at for the scene's camera and size now.
+    private func expectedScales(_ scene: ConstellationScene) -> [Int: Float] {
+        let p = scene.projection()
+        let k = ConstellationCamera.pointsPerUnit(scene.size)
+        var out: [Int: Float] = [:]
+        for i in 0 ..< p.count where p.depth[i].isFinite {
+            out[i] = ConstellationRules.drawnScale(radius: p.radius[i], depth: p.depth[i], pointsPerUnit: k)
+        }
+        return out
+    }
+
+    /// Rotation or a split view with a camera the user has moved: stars are
+    /// held to their size on screen for the new size at once, and the lines
+    /// are rebuilt for it, not at the next camera move.
+    @Test func aResizeWithAMovedCameraRedrawsStarsAndLinesForTheNewSize() {
+        let scene = placed()
+        // Close in, so stars sit on the largest size a star is drawn at, which
+        // is a size in points: its world scale follows the view's height.
+        var held = scene.camera.zoomed(from: scene.camera, by: 20)
+        held.autoView = false
+        scene.setCamera(held)
+        let before = expectedScales(scene)
+        let builds = scene.lineBuilds
+        let moved = scene.resize(CGSize(width: 700, height: 390))
+        #expect(!moved)
+        #expect(scene.camera == held)
+        let after = expectedScales(scene)
+        #expect(!after.isEmpty)
+        #expect(after.contains { i, s in abs((before[i] ?? s) - s) > 1e-4 }, "the fixture must reach a size-dependent clamp")
+        for (i, s) in after {
+            let drawn = scene.drawnScale(ofStar: i)
+            #expect(drawn.map { abs($0 - s) <= 1e-4 * max(1, abs(s)) } == true, "star \(i): \(String(describing: drawn)) vs \(s)")
+        }
+        #expect(scene.lineBuilds == builds + 1)
+        // The same size again does nothing.
+        _ = scene.resize(CGSize(width: 700, height: 390))
+        #expect(scene.lineBuilds == builds + 1)
+    }
+
+    /// The idle turn sets the camera thirty times a second: a step that
+    /// changes no star's size writes no scale.
+    @Test func anUnchangedCameraWritesNoStarScales() {
+        let scene = placed()
+        let writes = scene.scaleWrites
+        scene.setCamera(scene.camera)
+        #expect(scene.scaleWrites == writes)
+        scene.setCamera(scene.camera.zoomed(from: scene.camera, by: 20))
+        #expect(scene.scaleWrites > writes)
+        let afterZoom = scene.scaleWrites
+        scene.setCamera(scene.camera)
+        #expect(scene.scaleWrites == afterZoom)
+    }
+
+    /// One projection per camera step, shared with the labels.
+    @Test func setCameraReturnsTheProjectionItDrewWith() {
+        let scene = placed()
+        let p = scene.setCamera(scene.camera.turned(by: 0.1))
+        #expect(p == scene.projection())
+        #expect(p.count == 10)
+    }
 }
 
 struct ConstellationLayoutStateTests {

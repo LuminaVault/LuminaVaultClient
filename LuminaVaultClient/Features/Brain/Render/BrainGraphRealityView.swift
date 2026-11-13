@@ -364,12 +364,13 @@ private struct ConstellationSurface: View {
             guard centring == nil, allowed(turned: turned) else { return }
             turned += step
             sinceRank += step
-            driver.scene.setCamera(driver.scene.camera.turned(by: ConstellationIdleTurn.angle(after: step)))
+            // One projection per step: the scene draws with it and the labels follow it.
+            let p = driver.scene.setCamera(driver.scene.camera.turned(by: ConstellationIdleTurn.angle(after: step)))
             if sinceRank >= ConstellationIdleTurn.rerankInterval {
                 sinceRank = .zero
                 rerank()
             } else {
-                labelStore.follow(driver.scene.projection())
+                labelStore.follow(p)
             }
         }
     }
