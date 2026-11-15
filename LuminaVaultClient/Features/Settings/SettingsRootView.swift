@@ -204,13 +204,15 @@ struct SettingsRootView: View {
                             // choice sits next to Intelligence. Renamed from
                             // "Hermes Gateway" to disambiguate from the HER-241
                             // "Messaging Gateways" pane below.
-                            LVSettingsRow("Hermes Server", icon: .network) {
-                                HermesGatewayPaneView(
-                                    client: settingsClient,
-                                    mirror: HermesMirrorHTTPClient(client: appState.makeHTTPClient())
-                                )
+                            if ShippedFeatures.bringYourOwnHermes {
+                                LVSettingsRow("Hermes Server", icon: .network) {
+                                    HermesGatewayPaneView(
+                                        client: settingsClient,
+                                        mirror: HermesMirrorHTTPClient(client: appState.makeHTTPClient())
+                                    )
+                                }
+                                LVSettingsDivider()
                             }
-                            LVSettingsDivider()
                             LVSettingsRow("Agent connections", icon: .keyFill) {
                                 AgentConnectionsView(
                                     client: AgentConnectionsHTTPClient(client: appState.makeHTTPClient())
@@ -251,21 +253,29 @@ struct SettingsRootView: View {
                                     client: HermesWorkspaceHTTPClient(client: appState.makeHTTPClient())
                                 )
                             }
-                            LVSettingsDivider()
+                            if ShippedFeatures.hermesJobs || ShippedFeatures.messagingGateways {
+                                LVSettingsDivider()
+                            }
                             // Phase 2 — full control of the cron jobs on the
                             // user's own Hermes, plus the runs LuminaVault has
                             // collected from them.
-                            LVSettingsRow("Hermes Jobs", icon: .clockBadgeCheckmark) {
-                                HermesMirrorJobsView(
-                                    vm: HermesMirrorJobsListViewModel(client: hermesMirrorJobsClient),
-                                    client: hermesMirrorJobsClient
-                                )
+                            if ShippedFeatures.hermesJobs {
+                                LVSettingsRow("Hermes Jobs", icon: .clockBadgeCheckmark) {
+                                    HermesMirrorJobsView(
+                                        vm: HermesMirrorJobsListViewModel(client: hermesMirrorJobsClient),
+                                        client: hermesMirrorJobsClient
+                                    )
+                                }
                             }
-                            LVSettingsDivider()
+                            if ShippedFeatures.hermesJobs && ShippedFeatures.messagingGateways {
+                                LVSettingsDivider()
+                            }
                             // HER-241 — messaging gateways (Discord/Slack/…). A
                             // connection, so it lives here rather than System.
-                            LVSettingsRow("Messaging Gateways", icon: .bubbleLeftAndBubbleRight) {
-                                HermesGatewaysPaneView(client: hermesGatewaysClient)
+                            if ShippedFeatures.messagingGateways {
+                                LVSettingsRow("Messaging Gateways", icon: .bubbleLeftAndBubbleRight) {
+                                    HermesGatewaysPaneView(client: hermesGatewaysClient)
+                                }
                             }
                         }
 

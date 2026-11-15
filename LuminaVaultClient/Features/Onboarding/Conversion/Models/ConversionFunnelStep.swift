@@ -26,12 +26,26 @@ enum ConversionFunnelStep: Int, CaseIterable, Sendable {
         Double(rawValue + 1) / Double(Self.allCases.count)
     }
 
+    /// Screen 4 shows testimonials. While they are placeholders
+    /// (`FunnelTestimonial.containsUnverifiedPlaceholders`), the funnel skips
+    /// it: fabricated social proof must never ship (App Review 5.6, 2.3.1).
+    var isShown: Bool {
+        self != .socialProof || !FunnelTestimonial.containsUnverifiedPlaceholders
+    }
+
     var next: ConversionFunnelStep? {
-        ConversionFunnelStep(rawValue: rawValue + 1)
+        var step = ConversionFunnelStep(rawValue: rawValue + 1)
+        while let candidate = step, !candidate.isShown {
+            step = ConversionFunnelStep(rawValue: candidate.rawValue + 1)
+        }
+        return step
     }
 
     var previous: ConversionFunnelStep? {
-        guard rawValue > 0 else { return nil }
-        return ConversionFunnelStep(rawValue: rawValue - 1)
+        var step = rawValue > 0 ? ConversionFunnelStep(rawValue: rawValue - 1) : nil
+        while let candidate = step, !candidate.isShown {
+            step = candidate.rawValue > 0 ? ConversionFunnelStep(rawValue: candidate.rawValue - 1) : nil
+        }
+        return step
     }
 }

@@ -251,9 +251,15 @@ struct LuminaVaultClientApp: App {
                                         let telemetry = ConversionFunnelTelemetry()
                                         telemetry.completed(summary: summary)
                                         hasSeenConversionFunnel = true
-                                        let paywallID = "default"
-                                        appState.pendingPaywallID = PaywallPresentation(id: paywallID)
-                                        telemetry.paywallShown(paywallID: paywallID)
+                                        // 1.0: nothing is on sale while billing
+                                        // enforcement is off (infra #637), so the
+                                        // funnel ends at Home, not at a paywall
+                                        // App Review would test (3.1.2).
+                                        if appState.billingService?.enforcementEnabled == true {
+                                            let paywallID = "default"
+                                            appState.pendingPaywallID = PaywallPresentation(id: paywallID)
+                                            telemetry.paywallShown(paywallID: paywallID)
+                                        }
                                     }
                                 } else if needsSoulQuiz {
                                     SoulQuizContainerView(
@@ -297,7 +303,7 @@ struct LuminaVaultClientApp: App {
                                         ),
                                         makeProvidersClient: { appState.makeProvidersClient() }
                                     )
-                                } else if !hasSeenBYOHermesPrompt {
+                                } else if ShippedFeatures.bringYourOwnHermes && !hasSeenBYOHermesPrompt {
                                     // HER-219 — optional "point LuminaVault at
                                     // your own Hermes VPS" prompt. Final
                                     // onboarding step before the main shell.

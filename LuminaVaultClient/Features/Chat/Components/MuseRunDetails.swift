@@ -21,13 +21,15 @@ struct MuseRunDetails: View {
     var body: some View {
         VStack(alignment: .leading, spacing: LVSpacing.sm) {
             HStack(spacing: LVSpacing.sm) {
-                MultiModelModeControl(
-                    isEnabled: $viewModel.multiModelEnabled,
-                    strategy: $viewModel.multiModelStrategy,
-                    isStreaming: viewModel.isStreaming
-                )
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(palette.accent)
+                if ShippedFeatures.multiModelAnswers {
+                    MultiModelModeControl(
+                        isEnabled: $viewModel.multiModelEnabled,
+                        strategy: $viewModel.multiModelStrategy,
+                        isStreaming: viewModel.isStreaming
+                    )
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(palette.accent)
+                }
                 Spacer(minLength: 0)
                 if let reading = contextReading {
                     ChatContextGauge(reading: reading)
