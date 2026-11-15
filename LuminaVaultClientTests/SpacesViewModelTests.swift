@@ -61,6 +61,49 @@ final class SpacesViewModelTests: XCTestCase {
         XCTAssertNil(sut.error)
     }
 
+    func testFailedCreateReturnsTheServerMessageAndKeepsTheList() async {
+        let mock = MockSpacesClient()
+        mock.listResult = .success([SpaceDTO.stub(name: "Health", slug: "health")])
+        let body = Data(#"{"error":{"message":"slug already used in this vault"}}"#.utf8)
+        mock.createResult = .failure(APIError.httpError(statusCode: 409, data: body))
+        let sut = SpacesViewModel(spacesClient: mock)
+        await sut.load()
+
+        let message = await sut.create(CreateSpaceRequest(
+            name: "Health", slug: "", description: nil, color: nil, icon: nil, category: nil
+        ))
+
+        XCTAssertEqual(message, "slug already used in this vault", "the form shows the server's reason")
+        XCTAssertEqual(sut.spaces.map(\.slug), ["health"], "nothing was added")
+        XCTAssertNil(sut.error, "the form reports this, not the list banner")
+    }
+
+    func testSuccessfulCreateReturnsNil() async {
+        let sut = SpacesViewModel(spacesClient: MockSpacesClient())
+
+        let message = await sut.create(CreateSpaceRequest(
+            name: "Health", slug: "", description: nil, color: nil, icon: "heart.fill", category: nil
+        ))
+
+        XCTAssertNil(message)
+        XCTAssertEqual(sut.spaces.map(\.name), ["Health"])
+    }
+
+    func testFailedUpdateReturnsAMessageAndLeavesTheSpaceAlone() async {
+        let mock = MockSpacesClient()
+        let space = SpaceDTO.stub(name: "AI", slug: "ai")
+        mock.listResult = .success([space])
+        mock.updateResult = .failure(APIError.httpError(statusCode: 500, data: Data()))
+        let sut = SpacesViewModel(spacesClient: mock)
+        await sut.load()
+
+        let message = await sut.update(id: space.id, UpdateSpaceRequest(name: "Renamed"))
+
+        XCTAssertNotNil(message)
+        XCTAssertEqual(sut.spaces.map(\.name), ["AI"])
+        XCTAssertNil(sut.error)
+    }
+
     func testDeleteRollsBackOnError() async {
         let mock = MockSpacesClient()
         let space = SpaceDTO.stub(name: "AI", slug: "ai")

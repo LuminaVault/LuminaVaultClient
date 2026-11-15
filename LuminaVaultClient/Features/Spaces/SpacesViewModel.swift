@@ -65,7 +65,11 @@ final class SpacesViewModel {
         }
     }
 
-    func create(_ request: CreateSpaceRequest) async {
+    /// Creates a space. Returns nil on success, or the message to show next
+    /// to the form. A failed create is the form's to report, so it does not
+    /// also raise the list banner.
+    @discardableResult
+    func create(_ request: CreateSpaceRequest) async -> String? {
         error = nil
         do {
             let created = try await spacesClient.create(request)
@@ -75,23 +79,30 @@ final class SpacesViewModel {
             var props: [String: Any] = ["space_slug": created.slug]
             if let category = created.category { props["category"] = category }
             PostHogSDK.shared.capture("space_created", properties: props)
+            return nil
         } catch {
-            guard !error.isBenignCancellation else { return }
-            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return Self.formMessage(for: error)
         }
     }
 
-    func update(id: UUID, _ request: UpdateSpaceRequest) async {
+    /// Saves changes to a space. Same contract as `create`.
+    @discardableResult
+    func update(id: UUID, _ request: UpdateSpaceRequest) async -> String? {
         error = nil
         do {
             let updated = try await spacesClient.update(id: id, request)
             if let idx = spaces.firstIndex(where: { $0.id == id }) {
                 spaces[idx] = updated
             }
+            return nil
         } catch {
-            guard !error.isBenignCancellation else { return }
-            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            return Self.formMessage(for: error)
         }
+    }
+
+    private static func formMessage(for error: Error) -> String {
+        if error.isBenignCancellation { return "That was interrupted. Try again." }
+        return (error as? APIError)?.errorDescription ?? error.localizedDescription
     }
 
     func delete(id: UUID) async {
