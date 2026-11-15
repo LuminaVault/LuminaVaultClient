@@ -151,4 +151,12 @@ final class ConversionFunnelStateTests: XCTestCase {
         s.goBack()
         XCTAssertEqual(s.currentStep, .welcome, "can't go back past welcome")
     }
+
+    // Placeholder testimonials never ship: Screen 4 is skipped both ways.
+    func testSocialProofIsSkippedWhilePlaceholders() {
+        guard FunnelTestimonial.containsUnverifiedPlaceholders else { return }
+        XCTAssertEqual(ConversionFunnelStep.painPoints.next, .swipeCards)
+        XCTAssertEqual(ConversionFunnelStep.swipeCards.previous, .painPoints)
+        XCTAssertFalse(ConversionFunnelStep.socialProof.isShown)
+    }
 }

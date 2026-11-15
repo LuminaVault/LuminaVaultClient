@@ -15,14 +15,14 @@ struct ComparisonTableView: View {
     private let rows: [Row] = [
         .init(id: 0, label: "Remembers you across sessions",         lumina: true, generic: false),
         .init(id: 1, label: "Replies in YOUR voice",                 lumina: true, generic: false),
-        .init(id: 2, label: "Wiki-linked vault + knowledge graph",   lumina: true, generic: false),
-        .init(id: 3, label: "Your own Hermes agent, your own VPS",   lumina: true, generic: false),
+        .init(id: 2, label: "Wikilinks + a graph of your notes",     lumina: true, generic: false),
+        .init(id: 3, label: "Answers show the note they came from",  lumina: true, generic: false),
         .init(id: 4, label: "Bring your own LLM keys",               lumina: true, generic: false),
     ]
 
     var body: some View {
         FunnelScreenChrome(
-            headline: "73% of knowledge workers re-research the same topic monthly.",
+            headline: "Stop re-finding what you already saved.",
             subhead: "You don't have to.",
             primaryCTA: "Set me up",
             onPrimary: { state.advance() }
