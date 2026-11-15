@@ -62,4 +62,16 @@ final class VaultHTTPClient: VaultClientProtocol {
     func documentLinks(vaultFileID: UUID) async throws -> VaultLinksResponse {
         try await client.execute(VaultEndpoints.DocumentLinks(vaultFileID: vaultFileID))
     }
+
+    func listTrash() async throws -> [VaultTrashItem] {
+        try await client.execute(VaultEndpoints.TrashList()).items
+    }
+
+    func restoreTrash(id: UUID) async throws -> VaultFileDTO {
+        try await client.execute(VaultEndpoints.TrashRestore(id: id))
+    }
+
+    func deleteTrashForever(id: UUID) async throws {
+        _ = try await client.execute(VaultEndpoints.TrashDelete(id: id))
+    }
 }

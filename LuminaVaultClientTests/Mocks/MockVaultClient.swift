@@ -80,4 +80,27 @@ final class MockVaultClient: VaultClientProtocol, @unchecked Sendable {
     func exportVault() async throws -> (Data, String) {
         try exportVaultResult.get()
     }
+
+    // Backlog E3.4 — scripted trash.
+    var listTrashResult: Result<[VaultTrashItem], Error> = .success([])
+    var restoreTrashResult: Result<VaultFileDTO, Error> = .success(
+        VaultFileDTO(id: UUID(), path: "restored.md", contentType: "text/markdown", sizeBytes: 0, sha256: "")
+    )
+    var deleteTrashResult: Result<Void, Error> = .success(())
+    private(set) var restoredTrashIDs: [UUID] = []
+    private(set) var deletedTrashIDs: [UUID] = []
+
+    func listTrash() async throws -> [VaultTrashItem] {
+        try listTrashResult.get()
+    }
+
+    func restoreTrash(id: UUID) async throws -> VaultFileDTO {
+        restoredTrashIDs.append(id)
+        return try restoreTrashResult.get()
+    }
+
+    func deleteTrashForever(id: UUID) async throws {
+        deletedTrashIDs.append(id)
+        try deleteTrashResult.get()
+    }
 }
