@@ -69,6 +69,10 @@ struct LuminaVaultClientApp: App {
     // shell). No server latch: the step is idempotent and re-running it is
     // harmless, so per-install scope is good enough.
     @AppStorage("hasSeenBYOHermesPrompt") private var hasSeenBYOHermesPrompt = false
+    /// App Review 5.1.2(i): the AI data-sharing disclosure version the user
+    /// accepted (`AIDataConsentView`). Below `AIDataConsent.currentVersion`
+    /// gates every signed-in screen.
+    @AppStorage(AIDataConsent.storageKey) private var aiDataConsentVersion = 0
     // HER-300 — local latch for Choose-Your-Brain. Server PATCH is
     // best-effort; if it fails, this flag still clears the gate so
     // "Select Default" can enter the app on the existing managed
@@ -197,6 +201,15 @@ struct LuminaVaultClientApp: App {
                                 signInInstead: {
                                     Task { await clearStoredSessionForSignIn() }
                                 }
+                            )
+                        } else if appState.isAuthenticated
+                                    && aiDataConsentVersion < AIDataConsent.currentVersion {
+                            // App Review 5.1.2(i): ask before any vault data
+                            // reaches an AI provider. First post-auth step,
+                            // ahead of vault creation.
+                            AIDataConsentView(
+                                onAccept: { aiDataConsentVersion = AIDataConsent.currentVersion },
+                                onDecline: { Task { await appState.signOut() } }
                             )
                         } else if appState.isAuthenticated {
                             // HER-35: gate the home tab behind the explicit

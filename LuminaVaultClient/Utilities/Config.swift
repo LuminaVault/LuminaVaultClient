@@ -90,7 +90,7 @@ nonisolated enum Config {
     }
 
     static var supportEmail: String {
-        infoString("LV_SUPPORT_EMAIL") ?? "support@luminavault.fyi"
+        infoString("LV_SUPPORT_EMAIL") ?? "fernando@facorreia.com"
     }
 
     /// Invite to the LuminaVault channel of the Discord server, surfaced from
