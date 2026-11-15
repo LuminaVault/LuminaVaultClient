@@ -49,6 +49,14 @@ nonisolated enum VaultEndpoints {
         var method: HTTPMethod { .get }
     }
 
+    /// Backlog E2.2 — a note's wikilinks, outgoing and incoming (backlinks).
+    nonisolated struct DocumentLinks: Endpoint {
+        typealias Response = VaultLinksResponse
+        let vaultFileID: UUID
+        var path: String { "/v1/vault/links/\(vaultFileID.uuidString.lowercased())" }
+        var method: HTTPMethod { .get }
+    }
+
     nonisolated struct DeleteFile: Endpoint {
         typealias Response = EmptyResponse
         let relativePath: String

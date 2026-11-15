@@ -39,6 +39,13 @@ struct MarkdownReaderView: View {
     @State private var saving = false
     @State private var showDeleteConfirm = false
 
+    // Backlog E2.2 — Linked from / Links to
+    @State private var linkGroups: NoteLinkGroups?
+    @State private var linksLoading = false
+    @State private var linksError: String?
+    @State private var linkedNote: VaultFileDTO?
+    @State private var linkOpenError: String?
+
     /// Only text/markdown notes are editable, and only when an upload client
     /// is available to persist the edit.
     private var isEditable: Bool {
@@ -77,6 +84,32 @@ struct MarkdownReaderView: View {
             Button("Cancel", role: .cancel) {}
         }
         .task { await load() }
+        // Separate from `load()` so the note body never waits on its links.
+        .task(id: isMarkdown) { if isMarkdown { await loadLinks() } }
+        .navigationDestination(isPresented: Binding(
+            get: { linkedNote != nil },
+            set: { if !$0 { linkedNote = nil } }
+        )) {
+            if let linkedNote {
+                MarkdownReaderView(
+                    file: linkedNote,
+                    vaultClient: vaultClient,
+                    memoryClient: memoryClient,
+                    uploadClient: uploadClient
+                )
+            }
+        }
+        .alert(
+            "Note unavailable",
+            isPresented: Binding(
+                get: { linkOpenError != nil },
+                set: { if !$0 { linkOpenError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { linkOpenError = nil }
+        } message: {
+            Text(linkOpenError ?? "")
+        }
     }
 
     // MARK: - Toolbar
@@ -137,6 +170,12 @@ struct MarkdownReaderView: View {
             Text(error).font(.system(size: 13)).foregroundStyle(.red.opacity(0.85))
         } else if let rawText, isMarkdown {
             WikilinkMarkdownView(markdown: rawText, vaultClient: vaultClient, memoryClient: memoryClient)
+            NoteLinksSection(
+                groups: linkGroups,
+                isLoading: linksLoading,
+                error: linksError,
+                onOpen: { path in Task { await openLinkedNote(path) } }
+            )
         } else if let rawText {
             Text(rawText)
                 .font(.system(size: 14, design: .monospaced))
@@ -278,6 +317,8 @@ struct MarkdownReaderView: View {
                 done: metadata.done ?? false,
             )
             isEditing = false
+            // An edit can add or remove wikilinks.
+            await loadLinks()
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -308,6 +349,32 @@ struct MarkdownReaderView: View {
             self.isMarkdown = contentType.contains("markdown") || file.path.hasSuffix(".md")
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private func loadLinks() async {
+        linksLoading = true
+        linksError = nil
+        defer { linksLoading = false }
+        do {
+            linkGroups = NoteLinkGroups(try await vaultClient.documentLinks(vaultFileID: file.id))
+        } catch {
+            linksError = "Links are unavailable for this note."
+        }
+    }
+
+    /// The links API returns paths; the reader needs the file row, so look
+    /// the exact path up through the same search the wikilinks use.
+    private func openLinkedNote(_ path: String) async {
+        do {
+            let response = try await vaultClient.listFiles(spaceSlug: nil, q: path, before: nil, after: nil, limit: 20)
+            if let match = response.files.first(where: { $0.path == path }) {
+                linkedNote = match
+            } else {
+                linkOpenError = "No note at \(path). It may have been moved or deleted."
+            }
+        } catch {
+            linkOpenError = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
 }

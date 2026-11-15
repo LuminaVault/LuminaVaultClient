@@ -31,4 +31,16 @@ protocol VaultClientProtocol {
     /// Returns the archive bytes plus the response `Content-Type`. Caller is
     /// responsible for spilling to disk and surfacing the share sheet.
     func exportVault() async throws -> (Data, String)
+
+    /// Backlog E2.2 — `GET /v1/vault/links/{id}`: what a note links to and
+    /// which notes link to it.
+    func documentLinks(vaultFileID: UUID) async throws -> VaultLinksResponse
+}
+
+extension VaultClientProtocol {
+    /// Fakes and previews that don't script links get an empty panel's error
+    /// state rather than a compile error; `VaultHTTPClient` implements it.
+    func documentLinks(vaultFileID _: UUID) async throws -> VaultLinksResponse {
+        throw URLError(.unsupportedURL)
+    }
 }
