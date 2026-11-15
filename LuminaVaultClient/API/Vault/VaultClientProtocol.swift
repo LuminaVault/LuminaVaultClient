@@ -35,6 +35,13 @@ protocol VaultClientProtocol {
     /// Backlog E2.2 — `GET /v1/vault/links/{id}`: what a note links to and
     /// which notes link to it.
     func documentLinks(vaultFileID: UUID) async throws -> VaultLinksResponse
+
+    /// Backlog E3.4 — deleted files that can still be restored, newest first.
+    func listTrash() async throws -> [VaultTrashItem]
+    /// Puts a trashed file back; the server may give it a new name when the
+    /// old path is taken. A 410 means the file is gone for good.
+    func restoreTrash(id: UUID) async throws -> VaultFileDTO
+    func deleteTrashForever(id: UUID) async throws
 }
 
 extension VaultClientProtocol {
@@ -43,4 +50,8 @@ extension VaultClientProtocol {
     func documentLinks(vaultFileID _: UUID) async throws -> VaultLinksResponse {
         throw URLError(.unsupportedURL)
     }
+
+    func listTrash() async throws -> [VaultTrashItem] { throw URLError(.unsupportedURL) }
+    func restoreTrash(id _: UUID) async throws -> VaultFileDTO { throw URLError(.unsupportedURL) }
+    func deleteTrashForever(id _: UUID) async throws { throw URLError(.unsupportedURL) }
 }

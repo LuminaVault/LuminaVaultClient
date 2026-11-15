@@ -34,19 +34,28 @@ struct VaultFilesListView: View {
             .lvBackground()
             .task { await vm.load() }
             .refreshable { await vm.load() }
-            .alert("Delete file?",
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        VaultTrashView(vaultClient: vaultClient)
+                    } label: {
+                        Label("Trash", systemImage: "trash")
+                    }
+                }
+            }
+            .alert("Move to Trash?",
                    isPresented: Binding(
                        get: { fileToDelete != nil },
                        set: { if !$0 { fileToDelete = nil } }
                    ),
                    presenting: fileToDelete) { file in
-                Button("Delete", role: .destructive) {
+                Button("Move to Trash", role: .destructive) {
                     Task { await vm.delete(file: file) }
                     fileToDelete = nil
                 }
                 Button("Cancel", role: .cancel) { fileToDelete = nil }
             } message: { file in
-                Text("\(file.path) will be moved to the soft-deleted bin.")
+                Text("You can restore \(file.path) from Trash for \(VaultTrashItem.retentionDays) days.")
             }
             .alert("Move file",
                    isPresented: Binding(

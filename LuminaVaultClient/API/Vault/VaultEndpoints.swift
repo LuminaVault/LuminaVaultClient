@@ -57,6 +57,27 @@ nonisolated enum VaultEndpoints {
         var method: HTTPMethod { .get }
     }
 
+    // Backlog E3.4: the trash. Ids go lowercase into the path, as DocumentLinks.
+    nonisolated struct TrashList: Endpoint {
+        typealias Response = VaultTrashListResponse
+        var path: String { "/v1/vault/trash" }
+        var method: HTTPMethod { .get }
+    }
+
+    nonisolated struct TrashRestore: Endpoint {
+        typealias Response = VaultFileDTO
+        let id: UUID
+        var path: String { "/v1/vault/trash/\(id.uuidString.lowercased())/restore" }
+        var method: HTTPMethod { .post }
+    }
+
+    nonisolated struct TrashDelete: Endpoint {
+        typealias Response = EmptyResponse
+        let id: UUID
+        var path: String { "/v1/vault/trash/\(id.uuidString.lowercased())" }
+        var method: HTTPMethod { .delete }
+    }
+
     nonisolated struct DeleteFile: Endpoint {
         typealias Response = EmptyResponse
         let relativePath: String
