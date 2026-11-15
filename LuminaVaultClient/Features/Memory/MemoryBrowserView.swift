@@ -8,6 +8,8 @@ import SwiftUI
 
 struct MemoryBrowserView: View {
     @State private var viewModel: MemoryBrowserViewModel
+    /// Optional so previews and snapshots need no app shell.
+    @Environment(AppState.self) private var shell: AppState?
 
     init(
         client: any MemoryClientProtocol,
@@ -70,7 +72,8 @@ struct MemoryBrowserView: View {
                 Task { await viewModel.load() }
             }
         }
-        .task { await viewModel.load() }
+        // Runs on appear and again whenever the assistant corrects a memory.
+        .task(id: shell?.memoriesRevision) { await viewModel.load() }
     }
 
     private var kindFilterBinding: Binding<MemoryKindDTO?> {

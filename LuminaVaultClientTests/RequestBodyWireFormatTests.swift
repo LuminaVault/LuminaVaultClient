@@ -160,6 +160,8 @@ final class RequestBodyWireFormatTests: XCTestCase {
             conversationID: UUID(),
             request: MessageStreamRequest(content: "hello")
         )
-        XCTAssertEqual(endpoint.additionalHeaders["X-LV-Client-Caps"], "chat.hermes_run")
+        // Both, in one header: the server reads a comma-separated list. The
+        // second lets a plain chat turn run the space, note and memory tools.
+        XCTAssertEqual(endpoint.additionalHeaders["X-LV-Client-Caps"], "chat.hermes_run, chat.app_actions")
     }
 }

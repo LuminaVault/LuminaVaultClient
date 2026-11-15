@@ -446,6 +446,9 @@ final class ChatViewModel {
         /// still escalate server-side but this build will not follow it, so
         /// the answer lands on reload rather than live.
         runsClient: (any HermesRunsClientProtocol)? = nil,
+        /// Answers the confirm cards of app changes the assistant asks about.
+        /// Nil leaves the cards unanswerable, which only tests rely on.
+        assistantActionsClient: (any AssistantActionsClientProtocol)? = nil,
         telemetry: any TelemetryProtocol = LoggerTelemetry(),
         /// Muse Stage D — builds the lock-screen Live Activity for each
         /// escalated turn. Tests pass `{ nil }` or a recorder.
@@ -455,6 +458,7 @@ final class ChatViewModel {
         cloudAvailable: @escaping @MainActor @Sendable () -> Bool = { true }
     ) {
         self.makeRunLiveActivity = makeRunLiveActivity
+        self.assistantActions = ChatAssistantActions(client: assistantActionsClient)
         self.conversationsClient = conversationsClient
         self.chatClient = chatClient
         self.memoryClient = memoryClient
@@ -571,6 +575,8 @@ final class ChatViewModel {
         runFollower = nil
     }
 
+    /// What the assistant did in the app on each turn of this thread.
+    let assistantActions: ChatAssistantActions
     private let runsClient: (any HermesRunsClientProtocol)?
     private let makeRunLiveActivity: @MainActor () -> (any AgentRunLiveActivityControlling)?
     /// Live agent run for the turn in flight, when one escalated.
@@ -1128,6 +1134,17 @@ final class ChatViewModel {
     }
 
     private func runMemoryGroundedSend(content: String) async {
+        assistantActions.isStreaming = true
+        defer {
+            // Whatever the turn's actions were, they now sit under its last
+            // message. A failed turn keeps the chips of changes that already
+            // happened, but opens no screen.
+            if case .failed = phase {
+                assistantActions.abandonTurn(anchoredTo: messages.last?.id)
+            } else {
+                assistantActions.finishTurn(anchoredTo: messages.last?.id)
+            }
+        }
         do {
             let id = try await ensureConversation()
             phase = .streaming
@@ -1192,10 +1209,11 @@ final class ChatViewModel {
                     // being invisible until someone reads this switch.
                     log.debug("ignoring unrecognized stream event: \(rawType, privacy: .public)")
                     continue
-                case .assistantAction:
-                    // Quick Assistant frames only arrive on turns that carry
-                    // `quickAssistant`, which chat never sends.
-                    continue
+                case let .assistantAction(action):
+                    // The assistant changed something in the app, or asks to
+                    // (a space, a note's place, a memory). Sent only because
+                    // this build declares `chat.app_actions`.
+                    assistantActions.receive(action)
                 case let .hermesRun(ref):
                     // The turn escalated to an agent run. The chat stream is
                     // about to close; the answer and the tool trail arrive on
@@ -1346,6 +1364,7 @@ final class ChatViewModel {
     /// when the fetch fails outright.
     func loadConversation(id: UUID) async {
         guard !isStreaming, phase != .starting else { return }
+        assistantActions.reset()
         phase = .starting
         fallbackNotice = nil
         routingEvent = nil
@@ -1815,6 +1834,7 @@ final class ChatViewModel {
         typewriterTask = nil
         let oldID = conversationID
         conversationID = nil
+        assistantActions.reset()
         messages = []
         clearPendingAssistant()
         pendingSources = []

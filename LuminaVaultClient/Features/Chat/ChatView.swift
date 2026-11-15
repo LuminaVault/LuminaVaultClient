@@ -456,6 +456,7 @@ struct ChatView: View {
                 // produced them, instead of stacking above the composer where
                 // they shoved it down mid-typing.
                 proposalCards(anchoredTo: message.id)
+                assistantActions(anchoredTo: message.id)
             }
 
             // An escalated turn: the terminal and the decision it is blocked
@@ -511,6 +512,7 @@ struct ChatView: View {
             // A proposal that arrived before any turn existed, or whose anchor
             // has since been trimmed, still has to render somewhere.
             proposalCards(anchoredTo: nil)
+            assistantActions(anchoredTo: nil)
 
             if case let .failed(message) = viewModel.phase {
                 ErrorRow(
@@ -570,6 +572,21 @@ struct ChatView: View {
             )
             .id("lv.chat.reminder-proposal")
             .transition(.scale(scale: 0.96).combined(with: .opacity))
+        }
+    }
+
+    /// What the assistant did in the app on the turn that ends at `anchor`.
+    /// Passing `nil` renders the turn still streaming and anything whose
+    /// message was trimmed away.
+    @ViewBuilder
+    private func assistantActions(anchoredTo anchor: UUID?) -> some View {
+        let actions = viewModel.assistantActions.actions(
+            anchoredTo: anchor,
+            known: anchor == nil ? Set(viewModel.messages.map(\.id)) : []
+        )
+        if !actions.isEmpty {
+            ChatAssistantActionsView(actions: actions, model: viewModel.assistantActions)
+                .transition(.opacity)
         }
     }
 

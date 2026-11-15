@@ -30,10 +30,38 @@ final class AppState {
     /// brief, "What I learned") closes. Those sheets run on their own view
     /// models, so Home re-reads the counts its rows show when this moves.
     var homeGlanceRefreshToken = 0
+    /// Bumped when the assistant changes spaces, notes or memories from chat
+    /// or the Quick Assistant card. The screens that list them reload when
+    /// their token moves, so a change made by asking shows without a pull.
+    var spacesRevision = 0
+    var vaultFilesRevision = 0
+    var memoriesRevision = 0
+    /// A space the assistant was asked to open. The Spaces tab pushes it once
+    /// its list has loaded, then clears this.
+    var pendingSpaceID: UUID?
     /// Bumped just before a sheet opens that the shell cannot see and no touch
     /// asked for just now (web sign-in approval on the app root, a late result on
     /// the Brain tab), so the Quick Assistant card closes first.
     var sheetRequestToken = 0
+    /// Records a change the assistant made, so the screens showing it reload.
+    func assistantChanged(_ resource: AssistantResourceDTO) {
+        switch resource.kind {
+        case .space:
+            // Deleting a space moves its notes; renaming one retitles them.
+            spacesRevision += 1
+            vaultFilesRevision += 1
+        case .vaultFile:
+            vaultFilesRevision += 1
+            // A deleted note takes its memories with it.
+            if resource.change == .deleted { memoriesRevision += 1 }
+        case .memory:
+            memoriesRevision += 1
+        case .unknown:
+            // A kind this build does not know: reload what is cheap.
+            spacesRevision += 1
+        }
+    }
+
     /// HER-238: timestamp of the most recent successful `/v1/auth/me` fetch.
     /// `nil` means we've never refreshed since sign-in. Used by
     /// `refreshCurrentUserIfNeeded(authClient:now:)` to debounce.
