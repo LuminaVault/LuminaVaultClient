@@ -58,4 +58,8 @@ final class VaultHTTPClient: VaultClientProtocol {
     func exportVault() async throws -> (Data, String) {
         try await client.fetchBytes(path: "/v1/vault/export")
     }
+
+    func documentLinks(vaultFileID: UUID) async throws -> VaultLinksResponse {
+        try await client.execute(VaultEndpoints.DocumentLinks(vaultFileID: vaultFileID))
+    }
 }
