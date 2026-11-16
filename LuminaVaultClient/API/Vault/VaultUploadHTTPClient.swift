@@ -65,6 +65,20 @@ final class VaultUploadHTTPClient: VaultUploadClientProtocol {
         spaceID: UUID?,
         metadata: VaultNoteMetadataDTO?
     ) async throws -> VaultUploadResponse {
+        try await uploadNote(
+            data: data, contentType: contentType, relativePath: relativePath,
+            spaceID: spaceID, metadata: metadata, ifMatch: nil,
+        )
+    }
+
+    func uploadNote(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        spaceID: UUID?,
+        metadata: VaultNoteMetadataDTO?,
+        ifMatch: String?
+    ) async throws -> VaultUploadResponse {
         var comps = URLComponents()
         comps.path = "/v1/vault/files"
         var items: [URLQueryItem] = [URLQueryItem(name: "path", value: relativePath)]
@@ -84,6 +98,9 @@ final class VaultUploadHTTPClient: VaultUploadClientProtocol {
            let str = String(data: json, encoding: .utf8)
         {
             extraHeaders["X-Vault-Metadata"] = str
+        }
+        if let ifMatch {
+            extraHeaders["If-Match"] = ifMatch
         }
 
         let raw = try await client.uploadBytes(
