@@ -48,9 +48,36 @@ protocol VaultUploadClientProtocol: Sendable {
         spaceID: UUID?,
         metadata: VaultNoteMetadataDTO?
     ) async throws -> VaultUploadResponse
+
+    /// Backlog E5.4: the same write, sent with `If-Match` so a save made from
+    /// a stale version fails with 412 instead of overwriting.
+    func uploadNote(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        spaceID: UUID?,
+        metadata: VaultNoteMetadataDTO?,
+        ifMatch: String?
+    ) async throws -> VaultUploadResponse
 }
 
 extension VaultUploadClientProtocol {
+    /// Default ignores `ifMatch` so existing stubs keep working; the HTTP
+    /// client overrides it.
+    func uploadNote(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        spaceID: UUID?,
+        metadata: VaultNoteMetadataDTO?,
+        ifMatch _: String?
+    ) async throws -> VaultUploadResponse {
+        try await uploadNote(
+            data: data, contentType: contentType,
+            relativePath: relativePath, spaceID: spaceID, metadata: metadata,
+        )
+    }
+
     func uploadAsset(
         data: Data,
         contentType: String,

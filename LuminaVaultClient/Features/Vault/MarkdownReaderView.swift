@@ -9,6 +9,7 @@
 import Algorithms
 import LuminaVaultShared
 import SwiftUI
+import UIKit
 
 struct MarkdownReaderView: View {
 
@@ -38,6 +39,9 @@ struct MarkdownReaderView: View {
     @State private var draftDueAt: Date = .now.addingTimeInterval(3600)
     @State private var saving = false
     @State private var showDeleteConfirm = false
+    /// sha256 of the version this reader loaded or last saved (E5.4).
+    @State private var baseSHA: String?
+    @State private var showConflict = false
 
     // Backlog E2.2 — Linked from / Links to
     @State private var linkGroups: NoteLinkGroups?
@@ -98,6 +102,13 @@ struct MarkdownReaderView: View {
                     uploadClient: uploadClient
                 )
             }
+        }
+        .alert("This note changed on another device", isPresented: $showConflict) {
+            Button("Keep my version") { Task { await save(overwrite: true) } }
+            Button("Copy mine and load theirs") { Task { await copyDraftAndReload() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Someone saved it after you opened it. Keep yours to replace theirs, or load theirs. Your text is copied so you can paste it back.")
         }
         .alert(
             "Note unavailable",
@@ -295,7 +306,9 @@ struct MarkdownReaderView: View {
         )
     }
 
-    private func save() async {
+    /// `overwrite` skips the version check: the user chose to keep their
+    /// version after a conflict.
+    private func save(overwrite: Bool = false) async {
         guard let uploadClient, let data = draftBody.data(using: .utf8) else { return }
         saving = true
         defer { saving = false }
@@ -307,7 +320,9 @@ struct MarkdownReaderView: View {
                 relativePath: file.path,
                 spaceID: file.spaceId,
                 metadata: metadata,
+                ifMatch: overwrite ? nil : NoteVersion.ifMatch(baseSHA),
             )
+            baseSHA = NoteVersion.sha256(data)
             rawText = draftBody
             // Reschedule the local reminder off the new due/done state.
             await NoteReminderScheduler.shared.reschedule(
@@ -319,9 +334,19 @@ struct MarkdownReaderView: View {
             isEditing = false
             // An edit can add or remove wikilinks.
             await loadLinks()
+        } catch where NoteVersion.isConflict(error) {
+            showConflict = true
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    /// Conflict, "load the other version": the draft goes to the clipboard so
+    /// nothing typed is lost, then the reader shows what is on the server.
+    private func copyDraftAndReload() async {
+        UIPasteboard.general.string = draftBody
+        isEditing = false
+        await load()
     }
 
     private func deleteNote() async {
@@ -346,6 +371,7 @@ struct MarkdownReaderView: View {
             guard isText else { return }
             let text = String(data: data, encoding: .utf8) ?? ""
             self.rawText = text
+            self.baseSHA = NoteVersion.sha256(data)
             self.isMarkdown = contentType.contains("markdown") || file.path.hasSuffix(".md")
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription

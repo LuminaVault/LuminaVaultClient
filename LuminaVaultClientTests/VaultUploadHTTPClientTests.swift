@@ -102,6 +102,58 @@ final class VaultUploadHTTPClientTests: XCTestCase {
         XCTAssertTrue(query.contains("path=raw/captures/z.heic"))
         XCTAssertTrue(query.contains("space_id=\(space.uuidString)"))
     }
+
+    /// Backlog E5.4 — a note save carries `If-Match`, and a 412 surfaces as a
+    /// conflict the reader can tell apart from other failures.
+    func testUploadNoteSendsIfMatchAndSurfaces412() async throws {
+        let captured = CaptureBox()
+        MockURLProtocol.handler = { req in
+            captured.ifMatch = req.value(forHTTPHeaderField: "If-Match")
+            let body = #"{"error":{"message":"the file changed since you opened it"}}"#
+            return (
+                HTTPURLResponse(url: req.url!, statusCode: 412, httpVersion: nil, headerFields: nil)!,
+                Data(body.utf8),
+            )
+        }
+        do {
+            _ = try await client.uploadNote(
+                data: Data("v2".utf8), contentType: "text/markdown",
+                relativePath: "inbox/n.md", spaceID: nil, metadata: nil,
+                ifMatch: NoteVersion.ifMatch("abc"),
+            )
+            XCTFail("expected a 412")
+        } catch {
+            XCTAssertTrue(NoteVersion.isConflict(error), "\(error)")
+        }
+        XCTAssertEqual(captured.ifMatch, "\"abc\"")
+    }
+
+    func testUploadNoteWithoutVersionSendsNoIfMatch() async throws {
+        let captured = CaptureBox()
+        MockURLProtocol.handler = { req in
+            captured.ifMatch = req.value(forHTTPHeaderField: "If-Match")
+            let body = #"{"path":"inbox/n.md","size":2,"content_type":"text/markdown","sha256":"ab"}"#
+            return (
+                HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                Data(body.utf8),
+            )
+        }
+        _ = try await client.uploadNote(
+            data: Data("v2".utf8), contentType: "text/markdown",
+            relativePath: "inbox/n.md", spaceID: nil, metadata: nil,
+        )
+        XCTAssertNil(captured.ifMatch)
+    }
+
+    func testNoteVersionHashesLikeTheServer() {
+        // sha256("abc"), the FIPS 180-2 test vector.
+        XCTAssertEqual(
+            NoteVersion.sha256(Data("abc".utf8)),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+        )
+        XCTAssertNil(NoteVersion.ifMatch(nil))
+        XCTAssertFalse(NoteVersion.isConflict(APIError.httpError(statusCode: 409, data: Data())))
+    }
 }
 
 private final class CaptureBox: @unchecked Sendable {
@@ -109,4 +161,5 @@ private final class CaptureBox: @unchecked Sendable {
     var url: URL?
     var contentType: String?
     var authorization: String?
+    var ifMatch: String?
 }
