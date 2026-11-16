@@ -110,6 +110,29 @@ final class MockVaultClient: VaultClientProtocol, @unchecked Sendable {
     }
 
     // Backlog E6.4 — scripted daily notes and templates.
+    // Backlog E4.5: history.
+    var historyResult: Result<[VaultHistoryVersion], Error> = .success([])
+    var readVersionResult: Result<(Data, String), Error> = .success((Data(), "text/markdown"))
+    var restoreVersionResult: Result<VaultFileDTO, Error> = .success(
+        VaultFileDTO(id: UUID(), path: "inbox/a.md", contentType: "text/markdown", sizeBytes: 0, sha256: "")
+    )
+    private(set) var historyPaths: [String] = []
+    private(set) var restoreVersionCalls: [(sha: String, path: String, ifMatch: String?)] = []
+
+    func history(path: String) async throws -> [VaultHistoryVersion] {
+        historyPaths.append(path)
+        return try historyResult.get()
+    }
+
+    func readVersion(sha _: String, path _: String) async throws -> (Data, String) {
+        try readVersionResult.get()
+    }
+
+    func restoreVersion(sha: String, path: String, ifMatch: String?) async throws -> VaultFileDTO {
+        restoreVersionCalls.append((sha, path, ifMatch))
+        return try restoreVersionResult.get()
+    }
+
     var dailyNoteResult: Result<VaultFileDTO, Error> = .success(
         VaultFileDTO(id: UUID(), path: "daily/2026-11-16.md", contentType: "text/markdown", sizeBytes: 0, sha256: "")
     )

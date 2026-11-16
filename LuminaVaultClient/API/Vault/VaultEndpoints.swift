@@ -78,6 +78,52 @@ nonisolated enum VaultEndpoints {
         var method: HTTPMethod { .delete }
     }
 
+    // Backlog E4.5: version history (server E4.3). `sha` is hex, safe in a path.
+    nonisolated struct History: Endpoint {
+        typealias Response = VaultHistoryResponse
+        let filePath: String
+        let limit: Int?
+        let before: String?
+        var path: String {
+            var items = [URLQueryItem(name: "path", value: filePath)]
+            if let limit { items.append(URLQueryItem(name: "limit", value: String(limit))) }
+            if let before, !before.isEmpty { items.append(URLQueryItem(name: "before", value: before)) }
+            return VaultEndpoints.withQuery("/v1/vault/history", items)
+        }
+        var method: HTTPMethod { .get }
+        var presentsPaywallOn402: Bool { false }
+    }
+
+    /// Raw bytes of `filePath` at `sha`; read through `fetchBytes`, not `execute`.
+    static func versionPath(sha: String, filePath: String) -> String {
+        withQuery("/v1/vault/versions/\(sha)", [URLQueryItem(name: "path", value: filePath)])
+    }
+
+    nonisolated struct VersionRestore: Endpoint {
+        typealias Response = VaultFileDTO
+        let sha: String
+        let filePath: String
+        /// `NoteVersion.ifMatch` of the text on screen; nil skips the check.
+        let ifMatch: String?
+        var path: String {
+            VaultEndpoints.withQuery("/v1/vault/versions/\(sha)/restore", [URLQueryItem(name: "path", value: filePath)])
+        }
+        var method: HTTPMethod { .post }
+        var additionalHeaders: [String: String] {
+            ifMatch.map { ["If-Match": $0] } ?? [:]
+        }
+    }
+
+    /// `path?query`, with `+` escaped too: URLComponents leaves it alone and a
+    /// server form-decoder would read it as a space.
+    static func withQuery(_ path: String, _ items: [URLQueryItem]) -> String {
+        var comps = URLComponents()
+        comps.path = path
+        comps.queryItems = items
+        comps.percentEncodedQuery = comps.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+        return comps.string ?? path
+    }
+
     // Backlog E6.4: daily notes and templates.
     /// 201 when the note was created, 200 when it existed; same body either way.
     nonisolated struct DailyNote: Endpoint {
