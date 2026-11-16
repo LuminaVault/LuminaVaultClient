@@ -31,6 +31,9 @@ struct MarkdownReaderView: View {
     // Edit state
     @State private var isEditing = false
     @State private var draftBody: String = ""
+    /// Backlog E5.3: the cursor in the body editor, for `[[` suggestions.
+    @State private var draftSelection: TextSelection?
+    @State private var linkSuggestions: WikilinkSuggestionModel?
     @State private var draftTitle: String = ""
     @State private var draftTagsText: String = ""
     @State private var draftIsTodo = false
@@ -233,13 +236,19 @@ struct MarkdownReaderView: View {
             .foregroundStyle(palette.textPrimary)
             .textInputAutocapitalization(.sentences)
 
-        TextEditor(text: $draftBody)
+        TextEditor(text: $draftBody, selection: $draftSelection)
             .font(.system(size: 15))
             .foregroundStyle(palette.textPrimary)
             .frame(minHeight: 220, alignment: .topLeading)
             .scrollContentBackground(.hidden)
             .padding(8)
             .background(RoundedRectangle(cornerRadius: 12).fill(palette.surface))
+            .onChange(of: draftBody) { refreshLinkSuggestions() }
+            .onChange(of: draftSelection) { refreshLinkSuggestions() }
+
+        if let linkSuggestions, !linkSuggestions.suggestions.isEmpty {
+            WikilinkSuggestionsRow(suggestions: linkSuggestions.suggestions) { acceptLinkSuggestion($0) }
+        }
 
         TextField("tags, comma, separated", text: $draftTagsText)
             .font(.system(size: 14))
@@ -276,7 +285,30 @@ struct MarkdownReaderView: View {
 
     // MARK: - Actions
 
+    /// The cursor when nothing is selected; nil for a range or a stale index.
+    private var draftCursor: String.Index? {
+        guard let draftSelection, case let .selection(range) = draftSelection.indices,
+              range.isEmpty, range.lowerBound <= draftBody.endIndex,
+              range.lowerBound.samePosition(in: draftBody) != nil
+        else { return nil }
+        return range.lowerBound
+    }
+
+    private func refreshLinkSuggestions() {
+        linkSuggestions?.update(text: draftBody, cursor: draftCursor)
+    }
+
+    private func acceptLinkSuggestion(_ suggestion: WikilinkSuggestionModel.Suggestion) {
+        guard let cursor = draftCursor,
+              let (text, offset) = linkSuggestions?.accept(suggestion, text: draftBody, cursor: cursor)
+        else { return }
+        draftBody = text
+        draftSelection = TextSelection(insertionPoint: text.index(text.startIndex, offsetBy: offset))
+    }
+
     private func beginEditing() {
+        linkSuggestions = isMarkdown ? WikilinkSuggestionModel(vaultClient: vaultClient) : nil
+        draftSelection = nil
         draftBody = rawText ?? ""
         draftTitle = file.metadata?.title ?? ""
         draftTagsText = (file.metadata?.tags ?? []).joined(separator: ", ")
@@ -402,5 +434,45 @@ struct MarkdownReaderView: View {
         } catch {
             linkOpenError = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
+    }
+}
+
+/// Backlog E5.3: notes (or headings) matching the `[[…` being typed. Tap one to
+/// write the link.
+private struct WikilinkSuggestionsRow: View {
+    @Environment(\.lvPalette) private var palette
+    let suggestions: [WikilinkSuggestionModel.Suggestion]
+    let onPick: (WikilinkSuggestionModel.Suggestion) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(suggestions) { suggestion in
+                    Button { onPick(suggestion) } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "link").font(.system(size: 11))
+                            Text(suggestion.label).font(.system(size: 14, weight: .medium))
+                            if !suggestion.detail.isEmpty {
+                                Text(suggestion.detail)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(palette.textSecondary)
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(palette.surface))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(palette.textPrimary)
+                    .accessibilityLabel(
+                        suggestion.detail.isEmpty
+                            ? "Link to \(suggestion.label)"
+                            : "Link to \(suggestion.label) in \(suggestion.detail)"
+                    )
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Link suggestions")
     }
 }
