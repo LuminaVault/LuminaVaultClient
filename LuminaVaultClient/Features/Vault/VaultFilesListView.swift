@@ -46,6 +46,7 @@ struct VaultFilesListView: View {
                     }
                 }
             }
+            .noteShortcuts(vaultClient: vaultClient, memoryClient: memoryClient, uploadClient: uploadClient)
             .alert("Move to Trash?",
                    isPresented: Binding(
                        get: { fileToDelete != nil },

@@ -211,6 +211,12 @@ struct CaptureHomeView: View {
                 Button("Settings", systemImage: "person.crop.circle", action: onOpenSettings)
             }
         }
+        // Backlog E6.4: Today's note and New from template, from Home.
+        .noteShortcuts(
+            vaultClient: vaultClient,
+            memoryClient: memoryClient,
+            uploadClient: VaultUploadHTTPClient(client: appState.makeHTTPClient())
+        )
         .safeAreaInset(edge: .top) {
             // One banner at a time: a failure first, because it is the only
             // sign a capture did not happen; then what a save connects to;

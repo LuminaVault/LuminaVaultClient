@@ -78,6 +78,34 @@ nonisolated enum VaultEndpoints {
         var method: HTTPMethod { .delete }
     }
 
+    // Backlog E6.4: daily notes and templates.
+    /// 201 when the note was created, 200 when it existed; same body either way.
+    nonisolated struct DailyNote: Endpoint {
+        typealias Response = VaultFileDTO
+        let tz: String?
+        var path: String {
+            var comps = URLComponents()
+            comps.path = "/v1/vault/daily"
+            if let tz, !tz.isEmpty { comps.queryItems = [URLQueryItem(name: "tz", value: tz)] }
+            return comps.string ?? "/v1/vault/daily"
+        }
+        var method: HTTPMethod { .post }
+    }
+
+    nonisolated struct TemplatesSeed: Endpoint {
+        typealias Response = VaultTemplatesSeedResponse
+        var path: String { "/v1/vault/templates/seed" }
+        var method: HTTPMethod { .post }
+    }
+
+    nonisolated struct NoteFromTemplate: Endpoint {
+        typealias Response = VaultFileDTO
+        let request: VaultFromTemplateRequest
+        var path: String { "/v1/vault/notes/from-template" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { request }
+    }
+
     nonisolated struct DeleteFile: Endpoint {
         typealias Response = EmptyResponse
         let relativePath: String

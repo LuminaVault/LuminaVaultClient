@@ -60,8 +60,13 @@ final class MockVaultClient: VaultClientProtocol, @unchecked Sendable {
         listFilesCalls.append(
             ListFilesCall(spaceSlug: spaceSlug, q: q, before: before, after: after, limit: limit)
         )
+        if !listFilesQueue.isEmpty { return listFilesQueue.removeFirst() }
         return try listFilesResult.get()
     }
+
+    /// Answers consumed in order before `listFilesResult`, for flows that
+    /// list, change something, and list again.
+    var listFilesQueue: [VaultFileListResponse] = []
 
     func readFile(relativePath _: String) async throws -> (Data, String) {
         try readFileResult.get()
@@ -102,5 +107,34 @@ final class MockVaultClient: VaultClientProtocol, @unchecked Sendable {
     func deleteTrashForever(id: UUID) async throws {
         deletedTrashIDs.append(id)
         try deleteTrashResult.get()
+    }
+
+    // Backlog E6.4 — scripted daily notes and templates.
+    var dailyNoteResult: Result<VaultFileDTO, Error> = .success(
+        VaultFileDTO(id: UUID(), path: "daily/2026-11-16.md", contentType: "text/markdown", sizeBytes: 0, sha256: "")
+    )
+    var seedTemplatesResult: Result<VaultTemplatesSeedResponse, Error> = .success(
+        VaultTemplatesSeedResponse(spaceId: UUID(), created: [])
+    )
+    var noteFromTemplateResult: Result<VaultFileDTO, Error> = .success(
+        VaultFileDTO(id: UUID(), path: "inbox/note.md", contentType: "text/markdown", sizeBytes: 0, sha256: "")
+    )
+    private(set) var dailyNoteZones: [String?] = []
+    private(set) var seedTemplatesCalls = 0
+    private(set) var noteFromTemplateRequests: [VaultFromTemplateRequest] = []
+
+    func dailyNote(tz: String?) async throws -> VaultFileDTO {
+        dailyNoteZones.append(tz)
+        return try dailyNoteResult.get()
+    }
+
+    func seedTemplates() async throws -> VaultTemplatesSeedResponse {
+        seedTemplatesCalls += 1
+        return try seedTemplatesResult.get()
+    }
+
+    func noteFromTemplate(_ request: VaultFromTemplateRequest) async throws -> VaultFileDTO {
+        noteFromTemplateRequests.append(request)
+        return try noteFromTemplateResult.get()
     }
 }

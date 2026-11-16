@@ -42,6 +42,14 @@ protocol VaultClientProtocol {
     /// old path is taken. A 410 means the file is gone for good.
     func restoreTrash(id: UUID) async throws -> VaultFileDTO
     func deleteTrashForever(id: UUID) async throws
+
+    /// Backlog E6.4 — today's note in `tz`, created from the user's daily
+    /// template when it doesn't exist yet. Safe to call from two devices.
+    func dailyNote(tz: String?) async throws -> VaultFileDTO
+    /// Writes the starter templates that are missing; never overwrites.
+    func seedTemplates() async throws -> VaultTemplatesSeedResponse
+    /// A new note rendered from a template. 409 when the name is taken.
+    func noteFromTemplate(_ request: VaultFromTemplateRequest) async throws -> VaultFileDTO
 }
 
 extension VaultClientProtocol {
@@ -54,4 +62,10 @@ extension VaultClientProtocol {
     func listTrash() async throws -> [VaultTrashItem] { throw URLError(.unsupportedURL) }
     func restoreTrash(id _: UUID) async throws -> VaultFileDTO { throw URLError(.unsupportedURL) }
     func deleteTrashForever(id _: UUID) async throws { throw URLError(.unsupportedURL) }
+
+    func dailyNote(tz _: String?) async throws -> VaultFileDTO { throw URLError(.unsupportedURL) }
+    func seedTemplates() async throws -> VaultTemplatesSeedResponse { throw URLError(.unsupportedURL) }
+    func noteFromTemplate(_: VaultFromTemplateRequest) async throws -> VaultFileDTO {
+        throw URLError(.unsupportedURL)
+    }
 }
