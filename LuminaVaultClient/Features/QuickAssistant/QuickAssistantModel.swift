@@ -89,6 +89,10 @@ final class QuickAssistantModel {
     /// Called once when a turn ends cleanly with an `openScreen` that goes somewhere
     /// and nothing left to answer. The shell closes the card and routes.
     var onOpenScreen: ((QuickAssistantRoute) -> Void)?
+    /// Called when the assistant changed a space, a note or a memory: at once
+    /// for a `done` action, and after the server confirms a card. The shell
+    /// reloads the screens that show it.
+    var onAppChange: ((AssistantResourceDTO) -> Void)?
     /// The screen an `openScreen` named when the turn ended with a confirm card
     /// still unanswered. The card shows it as a row to tap instead of routing.
     private(set) var heldScreenRoute: QuickAssistantRoute?
@@ -96,6 +100,8 @@ final class QuickAssistantModel {
     private(set) var heldScreenSummary: String?
     /// Summary of the action `pendingScreen` came from.
     private var pendingScreenSummary: String?
+    /// The space that action named, when its screen is one space.
+    private var pendingScreenSpaceID: UUID?
     /// While the app is in the background a finished voice turn is not read out.
     /// The text is there on return.
     var isSpeechSuspended = false
@@ -137,6 +143,7 @@ final class QuickAssistantModel {
         reply = ""
         actions = []
         pendingScreen = nil
+        pendingScreenSpaceID = nil
         pendingScreenSummary = nil
         heldScreenRoute = nil
         heldScreenSummary = nil
@@ -249,12 +256,16 @@ final class QuickAssistantModel {
         case let .assistantAction(action):
             guard !actions.contains(where: { $0.id == action.id }) else { return nil }
             actions.append(action)
+            if action.kind == .done, let resource = action.resource {
+                onAppChange?(resource)
+            }
             if action.kind == .openScreen {
                 // The last frame that goes somewhere wins. One that does not (an
                 // unknown screen, a memory with no id) must not displace a valid one.
                 let screen = action.screen ?? .unknown
-                if QuickAssistantRoute.resolve(screen, memoryID: action.memoryID) != .none {
+                if QuickAssistantRoute.resolve(action) != .none {
                     pendingScreen = (screen, action.memoryID)
+                    pendingScreenSpaceID = action.spaceID
                     pendingScreenSummary = action.summary
                 }
             }
@@ -273,7 +284,7 @@ final class QuickAssistantModel {
     /// speech still going: accepted, the user asked to be taken there.
     private func routePendingScreen() {
         guard let (screen, memoryID) = pendingScreen else { return }
-        let route = QuickAssistantRoute.resolve(screen, memoryID: memoryID)
+        let route = QuickAssistantRoute.resolve(screen, memoryID: memoryID, spaceID: pendingScreenSpaceID)
         guard route != .none else { return }
         if actions.contains(where: { $0.kind == .needsConfirm && resolutions[$0.id] == nil }) {
             heldScreenRoute = route
@@ -320,6 +331,9 @@ final class QuickAssistantModel {
             let resolution = try await call(actionsClient)
             guard gen == generation else { return }
             resolutions[action.id] = resolution
+            if resolution.status == .confirmed, let resource = action.resource {
+                onAppChange?(resource)
+            }
         } catch {
             guard gen == generation else { return }
             actionErrors[action.id] = Self.actionMessage(for: error)
@@ -336,6 +350,7 @@ final class QuickAssistantModel {
         reply = ""
         actions = []
         pendingScreen = nil
+        pendingScreenSpaceID = nil
         pendingScreenSummary = nil
         heldScreenRoute = nil
         heldScreenSummary = nil

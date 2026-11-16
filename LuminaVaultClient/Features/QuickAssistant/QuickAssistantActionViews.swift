@@ -18,10 +18,16 @@ enum QuickAssistantRoute: Equatable {
     /// Data Access, by way of Settings: the one place the app presents it.
     case dataAccess
     case deepLink(APNSDeepLink)
+    /// One space, opened in the Spaces tab.
+    case space(id: UUID)
     /// Nowhere: an unknown screen, or a memory the server named no id for.
     case none
 
-    static func resolve(_ screen: AssistantScreenDTO, memoryID: UUID?) -> QuickAssistantRoute {
+    static func resolve(_ action: AssistantActionDTO) -> QuickAssistantRoute {
+        resolve(action.screen ?? .unknown, memoryID: action.memoryID, spaceID: action.spaceID)
+    }
+
+    static func resolve(_ screen: AssistantScreenDTO, memoryID: UUID?, spaceID: UUID? = nil) -> QuickAssistantRoute {
         switch screen {
         case .home: .tab(.home)
         case .spaces: .tab(.workspaces)
@@ -33,6 +39,8 @@ enum QuickAssistantRoute: Equatable {
         case .brief: .deepLink(.brief)
         case .learned: .deepLink(.learned)
         case .memory: memoryID.map { .deepLink(.memory(id: $0)) } ?? .none
+        // A space the server named no id for still lands on the list.
+        case .space: spaceID.map { .space(id: $0) } ?? .tab(.workspaces)
         case .unknown: .none
         }
     }
@@ -41,11 +49,28 @@ enum QuickAssistantRoute: Equatable {
 // MARK: - State
 
 extension AssistantActionDTO {
-    /// A forget-memory confirm. The DTO carries no kind of action beyond
-    /// `needsConfirm`, so the server's own summary wording is the only signal; the
-    /// server writes it (`QuickAssistantToolRunner.proposeForget`), never the model.
+    /// A confirm that removes something. `resource.change` says so for the
+    /// space and note tools. A forget-memory confirm predates `resource`, so
+    /// the server's own summary wording is its only signal; the server writes
+    /// it (`QuickAssistantToolRunner.proposeForget`), never the model.
     var isDestructive: Bool {
-        kind == .needsConfirm && summary.hasPrefix("Forget this memory")
+        guard kind == .needsConfirm else { return false }
+        return resource?.change == .deleted || summary.hasPrefix("Forget this memory")
+    }
+}
+
+/// Whatever holds a turn's actions and answers its confirm cards: the Quick
+/// Assistant card's model, or chat's.
+@MainActor
+protocol AssistantActionResolving: AnyObject {
+    func confirmState(for action: AssistantActionDTO) -> QuickAssistantConfirmState
+    func confirm(_ action: AssistantActionDTO) async
+    func cancel(_ action: AssistantActionDTO) async
+}
+
+extension QuickAssistantModel: AssistantActionResolving {
+    func confirmState(for action: AssistantActionDTO) -> QuickAssistantConfirmState {
+        .of(action, in: self)
     }
 }
 
@@ -142,11 +167,11 @@ struct QuickAssistantChip: View {
 /// the result is announced when it arrives.
 struct QuickAssistantConfirmCard: View {
     let action: AssistantActionDTO
-    let model: QuickAssistantModel
+    let model: any AssistantActionResolving
 
     @Environment(\.lvPalette) private var palette
 
-    private var state: QuickAssistantConfirmState { .of(action, in: model) }
+    private var state: QuickAssistantConfirmState { model.confirmState(for: action) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: LVSpacing.md) {

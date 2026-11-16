@@ -15,6 +15,8 @@ struct VaultFilesListView: View {
     let memoryClient: MemoryClientProtocol
     let uploadClient: any VaultUploadClientProtocol
 
+    /// Optional so previews and snapshots need no app shell.
+    @Environment(AppState.self) private var appState: AppState?
     @State private var fileToDelete: VaultFileDTO?
     @State private var fileToRename: VaultFileDTO?
     @State private var renameInput: String = ""
@@ -32,7 +34,8 @@ struct VaultFilesListView: View {
             .navigationTitle(space.name)
             .navigationBarTitleDisplayMode(.inline)
             .lvBackground()
-            .task { await vm.load() }
+            // Runs on appear and again whenever the assistant moves or deletes a note.
+            .task(id: appState?.vaultFilesRevision) { await vm.load() }
             .refreshable { await vm.load() }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

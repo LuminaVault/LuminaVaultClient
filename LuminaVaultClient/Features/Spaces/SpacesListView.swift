@@ -12,6 +12,8 @@ import SwiftUI
 struct SpacesListView: View {
 
     @Environment(\.lvPalette) private var palette
+    /// Optional so previews and snapshots need no app shell.
+    @Environment(AppState.self) private var appState: AppState?
 
     @Bindable var vm: SpacesViewModel
     let vaultClient: VaultClientProtocol
@@ -26,6 +28,8 @@ struct SpacesListView: View {
     /// must not present — `MainTabView`'s chained sheets already drop a
     /// second presentation.
     @State private var showingVisualSearch = false
+    /// A space the assistant was asked to open, pushed once it is in the list.
+    @State private var openedSpace: SpaceDTO?
 
     init(
         vm: SpacesViewModel,
@@ -66,7 +70,25 @@ struct SpacesListView: View {
                     )
                 )
             }
-            .task { await vm.load() }
+            .navigationDestination(isPresented: Binding(
+                get: { openedSpace != nil },
+                set: { if !$0 { openedSpace = nil } }
+            )) {
+                if let space = openedSpace {
+                    VaultFilesListView(
+                        space: space,
+                        vaultClient: vaultClient,
+                        memoryClient: memoryDetailClient,
+                        uploadClient: uploadClient,
+                    )
+                }
+            }
+            // Runs on appear and again whenever the assistant changes a space.
+            .task(id: appState?.spacesRevision) {
+                await vm.load()
+                openPendingSpace()
+            }
+            .onChange(of: appState?.pendingSpaceID) { openPendingSpace() }
             .refreshable { await vm.load() }
             .alert("Delete space?",
                    isPresented: Binding(
@@ -116,6 +138,16 @@ struct SpacesListView: View {
                     },
                 )
             }
+    }
+
+    /// Pushes the space the assistant was asked to open. It waits for the list:
+    /// a space made a moment ago is not in it until the reload lands.
+    private func openPendingSpace() {
+        guard let appState, let id = appState.pendingSpaceID,
+              let space = vm.spaces.first(where: { $0.id == id })
+        else { return }
+        appState.pendingSpaceID = nil
+        openedSpace = space
     }
 
     @ViewBuilder

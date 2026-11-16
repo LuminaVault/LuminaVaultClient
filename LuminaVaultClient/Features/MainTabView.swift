@@ -438,6 +438,7 @@ struct MainTabView: View {
             isOnline: { appState.networkMonitor.isConnected }
         )
         model.onOpenScreen = { route in openFromQuickAssistant(route) }
+        model.onAppChange = { appState.assistantChanged($0) }
         quickAssistant = QuickAssistantSession(
             model: model,
             voice: VoiceModeController(synthesizer: synthesizer),
@@ -457,6 +458,11 @@ struct MainTabView: View {
     private func openFromQuickAssistant(_ route: QuickAssistantRoute) {
         if route == .none { return }
         closeQuickAssistant()
+        open(route)
+    }
+
+    /// Goes where the assistant was asked to go, from the card or from chat.
+    private func open(_ route: QuickAssistantRoute) {
         Task { @MainActor in
             switch route {
             case let .tab(tab):
@@ -469,6 +475,10 @@ struct MainTabView: View {
             case let .deepLink(link):
                 // Routed by the same `.task(id:)` a pushed link goes through.
                 notificationRouter.pendingDeepLink = link
+            case let .space(id):
+                // The Spaces tab pushes it once its list holds it.
+                appState.pendingSpaceID = id
+                selection = .workspaces
             case .none:
                 break
             }
@@ -869,12 +879,15 @@ struct MainTabView: View {
             // Lets chat follow a turn that escalates to an agent run. Same
             // client the Agent Runs screen uses.
             runsClient: HermesRunsHTTPClient(client: appState.makeHTTPClient()),
+            assistantActionsClient: AssistantActionsHTTPClient(client: appState.makeHTTPClient()),
             telemetry: AnalyticsTelemetry(),
             cloudAvailable: { appState.networkMonitor.isConnected }
         )
         viewModel.onOpenIntelligenceSettings = {
             showSettings = true
         }
+        viewModel.assistantActions.onAppChange = { appState.assistantChanged($0) }
+        viewModel.assistantActions.onOpenScreen = { open($0) }
         viewModel.hybridProfile = settings.profile
         viewModel.hybridLocalFallbackEnabled = settings.localFallbackEnabled
         viewModel.hybridCloudFallbackEnabled = settings.cloudFallbackEnabled

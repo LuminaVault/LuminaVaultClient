@@ -200,8 +200,12 @@ nonisolated enum ConversationsEndpoints {
         /// have not said so, because a build older than LuminaVaultShared
         /// 5.16.0 aborts the whole stream on one unfamiliar frame and the
         /// server cannot tell the two apart on the wire.
+        ///
+        /// `chat.app_actions` says this build draws `assistant_action` frames
+        /// in chat and reloads what they changed, so the server may run the
+        /// space, note and memory tools on a plain chat turn.
         var additionalHeaders: [String: String] {
-            ["X-LV-Client-Caps": "chat.hermes_run"]
+            ["X-LV-Client-Caps": "chat.hermes_run, chat.app_actions"]
         }
     }
 }
