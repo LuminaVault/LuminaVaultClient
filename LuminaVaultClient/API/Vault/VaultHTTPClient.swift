@@ -74,4 +74,16 @@ final class VaultHTTPClient: VaultClientProtocol {
     func deleteTrashForever(id: UUID) async throws {
         _ = try await client.execute(VaultEndpoints.TrashDelete(id: id))
     }
+
+    func dailyNote(tz: String?) async throws -> VaultFileDTO {
+        try await client.execute(VaultEndpoints.DailyNote(tz: tz))
+    }
+
+    func seedTemplates() async throws -> VaultTemplatesSeedResponse {
+        try await client.execute(VaultEndpoints.TemplatesSeed())
+    }
+
+    func noteFromTemplate(_ request: VaultFromTemplateRequest) async throws -> VaultFileDTO {
+        try await client.execute(VaultEndpoints.NoteFromTemplate(request: request))
+    }
 }
