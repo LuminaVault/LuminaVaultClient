@@ -75,6 +75,20 @@ final class VaultHTTPClient: VaultClientProtocol {
         _ = try await client.execute(VaultEndpoints.TrashDelete(id: id))
     }
 
+    // MARK: - Backlog E4.5 history
+
+    func history(path: String) async throws -> [VaultHistoryVersion] {
+        try await client.execute(VaultEndpoints.History(filePath: path, limit: nil, before: nil)).versions
+    }
+
+    func readVersion(sha: String, path: String) async throws -> (Data, String) {
+        try await client.fetchBytes(path: VaultEndpoints.versionPath(sha: sha, filePath: path))
+    }
+
+    func restoreVersion(sha: String, path: String, ifMatch: String?) async throws -> VaultFileDTO {
+        try await client.execute(VaultEndpoints.VersionRestore(sha: sha, filePath: path, ifMatch: ifMatch))
+    }
+
     func dailyNote(tz: String?) async throws -> VaultFileDTO {
         try await client.execute(VaultEndpoints.DailyNote(tz: tz))
     }

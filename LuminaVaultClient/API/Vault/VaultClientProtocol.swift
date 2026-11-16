@@ -43,6 +43,15 @@ protocol VaultClientProtocol {
     func restoreTrash(id: UUID) async throws -> VaultFileDTO
     func deleteTrashForever(id: UUID) async throws
 
+    /// Backlog E4.5 — the saved versions of one file, newest first. Empty
+    /// when history is off on the server.
+    func history(path: String) async throws -> [VaultHistoryVersion]
+    /// The file's bytes at one version. Returns (data, contentType).
+    func readVersion(sha: String, path: String) async throws -> (Data, String)
+    /// Writes the file back as it was at `sha`, as a new version. `ifMatch`
+    /// is the on-screen version; a 412 means it changed on another device.
+    func restoreVersion(sha: String, path: String, ifMatch: String?) async throws -> VaultFileDTO
+
     /// Backlog E6.4 — today's note in `tz`, created from the user's daily
     /// template when it doesn't exist yet. Safe to call from two devices.
     func dailyNote(tz: String?) async throws -> VaultFileDTO
@@ -62,6 +71,14 @@ extension VaultClientProtocol {
     func listTrash() async throws -> [VaultTrashItem] { throw URLError(.unsupportedURL) }
     func restoreTrash(id _: UUID) async throws -> VaultFileDTO { throw URLError(.unsupportedURL) }
     func deleteTrashForever(id _: UUID) async throws { throw URLError(.unsupportedURL) }
+
+    func history(path _: String) async throws -> [VaultHistoryVersion] { throw URLError(.unsupportedURL) }
+    func readVersion(sha _: String, path _: String) async throws -> (Data, String) {
+        throw URLError(.unsupportedURL)
+    }
+    func restoreVersion(sha _: String, path _: String, ifMatch _: String?) async throws -> VaultFileDTO {
+        throw URLError(.unsupportedURL)
+    }
 
     func dailyNote(tz _: String?) async throws -> VaultFileDTO { throw URLError(.unsupportedURL) }
     func seedTemplates() async throws -> VaultTemplatesSeedResponse { throw URLError(.unsupportedURL) }

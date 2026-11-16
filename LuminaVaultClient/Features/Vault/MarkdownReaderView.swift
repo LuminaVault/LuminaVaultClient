@@ -42,6 +42,8 @@ struct MarkdownReaderView: View {
     /// sha256 of the version this reader loaded or last saved (E5.4).
     @State private var baseSHA: String?
     @State private var showConflict = false
+    /// Backlog E4.5: the version history sheet.
+    @State private var showHistory = false
 
     // Backlog E2.2 — Linked from / Links to
     @State private var linkGroups: NoteLinkGroups?
@@ -103,6 +105,17 @@ struct MarkdownReaderView: View {
                 )
             }
         }
+        .sheet(isPresented: $showHistory) {
+            NoteHistoryView(
+                viewModel: NoteHistoryViewModel(vaultClient: vaultClient, path: file.path, currentSHA: baseSHA),
+                canRestore: uploadClient != nil
+            ) { _ in
+                Task {
+                    await load()
+                    if isMarkdown { await loadLinks() }
+                }
+            }
+        }
         .alert("This note changed on another device", isPresented: $showConflict) {
             Button("Keep my version") { Task { await save(overwrite: true) } }
             Button("Copy mine and load theirs") { Task { await copyDraftAndReload() } }
@@ -127,6 +140,14 @@ struct MarkdownReaderView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
+        if !isEditing {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showHistory = true } label: {
+                    Image(systemName: "clock.arrow.circlepath")
+                }
+                .accessibilityLabel("History")
+            }
+        }
         if isEditable {
             ToolbarItem(placement: .topBarTrailing) {
                 if isEditing {
