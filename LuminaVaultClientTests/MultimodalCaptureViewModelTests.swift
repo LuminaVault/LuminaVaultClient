@@ -39,6 +39,38 @@ final class MultimodalCaptureViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.errorMessage)
         XCTAssertTrue(viewModel.selectedFiles.isEmpty)
     }
+
+    func testMarkdownIsImportedAsANoteAndNeverIngested() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MultimodalCaptureViewModelTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("The Lore.md")
+        try Data("# The Lore".utf8).write(to: file)
+
+        let suiteName = "MultimodalCaptureViewModelTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let client = SpyIngestionClient()
+        let uploader = TakenNamesUploader(taken: [])
+        let viewModel = MultimodalCaptureViewModel(
+            client: client, defaults: defaults,
+            noteImporter: MarkdownNoteImporter(uploader: uploader)
+        )
+        viewModel.add([file])
+        XCTAssertEqual(viewModel.selectedNotes, [file])
+        XCTAssertTrue(viewModel.selectedFiles.isEmpty)
+
+        await viewModel.save()
+
+        let createdIDs = await client.createdFileItemIDs()
+        XCTAssertTrue(createdIDs.isEmpty, "markdown must not open an ingestion batch")
+        XCTAssertNil(viewModel.latestBatch)
+        XCTAssertEqual(viewModel.importedNotes.map(\.path), ["inbox/The-Lore.md"])
+        XCTAssertTrue(viewModel.selectedNotes.isEmpty)
+        XCTAssertNil(viewModel.errorMessage)
+    }
 }
 
 private actor SpyIngestionClient: IngestionClientProtocol {

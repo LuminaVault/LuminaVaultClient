@@ -38,6 +38,14 @@ final class VaultImportViewModel {
     var selected: Set<String> = []
     var progress: Double = 0
     var resultText: String = ""
+    /// Leave a note that is already in LuminaVault under the same name as it
+    /// is (`onConflict: skip`). Off replaces it with the vault's version.
+    var keepExisting = true
+    /// Server outcomes that need a look: kept notes, name clashes, failures.
+    var needsAttention: [VaultBulkFileResult] = []
+
+    /// What bulk import writes; anything else in a vault is an attachment.
+    nonisolated static let noteExtensions: Set<String> = ["md", "markdown", "txt"]
 
     /// Skip absurdly large single files + cap how many per upload request.
     private let maxFileBytes = 1_000_000
@@ -84,13 +92,18 @@ final class VaultImportViewModel {
         let scoped = root.startAccessingSecurityScopedResource()
         defer { if scoped { root.stopAccessingSecurityScopedResource() } }
         let fm = FileManager.default
-        guard let walker = fm.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey]) else {
+        // Hidden files and folders are app state (.obsidian, .trash, .git), not notes.
+        guard let walker = fm.enumerator(
+            at: root,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles, .skipsPackageDescendants]
+        ) else {
             return nil
         }
         let rootPath = root.path.hasSuffix("/") ? root.path : root.path + "/"
         var byTop: [String: [FileRef]] = [:]
         for case let url as URL in walker {
-            guard url.pathExtension.lowercased() == "md" else { continue }
+            guard noteExtensions.contains(url.pathExtension.lowercased()) else { continue }
             guard let data = try? Data(contentsOf: url), data.count <= maxBytes,
                   let text = String(data: data, encoding: .utf8),
                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -111,14 +124,22 @@ final class VaultImportViewModel {
         phase = .importing
         progress = 0
         var imported = 0, skipped = 0, failed = 0, done = 0
+        var kept = 0, clashes = 0
+        needsAttention = []
+        let onConflict = keepExisting ? "skip" : "overwrite"
         for folder in chosen {
             var index = 0
             while index < folder.files.count {
                 let slice = folder.files[index ..< min(index + batchSize, folder.files.count)]
                 let payload = slice.map { VaultBulkFile(path: $0.relPath, content: $0.content) }
                 do {
-                    let r = try await client.bulk(space: folder.name, files: payload)
+                    let r = try await client.bulk(space: folder.name, files: payload, onConflict: onConflict)
                     imported += r.imported; skipped += r.skipped; failed += r.failed
+                    for file in r.files ?? [] where ["exists", "collision", "failed"].contains(file.status) {
+                        if file.status == "exists" { kept += 1 }
+                        if file.status == "collision" { clashes += 1 }
+                        needsAttention.append(file)
+                    }
                 } catch {
                     phase = .failed("Import failed: \(error.localizedDescription)")
                     return
@@ -128,7 +149,13 @@ final class VaultImportViewModel {
                 progress = Double(done) / Double(total)
             }
         }
-        resultText = "Imported \(imported) · skipped \(skipped) · failed \(failed)"
+        var parts = ["Imported \(imported)"]
+        if kept > 0 { parts.append("kept \(kept) existing") }
+        if clashes > 0 { parts.append("\(clashes) name \(clashes == 1 ? "clash" : "clashes")") }
+        let otherSkipped = skipped - kept - clashes
+        if otherSkipped > 0 { parts.append("\(otherSkipped) already there or empty") }
+        if failed > 0 { parts.append("failed \(failed)") }
+        resultText = parts.joined(separator: " · ")
         phase = .done
     }
 }

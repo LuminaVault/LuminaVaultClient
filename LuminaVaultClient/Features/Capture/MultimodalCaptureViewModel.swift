@@ -23,9 +23,14 @@ final class MultimodalCaptureViewModel {
     private let spacesClient: (any SpacesClientProtocol)?
     private let requestedBatchID: UUID?
     private let reviewPrompter: ReviewPrompter
+    private let noteImporter: MarkdownNoteImporter?
     private static let latestBatchKey = "lv.ingestion.latestBatch"
     private static let selectedSpaceKey = "lv.ingestion.selectedSpace"
     var selectedFiles: [URL] = []
+    /// Markdown and text files: written as notes, not ingested (Hermes
+    /// refuses `text/markdown`). Empty when no importer was wired.
+    var selectedNotes: [URL] = []
+    var importedNotes: [ImportedNote] = []
     var urlText = ""
     var saving = false
     var errorMessage: String?
@@ -45,8 +50,10 @@ final class MultimodalCaptureViewModel {
         spacesClient: (any SpacesClientProtocol)? = nil,
         requestedBatchID: UUID? = nil,
         defaults: UserDefaults = .standard,
-        reviewPrompter: ReviewPrompter = .shared
+        reviewPrompter: ReviewPrompter = .shared,
+        noteImporter: MarkdownNoteImporter? = nil
     ) {
+        self.noteImporter = noteImporter
         self.client = client
         self.capabilitiesClient = capabilitiesClient
         self.spacesClient = spacesClient
@@ -59,7 +66,7 @@ final class MultimodalCaptureViewModel {
     }
 
     var canSave: Bool {
-        !saving && !captureBlocked && (!selectedFiles.isEmpty || !urls.isEmpty)
+        !saving && (!selectedNotes.isEmpty || (!captureBlocked && (!selectedFiles.isEmpty || !urls.isEmpty)))
     }
 
     var captureBlocked: Bool {
@@ -71,7 +78,11 @@ final class MultimodalCaptureViewModel {
     }
 
     func add(_ urls: [URL]) {
-        for url in urls where !selectedFiles.contains(url) {
+        for url in urls where !selectedFiles.contains(url) && !selectedNotes.contains(url) {
+            if noteImporter != nil, MarkdownNoteImporter.isTextNote(url) {
+                selectedNotes.append(url)
+                continue
+            }
             guard supports(url) else {
                 errorMessage = "\(url.lastPathComponent) is not supported by the connected Hermes."
                 continue
@@ -82,6 +93,33 @@ final class MultimodalCaptureViewModel {
 
     func remove(_ url: URL) {
         selectedFiles.removeAll { $0 == url }
+        selectedNotes.removeAll { $0 == url }
+    }
+
+    /// One upload per note, in order. The route allows 30 a minute, so a
+    /// rate-limit answer waits and retries the same file. Returns how many failed.
+    private func importSelectedNotes(with importer: MarkdownNoteImporter) async -> Int {
+        var failed = 0
+        importedNotes = []
+        for url in selectedNotes {
+            var attempt = 0
+            while true {
+                do {
+                    let note = try await importer.importNote(fileURL: url, spaceID: selectedSpaceID)
+                    importedNotes.append(note)
+                    break
+                } catch let APIError.rateLimited(retryAfter) where attempt < 10 {
+                    attempt += 1
+                    try? await Task.sleep(for: .seconds(max(retryAfter ?? 0, 5)))
+                } catch {
+                    failed += 1
+                    errorMessage = "\(url.lastPathComponent): \(error.localizedDescription)"
+                    break
+                }
+            }
+        }
+        selectedNotes = []
+        return failed
     }
 
     func save() async {
@@ -90,6 +128,13 @@ final class MultimodalCaptureViewModel {
         saving = true
         errorMessage = nil
         defer { saving = false }
+        if let noteImporter, !selectedNotes.isEmpty {
+            let failed = await importSelectedNotes(with: noteImporter)
+            if failed == 0 {
+                reviewPrompter.recordSuccess()
+            }
+        }
+        guard !captureBlocked, !selectedFiles.isEmpty || !urls.isEmpty else { return }
         let access = selectedFiles.map { ($0, $0.startAccessingSecurityScopedResource()) }
         defer { for (url, granted) in access where granted {
             url.stopAccessingSecurityScopedResource()

@@ -22,6 +22,7 @@ final class CaptureCoordinator {
     private(set) var spacesClient: (any SpacesClientProtocol)?
     private(set) var ingestionClient: (any IngestionClientProtocol)?
     private(set) var hermesCapabilitiesClient: (any HermesCapabilitiesClientProtocol)?
+    private(set) var vaultUploader: (any VaultUploadClientProtocol)?
     private var container: ModelContainer?
     /// Outlives any one drainer, so a screen that subscribed before sign-in
     /// finished (or across a sign-out/sign-in) keeps hearing outcomes.
@@ -48,6 +49,7 @@ final class CaptureCoordinator {
 
             let httpBase = providedHTTPClient ?? BaseHTTPClient(tokenProvider: tokenProvider)
             let uploader = VaultUploadHTTPClient(client: httpBase)
+            vaultUploader = uploader
             let memory = MemoryHTTPClient(client: httpBase)
             let safari = CaptureSafariHTTPClient(client: httpBase)
             let transcribe = TranscribeHTTPClient(client: httpBase)
