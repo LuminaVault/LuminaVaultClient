@@ -93,19 +93,22 @@ struct SpacesListView: View {
                     onSubmit: { payload in
                         switch presentation.mode {
                         case .create:
+                            // An empty slug asks the server to derive one
+                            // from the name.
                             await vm.create(CreateSpaceRequest(
                                 name: payload.name,
-                                slug: payload.slug,
+                                slug: "",
                                 description: nil,
-                                color: payload.color,
+                                color: nil,
                                 icon: payload.icon,
                                 category: payload.category,
                             ))
                         case let .edit(existing):
+                            // nil keeps a stored value; "" clears it.
                             await vm.update(id: existing.id, UpdateSpaceRequest(
                                 name: payload.name,
                                 description: nil,
-                                color: payload.color,
+                                color: nil,
                                 icon: payload.icon,
                                 category: payload.category ?? "",
                             ))

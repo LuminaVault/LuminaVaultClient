@@ -26,7 +26,7 @@ struct SpaceCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             LVIconView(
-                Self.resolveIcon(space.icon),
+                SpaceIcon.resolve(space.icon),
                 size: 32,
                 tint: palette.accent,
                 weight: .regular,
@@ -59,33 +59,6 @@ struct SpaceCardView: View {
             } label: {
                 Label("Delete", systemImage: LVIcon.trash.sfSymbol)
             }
-        }
-    }
-
-    /// HER-307 — server returns an SF Symbol name (or nil). Map common
-    /// values to `LVIcon` cases so cards pick up the branded glyph.
-    /// Unknown / unset icons fall back to `.scrollWinged`, which draws the
-    /// plain scroll symbol: winged art reads as a second logo here.
-    private static func resolveIcon(_ raw: String?) -> LVIcon {
-        switch raw {
-        case "brain.head.profile", "brain":     return .brainHeadProfile
-        case "heart.fill", "heart":             return .heartWinged
-        case "lightbulb.fill", "lightbulb":     return .lightbulbFill
-        case "chart.line.uptrend.xyaxis",
-             "chart.xyaxis.line":               return .chartUp
-        case "briefcase.fill", "briefcase":     return .briefcase
-        case "lock.shield.fill", "lock.shield": return .shieldBrain
-        case "doc.text.fill", "doc.text",
-             "scroll.fill", "scroll":           return .scrollWinged
-        case "folder.fill", "folder":           return .layers
-        case "house.fill", "house":             return .homeGlow
-        case "camera.aperture", "camera.fill",
-             "camera":                          return .cameraAperture
-        case "mic.fill", "mic":                 return .micFill
-        case "link", "link.circle":             return .linkCircle
-        case "wand.and.stars":                  return .wandSparkle
-        case "key.fill", "key":                 return .skeletonKeyPremium
-        default:                                return .scrollWinged
         }
     }
 }
