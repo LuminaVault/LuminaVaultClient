@@ -32,6 +32,13 @@ struct VaultImportView: View {
             case .manifest:
                 manifestSection
                 Section {
+                    Toggle("Keep notes already in LuminaVault", isOn: $viewModel.keepExisting)
+                } footer: {
+                    Text(viewModel.keepExisting
+                        ? "A note with the same name stays as it is, and is listed after the import."
+                        : "A note with the same name is replaced by the vault's version.")
+                }
+                Section {
                     Button("Import \(selectedCount) notes") {
                         Task { await viewModel.runImport() }
                     }
@@ -49,6 +56,16 @@ struct VaultImportView: View {
                         .foregroundStyle(.green)
                 } footer: {
                     Text("Open the Brain tab to see your graph. Chat now grounds on these notes.")
+                }
+                if !viewModel.needsAttention.isEmpty {
+                    Section("Notes to check") {
+                        ForEach(viewModel.needsAttention.prefix(50), id: \.path) { file in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(file.path).font(.footnote.monospaced()).lineLimit(1)
+                                Text(Self.attentionLabel(file)).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                 }
                 Section {
                     Button("Import another folder") { viewModel.phase = .idle }
@@ -71,6 +88,14 @@ struct VaultImportView: View {
         }
     }
 
+    private static func attentionLabel(_ file: VaultBulkFileResult) -> String {
+        switch file.status {
+        case "exists": "Kept your note\(file.savedPath.map { " at \($0)" } ?? "")"
+        case "collision": "Same name as another note in this folder; the first was imported"
+        default: "Could not be imported"
+        }
+    }
+
     private var chooseSection: some View {
         Section {
             Button {
@@ -79,7 +104,7 @@ struct VaultImportView: View {
                 Label("Choose vault folder…", systemImage: "folder.badge.plus")
             }
         } footer: {
-            Text("Pick your Obsidian / Hermes vault folder. Each top-level folder becomes a Space; its markdown is embedded for chat grounding and the Brain graph.")
+            Text("Pick your Obsidian / Hermes vault folder. Each top-level folder becomes a Space, and notes at the top of the vault go to a Space named after it. Links between notes keep working. Obsidian settings and attachments are left out.")
         }
     }
 

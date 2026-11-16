@@ -15,6 +15,18 @@ nonisolated struct VaultBulkFile: Encodable {
 nonisolated struct VaultBulkRequest: Encodable {
     let space: String
     let files: [VaultBulkFile]
+    /// `"skip"` leaves a different note already at a file's path alone and
+    /// reports it `exists`; `"overwrite"` (the server default) replaces it.
+    var onConflict: String?
+}
+
+/// What the server did with one input file.
+nonisolated struct VaultBulkFileResult: Decodable, Equatable {
+    let path: String
+    let savedPath: String?
+    /// imported, updated, unchanged, empty, hidden, unsupported, collision,
+    /// exists or failed.
+    let status: String
 }
 
 nonisolated struct VaultBulkResponse: Decodable {
@@ -23,6 +35,8 @@ nonisolated struct VaultBulkResponse: Decodable {
     let imported: Int
     let skipped: Int
     let failed: Int
+    /// Per-file outcomes; nil from a server older than the per-file report.
+    var files: [VaultBulkFileResult]?
 }
 
 nonisolated enum VaultImportEndpoints {
