@@ -79,6 +79,32 @@ final class VaultUploadHTTPClient: VaultUploadClientProtocol {
         metadata: VaultNoteMetadataDTO?,
         ifMatch: String?
     ) async throws -> VaultUploadResponse {
+        try await writeNote(
+            data: data, contentType: contentType, relativePath: relativePath,
+            spaceID: spaceID, metadata: metadata, preconditions: ifMatch.map { ["If-Match": $0] } ?? [:],
+        )
+    }
+
+    func createNote(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        spaceID: UUID?
+    ) async throws -> VaultUploadResponse {
+        try await writeNote(
+            data: data, contentType: contentType, relativePath: relativePath,
+            spaceID: spaceID, metadata: nil, preconditions: ["If-None-Match": "*"],
+        )
+    }
+
+    private func writeNote(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        spaceID: UUID?,
+        metadata: VaultNoteMetadataDTO?,
+        preconditions: [String: String]
+    ) async throws -> VaultUploadResponse {
         var comps = URLComponents()
         comps.path = "/v1/vault/files"
         var items: [URLQueryItem] = [URLQueryItem(name: "path", value: relativePath)]
@@ -92,15 +118,13 @@ final class VaultUploadHTTPClient: VaultUploadClientProtocol {
         comps.queryItems = items
         let uri = comps.string ?? "/v1/vault/files"
 
-        var extraHeaders: [String: String] = [:]
+        // `If-Match` (conflict-safe save) or `If-None-Match: *` (create-only).
+        var extraHeaders = preconditions
         if let metadata,
            let json = try? Self.metadataEncoder.encode(metadata),
            let str = String(data: json, encoding: .utf8)
         {
             extraHeaders["X-Vault-Metadata"] = str
-        }
-        if let ifMatch {
-            extraHeaders["If-Match"] = ifMatch
         }
 
         let raw = try await client.uploadBytes(

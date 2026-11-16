@@ -59,9 +59,33 @@ protocol VaultUploadClientProtocol: Sendable {
         metadata: VaultNoteMetadataDTO?,
         ifMatch: String?
     ) async throws -> VaultUploadResponse
+
+    /// Markdown import: a note write sent with `If-None-Match: *`, so it is
+    /// create-only and a name that is already taken answers 412 instead of
+    /// replacing that note.
+    func createNote(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        spaceID: UUID?
+    ) async throws -> VaultUploadResponse
 }
 
 extension VaultUploadClientProtocol {
+    /// Default is a plain note write so existing stubs keep working; the HTTP
+    /// client overrides it with the create-only header.
+    func createNote(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        spaceID: UUID?
+    ) async throws -> VaultUploadResponse {
+        try await uploadNote(
+            data: data, contentType: contentType,
+            relativePath: relativePath, spaceID: spaceID, metadata: nil,
+        )
+    }
+
     /// Default ignores `ifMatch` so existing stubs keep working; the HTTP
     /// client overrides it.
     func uploadNote(

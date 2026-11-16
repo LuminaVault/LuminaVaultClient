@@ -65,7 +65,8 @@ private struct CaptureSheetPresenter: ViewModifier {
                         client: ingestionClient,
                         capabilitiesClient: coordinator?.hermesCapabilitiesClient,
                         spacesClient: coordinator?.spacesClient,
-                        requestedBatchID: requestedBatchID
+                        requestedBatchID: requestedBatchID,
+                        noteImporter: coordinator?.vaultUploader.map(MarkdownNoteImporter.init(uploader:))
                     ),
                     initialMode: initialMode
                 )

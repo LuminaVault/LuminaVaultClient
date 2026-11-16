@@ -12,12 +12,23 @@ struct MultimodalCaptureView: View {
             LazyVStack(alignment: .leading, spacing: LVSpacing.base) {
                 Button("Choose files", systemImage: "doc.badge.plus") { showingImporter = true }
                     .buttonStyle(.lvProminent)
-                    .accessibilityHint("Choose PDFs, images, audio, or video for Hermes to process")
+                    .accessibilityHint("Choose PDFs, images, audio, or video for Hermes to process, or markdown files to import as notes")
 
                 Picker("Save to Space", selection: $viewModel.selectedSpaceID) {
                     Text("Inbox").tag(UUID?.none)
                     ForEach(viewModel.spaces) { space in
                         Text(space.name).tag(Optional(space.id))
+                    }
+                }
+
+                ForEach(viewModel.selectedNotes, id: \.self) { url in
+                    HStack {
+                        Image(systemName: "doc.text")
+                        Text(url.lastPathComponent).lineLimit(1)
+                        Spacer()
+                        Text("Note").font(.caption).foregroundStyle(.secondary)
+                        Button("Remove", systemImage: "xmark.circle") { viewModel.remove(url) }
+                            .labelStyle(.iconOnly)
                     }
                 }
 
@@ -41,6 +52,23 @@ struct MultimodalCaptureView: View {
 
                 if let error = viewModel.errorMessage {
                     Text(error).foregroundStyle(.red).font(.footnote).accessibilityLabel("Capture failed: \(error)")
+                }
+                if !viewModel.importedNotes.isEmpty {
+                    VStack(alignment: .leading, spacing: LVSpacing.sm) {
+                        Label(
+                            "Imported \(viewModel.importedNotes.count) \(viewModel.importedNotes.count == 1 ? "note" : "notes")",
+                            systemImage: "checkmark.circle"
+                        )
+                        ForEach(viewModel.importedNotes, id: \.path) { note in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(note.fileName).lineLimit(1)
+                                Text(note.renamed ? "Saved as \(note.path) (renamed)" : "Saved as \(note.path)")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(.thinMaterial, in: .rect(cornerRadius: LVRadius.card))
                 }
                 if viewModel.captureBlocked {
                     Text("Your connected Hermes does not advertise multimodal ingestion with remote source access. Upgrade or enable its ingestion API before uploading files.")
@@ -102,7 +130,7 @@ struct MultimodalCaptureView: View {
         }
         .fileImporter(
             isPresented: $showingImporter,
-            allowedContentTypes: [.pdf, .image, .audio, .movie],
+            allowedContentTypes: [.pdf, .image, .audio, .movie] + MarkdownNoteImporter.contentTypes,
             allowsMultipleSelection: true
         ) { result in
             if case let .success(urls) = result {
