@@ -34,6 +34,8 @@ struct MarkdownReaderView: View {
     /// Backlog E5.3: the cursor in the body editor, for `[[` suggestions.
     @State private var draftSelection: TextSelection?
     @State private var linkSuggestions: WikilinkSuggestionModel?
+    /// Backlog E5.4: the formatting bar shows only while the body has focus.
+    @FocusState private var bodyFocused: Bool
     @State private var draftTitle: String = ""
     @State private var draftTagsText: String = ""
     @State private var draftIsTodo = false
@@ -266,6 +268,24 @@ struct MarkdownReaderView: View {
             .background(RoundedRectangle(cornerRadius: 12).fill(palette.surface))
             .onChange(of: draftBody) { refreshLinkSuggestions() }
             .onChange(of: draftSelection) { refreshLinkSuggestions() }
+            .focused($bodyFocused)
+            .toolbar {
+                if bodyFocused && isMarkdown {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 18) {
+                                ForEach(MarkdownFormatting.Action.allCases) { action in
+                                    Button { format(action) } label: {
+                                        Image(systemName: action.systemImage)
+                                    }
+                                    .accessibilityLabel(action.title)
+                                }
+                            }
+                        }
+                        Button("Done") { bodyFocused = false }
+                    }
+                }
+            }
 
         if let linkSuggestions, !linkSuggestions.suggestions.isEmpty {
             WikilinkSuggestionsRow(suggestions: linkSuggestions.suggestions) { acceptLinkSuggestion($0) }
@@ -313,6 +333,29 @@ struct MarkdownReaderView: View {
               range.lowerBound.samePosition(in: draftBody) != nil
         else { return nil }
         return range.lowerBound
+    }
+
+    /// Backlog E5.4: applies a toolbar action to the body at the selection.
+    /// Without a known selection it acts at the end of the note.
+    private func format(_ action: MarkdownFormatting.Action) {
+        let body = draftBody
+        var selection = MarkdownFormatting.Selection.cursor(body.count)
+        if let draftSelection, case let .selection(range) = draftSelection.indices,
+           range.upperBound <= body.endIndex,
+           range.lowerBound.samePosition(in: body) != nil, range.upperBound.samePosition(in: body) != nil
+        {
+            selection = .init(
+                lower: body.distance(from: body.startIndex, to: range.lowerBound),
+                upper: body.distance(from: body.startIndex, to: range.upperBound)
+            )
+        }
+        let (text, out) = MarkdownFormatting.apply(action, to: body, selection: selection)
+        draftBody = text
+        let lower = text.index(text.startIndex, offsetBy: out.lower)
+        let upper = text.index(text.startIndex, offsetBy: out.upper)
+        draftSelection = out.lower == out.upper
+            ? TextSelection(insertionPoint: lower)
+            : TextSelection(range: lower ..< upper)
     }
 
     private func refreshLinkSuggestions() {
