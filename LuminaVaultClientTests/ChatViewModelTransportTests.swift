@@ -57,6 +57,78 @@ final class ChatViewModelTransportTests: XCTestCase {
         XCTAssertEqual(vm.messages.last?.content, "hi")
     }
 
+    func testSlashCommandRoutesToSkillsNotChatTransports() async throws {
+        let conversations = SpyConversationsClient()
+        let chat = SpyChatClient()
+        let skills = SpySlashSkillsClient()
+        let vm = ChatViewModel(
+            conversationsClient: conversations,
+            chatClient: chat,
+            memoryClient: NoOpMemoryClient(),
+            historyStore: nil,
+            skillsClient: skills,
+        )
+
+        vm.composer = "/patterns sleep"
+        vm.send()
+        await waitUntil("slash reply to land") { vm.messages.last?.role == .assistant }
+
+        XCTAssertEqual(skills.slashCommands, ["/patterns sleep"])
+        XCTAssertEqual(conversations.createCallCount, 0)
+        XCTAssertEqual(conversations.streamReplyCallCount, 0)
+        XCTAssertEqual(chat.completeCallCount, 0)
+        XCTAssertEqual(vm.messages.map(\.role), [.user, .assistant])
+        XCTAssertEqual(vm.messages.last?.content, "## Patterns")
+        XCTAssertEqual(vm.messages.last?.sourceLabel, "/pattern-detector")
+        XCTAssertEqual(vm.phase, .idle)
+    }
+
+    func testWithoutSkillsClientASlashIsAnOrdinaryTurn() async throws {
+        let conversations = SpyConversationsClient()
+        let vm = ChatViewModel(
+            conversationsClient: conversations,
+            chatClient: SpyChatClient(),
+            memoryClient: NoOpMemoryClient(),
+            historyStore: nil,
+        )
+        vm.composer = "/patterns"
+        vm.send()
+        await waitUntil("chat reply to land") { vm.messages.last?.role == .assistant }
+        XCTAssertEqual(conversations.streamReplyCallCount, 1)
+        XCTAssertTrue(vm.slashSuggestions(for: "/p").isEmpty)
+    }
+
+    func testSlashFailureSurfacesAsFailedPhase() async throws {
+        let skills = SpySlashSkillsClient()
+        skills.failure = APIError.httpError(statusCode: 404, data: Data(#"{"error":{"message":"no skill named nope"}}"#.utf8))
+        let vm = ChatViewModel(
+            conversationsClient: SpyConversationsClient(),
+            chatClient: SpyChatClient(),
+            memoryClient: NoOpMemoryClient(),
+            historyStore: nil,
+            skillsClient: skills,
+        )
+        vm.composer = "/nope"
+        vm.send()
+        await waitUntil("failure") { if case .failed = vm.phase { return true }; return false }
+        XCTAssertEqual(vm.messages.map(\.role), [.user])
+    }
+
+    func testSlashSuggestionsIncludeEnabledSkillsAfterLoad() async {
+        let skills = SpySlashSkillsClient()
+        let vm = ChatViewModel(
+            conversationsClient: SpyConversationsClient(),
+            chatClient: SpyChatClient(),
+            memoryClient: NoOpMemoryClient(),
+            historyStore: nil,
+            skillsClient: skills,
+        )
+        XCTAssertEqual(vm.slashSuggestions(for: "/").map(\.name), ["kb-compile", "patterns", "contradict", "beliefs"])
+        await vm.loadSlashCommandsIfNeeded()
+        XCTAssertEqual(vm.slashSuggestions(for: "/da").map(\.name), ["daily-brief"])
+        XCTAssertTrue(vm.slashSuggestions(for: "/daily-brief now").isEmpty, "a space means the argument is being typed")
+    }
+
     func testToggleTransportFlipsState() {
         let vm = ChatViewModel(
             conversationsClient: SpyConversationsClient(),
@@ -215,6 +287,42 @@ private final class SpyChatClient: ChatClientProtocol, @unchecked Sendable {
                 model: "stub-model",
                 choices: [HermesUpstreamChoice(index: 0, message: message, finishReason: "stop")],
             ),
+        )
+    }
+}
+
+private final class SpySlashSkillsClient: SkillsClientProtocol, @unchecked Sendable {
+    private(set) var slashCommands: [String] = []
+    var failure: Error?
+
+    func list() async throws -> SkillListResponse {
+        SkillListResponse(skills: [
+            SlashSkillFixture.skill("daily-brief", enabled: true),
+            SlashSkillFixture.skill("weekly-memo", enabled: false),
+            SlashSkillFixture.skill("pattern-detector", enabled: true),
+            SlashSkillFixture.skill("hermes-research", enabled: true),
+        ])
+    }
+
+    func patch(name _: String, body _: SkillPatchRequest) async throws -> LuminaVaultShared.SkillDTO {
+        throw APIError.unauthorized
+    }
+
+    func runs(name _: String, limit _: Int?) async throws -> SkillRunsResponse {
+        throw APIError.unauthorized
+    }
+
+    func run(name _: String, request _: SkillRunRequest) async throws -> SkillRunResponse {
+        throw APIError.unauthorized
+    }
+
+    func runSlash(command: String) async throws -> SkillRunResponse {
+        slashCommands.append(command)
+        if let failure { throw failure }
+        let now = Date()
+        return SkillRunResponse(
+            id: UUID(), skillName: "pattern-detector", status: .success,
+            markdown: "## Patterns", startedAt: now, endedAt: now,
         )
     }
 }

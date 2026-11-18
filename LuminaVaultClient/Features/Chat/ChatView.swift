@@ -1021,6 +1021,22 @@ private struct ChatComposerSection: View {
     let onRunAsAgent: (String) -> Void
 
     var body: some View {
+        // Read here so a keystroke re-renders only this section.
+        let suggestions = viewModel.slashSuggestions(for: composer.text)
+        VStack(spacing: 0) {
+            if !suggestions.isEmpty {
+                SlashSuggestionList(suggestions: suggestions) { suggestion in
+                    composer.text = suggestion.insertion
+                }
+            }
+            composerBar
+        }
+        .task(id: composer.text.hasPrefix("/")) {
+            if composer.text.hasPrefix("/") { await viewModel.loadSlashCommandsIfNeeded() }
+        }
+    }
+
+    private var composerBar: some View {
         ComposerBar(
             text: $composer.text,
             canSend: composer.hasContent && viewModel.canAcceptSend,
@@ -1046,6 +1062,56 @@ private struct ChatComposerSection: View {
             onRunWorkflow: onRunWorkflow,
             onRunAsAgent: { onRunAsAgent(composer.text) }
         )
+    }
+}
+
+/// Slash commands matching the draft, above the composer. A tap fills the
+/// composer with `/name ` so the argument can be typed next; nothing runs
+/// until the user sends.
+private struct SlashSuggestionList: View {
+    @Environment(\.lvPalette) private var palette
+    let suggestions: [SlashSuggestion]
+    let onPick: (SlashSuggestion) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(suggestions.prefix(6)) { suggestion in
+                Button {
+                    onPick(suggestion)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: LVSpacing.xs) {
+                            Text("/\(suggestion.name)")
+                                .lvFont(.bodyEmphasis)
+                                .foregroundStyle(palette.textPrimary)
+                            if let hint = suggestion.argumentHint {
+                                Text(hint)
+                                    .lvFont(.footnote)
+                                    .foregroundStyle(palette.textSecondary)
+                            }
+                        }
+                        if !suggestion.summary.isEmpty {
+                            Text(suggestion.summary)
+                                .lvFont(.caption)
+                                .foregroundStyle(palette.textSecondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, LVSpacing.md)
+                    .padding(.vertical, LVSpacing.sm)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Slash command \(suggestion.name)")
+                .accessibilityHint(suggestion.summary)
+            }
+        }
+        .background(palette.surface, in: RoundedRectangle(cornerRadius: LVRadius.md))
+        .padding(.horizontal, LVSpacing.sm)
+        .padding(.bottom, LVSpacing.xs)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Slash commands")
     }
 }
 
