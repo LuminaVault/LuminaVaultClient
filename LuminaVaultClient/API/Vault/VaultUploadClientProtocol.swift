@@ -69,9 +69,37 @@ protocol VaultUploadClientProtocol: Sendable {
         relativePath: String,
         spaceID: UUID?
     ) async throws -> VaultUploadResponse
+
+    /// Saves an edit over a note that already exists, at its own path and in
+    /// its own Space, at any folder depth (`PUT /v1/vault/files/{path}`).
+    /// Upload keeps only the base name under the Space's folder, so saving a
+    /// nested note (an imported `lore/people/ada.md`) through it wrote a
+    /// second copy at `lore/ada.md`. Same note flags, sidecar and `If-Match`.
+    func replaceNote(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        metadata: VaultNoteMetadataDTO?,
+        ifMatch: String?
+    ) async throws -> VaultUploadResponse
 }
 
 extension VaultUploadClientProtocol {
+    /// Default is the plain note write so existing stubs keep working; the
+    /// HTTP client overrides it with the in-place `PUT`.
+    func replaceNote(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        metadata: VaultNoteMetadataDTO?,
+        ifMatch: String?
+    ) async throws -> VaultUploadResponse {
+        try await uploadNote(
+            data: data, contentType: contentType, relativePath: relativePath,
+            spaceID: nil, metadata: metadata, ifMatch: ifMatch,
+        )
+    }
+
     /// Default is a plain note write so existing stubs keep working; the HTTP
     /// client overrides it with the create-only header.
     func createNote(
