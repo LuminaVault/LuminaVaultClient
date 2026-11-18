@@ -20,6 +20,8 @@ struct VaultFilesListView: View {
     @State private var fileToDelete: VaultFileDTO?
     @State private var fileToRename: VaultFileDTO?
     @State private var renameInput: String = ""
+    /// Backlog E8.5: saved views show only while properties are on.
+    @State private var propertiesOn = false
 
     init(space: SpaceDTO, vaultClient: VaultClientProtocol, memoryClient: MemoryClientProtocol, uploadClient: any VaultUploadClientProtocol) {
         self.space = space
@@ -37,7 +39,17 @@ struct VaultFilesListView: View {
             // Runs on appear and again whenever the assistant moves or deletes a note.
             .task(id: appState?.vaultFilesRevision) { await vm.load() }
             .refreshable { await vm.load() }
+            .task { propertiesOn = (try? await vaultClient.propertyTypes()) != nil }
             .toolbar {
+                if propertiesOn {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink {
+                            VaultViewsListView(vaultClient: vaultClient, memoryClient: memoryClient, uploadClient: uploadClient)
+                        } label: {
+                            Label("Views", systemImage: "tablecells")
+                        }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
                         VaultTrashView(vaultClient: vaultClient)

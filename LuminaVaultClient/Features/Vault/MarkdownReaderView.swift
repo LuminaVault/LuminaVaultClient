@@ -57,6 +57,17 @@ struct MarkdownReaderView: View {
     @State private var linkedNote: VaultFileDTO?
     @State private var linkOpenError: String?
 
+    // Backlog E8.5 — the note's frontmatter, read-only. nil while properties
+    // are off on the server or the note has none.
+    @State private var propertyRows: [NotePropertyRow]?
+    @State private var propertiesError: String?
+
+    /// The properties section replaces the tags/due badges and the raw
+    /// frontmatter block in the rendered note.
+    private var showsProperties: Bool {
+        (propertyRows?.isEmpty == false) || propertiesError != nil
+    }
+
     /// Only text/markdown notes are editable, and only when an upload client
     /// is available to persist the edit.
     private var isEditable: Bool {
@@ -97,6 +108,7 @@ struct MarkdownReaderView: View {
         .task { await load() }
         // Separate from `load()` so the note body never waits on its links.
         .task(id: isMarkdown) { if isMarkdown { await loadLinks() } }
+        .task(id: isMarkdown) { if isMarkdown { await loadProperties() } }
         .navigationDestination(isPresented: Binding(
             get: { linkedNote != nil },
             set: { if !$0 { linkedNote = nil } }
@@ -117,7 +129,10 @@ struct MarkdownReaderView: View {
             ) { _ in
                 Task {
                     await load()
-                    if isMarkdown { await loadLinks() }
+                    if isMarkdown {
+                        await loadLinks()
+                        await loadProperties()
+                    }
                 }
             }
         }
@@ -197,7 +212,11 @@ struct MarkdownReaderView: View {
                 .strikethrough(file.metadata?.done == true, color: palette.textSecondary)
         }
 
-        metaBadges
+        if showsProperties {
+            NotePropertiesSection(rows: propertyRows ?? [], parseError: propertiesError)
+        } else {
+            metaBadges
+        }
 
         Divider().background(palette.surfaceStroke)
 
@@ -206,7 +225,11 @@ struct MarkdownReaderView: View {
         } else if let error {
             Text(error).font(.system(size: 13)).foregroundStyle(.red.opacity(0.85))
         } else if let rawText, isMarkdown {
-            WikilinkMarkdownView(markdown: rawText, vaultClient: vaultClient, memoryClient: memoryClient)
+            WikilinkMarkdownView(
+                markdown: showsProperties && propertiesError == nil ? NoteFrontmatter.strip(rawText) : rawText,
+                vaultClient: vaultClient,
+                memoryClient: memoryClient
+            )
             NoteLinksSection(
                 groups: linkGroups,
                 isLoading: linksLoading,
@@ -429,8 +452,9 @@ struct MarkdownReaderView: View {
                 done: metadata.done ?? false,
             )
             isEditing = false
-            // An edit can add or remove wikilinks.
+            // An edit can add or remove wikilinks, and change the frontmatter.
             await loadLinks()
+            await loadProperties()
         } catch where NoteVersion.isConflict(error) {
             showConflict = true
         } catch {
@@ -472,6 +496,24 @@ struct MarkdownReaderView: View {
             self.isMarkdown = contentType.contains("markdown") || file.path.hasSuffix(".md")
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    /// Backlog E8.5. Silent on failure: the note reads fine without them.
+    private func loadProperties() async {
+        do {
+            guard let types = try await vaultClient.propertyTypes(),
+                  let row = try await vaultClient.fileProperties(path: file.path)
+            else {
+                propertyRows = nil
+                propertiesError = nil
+                return
+            }
+            propertyRows = NotePropertyRow.rows(row.properties ?? [:], types: types)
+            propertiesError = row.propertiesError
+        } catch {
+            propertyRows = nil
+            propertiesError = nil
         }
     }
 
