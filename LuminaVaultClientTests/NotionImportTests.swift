@@ -194,7 +194,7 @@ final class NotionImportEndpointTests: XCTestCase {
     }
 
     /// URLSession hands a protocol stub the body as a stream, never `httpBody`.
-    private static func body(of request: URLRequest) -> Data? {
+    private nonisolated static func body(of request: URLRequest) -> Data? {
         if let body = request.httpBody {
             return body
         }
@@ -216,7 +216,7 @@ final class NotionImportEndpointTests: XCTestCase {
 
 /// Written once from the stub's handler, read after the request returns; the
 /// request itself is the ordering, so no lock is needed.
-private final class RequestBox: @unchecked Sendable {
+private final nonisolated class RequestBox: @unchecked Sendable {
     var method: String?
     var url: URL?
     var contentType: String?
@@ -386,6 +386,25 @@ final class NotionImportViewModelTests: XCTestCase {
         await viewModel.check()
 
         XCTAssertEqual(viewModel.phase, .picked)
+        XCTAssertNil(viewModel.errorMessage)
+    }
+
+    func testAnInterruptedImportSaysSoAndCanBeRunAgain() async throws {
+        let client = FakeNotionClient()
+        let viewModel = NotionImportViewModel(client: client)
+        try await viewModel.pick(export(bytes: 8))
+        await viewModel.check()
+        await client.fail(with: CancellationError())
+
+        await viewModel.runImport()
+
+        XCTAssertEqual(viewModel.phase, .checked)
+        XCTAssertEqual(viewModel.errorMessage, NotionImportViewModel.interruptedMessage)
+        XCTAssertTrue(viewModel.canImport)
+
+        await client.fail(with: nil)
+        await viewModel.runImport()
+        XCTAssertEqual(viewModel.phase, .done)
         XCTAssertNil(viewModel.errorMessage)
     }
 

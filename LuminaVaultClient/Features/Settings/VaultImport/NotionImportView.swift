@@ -73,6 +73,12 @@ struct NotionImportView: View {
             case .check: await viewModel.check()
             case .runImport: await viewModel.runImport()
             }
+            // `.task(id:)` runs again whenever the screen reappears (a tab
+            // switch and back). A finished or cancelled request must not be
+            // replayed: that would upload, or import, a second time.
+            if self.request == request {
+                self.request = nil
+            }
         }
     }
 

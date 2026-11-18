@@ -165,9 +165,13 @@ final class NotionImportViewModel {
             }
         } catch {
             phase = fallback
-            // The screen went away mid-request; that is not a failure to show.
             if !error.isBenignCancellation {
                 errorMessage = Self.message(for: error)
+            } else if !dryRun {
+                // The screen went away mid-import. The server may already
+                // have written notes, so say so; a cancelled dry run wrote
+                // nothing and needs no message.
+                errorMessage = Self.interruptedMessage
             }
         }
     }
@@ -201,6 +205,10 @@ final class NotionImportViewModel {
         default: return "Server error (\(status))."
         }
     }
+
+    nonisolated static let interruptedMessage =
+        "The import was interrupted, and some notes may already be in the Space. "
+            + "Import again to finish: notes that are already there are skipped."
 
     nonisolated static let tooBigMessage =
         "That export is over 200 MB. Export fewer pages from Notion, or split it, and try again."
