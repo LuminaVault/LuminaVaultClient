@@ -100,4 +100,26 @@ final class VaultHTTPClient: VaultClientProtocol {
     func noteFromTemplate(_ request: VaultFromTemplateRequest) async throws -> VaultFileDTO {
         try await client.execute(VaultEndpoints.NoteFromTemplate(request: request))
     }
+
+    // MARK: - Backlog E8.5 properties (read-only)
+
+    func propertyTypes() async throws -> VaultPropertyTypes? {
+        do {
+            return VaultPropertyTypes(try await client.execute(VaultEndpoints.PropertyTypes()).types)
+        } catch APIError.httpError(statusCode: 404, data: _) {
+            return nil
+        }
+    }
+
+    func fileProperties(path: String) async throws -> VaultFileProperties? {
+        try await client.execute(VaultEndpoints.FileProperties(filePath: path)).files.first { $0.path == path }
+    }
+
+    func listViews() async throws -> [VaultSavedView] {
+        try await client.execute(VaultEndpoints.Views()).views
+    }
+
+    func query(_ request: VaultQueryRequest) async throws -> VaultQueryResponse {
+        try await client.execute(VaultEndpoints.Query(request: request))
+    }
 }

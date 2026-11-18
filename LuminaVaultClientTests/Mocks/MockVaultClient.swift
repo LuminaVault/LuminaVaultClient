@@ -160,4 +160,14 @@ final class MockVaultClient: VaultClientProtocol, @unchecked Sendable {
         noteFromTemplateRequests.append(request)
         return try noteFromTemplateResult.get()
     }
+
+    // Backlog E8.5: properties and views. A queue of query results, one per call.
+    var queryResults: [Result<VaultQueryResponse, Error>] = []
+    private(set) var queryRequests: [VaultQueryRequest] = []
+
+    func query(_ request: VaultQueryRequest) async throws -> VaultQueryResponse {
+        queryRequests.append(request)
+        guard !queryResults.isEmpty else { throw URLError(.unsupportedURL) }
+        return try queryResults.removeFirst().get()
+    }
 }

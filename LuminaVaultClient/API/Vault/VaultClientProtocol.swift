@@ -59,6 +59,14 @@ protocol VaultClientProtocol {
     func seedTemplates() async throws -> VaultTemplatesSeedResponse
     /// A new note rendered from a template. 409 when the name is taken.
     func noteFromTemplate(_ request: VaultFromTemplateRequest) async throws -> VaultFileDTO
+
+    /// Backlog E8.5 — the vault's property types; nil while properties are
+    /// off on the server (the route answers 404).
+    func propertyTypes() async throws -> VaultPropertyTypes?
+    /// The properties of the note at `path`; nil when it isn't listed.
+    func fileProperties(path: String) async throws -> VaultFileProperties?
+    func listViews() async throws -> [VaultSavedView]
+    func query(_ request: VaultQueryRequest) async throws -> VaultQueryResponse
 }
 
 extension VaultClientProtocol {
@@ -85,4 +93,10 @@ extension VaultClientProtocol {
     func noteFromTemplate(_: VaultFromTemplateRequest) async throws -> VaultFileDTO {
         throw URLError(.unsupportedURL)
     }
+
+    /// Fakes that don't script properties see them as off.
+    func propertyTypes() async throws -> VaultPropertyTypes? { nil }
+    func fileProperties(path _: String) async throws -> VaultFileProperties? { nil }
+    func listViews() async throws -> [VaultSavedView] { [] }
+    func query(_: VaultQueryRequest) async throws -> VaultQueryResponse { throw URLError(.unsupportedURL) }
 }
