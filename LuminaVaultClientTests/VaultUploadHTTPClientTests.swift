@@ -3,9 +3,9 @@
 // HER-34 — assert HEIC + JPEG content-type passthrough and the
 // query-param-encoded vault path.
 
+import LuminaVaultShared
 import XCTest
 @testable import LuminaVaultClient
-import LuminaVaultShared
 
 final class VaultUploadHTTPClientTests: XCTestCase {
     private var client: VaultUploadHTTPClient!
