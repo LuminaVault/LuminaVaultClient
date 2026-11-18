@@ -410,11 +410,12 @@ struct MarkdownReaderView: View {
         defer { saving = false }
         let metadata = currentMetadata()
         do {
-            _ = try await uploadClient.uploadNote(
+            // In place, at the note's own path: an upload would refile a
+            // nested note (an imported `lore/people/ada.md`) as `lore/ada.md`.
+            _ = try await uploadClient.replaceNote(
                 data: data,
                 contentType: "text/markdown",
                 relativePath: file.path,
-                spaceID: file.spaceId,
                 metadata: metadata,
                 ifMatch: overwrite ? nil : NoteVersion.ifMatch(baseSHA),
             )

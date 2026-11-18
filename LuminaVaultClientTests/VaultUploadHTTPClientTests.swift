@@ -145,6 +145,35 @@ final class VaultUploadHTTPClientTests: XCTestCase {
         XCTAssertNil(captured.ifMatch)
     }
 
+    /// An edit is saved in place with `PUT /v1/vault/files/{path}`, at any
+    /// depth, so a nested note is never refiled under its Space's folder.
+    func testReplaceNotePutsAtTheNotesOwnPath() async throws {
+        let captured = CaptureBox()
+        MockURLProtocol.handler = { req in
+            captured.method = req.httpMethod
+            captured.url = req.url
+            captured.ifMatch = req.value(forHTTPHeaderField: "If-Match")
+            captured.metadata = req.value(forHTTPHeaderField: "X-Vault-Metadata")
+            let body = #"{"path":"lore/people/ada.md","size":2,"contentType":"text/markdown","sha256":"ab"}"#
+            return (
+                HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                Data(body.utf8),
+            )
+        }
+        let resp = try await client.replaceNote(
+            data: Data("v2".utf8), contentType: "text/markdown",
+            relativePath: "lore/people/ada.md",
+            metadata: VaultNoteMetadataDTO(title: "Ada"),
+            ifMatch: NoteVersion.ifMatch("abc"),
+        )
+        XCTAssertEqual(resp.path, "lore/people/ada.md")
+        XCTAssertEqual(captured.method, "PUT")
+        XCTAssertEqual(captured.url?.path, "/v1/vault/files/lore/people/ada.md")
+        XCTAssertEqual(captured.url?.query, "processed=true&note=true")
+        XCTAssertEqual(captured.ifMatch, "\"abc\"")
+        XCTAssertTrue(captured.metadata?.contains("\"title\":\"Ada\"") ?? false, captured.metadata ?? "nil")
+    }
+
     func testNoteVersionHashesLikeTheServer() {
         // sha256("abc"), the FIPS 180-2 test vector.
         XCTAssertEqual(
@@ -157,6 +186,7 @@ final class VaultUploadHTTPClientTests: XCTestCase {
 }
 
 private final class CaptureBox: @unchecked Sendable {
+    var metadata: String?
     var method: String?
     var url: URL?
     var contentType: String?

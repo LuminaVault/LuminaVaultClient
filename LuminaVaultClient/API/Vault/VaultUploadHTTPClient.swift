@@ -97,19 +97,42 @@ final class VaultUploadHTTPClient: VaultUploadClientProtocol {
         )
     }
 
+    func replaceNote(
+        data: Data,
+        contentType: String,
+        relativePath: String,
+        metadata: VaultNoteMetadataDTO?,
+        ifMatch: String?
+    ) async throws -> VaultUploadResponse {
+        try await writeNote(
+            data: data, contentType: contentType, relativePath: relativePath,
+            spaceID: nil, metadata: metadata, preconditions: ifMatch.map { ["If-Match": $0] } ?? [:],
+            inPlace: true,
+        )
+    }
+
+    /// `inPlace` sends `PUT /v1/vault/files/{path}` (an existing note, saved
+    /// where it is); otherwise `POST /v1/vault/files?path=` (the server picks
+    /// the folder from the Space and keeps the base name).
     private func writeNote(
         data: Data,
         contentType: String,
         relativePath: String,
         spaceID: UUID?,
         metadata: VaultNoteMetadataDTO?,
-        preconditions: [String: String]
+        preconditions: [String: String],
+        inPlace: Bool = false
     ) async throws -> VaultUploadResponse {
         var comps = URLComponents()
-        comps.path = "/v1/vault/files"
-        var items: [URLQueryItem] = [URLQueryItem(name: "path", value: relativePath)]
-        if let spaceID {
-            items.append(URLQueryItem(name: "space_id", value: spaceID.uuidString))
+        var items: [URLQueryItem] = []
+        if inPlace {
+            comps.percentEncodedPath = "/v1/vault/files/\(VaultEndpoints.DeleteFile.escape(relativePath))"
+        } else {
+            comps.path = "/v1/vault/files"
+            items.append(URLQueryItem(name: "path", value: relativePath))
+            if let spaceID {
+                items.append(URLQueryItem(name: "space_id", value: spaceID.uuidString))
+            }
         }
         // Server owns the memory inline → mark processed so Sync & Learn skips
         // the file, and flag note so the upload compiles + re-embeds it.
@@ -129,7 +152,7 @@ final class VaultUploadHTTPClient: VaultUploadClientProtocol {
 
         let raw = try await client.uploadBytes(
             path: uri,
-            method: .post,
+            method: inPlace ? .put : .post,
             body: data,
             contentType: contentType,
             extraHeaders: extraHeaders,
