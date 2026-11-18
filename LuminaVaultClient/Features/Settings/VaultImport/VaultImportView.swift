@@ -10,8 +10,10 @@ import UniformTypeIdentifiers
 struct VaultImportView: View {
     @State private var viewModel: VaultImportViewModel
     @State private var picking = false
+    private let client: VaultImportClientProtocol
 
     init(client: VaultImportClientProtocol) {
+        self.client = client
         _viewModel = State(initialValue: VaultImportViewModel(client: client))
     }
 
@@ -20,11 +22,13 @@ struct VaultImportView: View {
             switch viewModel.phase {
             case .idle:
                 chooseSection
+                notionSection
             case let .failed(message):
                 chooseSection
                 Section {
                     Text(message).foregroundStyle(.red).font(.footnote)
                 }
+                notionSection
             case .scanning:
                 Section {
                     HStack(spacing: 12) { ProgressView(); Text("Scanning folder…") }
@@ -105,6 +109,20 @@ struct VaultImportView: View {
             }
         } footer: {
             Text("Pick your Obsidian / Hermes vault folder. Each top-level folder becomes a Space, and notes at the top of the vault go to a Space named after it. Links between notes keep working. Obsidian settings and attachments are left out.")
+        }
+    }
+
+    /// E7.4: a Notion export is one ZIP the server unpacks, a different flow
+    /// from the folder read above, so it gets a screen of its own.
+    private var notionSection: some View {
+        Section {
+            NavigationLink {
+                NotionImportView(client: client)
+            } label: {
+                Label("Import from Notion…", systemImage: "doc.zipper")
+            }
+        } footer: {
+            Text("Coming from Notion? Import its export ZIP, with pages, links, attachments and databases.")
         }
     }
 

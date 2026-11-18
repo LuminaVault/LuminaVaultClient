@@ -263,6 +263,82 @@ final class BaseHTTPClient: Sendable {
         return data
     }
 
+    /// E7.4 — raw-body upload streamed from a file on disk, for a body too
+    /// big to hold in memory (a Notion export, up to 200 MB). Same headers and
+    /// status handling as `uploadBytes`.
+    ///
+    /// A 401 is thrown as `.unauthorized` and never retried: a refresh-and-
+    /// resend would put the whole file on the wire twice.
+    /// - Parameters:
+    ///   - timeout: the request's idle timeout. A route that works for minutes
+    ///     before its first response byte outlives the default 60 s.
+    ///   - onProgress: the fraction of the body sent so far, 0...1, called off
+    ///     the main actor. It reaches 1 when the upload is done and the wait
+    ///     for the server's answer begins.
+    func uploadFile(
+        path: String,
+        method: HTTPMethod = .post,
+        fileURL: URL,
+        contentType: String,
+        timeout: TimeInterval? = nil,
+        onProgress: (@Sendable (Double) -> Void)? = nil
+    ) async throws -> Data {
+        let req = try await uploadFileRequest(path: path, method: method, contentType: contentType, timeout: timeout)
+
+        log.debug("→ \(method.rawValue) \(path) [file upload]")
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.upload(
+                for: req,
+                fromFile: fileURL,
+                delegate: onProgress.map(UploadProgressDelegate.init),
+            )
+        } catch {
+            if APIError.isBenignCancellation(error) { throw CancellationError() }
+            throw APIError.transport(error)
+        }
+
+        if let http = response as? HTTPURLResponse {
+            log.debug("← \(http.statusCode) \(path) [file upload]")
+            if http.statusCode == 401 { throw APIError.unauthorized }
+            if http.statusCode == 402 {
+                let hints = try? JSONDecoder.hvDefault.decode(PaymentRequiredBody.self, from: data)
+                await onPaymentRequired?(hints?.paywallID, hints?.requiredTier)
+                throw APIError.paymentRequired(paywallID: hints?.paywallID, requiredTier: hints?.requiredTier)
+            }
+            guard (200 ..< 300).contains(http.statusCode) else {
+                throw APIError.httpError(statusCode: http.statusCode, data: data)
+            }
+        }
+        return data
+    }
+
+    /// The request `uploadFile` sends, without its body. Separate so a test
+    /// can read the timeout, which URLSession does not hand to a protocol stub
+    /// reliably.
+    func uploadFileRequest(
+        path: String,
+        method: HTTPMethod = .post,
+        contentType: String,
+        timeout: TimeInterval? = nil
+    ) async throws -> URLRequest {
+        guard let url = URL(string: path, relativeTo: baseURL) else {
+            throw APIError.invalidURL
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = method.rawValue
+        if let timeout { req.timeoutInterval = timeout }
+        req.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        if let token = await tokenProvider() {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        if let vaultID = await vaultProvider() {
+            req.setValue(vaultID.uuidString, forHTTPHeaderField: "X-Vault-ID")
+        }
+        return req
+    }
+
     /// HER-105 — fetch raw bytes (vault file read). Bypasses the Endpoint
     /// decoder pipeline because the response body is binary, not JSON.
     /// Returns the raw `Data` plus the response's `Content-Type` so the
@@ -563,5 +639,27 @@ final class BaseHTTPClient: Sendable {
             await onAuthFailure?()
             throw APIError.unauthorized
         }
+    }
+}
+
+/// Per-task delegate that reports how much of an upload body has been sent.
+/// It implements nothing else, so TLS challenges still go to the session's
+/// own (pinning) delegate.
+nonisolated private final class UploadProgressDelegate: NSObject, URLSessionTaskDelegate {
+    private let onProgress: @Sendable (Double) -> Void
+
+    init(onProgress: @escaping @Sendable (Double) -> Void) {
+        self.onProgress = onProgress
+    }
+
+    func urlSession(
+        _: URLSession,
+        task _: URLSessionTask,
+        didSendBodyData _: Int64,
+        totalBytesSent: Int64,
+        totalBytesExpectedToSend: Int64
+    ) {
+        guard totalBytesExpectedToSend > 0 else { return }
+        onProgress(min(1, Double(totalBytesSent) / Double(totalBytesExpectedToSend)))
     }
 }
