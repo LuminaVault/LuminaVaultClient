@@ -400,6 +400,13 @@ final class ChatViewModel {
     /// reminder intent and a "Set a reminder?" card may surface.
     private let remindersClient: (any RemindersClientProtocol)?
     private let llmPreferencesClient: (any LLMPreferencesClientProtocol)?
+    /// Chat slash commands. Optional: nil keeps `/text` an ordinary chat turn,
+    /// which is what previews and the focused initializers get.
+    private let skillsClient: (any SkillsClientProtocol)?
+    /// Built-ins plus the user's enabled skills, for the composer's
+    /// suggestion list. Built-ins until `loadSlashCommandsIfNeeded()` runs.
+    private(set) var slashCommands: [SlashSuggestion] = SlashCommandCatalog.builtIns
+    @ObservationIgnored private var slashCommandsLoaded = false
     /// HER-153 — owns the hold-to-talk recording state and Lumina's
     /// spoken-reply pipeline. Lazily wired through the init chain so
     /// existing call sites and previews don't need to know about it.
@@ -439,6 +446,7 @@ final class ChatViewModel {
         jobsClient: (any JobsClientProtocol)? = nil,
         remindersClient: (any RemindersClientProtocol)? = nil,
         llmPreferencesClient: (any LLMPreferencesClientProtocol)? = nil,
+        skillsClient: (any SkillsClientProtocol)? = nil,
         localExecutor: (any LocalChatExecuting)? = nil,
         localMemorySync: LocalMemorySyncService? = nil,
         /// Follows an escalated turn's agent run. Optional so the focused
@@ -466,6 +474,7 @@ final class ChatViewModel {
         self.jobsClient = jobsClient
         self.remindersClient = remindersClient
         self.llmPreferencesClient = llmPreferencesClient
+        self.skillsClient = skillsClient
         self.localExecutor = localExecutor
         self.localMemorySync = localMemorySync
         self.runsClient = runsClient
@@ -671,6 +680,18 @@ final class ChatViewModel {
         messages.append(userMessage)
         schedulePersist()
 
+        // `/command …` goes to the skills endpoint, not the model. Only with
+        // nothing staged: references only make sense to the chat model.
+        if skillsClient != nil, references.isEmpty, SlashCommandCatalog.isCommand(trimmed) {
+            jobProposal = nil
+            reminderProposal = nil
+            streamTask?.cancel()
+            streamTask = Task { [weak self] in
+                await self?.runSlashCommand(trimmed)
+            }
+            return
+        }
+
         // Jobs P3 — classify the turn for recurring-job intent in the
         // background; never blocks the chat stream.
         jobProposal = nil
@@ -693,6 +714,54 @@ final class ChatViewModel {
         streamTask?.cancel()
         streamTask = Task { [weak self] in
             await self?.runSend(content: wireContent)
+        }
+    }
+
+    // MARK: - Slash commands
+
+    /// Fetches the user's skills once, so the suggestion list can offer them
+    /// next to the built-ins. Failure keeps the built-ins: typing a skill
+    /// name by hand still works, the server resolves it.
+    func loadSlashCommandsIfNeeded() async {
+        guard let skillsClient, !slashCommandsLoaded else { return }
+        slashCommandsLoaded = true
+        guard let list = try? await skillsClient.list() else {
+            slashCommandsLoaded = false
+            return
+        }
+        slashCommands = SlashCommandCatalog.builtIns + SlashCommandCatalog.suggestions(from: list.skills)
+    }
+
+    /// Suggestions for the current draft; empty unless it is a bare `/word`.
+    func slashSuggestions(for draft: String) -> [SlashSuggestion] {
+        guard skillsClient != nil else { return [] }
+        return SlashCommandCatalog.matches(for: draft, in: slashCommands)
+    }
+
+    /// Runs a slash command and appends its markdown as Hermie's reply.
+    /// Local to the device, like the standing-task confirmation: the server
+    /// does not write skill output into the conversation.
+    private func runSlashCommand(_ command: String) async {
+        phase = .streaming
+        clearPendingAssistant()
+        pendingSources = []
+        do {
+            let response = try await skillsClient?.runSlash(command: command)
+            guard let response else { phase = .idle; return }
+            messages.append(Message(
+                role: .assistant,
+                content: response.markdown,
+                sourceLabel: "/\(response.skillName)",
+                createdAt: Date()
+            ))
+            phase = .idle
+            schedulePersist()
+        } catch is CancellationError {
+            phase = .idle
+        } catch {
+            let message = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            phase = .failed(message: message)
+            telemetry.track("chat_slash_failed")
         }
     }
 

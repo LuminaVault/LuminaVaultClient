@@ -11,6 +11,17 @@ protocol SkillsClientProtocol: Sendable {
     func runs(name: String, limit: Int?) async throws -> SkillRunsResponse
     /// HER-194 — manual run dispatch used by the Reflect tab.
     func run(name: String, request: SkillRunRequest) async throws -> SkillRunResponse
+    /// A chat slash command (`/kb-compile`, `/patterns sleep`, `/<skill> …`),
+    /// sent as typed; the server parses it.
+    func runSlash(command: String) async throws -> SkillRunResponse
+}
+
+extension SkillsClientProtocol {
+    /// Default for stubs that never see a slash command; the HTTP client
+    /// overrides it.
+    func runSlash(command _: String) async throws -> SkillRunResponse {
+        throw APIError.unauthorized
+    }
 }
 
 final class SkillsHTTPClient: SkillsClientProtocol {
@@ -31,5 +42,9 @@ final class SkillsHTTPClient: SkillsClientProtocol {
 
     func run(name: String, request: SkillRunRequest) async throws -> SkillRunResponse {
         try await client.execute(SkillsEndpoints.Run(name: name, request: request))
+    }
+
+    func runSlash(command: String) async throws -> SkillRunResponse {
+        try await client.execute(SkillsEndpoints.Slash(request: SkillSlashCommandRequest(command: command)))
     }
 }

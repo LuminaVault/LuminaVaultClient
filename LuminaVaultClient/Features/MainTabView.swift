@@ -874,6 +874,7 @@ struct MainTabView: View {
             jobsClient: jobsClient,
             remindersClient: remindersClient,
             llmPreferencesClient: appState.makeLLMPreferencesClient(),
+            skillsClient: skillsClient,
             localExecutor: executor,
             localMemorySync: localMemorySync,
             // Lets chat follow a turn that escalates to an agent run. Same

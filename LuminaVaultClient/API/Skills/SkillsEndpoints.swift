@@ -45,4 +45,15 @@ nonisolated enum SkillsEndpoints {
         var method: HTTPMethod { .post }
         var body: (any Encodable)? { request }
     }
+
+    /// POST /v1/skills/slash. The server parses the command itself
+    /// (`/kb-compile`, `/patterns <topic>`, `/beliefs <topic>`, or any
+    /// skill name) and answers with the run's markdown.
+    nonisolated struct Slash: Endpoint {
+        typealias Response = LuminaVaultShared.SkillRunResponse
+        let request: SkillSlashCommandRequest
+        var path: String { "/v1/skills/slash" }
+        var method: HTTPMethod { .post }
+        var body: (any Encodable)? { request }
+    }
 }
