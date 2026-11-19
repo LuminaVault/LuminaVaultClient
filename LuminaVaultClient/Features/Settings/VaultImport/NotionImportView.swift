@@ -55,7 +55,7 @@ struct NotionImportView: View {
         .fileImporter(
             isPresented: $picking,
             allowedContentTypes: [.zip],
-            allowsMultipleSelection: false
+            allowsMultipleSelection: false,
         ) { result in
             switch result {
             case let .success(urls):
@@ -95,7 +95,7 @@ struct NotionImportView: View {
                 Text(
                     "In Notion, export as Markdown & CSV with subpages included, then pick the ZIP here. "
                         + "Pages become notes in one Space, links between them keep working, "
-                        + "and databases become notes with properties. Up to 200 MB."
+                        + "and databases become notes with properties. Up to 200 MB.",
                 )
             }
         case .reading:
@@ -144,7 +144,7 @@ struct NotionImportView: View {
                 Text(
                     viewModel.canImport
                         ? "Nothing has been written yet. Import does what the report below says."
-                        : "Check reads the export and reports what an import would do, without writing anything."
+                        : "Check reads the export and reports what an import would do, without writing anything.",
                 )
             }
         }

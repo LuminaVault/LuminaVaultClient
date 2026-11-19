@@ -157,7 +157,7 @@ final class NotionImportViewModel {
                 onConflict: "skip",
                 onUploadProgress: { [weak self] fraction in
                     Task { @MainActor in self?.noteUpload(fraction) }
-                }
+                },
             )
             phase = success
             if !dryRun {

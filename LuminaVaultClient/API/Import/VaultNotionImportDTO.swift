@@ -116,7 +116,7 @@ nonisolated struct VaultNotionImportReport: Decodable, Sendable, Equatable {
         views: [SavedView] = [],
         collisions: [Collision] = [],
         files: [File] = [],
-        warnings: [String] = []
+        warnings: [String] = [],
     ) {
         self.dryRun = dryRun
         self.spaceID = spaceID

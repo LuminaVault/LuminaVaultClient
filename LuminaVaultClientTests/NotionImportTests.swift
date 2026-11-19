@@ -36,7 +36,7 @@ final class NotionImportReportDecodingTests: XCTestCase {
 
     func testDecodesTheContractSample() throws {
         let report = try JSONDecoder.hvDefault.decode(
-            VaultNotionImportReport.self, from: Data(Self.contractSample.utf8)
+            VaultNotionImportReport.self, from: Data(Self.contractSample.utf8),
         )
 
         XCTAssertFalse(report.dryRun)
@@ -47,12 +47,12 @@ final class NotionImportReportDecodingTests: XCTestCase {
         XCTAssertEqual([report.links.resolved, report.links.external, report.links.unresolved], [410, 52, 6])
         XCTAssertEqual(
             report.links.unresolvedList,
-            [.init(page: "notion/roadmap.md", target: "Old page 1a2b.md")]
+            [.init(page: "notion/roadmap.md", target: "Old page 1a2b.md")],
         )
         XCTAssertEqual(report.columns, [.init(database: "Tasks", name: "Status", type: "select")])
         XCTAssertEqual(
             report.views,
-            [.init(id: "0b9f6f0a-1111-4222-8333-444455556666", name: "Tasks", folder: "notion/tasks")]
+            [.init(id: "0b9f6f0a-1111-4222-8333-444455556666", name: "Tasks", folder: "notion/tasks")],
         )
         XCTAssertEqual(report.collisions, [.init(from: "Untitled 9f.md", to: "notion/untitled-2.md")])
         XCTAssertEqual(report.files.count, 2)
@@ -122,7 +122,7 @@ final class NotionImportEndpointTests: XCTestCase {
             captured.body = Self.body(of: req)
             return (
                 HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
-                Data(#"{"dryRun":true,"spaceSlug":"notion","pages":4}"#.utf8)
+                Data(#"{"dryRun":true,"spaceSlug":"notion","pages":4}"#.utf8),
             )
         }
         let zip = Data([0x50, 0x4B, 0x03, 0x04, 0x01, 0x02])
@@ -132,7 +132,7 @@ final class NotionImportEndpointTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: file) }
 
         let report = try await client.importNotion(
-            zipFile: file, space: "My Notion", dryRun: true, onConflict: "skip", onUploadProgress: nil
+            zipFile: file, space: "My Notion", dryRun: true, onConflict: "skip", onUploadProgress: nil,
         )
 
         XCTAssertEqual(report.pages, 4)
@@ -163,11 +163,11 @@ final class NotionImportEndpointTests: XCTestCase {
     func testQueryCarriesTheRealImportAndEscapesTheSpaceName() {
         XCTAssertEqual(
             VaultImportHTTPClient.notionImportPath(space: "Notion", dryRun: false, onConflict: "skip"),
-            "/v1/vault/import/notion?space=Notion&dryRun=false&onConflict=skip"
+            "/v1/vault/import/notion?space=Notion&dryRun=false&onConflict=skip",
         )
         XCTAssertEqual(
             VaultImportHTTPClient.notionImportPath(space: "C++ & more", dryRun: true, onConflict: "overwrite"),
-            "/v1/vault/import/notion?space=C%2B%2B%20%26%20more&dryRun=true&onConflict=overwrite"
+            "/v1/vault/import/notion?space=C%2B%2B%20%26%20more&dryRun=true&onConflict=overwrite",
         )
     }
 
@@ -175,7 +175,7 @@ final class NotionImportEndpointTests: XCTestCase {
         MockURLProtocol.handler = { req in
             (
                 HTTPURLResponse(url: req.url!, statusCode: 400, httpVersion: nil, headerFields: nil)!,
-                Data(#"{"error":{"message":"The export has more than 20,000 entries."}}"#.utf8)
+                Data(#"{"error":{"message":"The export has more than 20,000 entries."}}"#.utf8),
             )
         }
         do {
@@ -184,7 +184,7 @@ final class NotionImportEndpointTests: XCTestCase {
             try Data([1]).write(to: file)
             defer { try? FileManager.default.removeItem(at: file) }
             _ = try await client.importNotion(
-                zipFile: file, space: "Notion", dryRun: true, onConflict: "skip", onUploadProgress: nil
+                zipFile: file, space: "Notion", dryRun: true, onConflict: "skip", onUploadProgress: nil,
             )
             XCTFail("expected a 400")
         } catch {
@@ -346,7 +346,7 @@ final class NotionImportViewModelTests: XCTestCase {
         let client = FakeNotionClient()
         await client.fail(with: APIError.httpError(
             statusCode: 400,
-            data: Data(#"{"error":{"message":"That file is not a ZIP."}}"#.utf8)
+            data: Data(#"{"error":{"message":"That file is not a ZIP."}}"#.utf8),
         ))
         let viewModel = NotionImportViewModel(client: client)
         try await viewModel.pick(export(bytes: 8))
@@ -414,33 +414,33 @@ final class NotionImportViewModelTests: XCTestCase {
         }
         XCTAssertEqual(
             NotionImportViewModel.message(for: http(400, #"{"error":{"message":"The ZIP is empty."}}"#)),
-            "The ZIP is empty."
+            "The ZIP is empty.",
         )
         XCTAssertEqual(
             NotionImportViewModel.message(for: http(413, #"{"error":{"message":"Over 200 MB."}}"#)),
-            "Over 200 MB."
+            "Over 200 MB.",
         )
         XCTAssertEqual(
             NotionImportViewModel.message(for: http(507, #"{"error":{"message":"Disk is nearly full."}}"#)),
-            "Disk is nearly full."
+            "Disk is nearly full.",
         )
         // No usable body: a proxy answered, or the envelope was empty.
         XCTAssertEqual(
             NotionImportViewModel.message(for: http(400)),
-            "That file isn't a Notion export the server can read."
+            "That file isn't a Notion export the server can read.",
         )
         XCTAssertEqual(
             NotionImportViewModel.message(for: http(413, "<html>Request Entity Too Large</html>")),
-            NotionImportViewModel.tooBigMessage
+            NotionImportViewModel.tooBigMessage,
         )
         XCTAssertEqual(
             NotionImportViewModel.message(for: http(507)),
-            "The server is out of storage space. Try again later."
+            "The server is out of storage space. Try again later.",
         )
         XCTAssertEqual(NotionImportViewModel.message(for: http(500)), "Server error (500).")
         XCTAssertEqual(
             NotionImportViewModel.message(for: APIError.unauthorized),
-            "Session expired. Please sign in again."
+            "Session expired. Please sign in again.",
         )
     }
 }
@@ -470,7 +470,7 @@ private actor FakeNotionClient: VaultImportClientProtocol {
         space: String,
         dryRun: Bool,
         onConflict: String,
-        onUploadProgress: (@Sendable (Double) -> Void)?
+        onUploadProgress: (@Sendable (Double) -> Void)?,
     ) async throws -> VaultNotionImportReport {
         if let failure {
             throw failure
@@ -484,7 +484,7 @@ private actor FakeNotionClient: VaultImportClientProtocol {
             spaceID: dryRun ? nil : UUID().uuidString,
             spaceSlug: "notion",
             pages: 7,
-            written: dryRun ? 0 : 7
+            written: dryRun ? 0 : 7,
         )
     }
 }
