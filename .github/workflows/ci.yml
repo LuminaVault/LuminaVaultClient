@@ -38,6 +38,31 @@ jobs:
       - name: SwiftLint
         run: /tmp/swiftlint/swiftlint lint --reporter github-actions-logging
 
+  # Pull requests only: the check is "the Swift files this PR changes", which
+  # needs a base. New files must be formatted; edits to existing files only
+  # warn, because most of the repo predates formatting and a whole-file
+  # reformat in an unrelated PR is a merge conflict for everyone else.
+  # SwiftFormat is pinned inside the script, so this job and a laptop run the
+  # same version. Ubuntu: macOS runners are the scarce ones here.
+  format:
+    name: SwiftFormat (changed files)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The diff is against the merge-base; a shallow clone has none and
+          # would compare nothing and pass.
+          fetch-depth: 0
+      - name: Cache pinned SwiftFormat
+        uses: actions/cache@v4
+        with:
+          path: .build/tools
+          key: swiftformat-${{ runner.os }}-${{ hashFiles('scripts/swiftformat-changed.sh') }}
+      - name: SwiftFormat
+        run: scripts/swiftformat-changed.sh "origin/${{ github.base_ref }}"
+
   test:
     name: Run Tests
     runs-on: macos-26
